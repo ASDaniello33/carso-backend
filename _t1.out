@@ -1,0 +1,220 @@
+.................F....F.F.........                                       [100%]
+================================== FAILURES ===================================
+_________________ test_ecouteur_notifie_a_chaque_rechargement _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000025059A39710>
+
+    def test_ecouteur_notifie_a_chaque_rechargement(monkeypatch: pytest.MonkeyPatch) -> None:
+        manager, _ = _manager_de_test(monkeypatch, agents=("agent_a",))
+        appels: list[int] = []
+        manager.add_listener(lambda: appels.append(1))
+        manager.add_listener(lambda: appels.append(1))  # pas de doublon
+    
+        manager.reload()
+        manager.reload()
+>       assert len(appels) == 2
+E       assert 4 == 2
+E        +  where 4 = len([1, 1, 1, 1])
+
+tests\test_agent_runtime.py:327: AssertionError
+______________________ test_montage_puis_demontage_agui _______________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000025059ACDDD0>
+
+    def test_montage_puis_demontage_agui(monkeypatch: pytest.MonkeyPatch) -> None:
+        from app.core.config import get_settings
+    
+        app = _app_de_test()
+        avant = len(app.router.routes)
+        manager, _ = _manager_de_test(monkeypatch, agents=("agent_a", "agent_b"))
+        module_agui = _brancher_agui(monkeypatch, app, manager)
+    
+        module_agui.monter_endpoints_agui(app, get_settings())
+    
+>       assert len(app.state.agui_routes) == 2
+E       assert 0 == 2
+E        +  where 0 = len([])
+E        +    where [] = <starlette.datastructures.State object at 0x0000025059ACE4D0>.agui_routes
+E        +      where <starlette.datastructures.State object at 0x0000025059ACE4D0> = <fastapi.applications.FastAPI object at 0x0000025059ACEE50>.state
+
+tests\test_agent_runtime.py:442: AssertionError
+---------------------------- Captured stdout call -----------------------------
+2026-09-16 19:28:20 | WARNING  | app.api.agui | AG-UI non monté pour agent_analyseur_appel_offre : Agent inconnu du runtime : 'agent_analyseur_appel_offre'
+2026-09-16 19:28:20 | WARNING  | app.api.agui | AG-UI non monté pour agent_generateur_offre_formation : Agent inconnu du runtime : 'agent_generateur_offre_formation'
+2026-09-16 19:28:20 | WARNING  | app.api.agui | AG-UI non monté pour agent_rh : Agent inconnu du runtime : 'agent_rh'
+2026-09-16 19:28:20 | WARNING  | app.api.agui | AG-UI non monté pour agent_assistant_formateur : Agent inconnu du runtime : 'agent_assistant_formateur'
+2026-09-16 19:28:20 | WARNING  | app.api.agui | AG-UI non monté pour agent_generaliste_readonly : Agent inconnu du runtime : 'agent_generaliste_readonly'
+2026-09-16 19:28:20 | WARNING  | app.api.agui | AG-UI non monté pour agent_statistique : Agent inconnu du runtime : 'agent_statistique'
+2026-09-16 19:28:20 | INFO     | app.api.agui | AG-UI : 0 endpoint(s) monté(s)
+------------------------------ Captured log call ------------------------------
+WARNING  app.api.agui:agui.py:198 AG-UI non monté pour agent_analyseur_appel_offre : Agent inconnu du runtime : 'agent_analyseur_appel_offre'
+WARNING  app.api.agui:agui.py:198 AG-UI non monté pour agent_generateur_offre_formation : Agent inconnu du runtime : 'agent_generateur_offre_formation'
+WARNING  app.api.agui:agui.py:198 AG-UI non monté pour agent_rh : Agent inconnu du runtime : 'agent_rh'
+WARNING  app.api.agui:agui.py:198 AG-UI non monté pour agent_assistant_formateur : Agent inconnu du runtime : 'agent_assistant_formateur'
+WARNING  app.api.agui:agui.py:198 AG-UI non monté pour agent_generaliste_readonly : Agent inconnu du runtime : 'agent_generaliste_readonly'
+WARNING  app.api.agui:agui.py:198 AG-UI non monté pour agent_statistique : Agent inconnu du runtime : 'agent_statistique'
+INFO     app.api.agui:agui.py:202 AG-UI : 0 endpoint(s) monté(s)
+_____________________ test_catalogue_survit_au_remontage ______________________
+
+    def get_session() -> Iterator[Session]:
+        """FastAPI dependency yielding a transactional session."""
+        session = SessionLocal()
+        try:
+            yield session
+>           session.commit()
+            ^^^^^^^^^^^^^^
+E           AttributeError: '_FakeSession' object has no attribute 'commit'
+
+app\infrastructure\database.py:29: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000025059ACDBD0>
+
+    def test_catalogue_survit_au_remontage(monkeypatch: pytest.MonkeyPatch) -> None:
+        from app.core.config import get_settings
+    
+        app = _app_de_test()
+        manager, _ = _manager_de_test(monkeypatch, agents=("agent_a",))
+        module_agui = _brancher_agui(monkeypatch, app, manager)
+    
+        module_agui.monter_endpoints_agui(app, get_settings())
+        module_agui.demonter_endpoints_agui(app, "/api/v1")
+    
+        client = TestClient(app)
+>       resp = client.get("/api/v1/agui/")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_agent_runtime.py:480: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\starlette\testclient.py:483: in get
+    return super().get(
+.venv\Lib\site-packages\httpx2\_client.py:1113: in get
+    return self.request(
+.venv\Lib\site-packages\starlette\testclient.py:455: in request
+    return super().request(
+.venv\Lib\site-packages\httpx2\_client.py:797: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\httpx2\_client.py:980: in send
+    response = self._send_handling_auth(
+.venv\Lib\site-packages\httpx2\_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv\Lib\site-packages\httpx2\_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\httpx2\_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\starlette\testclient.py:354: in handle_request
+    raise exc
+.venv\Lib\site-packages\starlette\testclient.py:351: in handle_request
+    portal.call(self.app, scope, receive, send)
+.venv\Lib\site-packages\anyio\from_thread.py:340: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\concurrent\futures\_base.py:456: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\concurrent\futures\_base.py:401: in __get_result
+    raise self._exception
+.venv\Lib\site-packages\anyio\from_thread.py:265: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\fastapi\applications.py:1163: in __call__
+    await super().__call__(scope, receive, send)
+.venv\Lib\site-packages\starlette\applications.py:96: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv\Lib\site-packages\starlette\middleware\errors.py:186: in __call__
+    raise exc
+.venv\Lib\site-packages\starlette\middleware\errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+.venv\Lib\site-packages\starlette\middleware\exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+.venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+.venv\Lib\site-packages\starlette\routing.py:670: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv\Lib\site-packages\fastapi\routing.py:2734: in app
+    await route.handle(scope, receive, send)
+.venv\Lib\site-packages\fastapi\routing.py:1780: in handle
+    await self.original_router.handle(scope, receive, send)
+.venv\Lib\site-packages\fastapi\routing.py:2789: in handle
+    await included_router._handle_selected(scope, receive, send)
+.venv\Lib\site-packages\fastapi\routing.py:1800: in _handle_selected
+    await original_route.handle(scope, receive, send)
+.venv\Lib\site-packages\fastapi\routing.py:1279: in handle
+    await app(scope, receive, send)
+.venv\Lib\site-packages\fastapi\routing.py:158: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+.venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv\Lib\site-packages\fastapi\routing.py:140: in app
+    async with AsyncExitStack() as request_stack:
+C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\contextlib.py:745: in __aexit__
+    raise exc_details[1]
+C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\contextlib.py:728: in __aexit__
+    cb_suppress = await cb(*exc_details)
+                  ^^^^^^^^^^^^^^^^^^^^^^
+C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\contextlib.py:217: in __aexit__
+    await anext(self.gen)
+.venv\Lib\site-packages\fastapi\concurrency.py:39: in contextmanager_in_threadpool
+    await anyio.to_thread.run_sync(
+.venv\Lib\site-packages\anyio\to_thread.py:65: in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+.venv\Lib\site-packages\anyio\_backends\_asyncio.py:2706: in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+.venv\Lib\site-packages\anyio\_backends\_asyncio.py:1100: in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\contextlib.py:144: in __exit__
+    next(self.gen)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def get_session() -> Iterator[Session]:
+        """FastAPI dependency yielding a transactional session."""
+        session = SessionLocal()
+        try:
+            yield session
+            session.commit()
+        except Exception:
+>           session.rollback()
+            ^^^^^^^^^^^^^^^^
+E           AttributeError: '_FakeSession' object has no attribute 'rollback'
+
+app\infrastructure\database.py:31: AttributeError
+---------------------------- Captured stdout call -----------------------------
+2026-09-16 19:28:20 | WARNING  | app.api.agui | AG-UI non monté pour agent_analyseur_appel_offre : Agent inconnu du runtime : 'agent_analyseur_appel_offre'
+2026-09-16 19:28:20 | WARNING  | app.api.agui | AG-UI non monté pour agent_generateur_offre_formation : Agent inconnu du runtime : 'agent_generateur_offre_formation'
+2026-09-16 19:28:20 | WARNING  | app.api.agui | AG-UI non monté pour agent_rh : Agent inconnu du runtime : 'agent_rh'
+2026-09-16 19:28:20 | WARNING  | app.api.agui | AG-UI non monté pour agent_assistant_formateur : Agent inconnu du runtime : 'agent_assistant_formateur'
+2026-09-16 19:28:20 | WARNING  | app.api.agui | AG-UI non monté pour agent_generaliste_readonly : Agent inconnu du runtime : 'agent_generaliste_readonly'
+2026-09-16 19:28:20 | WARNING  | app.api.agui | AG-UI non monté pour agent_statistique : Agent inconnu du runtime : 'agent_statistique'
+2026-09-16 19:28:20 | INFO     | app.api.agui | AG-UI : 0 endpoint(s) monté(s)
+2026-09-16 19:28:20 | DEBUG    | asyncio | Using proactor: IocpProactor
+------------------------------ Captured log call ------------------------------
+WARNING  app.api.agui:agui.py:198 AG-UI non monté pour agent_analyseur_appel_offre : Agent inconnu du runtime : 'agent_analyseur_appel_offre'
+WARNING  app.api.agui:agui.py:198 AG-UI non monté pour agent_generateur_offre_formation : Agent inconnu du runtime : 'agent_generateur_offre_formation'
+WARNING  app.api.agui:agui.py:198 AG-UI non monté pour agent_rh : Agent inconnu du runtime : 'agent_rh'
+WARNING  app.api.agui:agui.py:198 AG-UI non monté pour agent_assistant_formateur : Agent inconnu du runtime : 'agent_assistant_formateur'
+WARNING  app.api.agui:agui.py:198 AG-UI non monté pour agent_generaliste_readonly : Agent inconnu du runtime : 'agent_generaliste_readonly'
+WARNING  app.api.agui:agui.py:198 AG-UI non monté pour agent_statistique : Agent inconnu du runtime : 'agent_statistique'
+INFO     app.api.agui:agui.py:202 AG-UI : 0 endpoint(s) monté(s)
+DEBUG    asyncio:proactor_events.py:633 Using proactor: IocpProactor
+============================== warnings summary ===============================
+.venv\Lib\site-packages\starlette\testclient.py:53
+  C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_agent_runtime.py::test_ecouteur_notifie_a_chaque_rechargement
+FAILED tests/test_agent_runtime.py::test_montage_puis_demontage_agui - assert...
+FAILED tests/test_agent_runtime.py::test_catalogue_survit_au_remontage - Attr...

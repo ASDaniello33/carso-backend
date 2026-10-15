@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offre Technique et Financière - Lot 1 TEFIALA</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            color: #000;
+            background: #fff;
+            padding: 20px;
+        }
+        
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto 20px;
+            padding: 25mm 20mm;
+            background: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            page-break-after: always;
+        }
+        
+        .page:last-child {
+            page-break-after: auto;
+        }
+        
+        /* En-tête */
+        .header {
+            text-align: center;
+            border-bottom: 3px double #1a5f2a;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .header-logo {
+            font-size: 10pt;
+            color: #1a5f2a;
+            margin-bottom: 10px;
+        }
+        
+        .header-title {
+            font-size: 14pt;
+            font-weight: bold;
+            color: #1a5f2a;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        
+        .header-subtitle {
+            font-size: 12pt;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .header-info {
+            font-size: 10pt;
+            color: #555;
+        }
+        
+        /* Titres */
+        h1 {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #1a5f2a;
+            text-align: center;
+            margin: 30px 0 20px;
+            text-transform: uppercase;
+            border-bottom: 2px solid #1a5f2a;
+            padding-bottom: 10px;
+        }
+        
+        h2 {
+            font-size: 13pt;
+            font-weight: bold;
+            color: #1a5f2a;
+            margin: 25px 0 15px;
+            border-left: 4px solid #1a5f2a;
+            padding-left: 10px;
+        }
+        
+        h3 {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #333;
+            margin: 20px 0 10px;
+        }
+        
+        h4 {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #555;
+            margin: 15px 0 8px;
+            font-style: italic;
+        }
+        
+        /* Paragraphes */
+        p {
+            margin-bottom: 10px;
+            text-align: justify;
+        }
+        
+        /* Listes */
+        ul, ol {
+            margin: 10px 0 15px 25px;
+        }
+        
+        li {
+            margin-bottom: 5px;
+        }
+        
+        /* Tableaux */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 10pt;
+        }
+        
+        th {
+            background-color: #1a5f2a;
+            color: white;
+            font-weight: bold;
+            padding: 8px;
+            text-align: left;
+            border: 1px solid #1a5f2a;
+        }
+        
+        td {
+            padding: 6px 8px;
+            border: 1px solid #ccc;
+            vertical-align: top;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f5f5f5;
+        }
+        
+        tr:hover {
+            background-color: #e8f5e9;
+        }
+        
+        /* Tableau de budget */
+        .budget-table th {
+            background-color: #2e7d32;
+        }
+        
+        .budget-table .total-row {
+            font-weight: bold;
+            background-color: #c8e6c9 !important;
+        }
+        
+        /* Encadrés */
+        .box {
+            border: 2px solid #1a5f2a;
+            padding: 15px;
+            margin: 15px 0;
+            background-color: #f1f8f2;
+        }
+        
+        .box-title {
+            font-weight: bold;
+            color: #1a5f2a;
+            margin-bottom: 10px;
+            font-size: 11pt;
+        }
+        
+        .warning-box {
+            border: 2px solid #ff9800;
+            background-color: #fff3e0;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .info-box {
+            border: 1px solid #2196f3;
+            background-color: #e3f2fd;
+            padding: 10px 15px;
+            margin: 10px 0;
+        }
+        
+        /* Signature */
+        .signature-section {
+            margin-top: 50px;
+            page-break-inside: avoid;
+        }
+        
+        .signature-block {
+            width: 45%;
+            display: inline-block;
+            vertical-align: top;
+        }
+        
+        .signature-line {
+            border-top: 1px solid #000;
+            margin-top: 60px;
+            padding-top: 5px;
+            font-size: 10pt;
+        }
+        
+        /* Pied de page */
+        .footer {
+            position: fixed;
+            bottom: 10mm;
+            left: 20mm;
+            right: 20mm;
+            font-size: 9pt;
+            color: #666;
+            border-top: 1px solid #ccc;
+            padding-top: 5px;
+            text-align: center;
+        }
+        
+        /* Page de garde */
+        .cover-page {
+            text-align: center;
+            padding-top: 80px;
+        }
+        
+        .cover-title {
+            font-size: 22pt;
+            font-weight: bold;
+            color: #1a5f2a;
+            margin: 40px 0 20px;
+            text-transform: uppercase;
+        }
+        
+        .cover-subtitle {
+            font-size: 16pt;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .cover-info {
+            font-size: 12pt;
+            margin: 15px 0;
+        }
+        
+        .cover-box {
+            border: 3px solid #1a5f2a;
+            padding: 30px;
+            margin: 40px auto;
+            max-width: 400px;
+            background-color: #f1f8f2;
+        }
+        
+        /* Checklist */
+        .checklist {
+            list-style: none;
+            margin-left: 0;
+        }
+        
+        .checklist li {
+            padding-left: 25px;
+            position: relative;
+            margin-bottom: 8px;
+        }
+        
+        .checklist li:before {
+            content: "☐";
+            position: absolute;
+            left: 0;
+            font-size: 14pt;
+            color: #1a5f2a;
+        }
+        
+        /* Numérotation des pages */
+        @media print {
+            .page {
+                box-shadow: none;
+                margin: 0;
+                page-break-after: always;
+            }
+            
+            body {
+                padding: 0;
+            }
+            
+            .no-print {
+                display: none;
+            }
+        }
+        
+        /* Classes utilitaires */
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-bold { font-weight: bold; }
+        .text-italic { font-style: italic; }
+        .text-green { color: #1a5f2a; }
+        .mt-20 { margin-top: 20px; }
+        .mb-20 { margin-bottom: 20px; }
+        .indent { margin-left: 30px; }
+        
+        /* Chronogramme */
+        .gantt-table td {
+            text-align: center;
+            font-size: 9pt;
+            padding: 4px;
+        }
+        
+        .gantt-table .activity {
+            text-align: left;
+            font-weight: bold;
+        }
+        
+        .gantt-active {
+            background-color: #4caf50 !important;
+            color: white;
+        }
+        
+        /* Grille d'évaluation */
+        .eval-criteria {
+            background-color: #e8f5e9;
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #1a5f2a;
+        }
+    </style>
+</head>
+<body>
+
+<!-- PAGE DE GARDE -->
+<div class="page cover-page">
+    <div class="header-logo">
+        <strong>ORGANISATION DES NATIONS UNIES POUR L'ALIMENTATION ET L'AGRICULTURE</strong><br>
+        Représentation à Madagascar, aux Comores, à Maurice et aux Seychelles
+    </div>
+    
+    <div style="margin: 60px 0;">
+        <div style="font-size: 14pt; color: #666;">APPEL À PROPOSITION (RFP)</div>
+        <div style="font-size: 18pt; font-weight: bold; color: #1a5f2a; margin: 10px 0;">2026/RFP/ULA/097</div>
+    </div>
+    
+    <div class="cover-title">
+        Proposition Technique et Financière
+    </div>
+    
+    <div class="cover-subtitle">
+        Lot 1 : Incubation des entreprises vertes<br>
+        Paysage Bas Mangoky (PBM)
+    </div>
+    
+    <div class="cover-box">
+        <div class="box-title">IDENTIFICATION DU LOT</div>
+        <table style="border: none; background: transparent;">
+            <tr>
+                <td style="border: none; font-weight: bold;">Lot :</td>
+                <td style="border: none;">1</td>
+            </tr>
+            <tr>
+                <td style="border: none; font-weight: bold;">Région :</td>
+                <td style="border: none;">Atsimo Andrefana</td>
+            </tr>
+            <tr>
+                <td style="border: none; font-weight: bold;">District :</td>
+                <td style="border: none;">Morombe</td>
+            </tr>
+            <tr>
+                <td style="border: none; font-weight: bold;">Communes :</td>
+                <td style="border: none;">Ankatsakantsa Sud, Tanandava Station</td>
+            </tr>
+            <tr>
+                <td style="border: none; font-weight: bold;">Projet :</td>
+                <td style="border: none;">TEFIALA (GCP/MAG/090/GFF)</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div style="margin-top: 60px;">
+        <div style="font-size: 12pt; margin-bottom: 10px;">Soumissionnaire :</div>
+        <div style="font-size: 14pt; font-weight: bold; color: #1a5f2a;">[NOM DE L'ORGANISATION]</div>
+        <div style="font-size: 11pt; color: #666; margin-top: 10px;">
+            Structure d'Appui à l'Entrepreneuriat (SAE)<br>
+            À but non lucratif
+        </div>
+    </div>
+    
+    <div style="margin-top: 80px; font-size: 10pt; color: #666;">
+        Date de soumission : [DATE]<br>
+        Date de clôture : 2 avril 2026
+    </div>
+</div>
+
+<!-- PAGE 2 : LETTRE DE SOUMISSION -->
+<div class="page">
+    <div class="header">
+        <div class="header-title">LETTRE DE SOUMISSION</div>
+    </div>
+    
+    <p style="margin-top: 30px;">Madame, Monsieur,</p>
+    
+    <p>
+        Nous avons l'honneur de soumettre à votre appréciation notre <strong>proposition technique et financière</strong> 
+        pour le <strong>Lot 1</strong> de l'appel à proposition <strong>RFP 2026/RFP/ULA/097</strong> relatif à 
+        l'incubation des entreprises vertes dans le cadre du Projet TEFIALA.
+    </p>
+    
+    <p>
+        Notre organisation, <strong>[NOM DE L'ORGANISATION]</strong>, Structure d'Appui à l'Entrepreneuriat (SAE) 
+        à but non lucratif, répond à votre appel à proposition pour accompagner le développement des entreprises 
+        vertes dans le <strong>paysage Bas Mangoky</strong>.
+    </p>
+    
+    <div class="box">
+        <div class="box-title">NOTRE ENGAGEMENT</div>
+        <p>
+            Nous nous engageons à mettre en œuvre un <strong>programme d'incubation de 10 mois</strong> pour accompagner :
+        </p>
+        <ul>
+            <li><strong>32 entrepreneurs verts</strong> membres de <strong>16 organisations de producteurs</strong></li>
+            <li>Dans les communes d'<strong>Ankatsakantsa Sud</strong> et <strong>Tanandava Station</strong></li>
+            <li>Avec un taux d'inclusion des <strong>femmes d'au moins 50%</strong></li>
+            <li>Pour un impact indirect sur <strong>400 membres d'OP</strong></li>
+        </ul>
+    </div>
+    
+    <p>
+        Forts de notre expérience dans l'accompagnement entrepreneurial, notre ancrage dans la région 
+        <strong>Atsimo Andrefana</strong>, et notre maîtrise des méthodologies <strong>GERME</strong> et 
+        <strong>Thinkcoop</strong>, nous sommes convaincus de pouvoir contribuer efficacement aux objectifs 
+        du Projet TEFIALA et au développement des chaînes de valeurs durables dans le paysage Bas Mangoky.
+    </p>
+    
+    <p>
+        Notre proposition comprend :
+    </p>
+    <ul>
+        <li>Une méthodologie éprouvée adaptée au contexte local</li>
+        <li>Une équipe qualifiée et expérimentée</li>
+        <li>Un plan de travail détaillé sur 10 mois</li>
+        <li>Un budget transparent et justifié</li>
+        <li>Un système de suivi-évaluation rigoureux</li>
+    </ul>
+    
+    <p>
+        Nous restons à votre entière disposition pour toute information complémentaire et pour présenter 
+        notre proposition lors d'éventuels entretiens.
+    </p>
+    
+    <p>
+        Veuillez agréer, Madame, Monsieur, l'expression de notre considération distinguée.
+    </p>
+    
+    <div class="signature-section">
+        <div class="signature-block">
+            <p>Fait à <strong>[Lieu]</strong>, le <strong>[Date]</strong></p>
+        </div>
+        <div class="signature-block" style="float: right;">
+            <div class="signature-line">
+                <strong>Signature du représentant légal</strong><br>
+                Nom : ...........................................<br>
+                Qualité : .......................................
+            </div>
+        </div>
+    </div>
+    
+    <div style="clear: both; margin-top: 100px;">
+        <div class="warning-box">
+            <strong>Pièces jointes à cette lettre :</strong>
+            <ul style="margin: 10px 0 0 20px;">
+                <li>Partie technique complète</li>
+                <li>Partie financière détaillée</li>
+                <li>CV des membres de l'équipe</li>
+                <li>Documents administratifs de l'organisation</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- PAGE 3 : RÉSUMÉ EXÉCUTIF -->
+<div class="page">
+    <h1>Résumé Exécutif</h1>
+    
+    <h2>1. Identification du lot</h2>
+    
+    <table>
+        <tr>
+            <th>Élément</th>
+            <th>Détail</th>
+        </tr>
+        <tr>
+            <td><strong>Référence RFP</strong></td>
+            <td>2026/RFP/ULA/097</td>
+        </tr>
+        <tr>
+            <td><strong>Lot</strong></td>
+            <td>1 - Paysage Bas Mangoky (PBM)</td>
+        </tr>
+        <tr>
+            <td><strong>Région</strong></td>
+            <td>Atsimo Andrefana</td>
+        </tr>
+        <tr>
+            <td><strong>District</strong></td>
+            <td>Morombe</td>
+        </tr>
+        <tr>
+            <td><strong>Communes</strong></td>
+            <td>Ankatsakantsa Sud, Tanandava Station</td>
+        </tr>
+        <tr>
+            <td><strong>Durée</strong></td>
+            <td>10 mois</td>
+        </tr>
+        <tr>
+            <td><strong>Code projet FAO</strong></td>
+            <td>GCP/MAG/090/GFF</td>
+        </tr>
+    </table>
+    
+    <h2>2. Objectifs de la mission</h2>
+    
+    <div class="box">
+        <div class="box-title">OBJECTIF GLOBAL</div>
+        <p>
+            Organiser et mettre en œuvre un programme d'incubation d'entreprise pour les organisations de 
+            producteurs (OP) et leurs membres afin de les transformer en <strong>acteurs engagés</strong> dans 
+            le développement des chaînes de valeurs cibles du paysage Bas Mangoky.
+        </p>
+    </div>
+    
+    <h3>Objectifs spécifiques</h3>
+    <ol>
+        <li>Participer à l'affinage des critères de sélection des OP ciblées</li>
+        <li>Réaliser le ciblage des bénéficiaires sur la base de critères d'analyse de profil</li>
+        <li>Capitaliser et développer les modules de formation adaptés au programme d'incubation</li>
+        <li>Réaliser les sessions de formation entrepreneuriales des incubés</li>
+        <li>Accompagner les incubés dans la mise en relation avec le marché et l'accès au financement</li>
+        <li>Organiser la mise en réseau des OP incubées avec des mentors</li>
+    </ol>
+    
+    <h2>3. Cibles du Lot 1</h2>
+    
+    <table>
+        <tr>
+            <th>Indicateur</th>
+            <th>Valeur cible</th>
+            <th>Moyen de vérification</th>
+        </tr>
+        <tr>
+            <td>Organisations de Producteurs (OP)</td>
+            <td class="text-center"><strong>16</strong></td>
+            <td>Liste des OP participantes</td>
+        </tr>
+        <tr>
+            <td>Entrepreneurs verts incubés</td>
+            <td class="text-center"><strong>32 personnes</strong></td>
+            <td>Liste des incubés</td>
+        </tr>
+        <tr>
+            <td>Membres d'OP bénéficiaires indirects</td>
+            <td class="text-center"><strong>400 personnes</strong></td>
+            <td>Estimation par les OP</td>
+        </tr>
+        <tr>
+            <td>Taux d'inclusion des femmes</td>
+            <td class="text-center"><strong>≥ 50%</strong></td>
+            <td>Fiches de suivi</td>
+        </tr>
+    </table>
+    
+    <h2>4. Chaînes de valeurs prioritaires</h2>
+    
+    <table>
+        <tr>
+            <th>N°</th>
+            <th>Chaîne de valeur</th>
+            <th>Produits envisagés</th>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>Bois et énergie</td>
+            <td>Charbon écologique, jeunes plants</td>
+        </tr>
+        <tr>
+            <td>2</td>
+            <td>Riz</td>
+            <td>Riz étuvé, riz blanc de qualité</td>
+        </tr>
+        <tr>
+            <td>3</td>
+            <td>Légumineuses</td>
+            <td>Grains secs triés et calibrés</td>
+        </tr>
+        <tr>
+            <td>4</td>
+            <td>Fruits</td>
+            <td>Fruits frais, fruits secs, confitures, sirops</td>
+        </tr>
+        <tr>
+            <td>5</td>
+            <td>Produits halieutiques</td>
+            <td>Poissons frais, séchés, fumés</td>
+        </tr>
+        <tr>
+            <td>6</td>
+            <td>Petits ruminants</td>
+            <td>Fromage de chèvre, poudre de lait</td>
+        </tr>
+        <tr>
+            <td>7</td>
+            <td>Tubercules</td>
+            <td>Cossettes de patates douces, farine</td>
+        </tr>
+        <tr>
+            <td>8</td>
+            <td>Vannerie</td>
+            <td>Articles décoratifs, paniers, nattes</td>
+        </tr>
+    </table>
+</div>
+
+<!-- PAGE 4 : COMPRÉHENSION DE LA MISSION -->
+<div class="page">
+    <h1>Compréhension de la Mission</h1>
+    
+    <h2>1. Contexte du Projet TEFIALA</h2>
+    
+    <div class="info-box">
+        <strong>Projet TEFIALA</strong> : Projet de conservation de la biodiversité, restauration et développement 
+        durable intégré des sous-bassins versants du Mangoky
+    </div>
+    
+    <h3>1.1 Partenaires et financement</h3>
+    <table>
+        <tr>
+            <th>Partenaire</th>
+            <th>Rôle</th>
+        </tr>
+        <tr>
+            <td><strong>MEDD</strong></td>
+            <td>Ministère de l'Environnement et du Développement Durable - Maître d'ouvrage</td>
+        </tr>
+        <tr>
+            <td><strong>FAO</strong></td>
+            <td>Organisation des Nations Unies pour l'Alimentation et l'Agriculture - Appui technique</td>
+        </tr>
+        <tr>
+            <td><strong>FEM-7 (GEF-7)</strong></td>
+            <td>Fonds pour l'Environnement Mondial - Financement</td>
+        </tr>
+        <tr>
+            <td><strong>FLRM</strong></td>
+            <td>Mécanisme pour la Restauration des Paysages et des Forêts</td>
+        </tr>
+    </table>
+    
+    <h3>1.2 Objectifs du projet TEFIALA</h3>
+    <p>
+        Améliorer les <strong>services écosystémiques</strong>, l'<strong>intensification durable</strong> et la 
+        <strong>conservation de la biodiversité</strong> dans les paysages et forêts dégradés du Sud de Madagascar, 
+        par la mise en œuvre à grande échelle de la <strong>Restauration des Paysages et des Forêts (RPF)</strong>.
+    </p>
+    
+    <h3>1.3 Résultats attendus du projet global</h3>
+    <ul>
+        <li>3 plans d'aménagement et de gestion intégrés des paysages (PAGIP)</li>
+        <li>2 100 ha de terres et forêts dégradées restaurées</li>
+        <li>50% d'augmentation du volume de production (5 chaînes de valeur durables)</li>
+        <li>31 282 bénéficiaires directs dont 50% de femmes</li>
+    </ul>
+    
+    <h2>2. Spécificités du Lot 1 - Paysage Bas Mangoky</h2>
+    
+    <div class="box">
+        <div class="box-title">CARACTÉRISTIQUES DU PAYSAGE BAS MANGOKY</div>
+        <ul>
+            <li><strong>Diversité d'écosystèmes</strong> : forêts, mangroves, terres agricoles</li>
+            <li><strong>Activités traditionnelles</strong> : agriculture et pêche halieutique</li>
+            <li><strong>Potentialités</strong> : importantes pour les chaînes de valeurs vertes</li>
+            <li><strong>Défis</strong> : accès au marché, financement, renforcement des capacités</li>
+        </ul>
+    </div>
+    
+    <h3>2.1 Localisation géographique</h3>
+    <table>
+        <tr>
+            <th>Niveau</th>
+            <th>Désignation</th>
+        </tr>
+        <tr>
+            <td>Paysage</td>
+            <td>Bas Mangoky (PBM)</td>
+        </tr>
+        <tr>
+            <td>Région</td>
+            <td>Atsimo Andrefana</td>
+        </tr>
+        <tr>
+            <td>District</td>
+            <td>Morombe</td>
+        </tr>
+        <tr>
+            <td>Commune 1</td>
+            <td>Ankatsakantsa Sud</td>
+        </tr>
+        <tr>
+            <td>Commune 2</td>
+            <td>Tanandava Station</td>
+        </tr>
+    </table>
+    
+    <h2>3. Défis spécifiques du Lot 1</h2>
+    
+    <table>
+        <tr>
+            <th>Défi</th>
+            <th>Description</th>
+            <th>Notre réponse</th>
+        </tr>
+        <tr>
+            <td><strong>Accessibilité</strong></td>
+            <td>Distance et difficultés d'accès aux zones d'intervention</td>
+            <td>Moyens de transport adaptés, planification saisonnière</td>
+        </tr>
+        <tr>
+            <td><strong>Diversité</strong></td>
+            <td>8 chaînes de valeurs différentes à accompagner</td>
+            <td>Formateurs spécialisés, modules adaptés</td>
+        </tr>
+        <tr>
+            <td><strong>Contexte local</strong></td>
+            <td>Nécessité d'adapter aux dialectes (Masikoro, Vezo)</td>
+            <td>Formateurs maîtrisant les dialectes locaux</td>
+        </tr>
+        <tr>
+            <td><strong>Gouvernance</strong></td>
+            <td>Renforcement des capacités organisationnelles des OP</td>
+            <td>Approche Thinkcoop, bootcamp dédié</td>
+        </tr>
+        <tr>
+            <td><strong>Financement</strong></td>
+            <td>Accès au financement en zone rurale éloignée</td>
+            <td>Mise en relation précoce avec les IMF</td>
+        </tr>
+    </table>
+</div>
+
+<!-- PAGE 5 : APPROCHE MÉTHODOLOGIQUE -->
+<div class="page">
+    <h1>Approche Méthodologique</h1>
+    
+    <h2>1. Principes directeurs</h2>
+    
+    <div class="box">
+        <div class="box-title">NOTRE PHILOSOPHIE D'ACCOMPAGNEMENT</div>
+        <p>Notre approche s'appuie sur des méthodologies éprouvées et reconnues internationalement :</p>
+    </div>
+    
+    <table>
+        <tr>
+            <th>Méthodologie</th>
+            <th>Description</th>
+            <th>Application</th>
+        </tr>
+        <tr>
+            <td><strong>GERME</strong></td>
+            <td>GERer au Mieux son Entreprise - Approche de formation à la gestion d'entreprise</td>
+            <td>Bootcamps 2 à 5 (entrepreneuriat, business plan, marketing, financement)</td>
+        </tr>
+        <tr>
+            <td><strong>Thinkcoop</strong></td>
+            <td>Approche de renforcement des organisations de producteurs</td>
+            <td>Bootcamp 1 (gouvernance) et suivi des OP</td>
+        </tr>
+        <tr>
+            <td><strong>Apprentissage interactif</strong></td>
+            <td>Méthodes participatives et pratiques</td>
+            <td>Études de cas, jeux de rôle, simulations</td>
+        </tr>
+        <tr>
+            <td><strong>Accompagnement individualisé</strong></td>
+            <td>Suivi personnalisé des incubés</td>
+            <td>Coaching, mentorat, visites terrain</td>
+        </tr>
+    </table>
+    
+    <h2>2. Phases d'intervention</h2>
+    
+    <h3>PHASE 1 : Préparation et ciblage (Mois 1)</h3>
+    <div class="indent">
+        <p><strong>Objectif :</strong> Identifier et sélectionner les 32 entrepreneurs verts</p>
+        <ul>
+            <li>Affinage des critères d'éligibilité avec l'UGP TEFIALA</li>
+            <li>Missions de sensibilisation dans les 2 communes</li>
+            <li>Analyse de profil et ciblage des entrepreneurs verts</li>
+            <li>Sélection finale de 32 incubés sur 64 identifiés (taux de rétention 50%)</li>
+        </ul>
+        <p><strong>Livrables :</strong> Rapport de ciblage, liste des incubés sélectionnés</p>
+    </div>
+    
+    <h3>PHASE 2 : Renforcement des compétences organisationnelles (Mois 1-2)</h3>
+    <div class="indent">
+        <p><strong>Objectif :</strong> Renforcer la gouvernance des 16 OP</p>
+        <ul>
+            <li>Bootcamp 1 : Gouvernance (3 jours)</li>
+            <li>Mise à jour des statuts et règlements intérieurs</li>
+            <li>Clarification des rôles et

@@ -1,0 +1,1646 @@
+2026-10-09 08:57:35 | WARNING  | app.agents.providers | AGENT_SSL_VERIFY=false : le certificat TLS du provider LLM n'est pas vérifié (environnements de développement uniquement).
+2026-10-09 08:57:37 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-09 08:57:37 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 08:57:38 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 08:57:38 | INFO     | mcp.client.streamable_http | Received session ID: ffd57103-f0bd-4542-8c1f-f16e98d2c667
+2026-10-09 08:57:38 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-09 08:57:38 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-09 08:57:38 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-09 08:57:38 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-09 08:57:38 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-09 08:57:39 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-09 08:57:39 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-09 08:57:39 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-09 08:57:39 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 08:57:39 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 08:57:39 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_generateur_offre : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+2026-10-09 08:57:39 | INFO     | app.agents.checkpointer | Checkpointer LangGraph persistant : PostgreSQL (threads des agents conservés entre les redémarrages)
+2026-10-09 08:57:44 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-09 08:57:44 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 08:57:45 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 08:57:45 | INFO     | mcp.client.streamable_http | Received session ID: 3197fac1-d4c9-48b9-ad17-cb7cec7f49b8
+2026-10-09 08:57:45 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-09 08:57:45 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-09 08:57:45 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-09 08:57:45 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-09 08:57:45 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-09 08:57:45 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-09 08:57:45 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-09 08:57:45 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-09 08:57:45 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 08:57:45 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 08:57:45 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_rh : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+2026-10-09 08:57:46 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-09 08:57:46 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 08:57:46 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 08:57:46 | INFO     | mcp.client.streamable_http | Received session ID: a8dd7a52-16b8-4467-a63e-8deb25cf13f1
+2026-10-09 08:57:46 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-09 08:57:46 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-09 08:57:46 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-09 08:57:46 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-09 08:57:46 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-09 08:57:47 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-09 08:57:47 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-09 08:57:47 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-09 08:57:47 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 08:57:47 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 08:57:47 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_assistant_formateur : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+2026-10-09 08:57:48 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://bqksu-153-67-85-88.run.pinggy-free.link/mcp
+2026-10-09 08:57:48 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 08:57:48 | WARNING  | app.agents.mcp | Connecteur MCP Desktop injoignable pour agent_generaliste_readonly : ConnectError: [Errno 11001] getaddrinfo failed
+2026-10-09 08:57:48 | WARNING  | app.agents.mcp | Connecteur MCP Github ignoré pour agent_generaliste_readonly : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-09 08:57:49 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://sign-quest-august-call.trycloudflare.com/mcp
+2026-10-09 08:57:49 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 08:57:49 | INFO     | httpx | HTTP Request: POST https://sign-quest-august-call.trycloudflare.com/mcp "HTTP/1.1 404 Not Found"
+2026-10-09 08:57:49 | WARNING  | app.agents.mcp | Connecteur MCP Mon desktop injoignable pour agent_generaliste_readonly : McpError: Session terminated
+2026-10-09 08:57:51 | INFO     | app.agents.mcp | Connecteur MCP Time chargé pour agent_generaliste_readonly : 2 outil(s) — Time_convert_time, Time_get_current_time
+2026-10-09 08:57:52 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://mcp.facebook.com/whatsapp_business_tools
+2026-10-09 08:57:52 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 08:57:52 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/whatsapp_business_tools "HTTP/1.1 401 Unauthorized"
+2026-10-09 08:57:52 | WARNING  | app.agents.mcp | Connecteur MCP WhatsApp Business Tools injoignable pour agent_generaliste_readonly : HTTPStatusError HTTP 401 https://mcp.facebook.com/whatsapp_business_tools
+2026-10-09 08:57:52 | WARNING  | app.agents.mcp | Connecteur MCP WhatsApp Business Tools ignoré pour agent_generaliste_readonly : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-09 08:57:52 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-09 08:57:52 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 08:57:53 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 08:57:53 | INFO     | mcp.client.streamable_http | Received session ID: 455a6d42-bffc-4b85-bb16-b45c80828fa9
+2026-10-09 08:57:53 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-09 08:57:53 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-09 08:57:53 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-09 08:57:53 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-09 08:57:53 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-09 08:57:53 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-09 08:57:53 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-09 08:57:53 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-09 08:57:53 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 08:57:53 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 08:57:54 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_generaliste_readonly : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+npm notice run npx
+npm notice run mcp-terminal
+MCP Terminal Server running...
+2026-10-09 08:58:02 | INFO     | app.agents.mcp | Connecteur MCP Terminal chargé pour agent_generaliste_readonly : 1 outil(s) — Terminal_execute_command
+2026-10-09 08:58:02 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-09 08:58:02 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 08:58:03 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 08:58:03 | INFO     | mcp.client.streamable_http | Received session ID: b2cae5ba-07cb-47c6-a6c8-5292b4f1fb19
+2026-10-09 08:58:03 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-09 08:58:03 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-09 08:58:03 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-09 08:58:03 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-09 08:58:03 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-09 08:58:03 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-09 08:58:03 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-09 08:58:03 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-09 08:58:03 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 08:58:03 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 08:58:03 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_statistique : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+2026-10-09 08:58:04 | INFO     | app.api.agui | AG-UI : 5 endpoint(s) monté(s)
+INFO:     Started server process [18152]
+INFO:     Waiting for application startup.
+2026-10-09 08:58:04 | INFO     | app.api.agui | AG-UI : 5 endpoint(s) monté(s)
+2026-10-09 08:58:04 | INFO     | app.agents.manager | Configuration des agents restaurée depuis la base (provider=openai_compatible, model=deepseek-v4.1-flash:free)
+2026-10-09 08:58:05 | INFO     | app.main | Bootstrap admin : compte prêt pour admin@carso.mg
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:55077 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55077 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55077 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55077 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55077 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55079 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55079 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55082 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55082 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55083 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55085 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55085 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55087 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55087 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55091 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55091 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55091 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55091 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55091 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55091 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55093 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55094 - "GET /api/v1/documents/all HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55098 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55098 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55100 - "PUT /api/v1/parametres/mcp/personnel/Mon%20desktop HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55100 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55098 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55100 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55098 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55094 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DjNQXAC9IVRw HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55094 - "GET /api/v1/documents/all HTTP/1.1" 200 OK
+2026-10-09 08:59:05 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://sign-quest-august-call.trycloudflare.com/mcp
+2026-10-09 08:59:05 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 08:59:06 | INFO     | httpx | HTTP Request: POST https://sign-quest-august-call.trycloudflare.com/mcp "HTTP/1.1 404 Not Found"
+INFO:     127.0.0.1:55107 - "POST /api/v1/parametres/mcp/personnel/Mon%20desktop/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55107 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55112 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55107 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55112 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55112 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55107 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55107 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55112 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55112 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55112 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55112 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55107 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55112 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55107 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55094 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fexample.com%2F HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:55094 - "GET /api/v1/documents/media/flux?url=http%3A%2F%2F169.254.169.254%2Flatest%2F HTTP/1.1" 422 Unprocessable Entity
+2026-10-09 08:59:10 | INFO     | httpx | HTTP Request: GET https://www.w3schools.com/html/mov_bbb.mp4 "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:55094 - "POST /api/v1/documents/import-media HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:55094 - "GET /api/v1/documents/all HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55115 - "GET /api/v1/documents/media/fichier?jeton=MTc5MTUyNzM0MApodHRwczovL3JyNi0tLXNuLW4yNWp4bS13b2NsLmdvb2dsZXZpZGVvLmNvbS92aWRlb3BsYXliYWNrP2V4cGlyZT0xNzkxNTQ3MTM3JmVpPW9ZTElhdG5tTi1hcnAtb1BzNldmc0E0JmlwPTE1My42Ny44NS44OCZpZD1vLUFHWVl3TVladldhYklfSldtQ3E2UksycUVHaVdNdUJQbkp4bmlHT0JHVzRRJml0YWc9MTMzJnNvdXJjZT15b3V0dWJlJnJlcXVpcmVzc2w9eWVzJnhwYz1FZ1ZvMmFEU05RJTNEJTNEJmNwcz03ODYmbWV0PTE3OTE1MjU1MzclMkMmbWg9VkQmbW09MTglMkMyOSZtbj1zbi1uMjVqeG0td29jbCUyQ3NuLXdvYzdrbmVkJm1zPWF1YiUyQ3JkdSZtdj1tJm12aT02JnBsPTIzJnJtcz1hdWIlMkNhdWImaW5pdGN3bmRicHM9NDM4Mzc1JmJ1aT1BV3pRSHdyYk44VDZ5YUVwamY4OTAwcG84a2w2QVh6b0NNU1dySkVjR1pyM0NnV0g0SlZ6alpNLWtGY3dhTVV0MlFjcFRpUmRBbnk1c1dteiZzcGM9SS1yZ0llcUxfenJwM3lRT1hrdm9hdW8xQ3o3cGJ1ZXp1T2hZcTVDNkRVRHZrZkV1YzB6Qk5KbnFwanNFJnZwcnY9MSZzdnB1Yz0xJm1pbWU9dmlkZW8lMkZtcDQmcnFoPTEmZ2lyPXllcyZjbGVuPTQzMzA4MSZkdXI9MTguOTMzJmxtdD0xNzY3MTA3MDY5NjAxNjcxJm10PTE3OTE1MjUxOTkmZnZpcD01JmtlZXBhbGl2ZT15ZXMmZmV4cD01MTU2NTExNSUyQzUyMTEyOTA1JTJDNTIxODQyMzElMkM1MjI1MDUxMyZjPVZJU0lPTk9TJnR4cD00NTMwNTM0JnNwYXJhbXM9ZXhwaXJlJTJDZWklMkNpcCUyQ2lkJTJDaXRhZyUyQ3NvdXJjZSUyQ3JlcXVpcmVzc2wlMkN4cGMlMkNidWklMkNzcGMlMkN2cHJ2JTJDc3ZwdWMlMkNtaW1lJTJDcnFoJTJDZ2lyJTJDY2xlbiUyQ2R1ciUyQ2xtdCZzaWc9QUUwczJKWXdSUUlnSzFqeXhkLU1faE51NE5BODRfSUxZU1Y5V3VXcEtpdXVIQVhSd29tQUp6c0NJUUNGTm9DMWVfUUJ1ZTNiS3pXYW91dlJyRmFQRXd1Vjl6RF8yZkd2OTZBUFhnJTNEJTNEJmxzcGFyYW1zPWNwcyUyQ21ldCUyQ21oJTJDbW0lMkNtbiUyQ21zJTJDbXYlMkNtdmklMkNwbCUyQ3JtcyUyQ2luaXRjd25kYnBzJmxzaWc9QVBhVHh4TXdSQUlnTlluMzdLVHZ4MkNCNExZREpmU2QxYnhDT1N5dUQxbS1WOTRvVG9zYlB2NENJQkdrcVMwUmRnc1RMWHh3MHBjLTVWdmlIVTZ2a29qWFpLa1lhR0VNQnBaNw.XuZrlxUKbITA0IWMp1PtqzvIRsJP8rSQcK82LCNpKpg&nom=Me+at+the+zoo+%E2%80%94+240p.mp4 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:55116 - "GET /api/v1/documents/media/fichier?jeton=MTc5MTUyNzM0MApodHRwczovL3JyNi0tLXNuLW4yNWp4bS13b2NsLmdvb2dsZXZpZGVvLmNvbS92aWRlb3BsYXliYWNrP2V4cGlyZT0xNzkxNTQ3MTM3JmVpPW9ZTElhdG5tTi1hcnAtb1BzNldmc0E0JmlwPTE1My42Ny44NS44OCZpZD1vLUFHWVl3TVladldhYklfSldtQ3E2UksycUVHaVdNdUJQbkp4bmlHT0JHVzRRJml0YWc9MTMzJnNvdXJjZT15b3V0dWJlJnJlcXVpcmVzc2w9eWVzJnhwYz1FZ1ZvMmFEU05RJTNEJTNEJmNwcz03ODYmbWV0PTE3OTE1MjU1MzclMkMmbWg9VkQmbW09MTglMkMyOSZtbj1zbi1uMjVqeG0td29jbCUyQ3NuLXdvYzdrbmVkJm1zPWF1YiUyQ3JkdSZtdj1tJm12aT02JnBsPTIzJnJtcz1hdWIlMkNhdWImaW5pdGN3bmRicHM9NDM4Mzc1JmJ1aT1BV3pRSHdyYk44VDZ5YUVwamY4OTAwcG84a2w2QVh6b0NNU1dySkVjR1pyM0NnV0g0SlZ6alpNLWtGY3dhTVV0MlFjcFRpUmRBbnk1c1dteiZzcGM9SS1yZ0llcUxfenJwM3lRT1hrdm9hdW8xQ3o3cGJ1ZXp1T2hZcTVDNkRVRHZrZkV1YzB6Qk5KbnFwanNFJnZwcnY9MSZzdnB1Yz0xJm1pbWU9dmlkZW8lMkZtcDQmcnFoPTEmZ2lyPXllcyZjbGVuPTQzMzA4MSZkdXI9MTguOTMzJmxtdD0xNzY3MTA3MDY5NjAxNjcxJm10PTE3OTE1MjUxOTkmZnZpcD01JmtlZXBhbGl2ZT15ZXMmZmV4cD01MTU2NTExNSUyQzUyMTEyOTA1JTJDNTIxODQyMzElMkM1MjI1MDUxMyZjPVZJU0lPTk9TJnR4cD00NTMwNTM0JnNwYXJhbXM9ZXhwaXJlJTJDZWklMkNpcCUyQ2lkJTJDaXRhZyUyQ3NvdXJjZSUyQ3JlcXVpcmVzc2wlMkN4cGMlMkNidWklMkNzcGMlMkN2cHJ2JTJDc3ZwdWMlMkNtaW1lJTJDcnFoJTJDZ2lyJTJDY2xlbiUyQ2R1ciUyQ2xtdCZzaWc9QUUwczJKWXdSUUlnSzFqeXhkLU1faE51NE5BODRfSUxZU1Y5V3VXcEtpdXVIQVhSd29tQUp6c0NJUUNGTm9DMWVfUUJ1ZTNiS3pXYW91dlJyRmFQRXd1Vjl6RF8yZkd2OTZBUFhnJTNEJTNEJmxzcGFyYW1zPWNwcyUyQ21ldCUyQ21oJTJDbW0lMkNtbiUyQ21zJTJDbXYlMkNtdmklMkNwbCUyQ3JtcyUyQ2luaXRjd25kYnBzJmxzaWc9QVBhVHh4TXdSQUlnTlluMzdLVHZ4MkNCNExZREpmU2QxYnhDT1N5dUQxbS1WOTRvVG9zYlB2NENJQkdrcVMwUmRnc1RMWHh3MHBjLTVWdmlIVTZ2a29qWFpLa1lhR0VNQnBaNw.XuZrlxUKbITA0IWMp1PtqzvIRsJP8rSQcK82LCNpaaa HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:55117 - "GET /api/v1/documents/media/fichier?jeton=jeton-inexistant-000000 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:55094 - "GET /api/v1/documents/all HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55121 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55121 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55132 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55132 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55132 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55132 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55140 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55142 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55140 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55142 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55486 - "OPTIONS /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55486 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55486 - "OPTIONS /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55486 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55486 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55497 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55499 - "OPTIONS /api/v1/auth/me/photo-profil HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55486 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55503 - "OPTIONS /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55504 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55505 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55504 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55503 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55486 - "OPTIONS /api/v1/auth/me/photo-profil HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55499 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55497 - "OPTIONS /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55504 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55503 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55499 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55505 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55486 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55504 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55499 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55499 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55499 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55504 - "GET /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55486 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55497 - "GET /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55505 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55503 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55511 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55511 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55515 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55515 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55517 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55519 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55519 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55517 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55517 - "OPTIONS /api/v1/agui/agent_generaliste_readonly HTTP/1.1" 200 OK
+2026-10-09 09:14:01 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://bqksu-153-67-85-88.run.pinggy-free.link/mcp
+2026-10-09 09:14:01 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 09:14:01 | WARNING  | app.agents.mcp | Connecteur MCP Desktop injoignable pour agent_generaliste_readonly : ConnectError: [Errno 11001] getaddrinfo failed
+2026-10-09 09:14:01 | WARNING  | app.agents.mcp | Connecteur MCP Github ignoré pour agent_generaliste_readonly : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-09 09:14:01 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://sign-quest-august-call.trycloudflare.com/mcp
+2026-10-09 09:14:01 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 09:14:02 | WARNING  | app.agents.mcp | Connecteur MCP Mon desktop injoignable pour agent_generaliste_readonly : ConnectError: [Errno 11001] getaddrinfo failed
+2026-10-09 09:14:02 | WARNING  | app.agents.mcp | Connecteur MCP WhatsApp Business Tools ignoré pour agent_generaliste_readonly : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-09 09:14:02 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-09 09:14:02 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 09:14:03 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 09:14:03 | INFO     | mcp.client.streamable_http | Received session ID: e50d9279-bfe5-4749-900f-09398fe2b0dd
+2026-10-09 09:14:03 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-09 09:14:03 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-09 09:14:03 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-09 09:14:03 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-09 09:14:03 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-09 09:14:04 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-09 09:14:04 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-09 09:14:04 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-09 09:14:04 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 09:14:04 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 09:14:04 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_generaliste_readonly : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+npm notice run npx
+npm notice run mcp-terminal
+MCP Terminal Server running...
+2026-10-09 09:14:11 | INFO     | app.agents.mcp | Connecteur MCP Terminal chargé pour agent_generaliste_readonly : 1 outil(s) — Terminal_execute_command
+INFO:     127.0.0.1:55517 - "POST /api/v1/agui/agent_generaliste_readonly HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55519 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55519 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55529 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55529 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55531 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55533 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55535 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55533 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55531 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55535 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55539 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55539 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55541 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55541 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+2026-10-09 09:14:51 | INFO     | httpx | HTTP Request: POST https://tokenharbor.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 09:14:54 | INFO     | httpx | HTTP Request: GET https://duckduckgo.com/?q=formation+professionnelle+des+jeunes&iax=videos&ia=videos "HTTP/1.1 200 OK"
+2026-10-09 09:14:55 | INFO     | httpx | HTTP Request: GET https://duckduckgo.com/v.js?l=fr-fr&o=json&q=formation+professionnelle+des+jeunes&vqd=4-162597235594357078394136690207820716303 "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:55550 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55552 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55550 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55552 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+2026-10-09 09:14:59 | INFO     | httpx | HTTP Request: POST https://tokenharbor.ai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:55566 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55566 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+2026-10-09 09:15:13 | INFO     | httpx | HTTP Request: POST https://tokenharbor.ai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:55517 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55517 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55517 - "OPTIONS /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DGXYYbDa7rZA HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55568 - "OPTIONS /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DGXYYbDa7rZA HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55585 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55588 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55589 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55585 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55589 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55588 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55517 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DGXYYbDa7rZA HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55568 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DGXYYbDa7rZA HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55594 - "GET /api/v1/documents/media/fichier?jeton=MTc5MTUyODMzMApodHRwczovL3JyNC0tLXNuLW4yNWp4bS13b2NsLmdvb2dsZXZpZGVvLmNvbS92aWRlb3BsYXliYWNrP2V4cGlyZT0xNzkxNTQ4MTI3JmVpPWY0YklhdFBwSUpieGhjSVB3SzN6MEFFJmlwPTE1My42Ny44NS44OCZpZD1vLUFQWjRNYnZ2d24weS1WWGJrTkxJdGllcGQ1ZXhVLVJUOEhTWHdjd1k0S1FPJml0YWc9MTYwJnNvdXJjZT15b3V0dWJlJnJlcXVpcmVzc2w9eWVzJnhwYz1FZ1ZvMmFEU05RJTNEJTNEJmNwcz0xNTgmbWV0PTE3OTE1MjY1MjclMkMmbWg9MHUmbW09MzElMkMyOSZtbj1zbi1uMjVqeG0td29jbCUyQ3NuLXdvYzdrbmU2Jm1zPWF1JTJDcmR1Jm12PW0mbXZpPTQmcGw9MjMmcm1zPWF1JTJDYXUmaW5pdGN3bmRicHM9NDA0ODc1JmJ1aT1BV3pRSHdyMUJWRkxkeWdNbC16VW41UEpEY1VzeFBDeXRfcGxfVGYzSy05Q3ExM3pjNnRzSkxZWlRpbnh6R253Z0t6LTMySGgxdzFOdWpwMCZzcGM9SS1yZ0lWdXRwTlRRYUlEX3JTV1BWdFB0a1VRSlVjVWFQMjRQNFF5S1c3bFFFS3ItaVY2OGVDZThwM2xFJnZwcnY9MSZzdnB1Yz0xJm1pbWU9dmlkZW8lMkZtcDQmcnFoPTEmZ2lyPXllcyZjbGVuPTYwMjMyMjgmZHVyPTIzODYuNzE3JmxtdD0xNzcwMTkzNTg5ODQzNDU4Jm10PTE3OTE1MjYxNjYmZnZpcD00JmtlZXBhbGl2ZT15ZXMmZmV4cD01MTU2NTExNSUyQzUyMTEyOTA1JTJDNTIxODQyMzIlMkM1MjI1MDUxMyZjPVZJU0lPTk9TJnR4cD02MjA5MjI0JnNwYXJhbXM9ZXhwaXJlJTJDZWklMkNpcCUyQ2lkJTJDaXRhZyUyQ3NvdXJjZSUyQ3JlcXVpcmVzc2wlMkN4cGMlMkNidWklMkNzcGMlMkN2cHJ2JTJDc3ZwdWMlMkNtaW1lJTJDcnFoJTJDZ2lyJTJDY2xlbiUyQ2R1ciUyQ2xtdCZzaWc9QUUwczJKWXdSUUloQUxYbmxEQzJtWDlmVlo4VHRfN0tyN1lzTWNiNWxrbGhxMFJaa3Q2Q1hQOFFBaUExVDZpLWYydjdGUjVMYmhFYjc1aDJrbkF0dU9PbnladG84WWJ5TFpqQkt3JTNEJTNEJmxzcGFyYW1zPWNwcyUyQ21ldCUyQ21oJTJDbW0lMkNtbiUyQ21zJTJDbXYlMkNtdmklMkNwbCUyQ3JtcyUyQ2luaXRjd25kYnBzJmxzaWc9QVBhVHh4TXdSUUlnTUN2QXpNczNlNUp3UThzamxRalRGTVAzdXo5cVJ5TU4xdTRXWWd3bDIwZ0NJUUNPRmwtazJBRXc2RTdLdFgzS0lleGROV0hqQTNfbGcweENlaE43WWVzRTRRJTNEJTNE.XZlq0TrqJkiY_E9ebDgeQwG_rdOTtOT24DwmmdM9zpI&nom=Webinaire+Soft+skills+enjeu+cl%C3%A9+pour+le+d%C3%A9veloppement+et+l%27insertion+professionnelle+des+jeunes+%E2%80%94+144p.mp4 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:55594 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55646 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55647 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55648 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55649 - "OPTIONS /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55650 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55651 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55653 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55655 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55650 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55657 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55651 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55659 - "OPTIONS /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55653 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55659 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55650 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55650 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55657 - "GET /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55661 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55659 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55661 - "GET /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55650 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55653 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55657 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55651 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55678 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55678 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55688 - "OPTIONS /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DiIUmu6s5f44 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55690 - "OPTIONS /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DiIUmu6s5f44 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55694 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55694 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55690 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DiIUmu6s5f44 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55688 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DiIUmu6s5f44 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55597 - "GET /api/v1/documents/media/fichier?jeton=MTc5MTUyODM3NQpodHRwczovL3JyNi0tLXNuLW4yNWp4bS13b2NsLmdvb2dsZXZpZGVvLmNvbS92aWRlb3BsYXliYWNrP2V4cGlyZT0xNzkxNTQ4MTcyJmVpPXJJYklhcU9tRk9Pejh1TVBuWU9za0FVJmlwPTE1My42Ny44NS44OCZpZD1vLUFOQjJfak5TNlNRZkw0WkpmSUZZUTdsOHJvOXIySl9YamM4eEFhcG1pYV9aJml0YWc9MTYwJnNvdXJjZT15b3V0dWJlJnJlcXVpcmVzc2w9eWVzJnhwYz1FZ1ZvMmFEU05RJTNEJTNEJmNwcz04MCZtZXQ9MTc5MTUyNjU3MiUyQyZtaD1kbCZtbT0zMSUyQzI5Jm1uPXNuLW4yNWp4bS13b2NsJTJDc24td29jN2tuN3ImbXM9YXUlMkNyZHUmbXY9bSZtdmk9NiZwbD0yMyZybXM9YXUlMkNhdSZpbml0Y3duZGJwcz00MDQ4NzUmYnVpPUFXelFId3JfYUVjMWZZUzRYdjlCcDF2a0EwaEsyUTZnNjRkSElITXkyZ2tDaEtpU2Q4czk0MEIyVkI0b3Fzc05naU5YQkZfb2xmN3VrNEx0JnNwYz1JLXJnSWFrZDBaVTRGbTNZUGV3ekYwd0ExWldjSmhVUjBhRnJ4a09JYnY4c3pmSFRzVUNmRjB2NURFLUcmdnBydj0xJnN2cHVjPTEmbWltZT12aWRlbyUyRm1wNCZycWg9MSZnaXI9eWVzJmNsZW49MTMwMTE1MCZkdXI9MTUzLjk2MCZsbXQ9MTc4NTUzMTExMTI3OTUwNSZtdD0xNzkxNTI2MTY2JmZ2aXA9NCZrZWVwYWxpdmU9eWVzJmZleHA9NTE1NjUxMTUlMkM1MjExMjkwNSUyQzUyMTg0MjMxJTJDNTIyNTA1MTMmYz1WSVNJT05PUyZ0eHA9NjIxOTIyNCZzcGFyYW1zPWV4cGlyZSUyQ2VpJTJDaXAlMkNpZCUyQ2l0YWclMkNzb3VyY2UlMkNyZXF1aXJlc3NsJTJDeHBjJTJDYnVpJTJDc3BjJTJDdnBydiUyQ3N2cHVjJTJDbWltZSUyQ3JxaCUyQ2dpciUyQ2NsZW4lMkNkdXIlMkNsbXQmc2lnPUFFMHMySll3UlFJZ1k0MzhqYzZhRDg2UnZqQUlITmhsa0x5aF9FRVRWUmZFcTA0ejF5VDdoamtDSVFDVWtGTFJLTVFTemF3cEpZcE1OU0NVZkJtVVU0NHQtSGlWWkx3YWFwU3FyQSUzRCUzRCZsc3BhcmFtcz1jcHMlMkNtZXQlMkNtaCUyQ21tJTJDbW4lMkNtcyUyQ212JTJDbXZpJTJDcGwlMkNybXMlMkNpbml0Y3duZGJwcyZsc2lnPUFQYVR4eE13UlFJZ1VwNTNFNlZsdFRCWXZEVE5ZY2VNVkVsU2dzOGttcW1WYkhFTUtEYkFxU1lDSVFEZ0oxQzY3TXY0TS1pSHlTRVQ1aFY3SFlEWTlDMDE2alhIX2l4TDd4RTdOZyUzRCUzRA.jUPCLSkZlIfk5P3SleeB-OdQr_39SArN6kQLspo58p0&nom=FORMATION+PROFESSIONNELLE+DES+JEUNES+-+LE+MEFPT+ET+L%27ONG+VIS+SIGNENT+UN+ACCORD+DE+PARTENARIAT+%E2%80%94+144p.mp4 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:55837 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55837 - "OPTIONS /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55837 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55837 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55845 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55847 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55849 - "OPTIONS /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55851 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55853 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55847 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55845 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55837 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55849 - "OPTIONS /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55851 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55853 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55847 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55837 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55845 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55851 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55849 - "GET /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55837 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55853 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55849 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55837 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55851 - "GET /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55847 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55845 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55859 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55859 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55859 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55859 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55862 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55859 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55866 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55864 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55866 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55868 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55862 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55859 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55875 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55875 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55889 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55891 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55889 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55891 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55899 - "OPTIONS /api/v1/parametres/mcp/personnel/Mon%20desktop HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55899 - "PUT /api/v1/parametres/mcp/personnel/Mon%20desktop HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55899 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55901 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55899 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55901 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55901 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55901 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55901 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55899 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55901 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55899 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55899 - "OPTIONS /api/v1/parametres/mcp/personnel/Mon%20desktop/tester HTTP/1.1" 200 OK
+2026-10-09 09:20:14 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: http://127.0.0.1:8901/mcp
+2026-10-09 09:20:14 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+INFO:     127.0.0.1:55899 - "POST /api/v1/parametres/mcp/personnel/Mon%20desktop/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55899 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55901 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55901 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55899 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55914 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55914 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55914 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55914 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55914 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55916 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55921 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55924 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55925 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55921 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55925 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55924 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55931 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55931 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55933 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55933 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55938 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55940 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55938 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55940 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55951 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55951 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55951 - "PUT /api/v1/parametres/mcp/personnel/Mon%20desktop HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55951 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55951 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55954 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55951 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+2026-10-09 09:21:19 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://127.0.0.1:8901/mcp
+2026-10-09 09:21:19 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+INFO:     127.0.0.1:55956 - "POST /api/v1/parametres/mcp/personnel/Mon%20desktop/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55956 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55972 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55974 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55956 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55972 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55974 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55974 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55972 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55974 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55972 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55984 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55986 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55988 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55986 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55984 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55988 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55997 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55997 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56015 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56015 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56041 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56043 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56041 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56043 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56068 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56068 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56103 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56103 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56145 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56145 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56198 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56198 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56235 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56235 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56253 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56253 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56278 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56280 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56282 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56280 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56290 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56290 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56292 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56292 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56294 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56296 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56294 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56296 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56296 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56296 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56301 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56304 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56301 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56307 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56309 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56305 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56301 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56307 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56309 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56304 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56304 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56304 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56304 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56309 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56309 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56304 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56319 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56319 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56321 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56321 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56321 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56321 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56321 - "OPTIONS /api/v1/parametres/mcp/Parallel%20Search/tester HTTP/1.1" 200 OK
+2026-10-09 09:27:01 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-09 09:27:01 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 09:27:02 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 09:27:02 | INFO     | mcp.client.streamable_http | Received session ID: 92aa3159-7eb2-4018-ba15-5be3fd3772c8
+2026-10-09 09:27:02 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-09 09:27:02 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-09 09:27:03 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-09 09:27:03 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-09 09:27:03 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-09 09:27:03 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-09 09:27:03 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-09 09:27:03 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-09 09:27:04 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 09:27:04 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:56321 - "POST /api/v1/parametres/mcp/Parallel%20Search/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56321 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56321 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56321 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56328 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56328 - "OPTIONS /api/v1/parametres/mcp/Terminal/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56333 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56333 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56333 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56335 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56335 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56333 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+npm notice run npx
+npm notice run mcp-terminal
+MCP Terminal Server running...
+INFO:     127.0.0.1:56328 - "POST /api/v1/parametres/mcp/Terminal/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56328 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56342 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56328 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56342 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56342 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56342 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56342 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56328 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56342 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56328 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56344 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56346 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56344 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56346 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56346 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56346 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56348 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56348 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56350 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56350 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56350 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56352 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56352 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56350 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56357 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56357 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56361 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56361 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56370 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56372 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56370 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56372 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56439 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56439 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56456 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56461 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56462 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56461 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56462 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56472 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56474 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56472 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56474 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56507 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56509 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56507 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56509 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56557 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56559 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56557 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56559 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56580 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56582 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56580 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56582 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56590 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56592 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56590 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56592 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56597 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56599 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56597 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56599 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56626 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56628 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56626 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56628 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56964 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56966 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56964 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56966 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57049 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57051 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57049 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57051 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57306 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57308 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57306 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57308 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57443 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57445 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57443 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57445 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57455 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57457 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57455 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57457 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57463 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57464 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57463 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57464 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57514 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57516 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57514 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57516 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57579 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57581 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57581 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57579 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57599 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57601 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57601 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57599 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57653 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57654 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57653 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57654 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57681 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57682 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57681 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57682 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57773 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57772 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57773 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57772 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57816 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57818 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57818 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57816 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57833 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57835 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57833 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57835 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57854 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57856 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57854 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57856 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57871 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57872 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57871 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57872 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57897 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57899 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57897 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57899 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57919 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57921 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57919 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57921 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61453 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61455 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61453 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61455 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61476 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61477 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61476 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61477 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61503 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61505 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61503 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61505 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61467 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61469 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61467 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61469 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61478 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61479 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61478 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61479 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61494 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61496 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61494 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61496 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8632 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8634 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8632 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8634 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8668 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8670 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8668 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8670 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24401 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24403 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24403 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24401 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24423 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24422 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24423 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24422 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24497 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24499 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24497 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24499 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24554 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24556 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24554 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24556 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24579 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24581 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24579 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:24581 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53725 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53726 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53725 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53726 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53740 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53739 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53740 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53739 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53747 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53749 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53747 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53749 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53752 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53754 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53752 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53754 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53760 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53762 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53762 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53760 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53766 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53768 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53766 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53768 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53794 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53793 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53794 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53793 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53848 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53850 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53850 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53848 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53919 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53919 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53921 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53919 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53947 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53948 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53947 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53948 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53980 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53982 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53980 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53982 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54048 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54048 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54048 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54048 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54048 - "OPTIONS /api/v1/auth/me/photo-profil HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54048 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54048 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54048 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54048 - "GET /api/v1/parametres/etat HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54048 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54048 - "GET /api/v1/agents/runtime HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54050 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54048 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54050 - "GET /api/v1/agents/catalogue HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54050 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54050 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54048 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54050 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54048 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54050 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54048 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54050 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54048 - "GET /api/v1/parametres/etat HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54048 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54048 - "GET /api/v1/agents/runtime HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54050 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54050 - "GET /api/v1/agents/catalogue HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54048 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54048 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54079 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54079 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54094 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54094 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54109 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54111 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54111 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54109 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54132 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54132 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54132 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54148 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54198 - "OPTIONS /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54198 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54198 - "OPTIONS /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54198 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54198 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54208 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54210 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54212 - "OPTIONS /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54214 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54198 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54208 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54218 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54210 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54212 - "OPTIONS /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54214 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54198 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+2026-10-09 10:21:30 | ERROR    | asyncio | Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Une connexion existante a dû être fermée par l’hôte distant
+INFO:     127.0.0.1:54208 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54214 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54218 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54210 - "GET /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54212 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54218 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54208 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54212 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54214 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54210 - "GET /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54220 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54218 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54246 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54246 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54248 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54248 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54250 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54252 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54250 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54252 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54256 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54256 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54258 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54258 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54260 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54262 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54264 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54260 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54262 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54264 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54267 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54267 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54270 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54270 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54273 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54275 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54273 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54275 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54278 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54278 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54280 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54280 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54285 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54287 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54285 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54285 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54289 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54287 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54293 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54293 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54297 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54297 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54301 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54303 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54301 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54303 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54309 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54309 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54311 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54311 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54311 - "OPTIONS /api/v1/agui/agent_generaliste_readonly HTTP/1.1" 200 OK
+2026-10-09 10:24:24 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://bqksu-153-67-85-88.run.pinggy-free.link/mcp
+2026-10-09 10:24:24 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 10:24:25 | WARNING  | app.agents.mcp | Connecteur MCP Desktop injoignable pour agent_generaliste_readonly : ConnectError: [Errno 11001] getaddrinfo failed
+2026-10-09 10:24:25 | WARNING  | app.agents.mcp | Connecteur MCP Github ignoré pour agent_generaliste_readonly : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-09 10:24:25 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://127.0.0.1:8901/mcp
+2026-10-09 10:24:25 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 10:24:25 | WARNING  | app.agents.mcp | Connecteur MCP Mon desktop injoignable pour agent_generaliste_readonly : ConnectError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1006)
+2026-10-09 10:24:25 | WARNING  | app.agents.mcp | Connecteur MCP WhatsApp Business Tools ignoré pour agent_generaliste_readonly : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-09 10:24:26 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-09 10:24:26 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 10:24:28 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 10:24:28 | INFO     | mcp.client.streamable_http | Received session ID: dff36e43-1e25-4b94-a9b8-d18ad15370b3
+2026-10-09 10:24:28 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-09 10:24:28 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-09 10:24:30 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-09 10:24:30 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-09 10:24:30 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-09 10:24:31 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-09 10:24:31 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-09 10:24:31 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-09 10:24:31 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 10:24:31 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 10:24:31 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_generaliste_readonly : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+npm notice run npx
+npm notice run mcp-terminal
+MCP Terminal Server running...
+2026-10-09 10:24:41 | INFO     | app.agents.mcp | Connecteur MCP Terminal chargé pour agent_generaliste_readonly : 1 outil(s) — Terminal_execute_command
+INFO:     127.0.0.1:54311 - "POST /api/v1/agui/agent_generaliste_readonly HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54329 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54331 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54333 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54342 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54331 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54342 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54333 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54329 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54353 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54353 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+2026-10-09 10:25:00 | INFO     | httpx | HTTP Request: POST https://tokenharbor.ai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:54355 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54357 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+2026-10-09 10:25:00 | ERROR    | asyncio | Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Une connexion existante a dû être fermée par l’hôte distant
+INFO:     127.0.0.1:54357 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54359 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+2026-10-09 10:25:07 | INFO     | httpx | HTTP Request: GET https://duckduckgo.com/?q=formation+professionnelle+tutoriel&iax=videos&ia=videos "HTTP/1.1 200 OK"
+2026-10-09 10:25:07 | INFO     | httpx | HTTP Request: GET https://duckduckgo.com/v.js?l=fr-fr&o=json&q=formation+professionnelle+tutoriel&vqd=4-107259712475012574243061828519923577326 "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:54369 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54369 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54371 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54371 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+2026-10-09 10:25:24 | INFO     | httpx | HTTP Request: POST https://tokenharbor.ai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:54375 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54377 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54379 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54377 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54375 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54379 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+2026-10-09 10:25:35 | INFO     | httpx | HTTP Request: POST https://tokenharbor.ai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:54311 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54311 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54386 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54386 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54386 - "OPTIONS /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D8y23ptQ1EFo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54389 - "OPTIONS /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D8y23ptQ1EFo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54389 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D8y23ptQ1EFo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54389 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54405 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54389 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54405 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54386 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D8y23ptQ1EFo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54420 - "GET /api/v1/documents/media/fichier?jeton=MTc5MTUzMjU2MApodHRwczovL3JyNy0tLXNuLW4yNWp4bS13b2NlLmdvb2dsZXZpZGVvLmNvbS92aWRlb3BsYXliYWNrP2V4cGlyZT0xNzkxNTUyMzU3JmVpPUJaZklhckNmSDVDbjh1TVAzYWlLMEFrJmlwPTE1My42Ny44NS44OCZpZD1vLUFIRTc3cF9ESWpwSGpTUVRscG92S3lPenpONnJlN1M0cDlpWW9YQmNxUEg1Jml0YWc9MTYwJnNvdXJjZT15b3V0dWJlJnJlcXVpcmVzc2w9eWVzJnhwYz1FZ1ZvMmFEU05RJTNEJTNEJmNwcz0yNjQmbWV0PTE3OTE1MzA3NTclMkMmbWg9VHcmbW09MzElMkMyOSZtbj1zbi1uMjVqeG0td29jZSUyQ3NuLXUxd29jNS01ZiZtcz1hdSUyQ3JkdSZtdj1tJm12aT03JnBsPTIzJnJtcz1hdSUyQ2F1JmluaXRjd25kYnBzPTM0OTc1MCZidWk9QVd6UUh3cDY1em9DekZpbHVna2JheVZST2VPM3JCTTVoX0VPQzZEdzU0ekwxSnE0Q2pWZEhYd2ZQRVZnSXJMcHhxLUg2d2tNYk82Wm95ZmQmc3BjPUktcmdJWmhrRGtyZmhUcHVVbzIwODhRLTlLeEZoSEFNV3k0TmRHLWVrQU9tamp0cXktUFdJNzlpbkQ4TCZ2cHJ2PTEmc3ZwdWM9MSZtaW1lPXZpZGVvJTJGbXA0JnJxaD0xJmdpcj15ZXMmY2xlbj0xNTg5NDUxJmR1cj0yOTcuNDQwJmxtdD0xNzM0NDY3NjQzMjAyMTgwJm10PTE3OTE1MzAyNDAmZnZpcD01JmtlZXBhbGl2ZT15ZXMmZmV4cD01MTU2NTExNSUyQzUyMTEyOTA1JTJDNTIxODQyMzIlMkM1MjI1MDUxMyZjPVZJU0lPTk9TJnR4cD01NTM1NDM0JnNwYXJhbXM9ZXhwaXJlJTJDZWklMkNpcCUyQ2lkJTJDaXRhZyUyQ3NvdXJjZSUyQ3JlcXVpcmVzc2wlMkN4cGMlMkNidWklMkNzcGMlMkN2cHJ2JTJDc3ZwdWMlMkNtaW1lJTJDcnFoJTJDZ2lyJTJDY2xlbiUyQ2R1ciUyQ2xtdCZzaWc9QUUwczJKWXdSUUloQU1IQ2lIY2g0aXJCOU9LTUhJOTViUTgwaWdiUEw2ZHVneEFlXzA1enZFOWFBaUJZMnNPTjdIZjg0a2JCZ1ZYTkFiUDlMNnNzWG43cXppRzRFRUR6U3hrTE5BJTNEJTNEJmxzcGFyYW1zPWNwcyUyQ21ldCUyQ21oJTJDbW0lMkNtbiUyQ21zJTJDbXYlMkNtdmklMkNwbCUyQ3JtcyUyQ2luaXRjd25kYnBzJmxzaWc9QVBhVHh4TXdSUUloQVB4VUJWbmlBNE8xeWkyWWV6dnhJa09nRzA5UmVsdlpkUW4yR1Q5RmEwajJBaUFQb2RNMGhWNUhyaUlobUl4NFVoMzNySGRGNDVwYmFSam96VHk0eTdDdmJBJTNEJTNE.k4i3-nHw0tl2QKhwq38__ZFLV0xlMNAClTLgM-79Kew&nom=2+minutes+pour+tout+comprendre+-+La+formation+professionnelle+%E2%80%94+144p.mp4 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54422 - "GET /api/v1/documents/media/fichier?jeton=MTc5MTUzMjU2MApodHRwczovL3JyNy0tLXNuLW4yNWp4bS13b2NlLmdvb2dsZXZpZGVvLmNvbS92aWRlb3BsYXliYWNrP2V4cGlyZT0xNzkxNTUyMzU3JmVpPUJaZklhckNmSDVDbjh1TVAzYWlLMEFrJmlwPTE1My42Ny44NS44OCZpZD1vLUFIRTc3cF9ESWpwSGpTUVRscG92S3lPenpONnJlN1M0cDlpWW9YQmNxUEg1Jml0YWc9MTYwJnNvdXJjZT15b3V0dWJlJnJlcXVpcmVzc2w9eWVzJnhwYz1FZ1ZvMmFEU05RJTNEJTNEJmNwcz0yNjQmbWV0PTE3OTE1MzA3NTclMkMmbWg9VHcmbW09MzElMkMyOSZtbj1zbi1uMjVqeG0td29jZSUyQ3NuLXUxd29jNS01ZiZtcz1hdSUyQ3JkdSZtdj1tJm12aT03JnBsPTIzJnJtcz1hdSUyQ2F1JmluaXRjd25kYnBzPTM0OTc1MCZidWk9QVd6UUh3cDY1em9DekZpbHVna2JheVZST2VPM3JCTTVoX0VPQzZEdzU0ekwxSnE0Q2pWZEhYd2ZQRVZnSXJMcHhxLUg2d2tNYk82Wm95ZmQmc3BjPUktcmdJWmhrRGtyZmhUcHVVbzIwODhRLTlLeEZoSEFNV3k0TmRHLWVrQU9tamp0cXktUFdJNzlpbkQ4TCZ2cHJ2PTEmc3ZwdWM9MSZtaW1lPXZpZGVvJTJGbXA0JnJxaD0xJmdpcj15ZXMmY2xlbj0xNTg5NDUxJmR1cj0yOTcuNDQwJmxtdD0xNzM0NDY3NjQzMjAyMTgwJm10PTE3OTE1MzAyNDAmZnZpcD01JmtlZXBhbGl2ZT15ZXMmZmV4cD01MTU2NTExNSUyQzUyMTEyOTA1JTJDNTIxODQyMzIlMkM1MjI1MDUxMyZjPVZJU0lPTk9TJnR4cD01NTM1NDM0JnNwYXJhbXM9ZXhwaXJlJTJDZWklMkNpcCUyQ2lkJTJDaXRhZyUyQ3NvdXJjZSUyQ3JlcXVpcmVzc2wlMkN4cGMlMkNidWklMkNzcGMlMkN2cHJ2JTJDc3ZwdWMlMkNtaW1lJTJDcnFoJTJDZ2lyJTJDY2xlbiUyQ2R1ciUyQ2xtdCZzaWc9QUUwczJKWXdSUUloQU1IQ2lIY2g0aXJCOU9LTUhJOTViUTgwaWdiUEw2ZHVneEFlXzA1enZFOWFBaUJZMnNPTjdIZjg0a2JCZ1ZYTkFiUDlMNnNzWG43cXppRzRFRUR6U3hrTE5BJTNEJTNEJmxzcGFyYW1zPWNwcyUyQ21ldCUyQ21oJTJDbW0lMkNtbiUyQ21zJTJDbXYlMkNtdmklMkNwbCUyQ3JtcyUyQ2luaXRjd25kYnBzJmxzaWc9QVBhVHh4TXdSUUloQVB4VUJWbmlBNE8xeWkyWWV6dnhJa09nRzA5UmVsdlpkUW4yR1Q5RmEwajJBaUFQb2RNMGhWNUhyaUlobUl4NFVoMzNySGRGNDVwYmFSam96VHk0eTdDdmJBJTNEJTNE.k4i3-nHw0tl2QKhwq38__ZFLV0xlMNAClTLgM-79Kew&nom=2+minutes+pour+tout+comprendre+-+La+formation+professionnelle+%E2%80%94+144p.mp4 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:54632 - "OPTIONS /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54632 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54632 - "OPTIONS /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54632 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54632 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54643 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54645 - "OPTIONS /api/v1/auth/me/photo-profil HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54647 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54649 - "OPTIONS /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54651 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54653 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54655 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54657 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54659 - "OPTIONS /api/v1/auth/me/photo-profil HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54661 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54665 - "OPTIONS /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54667 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54632 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54667 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54669 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54663 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54663 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54669 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54673 - "GET /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54667 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54671 - "GET /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54632 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54663 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54680 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54680 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54693 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54693 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54705 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54707 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54705 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54707 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54707 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54707 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54720 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54720 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54723 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54723 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54725 - "POST /api/v1/agui/agent_generaliste_readonly HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54729 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54730 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54730 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54729 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54729 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54729 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+2026-10-09 10:33:36 | INFO     | httpx | HTTP Request: POST https://tokenharbor.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 10:33:40 | INFO     | httpx | HTTP Request: GET https://duckduckgo.com/?q=gestion+de+projet+formation+continue&iax=videos&ia=videos "HTTP/1.1 200 OK"
+2026-10-09 10:33:40 | INFO     | httpx | HTTP Request: GET https://duckduckgo.com/?q=formation+professionnelle+ing%C3%A9nierie+p%C3%A9dagogique&iax=videos&ia=videos "HTTP/1.1 200 OK"
+2026-10-09 10:33:41 | INFO     | httpx | HTTP Request: GET https://duckduckgo.com/v.js?l=fr-fr&o=json&q=gestion+de+projet+formation+continue&vqd=4-199022063931550522269299826599571325432 "HTTP/1.1 200 OK"
+2026-10-09 10:33:41 | INFO     | httpx | HTTP Request: GET https://duckduckgo.com/v.js?l=fr-fr&o=json&q=formation+professionnelle+ing%C3%A9nierie+p%C3%A9dagogique&vqd=4-30787148718810652553279090993389918649 "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:54747 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54747 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54750 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54750 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+2026-10-09 10:33:54 | INFO     | httpx | HTTP Request: POST https://tokenharbor.ai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:54755 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54755 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54755 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54755 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54788 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54788 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54788 - "OPTIONS /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DJbUgh5gCWJo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54791 - "OPTIONS /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DJbUgh5gCWJo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54822 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54822 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54788 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DJbUgh5gCWJo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54791 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DJbUgh5gCWJo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54825 - "GET /api/v1/documents/media/fichier?jeton=MTc5MTUzMzA2MwpodHRwczovL3JyNy0tLXNuLW4yNWp4bS13b2NlLmdvb2dsZXZpZGVvLmNvbS92aWRlb3BsYXliYWNrP2V4cGlyZT0xNzkxNTUyODYwJmVpPV9KaklhdnpTSF9IRW1MQVA5NnJBNFFJJmlwPTE1My42Ny44NS44OCZpZD1vLUFBd2I1VHdsbjEwenJDNjdKOW9CRVpnQTJhOGw1NTFTdTNfY0UtSEc1bmlrJml0YWc9MTM2JnNvdXJjZT15b3V0dWJlJnJlcXVpcmVzc2w9eWVzJnhwYz1FZ1ZvMmFEU05RJTNEJTNEJmNwcz0xNDAmbWV0PTE3OTE1MzEyNjAlMkMmbWg9WngmbW09MzElMkMyOSZtbj1zbi1uMjVqeG0td29jZSUyQ3NuLXUxd29jNS01bSZtcz1hdSUyQ3JkdSZtdj1tJm12aT03JnBsPTIzJnJtcz1hdSUyQ2F1JmluaXRjd25kYnBzPTMzNjI1MCZidWk9QVd6UUh3cFVrS2wyVGJpVncyNkgyUDh1RkJEVjJJMmxrTDF1VzlMelpZQnlzMzBHT25XbmE0MnJVaEhib0tqemxyZFRBNWFPVDVMMVhmVHkmc3BjPUktcmdJY2NIMk1RTW80TlhZcnBfclZ2d3J1bzBVdWYta3B5Q0trU2g3QXAwcHFLaHZpTHhpc25mM3c0XyZ2cHJ2PTEmc3ZwdWM9MSZtaW1lPXZpZGVvJTJGbXA0JnJxaD0xJmdpcj15ZXMmY2xlbj0xNDc4ODA1MyZkdXI9MTE5LjI0MCZsbXQ9MTcyOTI0NTkyNDA3MjE0MCZtdD0xNzkxNTMwNzI5JmZ2aXA9MSZrZWVwYWxpdmU9eWVzJmZleHA9NTE1NjUxMTUlMkM1MjExMjkwNSUyQzUyMTg0MjMyJTJDNTIyNTA1MTMmYz1WSVNJT05PUyZ0eHA9NjIwOTIyNCZzcGFyYW1zPWV4cGlyZSUyQ2VpJTJDaXAlMkNpZCUyQ2l0YWclMkNzb3VyY2UlMkNyZXF1aXJlc3NsJTJDeHBjJTJDYnVpJTJDc3BjJTJDdnBydiUyQ3N2cHVjJTJDbWltZSUyQ3JxaCUyQ2dpciUyQ2NsZW4lMkNkdXIlMkNsbXQmc2lnPUFFMHMySll3UlFJZ0dtc0pHNWFyQkJqM05KYkhKUEJqMm5TWGQweVljTGhVMnc5OFh5eWVQdk1DSVFDY3gzZjF5RjBuUHZwdWFlU2N4R2hBMEwtcmpoQjBFaFZwX3dxRGhJcllpUSUzRCUzRCZsc3BhcmFtcz1jcHMlMkNtZXQlMkNtaCUyQ21tJTJDbW4lMkNtcyUyQ212JTJDbXZpJTJDcGwlMkNybXMlMkNpbml0Y3duZGJwcyZsc2lnPUFQYVR4eE13UlFJZ1lZQUZjemNqdEx2RFZDODFuT28zcjN1MlhIaUVBT3Jid3BLQVJoNHpPTWNDSVFETmUtQTZRTnpZMnJSTzlubjRKVlRuV1VXR1V1dEJpUHFtMTZHZkdPdTBXQSUzRCUzRA.vPHbNHb-vx3JWbC9CudR0aFFF0mApTJJ6Q2G3rC2zB4&nom=Fondamentaux+de+la+gestion+de+projet+5+questions+%C3%A0+Emmanuel+Chenevier+%E2%80%94+720p.mp4 HTTP/1.1" 401 Unauthorized
+2026-10-09 10:34:27 | WARNING  | app.api.agui | Run AG-UI interrompu : CancelledError: Cancelled via cancel scope 161f228ed40 by <Task pending name='Task-2841' coro=<RequestResponseCycle.run_asgi() running at C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py:422> cb=[set.discard()]>
+2026-10-09 10:34:49 | INFO     | httpx | HTTP Request: POST https://tokenharbor.ai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:55341 - "GET /api/v1/documents/media/fichier?jeton=jeton-bidon-000000 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:55342 - "GET /api/v1/documents/media/fichier?jeton=jeton-bidon-000000 HTTP/1.1" 401 Unauthorized
+2026-10-09 11:01:39 | WARNING  | app.agents.providers | AGENT_SSL_VERIFY=false : le certificat TLS du provider LLM n'est pas vérifié (environnements de développement uniquement).
+2026-10-09 11:01:46 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-09 11:01:46 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 11:01:47 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 11:01:47 | INFO     | mcp.client.streamable_http | Received session ID: 406e1b58-2783-4f26-95a6-40f9aeb4d0e8
+2026-10-09 11:01:47 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-09 11:01:47 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-09 11:01:47 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-09 11:01:47 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-09 11:01:47 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-09 11:01:47 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-09 11:01:47 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-09 11:01:47 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-09 11:01:47 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 11:01:49 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 11:01:49 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_generateur_offre : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+2026-10-09 11:01:49 | INFO     | app.agents.checkpointer | Checkpointer LangGraph persistant : PostgreSQL (threads des agents conservés entre les redémarrages)
+2026-10-09 11:01:58 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-09 11:01:58 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 11:01:58 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 11:01:58 | INFO     | mcp.client.streamable_http | Received session ID: d478755e-6bdf-487b-9aef-fa7ebaf3de5d
+2026-10-09 11:01:58 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-09 11:01:58 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-09 11:01:58 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-09 11:01:58 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-09 11:01:58 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-09 11:01:58 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-09 11:01:58 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-09 11:01:58 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-09 11:01:59 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 11:01:59 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 11:01:59 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_rh : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+2026-10-09 11:02:00 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-09 11:02:00 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 11:02:00 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 11:02:00 | INFO     | mcp.client.streamable_http | Received session ID: 5fdcc9d2-c8c4-4c42-abcb-7f78bb58d9e4
+2026-10-09 11:02:00 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-09 11:02:00 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-09 11:02:00 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-09 11:02:00 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-09 11:02:00 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-09 11:02:01 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-09 11:02:01 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-09 11:02:01 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-09 11:02:01 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 11:02:01 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 11:02:01 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_assistant_formateur : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+2026-10-09 11:02:02 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://bqksu-153-67-85-88.run.pinggy-free.link/mcp
+2026-10-09 11:02:02 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 11:02:03 | WARNING  | app.agents.mcp | Connecteur MCP Desktop injoignable pour agent_generaliste_readonly : ConnectError: [Errno 11001] getaddrinfo failed
+2026-10-09 11:02:03 | WARNING  | app.agents.mcp | Connecteur MCP Github ignoré pour agent_generaliste_readonly : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-09 11:02:03 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://127.0.0.1:8901/mcp
+2026-10-09 11:02:03 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 11:02:03 | WARNING  | app.agents.mcp | Connecteur MCP Mon desktop injoignable pour agent_generaliste_readonly : ConnectError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1006)
+2026-10-09 11:02:07 | INFO     | app.agents.mcp | Connecteur MCP Time chargé pour agent_generaliste_readonly : 2 outil(s) — Time_convert_time, Time_get_current_time
+2026-10-09 11:02:07 | WARNING  | app.agents.mcp | Connecteur MCP WhatsApp Business Tools ignoré pour agent_generaliste_readonly : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-09 11:02:07 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://mcp.facebook.com/whatsapp_business_tools
+2026-10-09 11:02:07 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 11:02:09 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/whatsapp_business_tools "HTTP/1.1 401 Unauthorized"
+2026-10-09 11:02:09 | WARNING  | app.agents.mcp | Connecteur MCP WhatsApp Business Tools injoignable pour agent_generaliste_readonly : HTTPStatusError HTTP 401 https://mcp.facebook.com/whatsapp_business_tools
+2026-10-09 11:02:09 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-09 11:02:09 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 11:02:10 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 11:02:10 | INFO     | mcp.client.streamable_http | Received session ID: bc9da727-2250-44b2-9971-8c5e10585d75
+2026-10-09 11:02:10 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-09 11:02:10 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-09 11:02:10 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-09 11:02:10 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-09 11:02:10 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-09 11:02:10 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-09 11:02:10 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-09 11:02:10 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-09 11:02:10 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 11:02:10 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 11:02:10 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_generaliste_readonly : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+npm notice run npx
+npm notice run mcp-terminal
+MCP Terminal Server running...
+2026-10-09 11:02:24 | INFO     | app.agents.mcp | Connecteur MCP Terminal chargé pour agent_generaliste_readonly : 1 outil(s) — Terminal_execute_command
+2026-10-09 11:02:25 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-09 11:02:25 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-09 11:02:26 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 11:02:26 | INFO     | mcp.client.streamable_http | Received session ID: 63c5af3e-16d5-4b38-9b4d-5b71a284c98e
+2026-10-09 11:02:26 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-09 11:02:26 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-09 11:02:26 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-09 11:02:26 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-09 11:02:26 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-09 11:02:26 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-09 11:02:26 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-09 11:02:26 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-09 11:02:26 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 11:02:27 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-09 11:02:27 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_statistique : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+2026-10-09 11:02:27 | INFO     | app.api.agui | AG-UI : 5 endpoint(s) monté(s)
+INFO:     Started server process [18880]
+INFO:     Waiting for application startup.
+2026-10-09 11:02:29 | INFO     | app.api.agui | AG-UI : 5 endpoint(s) monté(s)
+2026-10-09 11:02:29 | INFO     | app.agents.manager | Configuration des agents restaurée depuis la base (provider=openai_compatible, model=deepseek-v4.1-flash:free)
+2026-10-09 11:02:29 | INFO     | __main__ | Bootstrap admin : compte prêt pour admin@carso.mg
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:55814 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55816 - "GET /api/v1/documents/media/fichier?jeton=jeton-bidon-000000 HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:55827 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55827 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55842 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55842 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55840 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55843 - "GET /api/v1/documents/all HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55843 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DjNQXAC9IVRw HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55851 - "GET /api/v1/documents/all HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55851 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fexample.com%2F HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:55851 - "GET /api/v1/documents/media/flux?url=http%3A%2F%2F169.254.169.254%2Flatest%2F HTTP/1.1" 422 Unprocessable Entity
+2026-10-09 11:03:30 | INFO     | httpx | HTTP Request: GET https://www.w3schools.com/html/mov_bbb.mp4 "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:55851 - "POST /api/v1/documents/import-media HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:55851 - "GET /api/v1/documents/all HTTP/1.1" 200 OK
+2026-10-09 11:03:33 | INFO     | httpx | HTTP Request: GET https://rr6---sn-n25jxm-wocl.googlevideo.com/videoplayback?expire=1791554591&ei=v5_Ias7mEeTO8uMP1pDtwQ8&ip=153.67.85.88&id=o-AN-ODGTV2MWi-WckmLOYa_fdrg3Vm87Hr-caxKeqKKAu&itag=133&source=youtube&requiressl=yes&xpc=EgVo2aDSNQ%3D%3D&cps=781&met=1791532991%2C&mh=VD&mm=18%2C29&mn=sn-n25jxm-wocl%2Csn-woc7kned&ms=aub%2Crdu&mv=m&mvi=6&pl=23&rms=aub%2Caub&initcwndbps=332250&bui=AWzQHwpkvlACBNHxX5WnpLz66NZ_668bt4N2JSAh7X03HVoyc6qxAtThkS4XqwnFZwqVSsTn-1YHt5ND&spc=I-rgIZ8stk-7YQjTwi6x3QgtyYze2WJ1m85_UXXIzDpm-qYDq1P3Cj0qljfSKph8sg&vprv=1&svpuc=1&mime=video%2Fmp4&rqh=1&gir=yes&clen=433081&dur=18.933&lmt=1767107069601671&mt=1791532638&fvip=5&keepalive=yes&fexp=51565116%2C52112905%2C52184231%2C52227522%2C52250513&c=VISIONOS&txp=4530534&sparams=expire%2Cei%2Cip%2Cid%2Citag%2Csource%2Crequiressl%2Cxpc%2Cbui%2Cspc%2Cvprv%2Csvpuc%2Cmime%2Crqh%2Cgir%2Cclen%2Cdur%2Clmt&sig=AE0s2JYwRgIhAPCfCP_WOWj2TIjGLzkKYtDRMwZV6LiVvN49_Sd7NNmJAiEAleGJfIxubuTG3scJ9yUvZ6h7rpUE2mfyXOgkhZT3y1U%3D&lsparams=cps%2Cmet%2Cmh%2Cmm%2Cmn%2Cms%2Cmv%2Cmvi%2Cpl%2Crms%2Cinitcwndbps&lsig=APaTxxMwRAIgET6d0Uy7IyWfre93pvHe8DwYR0Ap0xH9RVEOmTgppFsCIBJv1kec8j-Krto8_rjwMQNhENXVYzSUhuZk54ckIXIe "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:55862 - "GET /api/v1/documents/media/fichier?jeton=eyJleHAiOjE3OTE1MzQ3OTQsImhhdXRldXIiOjI0MCwicGFnZSI6Imh0dHBzOi8vd3d3LnlvdXR1YmUuY29tL3dhdGNoP3Y9ak5RWEFDOUlWUnciLCJwaXN0ZSI6InZpZGVvIiwidXJsIjoiaHR0cHM6Ly9ycjYtLS1zbi1uMjVqeG0td29jbC5nb29nbGV2aWRlby5jb20vdmlkZW9wbGF5YmFjaz9leHBpcmU9MTc5MTU1NDU5MSZlaT12NV9JYXM3bUVlVE84dU1QMXBEdHdROCZpcD0xNTMuNjcuODUuODgmaWQ9by1BTi1PREdUVjJNV2ktV2NrbUxPWWFfZmRyZzNWbTg3SHItY2F4S2VxS0tBdSZpdGFnPTEzMyZzb3VyY2U9eW91dHViZSZyZXF1aXJlc3NsPXllcyZ4cGM9RWdWbzJhRFNOUSUzRCUzRCZjcHM9NzgxJm1ldD0xNzkxNTMyOTkxJTJDJm1oPVZEJm1tPTE4JTJDMjkmbW49c24tbjI1anhtLXdvY2wlMkNzbi13b2M3a25lZCZtcz1hdWIlMkNyZHUmbXY9bSZtdmk9NiZwbD0yMyZybXM9YXViJTJDYXViJmluaXRjd25kYnBzPTMzMjI1MCZidWk9QVd6UUh3cGt2bEFDQk5IeFg1V25wTHo2Nk5aXzY2OGJ0NE4ySlNBaDdYMDNIVm95YzZxeEF0VGhrUzRYcXduRlp3cVZTc1RuLTFZSHQ1TkQmc3BjPUktcmdJWjhzdGstN1lRalR3aTZ4M1FndHlZemUyV0oxbTg1X1VYWEl6RHBtLXFZRHExUDNDajBxbGpmU0twaDhzZyZ2cHJ2PTEmc3ZwdWM9MSZtaW1lPXZpZGVvJTJGbXA0JnJxaD0xJmdpcj15ZXMmY2xlbj00MzMwODEmZHVyPTE4LjkzMyZsbXQ9MTc2NzEwNzA2OTYwMTY3MSZtdD0xNzkxNTMyNjM4JmZ2aXA9NSZrZWVwYWxpdmU9eWVzJmZleHA9NTE1NjUxMTYlMkM1MjExMjkwNSUyQzUyMTg0MjMxJTJDNTIyMjc1MjIlMkM1MjI1MDUxMyZjPVZJU0lPTk9TJnR4cD00NTMwNTM0JnNwYXJhbXM9ZXhwaXJlJTJDZWklMkNpcCUyQ2lkJTJDaXRhZyUyQ3NvdXJjZSUyQ3JlcXVpcmVzc2wlMkN4cGMlMkNidWklMkNzcGMlMkN2cHJ2JTJDc3ZwdWMlMkNtaW1lJTJDcnFoJTJDZ2lyJTJDY2xlbiUyQ2R1ciUyQ2xtdCZzaWc9QUUwczJKWXdSZ0loQVBDZkNQX1dPV2oyVElqR0x6a0tZdERSTXdaVjZMaVZ2TjQ5X1NkN05ObUpBaUVBbGVHSmZJeHVidVRHM3NjSjl5VXZaNmg3cnBVRTJtZnlYT2draFpUM3kxVSUzRCZsc3BhcmFtcz1jcHMlMkNtZXQlMkNtaCUyQ21tJTJDbW4lMkNtcyUyQ212JTJDbXZpJTJDcGwlMkNybXMlMkNpbml0Y3duZGJwcyZsc2lnPUFQYVR4eE13UkFJZ0VUNmQwVXk3SXlXZnJlOTNwdkhlOER3WVIwQXAweEg5UlZFT21UZ3BwRnNDSUJKdjFrZWM4ai1LcnRvOF9yandNUU5oRU5YVll6U1VodVprNTRja0lYSWUifQ.G6lolc3Vf3jLGdEAjxXSR1PkMB-vY682rK6Ygnwh1Io&nom=Me+at+the+zoo+%E2%80%94+240p.mp4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55867 - "GET /api/v1/documents/media/fichier?jeton=eyJleHAiOjE3OTE1MzQ3OTQsImhhdXRldXIiOjI0MCwicGFnZSI6Imh0dHBzOi8vd3d3LnlvdXR1YmUuY29tL3dhdGNoP3Y9ak5RWEFDOUlWUnciLCJwaXN0ZSI6InZpZGVvIiwidXJsIjoiaHR0cHM6Ly9ycjYtLS1zbi1uMjVqeG0td29jbC5nb29nbGV2aWRlby5jb20vdmlkZW9wbGF5YmFjaz9leHBpcmU9MTc5MTU1NDU5MSZlaT12NV9JYXM3bUVlVE84dU1QMXBEdHdROCZpcD0xNTMuNjcuODUuODgmaWQ9by1BTi1PREdUVjJNV2ktV2NrbUxPWWFfZmRyZzNWbTg3SHItY2F4S2VxS0tBdSZpdGFnPTEzMyZzb3VyY2U9eW91dHViZSZyZXF1aXJlc3NsPXllcyZ4cGM9RWdWbzJhRFNOUSUzRCUzRCZjcHM9NzgxJm1ldD0xNzkxNTMyOTkxJTJDJm1oPVZEJm1tPTE4JTJDMjkmbW49c24tbjI1anhtLXdvY2wlMkNzbi13b2M3a25lZCZtcz1hdWIlMkNyZHUmbXY9bSZtdmk9NiZwbD0yMyZybXM9YXViJTJDYXViJmluaXRjd25kYnBzPTMzMjI1MCZidWk9QVd6UUh3cGt2bEFDQk5IeFg1V25wTHo2Nk5aXzY2OGJ0NE4ySlNBaDdYMDNIVm95YzZxeEF0VGhrUzRYcXduRlp3cVZTc1RuLTFZSHQ1TkQmc3BjPUktcmdJWjhzdGstN1lRalR3aTZ4M1FndHlZemUyV0oxbTg1X1VYWEl6RHBtLXFZRHExUDNDajBxbGpmU0twaDhzZyZ2cHJ2PTEmc3ZwdWM9MSZtaW1lPXZpZGVvJTJGbXA0JnJxaD0xJmdpcj15ZXMmY2xlbj00MzMwODEmZHVyPTE4LjkzMyZsbXQ9MTc2NzEwNzA2OTYwMTY3MSZtdD0xNzkxNTMyNjM4JmZ2aXA9NSZrZWVwYWxpdmU9eWVzJmZleHA9NTE1NjUxMTYlMkM1MjExMjkwNSUyQzUyMTg0MjMxJTJDNTIyMjc1MjIlMkM1MjI1MDUxMyZjPVZJU0lPTk9TJnR4cD00NTMwNTM0JnNwYXJhbXM9ZXhwaXJlJTJDZWklMkNpcCUyQ2lkJTJDaXRhZyUyQ3NvdXJjZSUyQ3JlcXVpcmVzc2wlMkN4cGMlMkNidWklMkNzcGMlMkN2cHJ2JTJDc3ZwdWMlMkNtaW1lJTJDcnFoJTJDZ2lyJTJDY2xlbiUyQ2R1ciUyQ2xtdCZzaWc9QUUwczJKWXdSZ0loQVBDZkNQX1dPV2oyVElqR0x6a0tZdERSTXdaVjZMaVZ2TjQ5X1NkN05ObUpBaUVBbGVHSmZJeHVidVRHM3NjSjl5VXZaNmg3cnBVRTJtZnlYT2draFpUM3kxVSUzRCZsc3BhcmFtcz1jcHMlMkNtZXQlMkNtaCUyQ21tJTJDbW4lMkNtcyUyQ212JTJDbXZpJTJDcGwlMkNybXMlMkNpbml0Y3duZGJwcyZsc2lnPUFQYVR4eE13UkFJZ0VUNmQwVXk3SXlXZnJlOTNwdkhlOER3WVIwQXAweEg5UlZFT21UZ3BwRnNDSUJKdjFrZWM4ai1LcnRvOF9yandNUU5oRU5YVll6U1VodVprNTRja0lYSWUifQ.G6lolc3Vf3jLGdEAjxXSR1PkMB-vY682rK6Ygnwhaaa HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:55868 - "GET /api/v1/documents/media/fichier?jeton=jeton-inexistant-000000 HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:55869 - "GET /api/v1/documents/all HTTP/1.1" 200 OK
+2026-10-09 11:03:41 | INFO     | httpx | HTTP Request: GET https://rr6---sn-n25jxm-wocl.googlevideo.com/videoplayback?expire=1&ei=v5_Ias7mEeTO8uMP1pDtwQ8&ip=153.67.85.88&id=o-AN-ODGTV2MWi-WckmLOYa_fdrg3Vm87Hr-caxKeqKKAu&itag=160&source=youtube&requiressl=yes&xpc=EgVo2aDSNQ%3D%3D&cps=781&met=1791532991%2C&mh=VD&mm=18%2C29&mn=sn-n25jxm-wocl%2Csn-woc7kned&ms=aub%2Crdu&mv=m&mvi=6&pl=23&rms=aub%2Caub&initcwndbps=332250&bui=AWzQHwpkvlACBNHxX5WnpLz66NZ_668bt4N2JSAh7X03HVoyc6qxAtThkS4XqwnFZwqVSsTn-1YHt5ND&spc=I-rgIZ8stk-7YQjTwi6x3QgtyYze2WJ1m85_UXXIzDpm-qYDq1P3Cj0qljfSKph8sg&vprv=1&svpuc=1&mime=video%2Fmp4&rqh=1&gir=yes&clen=195278&dur=18.933&lmt=1767107062625137&mt=1791532638&fvip=5&keepalive=yes&fexp=51565116%2C52112905%2C52184231%2C52227522%2C52250513&c=VISIONOS&txp=4530534&sparams=expire%2Cei%2Cip%2Cid%2Citag%2Csource%2Crequiressl%2Cxpc%2Cbui%2Cspc%2Cvprv%2Csvpuc%2Cmime%2Crqh%2Cgir%2Cclen%2Cdur%2Clmt&sig=AE0s2JYwRgIhAKLZxW9bF3wHPXvGbuj7KT6Lo1d6Gzj4eriZXQv2kGWlAiEAzcev-5l4S268k2gbPKNnrV9b0jB5PrIQuDDVftEqxb8%3D&lsparams=cps%2Cmet%2Cmh%2Cmm%2Cmn%2Cms%2Cmv%2Cmvi%2Cpl%2Crms%2Cinitcwndbps&lsig=APaTxxMwRAIgET6d0Uy7IyWfre93pvHe8DwYR0Ap0xH9RVEOmTgppFsCIBJv1kec8j-Krto8_rjwMQNhENXVYzSUhuZk54ckIXIe "HTTP/1.1 403 Forbidden"
+INFO:     127.0.0.1:55874 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55874 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+2026-10-09 11:03:46 | INFO     | app.application.services.video_web_service | Relais vidéo : adresse refusée (403) — reprise sur 144p video de https://www.youtube.com/watch?v=jNQXAC9IVRw
+2026-10-09 11:03:47 | INFO     | httpx | HTTP Request: GET https://rr6---sn-n25jxm-wocl.googlevideo.com/videoplayback?expire=1791554624&ei=4J_Iar_lKeTNmLAPw-G9sAk&ip=153.67.85.88&id=o-APHVWABb6AbfXSQgsk3MmW1WnMmDQE-ZPYyil-Op85OV&itag=160&source=youtube&requiressl=yes&xpc=EgVo2aDSNQ%3D%3D&cps=862&met=1791533024%2C&mh=VD&mm=18%2C29&mn=sn-n25jxm-wocl%2Csn-woc7kned&ms=aub%2Crdu&mv=m&mvi=6&pl=23&rms=aub%2Caub&initcwndbps=332250&bui=AWzQHwriMydis8URCIqPxi1xzuhejmH6LDZkNkO5nM81f7aI6mmPRh2n65mcR3OlFoBAqaBsMthpuUDb&spc=I-rgIYMT8tTaxpi5h16U2zdWaQCCu_uk3GbLm-ySCyl3_frxIAp4RBBR11KB&vprv=1&svpuc=1&mime=video%2Fmp4&rqh=1&gir=yes&clen=195278&dur=18.933&lmt=1767107062625137&mt=1791532638&fvip=5&epbp=1&keepalive=yes&fexp=51565116%2C52112905%2C52184231%2C52250513&c=VISIONOS&txp=4530534&sparams=expire%2Cei%2Cip%2Cid%2Citag%2Csource%2Crequiressl%2Cxpc%2Cbui%2Cspc%2Cvprv%2Csvpuc%2Cmime%2Crqh%2Cgir%2Cclen%2Cdur%2Clmt&sig=AE0s2JYwRgIhAN_sNPP_UsciJ0Qzjw1rqGfRKQc0sRy3xBaJbw49gIuVAiEA1x5Utw5omRY9zh5OTDVbDDkGKTJwoqqkwBeJptpWLDU%3D&lsparams=cps%2Cmet%2Cmh%2Cmm%2Cmn%2Cms%2Cmv%2Cmvi%2Cpl%2Crms%2Cinitcwndbps&lsig=APaTxxMwRgIhAP5h05yuPlceVpSjsO8OalGpJMidiRndvv5zeh7ZmkpDAiEAj3m0kpJGheB0SA0ysfcgncH1H9QtwvM8KoRDGWVbFAs%3D "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:55871 - "GET /api/v1/documents/media/fichier?jeton=eyJleHAiOjE3OTE1MzQ4MTksImhhdXRldXIiOjE0NCwicGFnZSI6Imh0dHBzOi8vd3d3LnlvdXR1YmUuY29tL3dhdGNoP3Y9ak5RWEFDOUlWUnciLCJwaXN0ZSI6InZpZGVvIiwidXJsIjoiaHR0cHM6Ly9ycjYtLS1zbi1uMjVqeG0td29jbC5nb29nbGV2aWRlby5jb20vdmlkZW9wbGF5YmFjaz9leHBpcmU9MSZlaT12NV9JYXM3bUVlVE84dU1QMXBEdHdROCZpcD0xNTMuNjcuODUuODgmaWQ9by1BTi1PREdUVjJNV2ktV2NrbUxPWWFfZmRyZzNWbTg3SHItY2F4S2VxS0tBdSZpdGFnPTE2MCZzb3VyY2U9eW91dHViZSZyZXF1aXJlc3NsPXllcyZ4cGM9RWdWbzJhRFNOUSUzRCUzRCZjcHM9NzgxJm1ldD0xNzkxNTMyOTkxJTJDJm1oPVZEJm1tPTE4JTJDMjkmbW49c24tbjI1anhtLXdvY2wlMkNzbi13b2M3a25lZCZtcz1hdWIlMkNyZHUmbXY9bSZtdmk9NiZwbD0yMyZybXM9YXViJTJDYXViJmluaXRjd25kYnBzPTMzMjI1MCZidWk9QVd6UUh3cGt2bEFDQk5IeFg1V25wTHo2Nk5aXzY2OGJ0NE4ySlNBaDdYMDNIVm95YzZxeEF0VGhrUzRYcXduRlp3cVZTc1RuLTFZSHQ1TkQmc3BjPUktcmdJWjhzdGstN1lRalR3aTZ4M1FndHlZemUyV0oxbTg1X1VYWEl6RHBtLXFZRHExUDNDajBxbGpmU0twaDhzZyZ2cHJ2PTEmc3ZwdWM9MSZtaW1lPXZpZGVvJTJGbXA0JnJxaD0xJmdpcj15ZXMmY2xlbj0xOTUyNzgmZHVyPTE4LjkzMyZsbXQ9MTc2NzEwNzA2MjYyNTEzNyZtdD0xNzkxNTMyNjM4JmZ2aXA9NSZrZWVwYWxpdmU9eWVzJmZleHA9NTE1NjUxMTYlMkM1MjExMjkwNSUyQzUyMTg0MjMxJTJDNTIyMjc1MjIlMkM1MjI1MDUxMyZjPVZJU0lPTk9TJnR4cD00NTMwNTM0JnNwYXJhbXM9ZXhwaXJlJTJDZWklMkNpcCUyQ2lkJTJDaXRhZyUyQ3NvdXJjZSUyQ3JlcXVpcmVzc2wlMkN4cGMlMkNidWklMkNzcGMlMkN2cHJ2JTJDc3ZwdWMlMkNtaW1lJTJDcnFoJTJDZ2lyJTJDY2xlbiUyQ2R1ciUyQ2xtdCZzaWc9QUUwczJKWXdSZ0loQUtMWnhXOWJGM3dIUFh2R2J1ajdLVDZMbzFkNkd6ajRlcmlaWFF2MmtHV2xBaUVBemNldi01bDRTMjY4azJnYlBLTm5yVjliMGpCNVBySVF1RERWZnRFcXhiOCUzRCZsc3BhcmFtcz1jcHMlMkNtZXQlMkNtaCUyQ21tJTJDbW4lMkNtcyUyQ212JTJDbXZpJTJDcGwlMkNybXMlMkNpbml0Y3duZGJwcyZsc2lnPUFQYVR4eE13UkFJZ0VUNmQwVXk3SXlXZnJlOTNwdkhlOER3WVIwQXAweEg5UlZFT21UZ3BwRnNDSUJKdjFrZWM4ai1LcnRvOF9yandNUU5oRU5YVll6U1VodVprNTRja0lYSWUifQ.WfXC8Njf7cl4tGUK1ByJeKDIIP9mGCgdBPfntZp_RZc&nom=reprise+automatique+240p.mp4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55879 - "GET /api/v1/documents/all HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55889 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55889 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55915 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55915 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55915 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55915 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55946 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55947 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55946 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55947 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55947 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55946 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55947 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55946 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55964 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55964 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55972 - "OPTIONS /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DJbUgh5gCWJo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55974 - "OPTIONS /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DJbUgh5gCWJo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56002 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56002 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55972 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DJbUgh5gCWJo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55974 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DJbUgh5gCWJo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55974 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55974 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55974 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55974 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+2026-10-09 11:06:17 | INFO     | httpx | HTTP Request: GET https://rr7---sn-n25jxm-woce.googlevideo.com/videoplayback?expire=1791554764&ei=bKDIasS-G9HomLAP3PT14As&ip=153.67.85.88&id=o-ADWHm190GQvQ07GMEAHV99GLlJIG9zK0ZaTCun_iZmh7&itag=134&source=youtube&requiressl=yes&xpc=EgVo2aDSNQ%3D%3D&cps=210&met=1791533164%2C&mh=Zx&mm=31%2C29&mn=sn-n25jxm-woce%2Csn-u1woc5-5m&ms=au%2Crdu&mv=m&mvi=7&pl=23&rms=au%2Cau&initcwndbps=332250&bui=AWzQHwpdU0Nrh6pE_jjCa_1cicFQAlVJ0DtlWw_260t9ZhSmsaxC9pU7_6UorTHqnZv8oWA9ZslTLx7a&spc=I-rgIVhKucSLO3p81CAcvDV8XUX8zOaBTOdawtDmhirZ3FEViPtNaSnmS9Zc&vprv=1&svpuc=1&mime=video%2Fmp4&rqh=1&gir=yes&clen=3893629&dur=119.240&lmt=1729245922540081&mt=1791532644&fvip=1&keepalive=yes&fexp=51565116%2C52112905%2C52184231%2C52227521%2C52250513&c=VISIONOS&txp=6209224&sparams=expire%2Cei%2Cip%2Cid%2Citag%2Csource%2Crequiressl%2Cxpc%2Cbui%2Cspc%2Cvprv%2Csvpuc%2Cmime%2Crqh%2Cgir%2Cclen%2Cdur%2Clmt&sig=AE0s2JYwRAIgGtroGg0HkQWJ9X7Q5lR8P1tROVZ33n0x5HReh03vm_ICIF3kwV1E3Rbs4ZUbUF1PPuYnAeu2SE44MyJ4CsQapsIj&lsparams=cps%2Cmet%2Cmh%2Cmm%2Cmn%2Cms%2Cmv%2Cmvi%2Cpl%2Crms%2Cinitcwndbps&lsig=APaTxxMwRgIhAP3UAlNqNgIMkb_4vl5recXF-YLjH14D_hdtkwY0xDBMAiEArQS4FTisssnRshX6Ri6ZU6TAiJDrKStt98SoWMlHgMk%3D "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:56025 - "GET /api/v1/documents/media/fichier?jeton=eyJleHAiOjE3OTE1MzQ5NjksImhhdXRldXIiOjM2MCwicGFnZSI6Imh0dHBzOi8vd3d3LnlvdXR1YmUuY29tL3dhdGNoP3Y9SmJVZ2g1Z0NXSm8iLCJwaXN0ZSI6InZpZGVvIiwidXJsIjoiaHR0cHM6Ly9ycjctLS1zbi1uMjVqeG0td29jZS5nb29nbGV2aWRlby5jb20vdmlkZW9wbGF5YmFjaz9leHBpcmU9MTc5MTU1NDc2NCZlaT1iS0RJYXNTLUc5SG9tTEFQM1BUMTRBcyZpcD0xNTMuNjcuODUuODgmaWQ9by1BRFdIbTE5MEdRdlEwN0dNRUFIVjk5R0xsSklHOXpLMFphVEN1bl9pWm1oNyZpdGFnPTEzNCZzb3VyY2U9eW91dHViZSZyZXF1aXJlc3NsPXllcyZ4cGM9RWdWbzJhRFNOUSUzRCUzRCZjcHM9MjEwJm1ldD0xNzkxNTMzMTY0JTJDJm1oPVp4Jm1tPTMxJTJDMjkmbW49c24tbjI1anhtLXdvY2UlMkNzbi11MXdvYzUtNW0mbXM9YXUlMkNyZHUmbXY9bSZtdmk9NyZwbD0yMyZybXM9YXUlMkNhdSZpbml0Y3duZGJwcz0zMzIyNTAmYnVpPUFXelFId3BkVTBOcmg2cEVfampDYV8xY2ljRlFBbFZKMER0bFd3XzI2MHQ5WmhTbXNheEM5cFU3XzZVb3JUSHFuWnY4b1dBOVpzbFRMeDdhJnNwYz1JLXJnSVZoS3VjU0xPM3A4MUNBY3ZEVjhYVVg4ek9hQlRPZGF3dERtaGlyWjNGRVZpUHROYVNubVM5WmMmdnBydj0xJnN2cHVjPTEmbWltZT12aWRlbyUyRm1wNCZycWg9MSZnaXI9eWVzJmNsZW49Mzg5MzYyOSZkdXI9MTE5LjI0MCZsbXQ9MTcyOTI0NTkyMjU0MDA4MSZtdD0xNzkxNTMyNjQ0JmZ2aXA9MSZrZWVwYWxpdmU9eWVzJmZleHA9NTE1NjUxMTYlMkM1MjExMjkwNSUyQzUyMTg0MjMxJTJDNTIyMjc1MjElMkM1MjI1MDUxMyZjPVZJU0lPTk9TJnR4cD02MjA5MjI0JnNwYXJhbXM9ZXhwaXJlJTJDZWklMkNpcCUyQ2lkJTJDaXRhZyUyQ3NvdXJjZSUyQ3JlcXVpcmVzc2wlMkN4cGMlMkNidWklMkNzcGMlMkN2cHJ2JTJDc3ZwdWMlMkNtaW1lJTJDcnFoJTJDZ2lyJTJDY2xlbiUyQ2R1ciUyQ2xtdCZzaWc9QUUwczJKWXdSQUlnR3Ryb0dnMEhrUVdKOVg3UTVsUjhQMXRST1ZaMzNuMHg1SFJlaDAzdm1fSUNJRjNrd1YxRTNSYnM0WlViVUYxUFB1WW5BZXUyU0U0NE15SjRDc1FhcHNJaiZsc3BhcmFtcz1jcHMlMkNtZXQlMkNtaCUyQ21tJTJDbW4lMkNtcyUyQ212JTJDbXZpJTJDcGwlMkNybXMlMkNpbml0Y3duZGJwcyZsc2lnPUFQYVR4eE13UmdJaEFQM1VBbE5xTmdJTWtiXzR2bDVyZWNYRi1ZTGpIMTREX2hkdGt3WTB4REJNQWlFQXJRUzRGVGlzc3NuUnNoWDZSaTZaVTZUQWlKRHJLU3R0OThTb1dNbEhnTWslM0QifQ.aHHH3Uh0SbFycTeOS8gK_F8A095ilsM1zwZGPKc7CEU&nom=Fondamentaux+de+la+gestion+de+projet+5+questions+%C3%A0+Emmanuel+Chenevier+%E2%80%94+360p.mp4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56042 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56044 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56201 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56201 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56301 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56301 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56301 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56319 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56319 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56301 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56335 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56335 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56343 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56343 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56365 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56365 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56382 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56382 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56385 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56385 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56385 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56389 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56389 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56385 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56413 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56413 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56434 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56434 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56456 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56456 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56456 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56456 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56465 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56465 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56474 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56474 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56489 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56489 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56489 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56497 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56489 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56497 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56521 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56521 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56593 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56652 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56652 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56652 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56652 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56706 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56706 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56715 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56715 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56727 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56729 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56729 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56739 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56729 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56739 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56750 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56750 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56788 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56788 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56794 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56794 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56794 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56794 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56794 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56797 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56805 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56805 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56822 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56822 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56822 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56824 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56832 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56832 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56832 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56837 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56837 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56837 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56866 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56866 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56870 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56870 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56870 - "OPTIONS /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DJbUgh5gCWJo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56875 - "OPTIONS /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DJbUgh5gCWJo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56882 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56882 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56882 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56884 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56884 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56882 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56875 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DJbUgh5gCWJo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56870 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DJbUgh5gCWJo HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56889 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56889 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56891 - "OPTIONS /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DBpDMdvEC6sM HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56893 - "OPTIONS /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DBpDMdvEC6sM HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56897 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56897 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56903 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56903 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56893 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DBpDMdvEC6sM HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56891 - "GET /api/v1/documents/media/flux?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DBpDMdvEC6sM HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56891 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56891 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56905 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56905 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56910 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56912 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56910 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56912 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56919 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56919 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56926 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56926 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56926 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56926 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56934 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56935 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56935 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56934 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56954 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56956 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56956 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56954 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56963 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56964 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56964 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56963 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56969 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56971 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56969 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56971 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56971 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56971 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56971 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56971 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56994 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56994 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56994 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56996 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57032 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57034 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57032 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57034 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57041 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57041 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57041 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57043 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57045 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57056 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57045 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57056 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57062 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57064 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57062 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57064 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57076 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57078 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57076 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57078 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57108 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57110 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57110 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57108 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57117 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57119 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57117 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57119 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57129 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57131 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57129 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57131 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57142 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57144 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57142 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57144 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57149 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57148 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57149 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57148 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57157 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57157 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57167 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57168 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57167 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57168 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57183 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57183 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57190 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57190 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57190 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57190 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57215 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57216 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57217 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57223 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57221 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57219 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57230 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57230 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57237 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57240 - "OPTIONS /api/v1/appels-a-proposition/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57241 - "OPTIONS /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57244 - "OPTIONS /api/v1/appels-a-proposition/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57245 - "OPTIONS /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57237 - "GET /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57240 - "GET /api/v1/appels-a-proposition/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57241 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57244 - "GET /api/v1/appels-a-proposition/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57245 - "GET /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57245 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57245 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57252 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57252 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57252 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57252 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57256 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57256 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57258 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57258 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57258 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57258 - "OPTIONS /api/v1/appels-a-proposition/a584e6c9-7cbc-4374-9b67-fac4ddc01b00 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57262 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57258 - "OPTIONS /api/v1/appels-a-proposition/a584e6c9-7cbc-4374-9b67-fac4ddc01b00/lots/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57262 - "OPTIONS /api/v1/documents?appel_a_proposition_id=a584e6c9-7cbc-4374-9b67-fac4ddc01b00 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57267 - "OPTIONS /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57258 - "OPTIONS /api/v1/missions/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57268 - "OPTIONS /api/v1/offres/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57270 - "OPTIONS /api/v1/appels-a-proposition/a584e6c9-7cbc-4374-9b67-fac4ddc01b00 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57264 - "GET /api/v1/appels-a-proposition/a584e6c9-7cbc-4374-9b67-fac4ddc01b00 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57262 - "OPTIONS /api/v1/appels-a-proposition/a584e6c9-7cbc-4374-9b67-fac4ddc01b00/lots/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57267 - "OPTIONS /api/v1/documents?appel_a_proposition_id=a584e6c9-7cbc-4374-9b67-fac4ddc01b00 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57258 - "OPTIONS /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57268 - "OPTIONS /api/v1/offres/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57270 - "OPTIONS /api/v1/missions/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57267 - "GET /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57270 - "GET /api/v1/offres/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57264 - "GET /api/v1/appels-a-proposition/a584e6c9-7cbc-4374-9b67-fac4ddc01b00/lots/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57262 - "GET /api/v1/documents?appel_a_proposition_id=a584e6c9-7cbc-4374-9b67-fac4ddc01b00 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57268 - "GET /api/v1/missions/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57268 - "GET /api/v1/missions/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57264 - "GET /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57268 - "OPTIONS /api/v1/lieux/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57264 - "OPTIONS /api/v1/lieux/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57268 - "OPTIONS /api/v1/lieux/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57270 - "GET /api/v1/documents?appel_a_proposition_id=a584e6c9-7cbc-4374-9b67-fac4ddc01b00 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57264 - "OPTIONS /api/v1/lieux/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57268 - "OPTIONS /api/v1/lieux/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57270 - "OPTIONS /api/v1/lieux/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57264 - "OPTIONS /api/v1/lieux/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57268 - "OPTIONS /api/v1/lieux/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57267 - "GET /api/v1/appels-a-proposition/a584e6c9-7cbc-4374-9b67-fac4ddc01b00/lots/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57262 - "GET /api/v1/offres/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57267 - "GET /api/v1/lieux/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57264 - "GET /api/v1/lieux/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57268 - "GET /api/v1/lieux/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57270 - "GET /api/v1/lieux/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57264 - "GET /api/v1/lieux/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57262 - "GET /api/v1/lieux/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57267 - "GET /api/v1/lieux/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57268 - "GET /api/v1/lieux/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57258 - "GET /api/v1/appels-a-proposition/a584e6c9-7cbc-4374-9b67-fac4ddc01b00 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57258 - "OPTIONS /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57268 - "OPTIONS /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57258 - "GET /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57268 - "GET /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57268 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57258 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57274 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57278 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57280 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57276 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57276 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57276 - "OPTIONS /api/v1/appels-a-proposition/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57280 - "OPTIONS /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57282 - "OPTIONS /api/v1/appels-a-proposition/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57284 - "OPTIONS /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57278 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57276 - "GET /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57280 - "GET /api/v1/appels-a-proposition/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57278 - "GET /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57284 - "GET /api/v1/appels-a-proposition/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57287 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57287 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57289 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57289 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57291 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57291 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57291 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57291 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57291 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57291 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57297 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57297 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57299 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57299 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57301 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57303 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57303 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57301 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57301 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57301 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57305 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57305 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57305 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57308 - "OPTIONS /api/v1/appels-a-proposition/a200bdd4-befe-47d8-b6ee-5281932ce39d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57313 - "OPTIONS /api/v1/appels-a-proposition/a200bdd4-befe-47d8-b6ee-5281932ce39d/lots/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57314 - "OPTIONS /api/v1/documents?appel_a_proposition_id=a200bdd4-befe-47d8-b6ee-5281932ce39d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57315 - "OPTIONS /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57316 - "OPTIONS /api/v1/offres/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57305 - "OPTIONS /api/v1/missions/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57308 - "OPTIONS /api/v1/appels-a-proposition/a200bdd4-befe-47d8-b6ee-5281932ce39d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57308 - "OPTIONS /api/v1/appels-a-proposition/a200bdd4-befe-47d8-b6ee-5281932ce39d/lots/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57305 - "OPTIONS /api/v1/documents?appel_a_proposition_id=a200bdd4-befe-47d8-b6ee-5281932ce39d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57316 - "OPTIONS /api/v1/organisations/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57315 - "OPTIONS /api/v1/offres/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57314 - "OPTIONS /api/v1/missions/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57313 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57308 - "GET /api/v1/appels-a-proposition/a200bdd4-befe-47d8-b6ee-5281932ce39d HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57305 - "GET /api/v1/appels-a-proposition/a200bdd4-befe-47d8-b6ee-5281932ce39d/lots/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57315 - "GET /api/v1/organisations/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57316 - "GET /api/v1/documents?appel_a_proposition_id=a200bdd4-befe-47d8-b6ee-5281932ce39d HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57314 - "GET /api/v1/offres/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57313 - "GET /api/v1/missions/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57308 - "GET /api/v1/appels-a-proposition/a200bdd4-befe-47d8-b6ee-5281932ce39d HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57305 - "GET /api/v1/appels-a-proposition/a200bdd4-befe-47d8-b6ee-5281932ce39d/lots/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57315 - "GET /api/v1/documents?appel_a_proposition_id=a200bdd4-befe-47d8-b6ee-5281932ce39d HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57316 - "GET /api/v1/organisations/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57313 - "GET /api/v1/missions/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57314 - "GET /api/v1/offres/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57314 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57313 - "OPTIONS /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57316 - "OPTIONS /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57313 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57314 - "GET /api/v1/tableau-bord/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57316 - "GET /api/v1/tableau-bord/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57316 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57316 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57320 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57320 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57325 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57327 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57325 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57331 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57331 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57339 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57339 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57343 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57345 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57345 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57343 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57352 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57354 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57354 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57352 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57357 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57359 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57359 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57357 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57363 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57365 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57365 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57363 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57374 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57376 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57376 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57374 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57381 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57383 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57383 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57381 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57389 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57391 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57391 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57389 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57394 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57396 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57396 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57394 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57410 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57412 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57412 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57410 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57424 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57424 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57433 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57433 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57435 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57433 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57435 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57437 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57447 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57447 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57449 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57449 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57449 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57449 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57452 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57452 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57458 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57461 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57462 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57458 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57466 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57464 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57468 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57468 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57472 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57474 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57472 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57474 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57493 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57492 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57492 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57493 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57498 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57499 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57500 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57502 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57500 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57504 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57510 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57510 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57550 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57552 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57552 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57550 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57627 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57629 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57629 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57627 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57644 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57644 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57644 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57644 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57675 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57677 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57677 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57675 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57698 - "GET /api/v1/docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57698 - "GET /api/v1/openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57724 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57724 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57724 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57724 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized

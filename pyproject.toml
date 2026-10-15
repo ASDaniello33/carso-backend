@@ -1,0 +1,182 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "carso-backend"
+version = "0.1.0"
+description = "CARSO AI — système de gestion intelligent multi-agent (backend)"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "sqlalchemy>=2.0.30",
+    "alembic>=1.13",
+    "psycopg[binary]>=3.2",
+    # Requis par FastAPI pour les uploads multipart (instruction/06 §5).
+    "python-multipart>=0.0.9",
+    "httpx>=0.28.1",
+    "ag-ui-langgraph>=0.0.45",
+    "deepagents>=0.7.14",
+    "psycopg2>=2.9.13",
+]
+
+[project.optional-dependencies]
+# Phase 4 (instruction/11) — extraction documentaire. Librairies pures Python :
+# aucune dépendance système, pas d'OCR. Absentes => échec explicite au runtime
+# (jamais de texte extrait vide silencieux).
+documents = [
+    "pypdf>=4.2",
+    "python-docx>=1.1",
+    "openpyxl>=3.1",
+    # Génération PDF (Lot L0, app.documents.generation). Pur Python, aucune
+    # dépendance système. Absent => GenerationError explicite au runtime.
+    "fpdf2>=2.7",
+    # Conversion HTML+CSS → DOCX (tool prioritaire generer_document_html,
+    # app.documents.html_to_docx). Pillow/requests (images) sont facultatifs.
+    "beautifulsoup4>=4.10",
+]
+
+# Lecture d'une vidéo depuis un résultat de recherche web : résolutions réelles
+# et adresses de flux, rendues au navigateur du client — **aucun fichier
+# conservé côté serveur**. Optionnel : absent, le backend démarre et l'écran
+# l'annonce ; il n'offre simplement pas ces adresses.
+#
+# ``imageio-ffmpeg`` (09/10/2026) : les plateformes ne publient plus de fichier
+# image+son (et leurs liens combinés directs exigent un PO Token anti-bot), et
+# une vidéo **muette** n'est pas la vidéo demandée. Le relais assemble donc
+# vidéo et son **à la volée**, en flux, sans rien écrire : ffmpeg est ici pour
+# ce seul geste (``-c copy``, aucun réencodage). Le wheel embarque le binaire
+# (≈ 88 Mo, mesuré) : aucune installation système.
+video = [
+    "yt-dlp>=2025.1",
+    "imageio-ffmpeg>=0.5",
+]
+
+# Génération professionnelle DOCX/PDF (tool ``generer_document_professionnel``,
+# ``app/documents/professionnel``) : thème injecté, couverture, sommaire numéroté,
+# styles Word natifs, avertissements qualité.
+#
+# ``playwright`` est le moteur du PDF : il pilote un **vrai** navigateur Chromium
+# (Edge ou Chrome déjà présents sur Windows, ou ``python -m playwright install
+# chromium`` sur un serveur Linux). Son absence n'empêche pas le backend de
+# démarrer : le tool échoue alors avec un message explicite, et le rendu DOCX
+# reste disponible.
+# ``pypdf`` fusionne la couverture et les passés de sommaire ; ``pillow`` mesure
+# les images pour les dimensionner dans le DOCX (import direct de
+# ``docx_renderer``).
+documents_pro = [
+    "playwright>=1.45",
+    "pypdf>=4.2",
+    "pillow>=10.0",
+]
+
+# Recherche web texte et lecture de pages par les agents (app/tools/web.py).
+# ``beautifulsoup4`` extrait le texte d'une page HTML : absent, ``fetch_url`` et
+# ``read_urls`` échouent explicitement (jamais un texte vide silencieux).
+# ``trafilatura`` affine l'extraction (article débarrassé des menus et pieds de
+# page) ; absent, BeautifulSoup fait le travail — jamais un échec pour cette
+# seule raison. ``requests``/``ddgs`` ne sont pas repris : les requêtes passent
+# par le client ``httpx`` du projet, dont le transport est injectable (tests hors
+# réseau), et la recherche DuckDuckGo utilise la page publique de résultats.
+web = [
+    "beautifulsoup4>=4.10",
+    "trafilatura>=1.8",
+]
+
+# Agents métier exécutés par Deep Agents (instruction/05). Optionnel : le backend
+# démarre sans ces paquets, et un appel d'agent sans modèle configuré échoue avec
+# un message explicite (jamais un modèle silencieusement dégradé).
+agents = [
+    "deepagents>=0.7",
+    # Providers interchangeables (AGENT_PROVIDER) : openai + endpoints
+    # compatibles OpenAI, et Google Gemini.
+    "langchain-openai>=1.6",
+    "langchain-google-genai>=4.4",
+    "ag-ui-langgraph>=0.0.45",
+    # Connecteurs MCP (admin : app.agents.mcp). Absents => l'onglet Connecteurs
+    # affiche que le support n'est pas installé et aucun serveur n'est chargé ;
+    # jamais un agent silencieusement privé de ses outils distants.
+    "langchain-mcp-adapters>=0.2",
+    "mcp>=1.9",
+    # Checkpointer persistant (ADR 0009) : threads des agents (contexte,
+    # HITL) conservés entre les redémarrages, dans PostgreSQL. psycopg 3 est
+    # déjà une dépendance applicative ; psycopg_pool vient avec ce paquet.
+    "langgraph-checkpoint-postgres>=3.1",
+]
+
+dev = [
+    "pytest>=8.2",
+    "httpx>=0.27",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    # Les tests documentaires exercent la vraie extraction : on reprend les
+    # dépendances de l'extra 'documents' (référence croisée impossible en PEP 621).
+    "pypdf>=4.2",
+    "python-docx>=1.1",
+    "openpyxl>=3.1",
+    # Idem pour la génération professionnelle : les tests construisent le vrai
+    # tool et exercent le vrai moteur (rendu DOCX toujours ; rendu PDF seulement
+    # si un navigateur est présent, sinon le test le déclare explicitement).
+    "playwright>=1.45",
+    "pillow>=10.0",
+    "fpdf2>=2.7",
+    # Les tests d'agents construisent un vrai graphe Deep Agents avec un modèle
+    # factice (aucun appel réseau) — extra 'agents' dupliqué pour la même raison.
+    "deepagents>=0.7",
+    "langchain-openai>=1.6",
+    "langchain-google-genai>=4.4",
+    # Idem : le support MCP est testé en construction et en erreur.
+    "langchain-mcp-adapters>=0.2",
+    "mcp>=1.9",
+    # Idem : la lecture de pages web est testée en extraction réelle (HTML de
+    # test, aucun réseau). ``trafilatura`` reste hors du venv de dev : le
+    # repli BeautifulSoup — le chemin réellement garanti — est celui exercé.
+    "beautifulsoup4>=4.10",
+    # Idem : la lecture vidéo est testée avec un yt-dlp réellement importable (ses
+    # appels sortants sont remplacés, aucun réseau). Aucun binaire externe n'est
+    # nécessaire : le module n'écrit rien et n'assemble rien.
+    "yt-dlp>=2025.1",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.fastapi]
+entrypoint = "app.main:app"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.flake8-bugbear]
+# Dépendances FastAPI : Depends() dans les valeurs par défaut est le pattern canonique.
+extend-immutable-calls = ["fastapi.Depends"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_ignores = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# ``ag-ui-langgraph`` n'embarque pas de marqueur ``py.typed`` : l'adaptateur est
+# appelé derrière une frontière typée (``add_langgraph_fastapi_endpoint``).
+module = ["ag_ui_langgraph", "ag_ui_langgraph.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# ``trafilatura`` (extra « web ») est une dépendance **optionnelle** : absente du
+# venv de typecheck, elle n'a pas de marqueur ``py.typed``. Son import est gardé
+# par ``try/except ImportError`` et l'extraction retombe sur BeautifulSoup —
+# aucun type n'est perdu, une donnée n'est jamais devinée.
+module = ["trafilatura", "trafilatura.*"]
+ignore_missing_imports = true

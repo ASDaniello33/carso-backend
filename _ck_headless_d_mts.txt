@@ -1,0 +1,928 @@
+import React$1, { ComponentType, ReactNode } from "react";
+import { InferSchemaOutput, StandardSchemaV1 } from "@copilotkit/shared";
+import { AbstractAgent, Interrupt, ResumeEntry, ResumeStatus, RunAgentResult } from "@ag-ui/client";
+import { DynamicSuggestionsConfig, FrontendTool, StaticSuggestionsConfig, Suggestion, ToolCallStatus } from "@copilotkit/core";
+import { CopilotKitCoreReact, CopilotKitCoreReactConfig, useCopilotKit } from "@copilotkit/react-core/v2/context";
+import { AgentCapabilities, ToolCall, ToolMessage } from "@ag-ui/core";
+
+//#region src/v2/providers/CopilotChatConfigurationProvider.d.ts
+declare const CopilotChatDefaultLabels: {
+  chatInputPlaceholder: string;
+  chatInputToolbarStartTranscribeButtonLabel: string;
+  chatInputToolbarCancelTranscribeButtonLabel: string;
+  chatInputToolbarFinishTranscribeButtonLabel: string;
+  chatInputToolbarAddButtonLabel: string;
+  chatInputToolbarToolsButtonLabel: string;
+  assistantMessageToolbarCopyCodeLabel: string;
+  assistantMessageToolbarCopyCodeCopiedLabel: string;
+  assistantMessageToolbarCopyMessageLabel: string;
+  assistantMessageToolbarInspectorLabel: string;
+  assistantMessageToolbarInspectorDescription: string;
+  assistantMessageToolbarInspectorLocalOnlyLabel: string;
+  assistantMessageToolbarInspectorLocalOnlyDescription: string;
+  assistantMessageToolbarInspectorTitle: string;
+  assistantMessageToolbarInspectorHideLabel: string;
+  assistantMessageToolbarInspectorHideDescription: string;
+  assistantMessageToolbarThumbsUpLabel: string;
+  assistantMessageToolbarThumbsDownLabel: string;
+  assistantMessageToolbarReadAloudLabel: string;
+  assistantMessageToolbarRegenerateLabel: string;
+  userMessageToolbarCopyMessageLabel: string;
+  userMessageToolbarEditMessageLabel: string;
+  chatDisclaimerText: string;
+  chatToggleOpenLabel: string;
+  chatToggleCloseLabel: string;
+  modalHeaderTitle: string;
+  welcomeMessageText: string;
+};
+type CopilotChatLabels = typeof CopilotChatDefaultLabels;
+interface CopilotChatConfigurationValue {
+  labels: CopilotChatLabels;
+  agentId: string;
+  threadId: string;
+  isModalOpen: boolean;
+  setModalOpen: (open: boolean) => void;
+  /**
+   * Whether the thread-list drawer is open. A sibling boolean to `isModalOpen`
+   * (deliberately NOT folded into a tri-state enum): on desktop the chat modal
+   * and the drawer coexist, so two independent booleans are required.
+   */
+  drawerOpen: boolean;
+  /**
+   * Toggles the drawer open state. On mobile viewports (`<768px`) opening the
+   * drawer closes the chat modal (mutual exclusion); on desktop there is no
+   * constraint.
+   */
+  setDrawerOpen: (open: boolean) => void;
+  /**
+   * True once a `<CopilotThreadsDrawer>` wrapper has registered itself with this chat
+   * configuration. The header thread-list launcher renders ONLY when this is
+   * set, so chats with no drawer stay byte-for-byte unchanged.
+   */
+  drawerRegistered: boolean;
+  /**
+   * Called by the drawer wrapper on mount to announce its presence (and flip
+   * `drawerRegistered`). Returns a cleanup function that de-registers the
+   * drawer on unmount.
+   *
+   * @returns A cleanup callback that reverses the registration.
+   */
+  registerDrawer: () => () => void;
+  /**
+   * Internal: registers the modal-close setter of the provider that actually
+   * owns the rendered modal (a descendant that supplied `isModalDefaultOpen`),
+   * so the drawer's mobile mutual-exclusion — owned by the top-most provider —
+   * closes the modal that is genuinely on screen rather than the top-most
+   * provider's own (possibly unrendered) modal state.
+   *
+   * @param closeModal - A setter the drawer may call to close the rendered modal.
+   * @returns A cleanup callback that de-registers the closer.
+   */
+  ɵregisterModalCloser: (closeModal: (open: boolean) => void) => () => void;
+  hasExplicitThreadId: boolean;
+  /**
+   * Imperatively sets the active thread for this chat configuration.
+   *
+   * Use this to drive the rendered thread without a host callback — e.g. a
+   * `<CopilotThreadsDrawer>` selecting a thread row sets it explicitly so the chat
+   * connects to that backend thread.
+   *
+   * Guarded like the top-level `<CopilotKit>` provider's `setThreadId`: when
+   * the consumer controls the threadId via the `threadId` prop on this
+   * provider, this is a no-op (a warning is logged) so a prop-controlled
+   * threadId is never silently overridden.
+   *
+   * @param threadId - The thread id to make active.
+   * @param options.explicit - Whether the thread is a caller choice. Defaults
+   *   to `true` (a picked thread). Pass `false` to set a non-explicit thread
+   *   so the welcome screen shows (see {@link startNewThread}).
+   */
+  setActiveThreadId: (threadId: string, options?: {
+    explicit?: boolean;
+  }) => void;
+  /**
+   * Resets the active thread to a fresh, non-explicit client-side thread: a
+   * newly minted UUID with `hasExplicitThreadId=false`, so the welcome screen
+   * shows. Pairs with the core `startNewThread()` to clear the conversation
+   * with no host wiring.
+   *
+   * Guarded identically to {@link setActiveThreadId}: a no-op when the
+   * threadId is prop-controlled.
+   */
+  startNewThread: () => void;
+}
+interface CopilotChatConfigurationProviderProps {
+  children: ReactNode;
+  labels?: Partial<CopilotChatLabels>;
+  agentId?: string;
+  threadId?: string;
+  hasExplicitThreadId?: boolean;
+  isModalDefaultOpen?: boolean;
+}
+declare const CopilotChatConfigurationProvider: React$1.FC<CopilotChatConfigurationProviderProps>;
+declare const useCopilotChatConfiguration: () => CopilotChatConfigurationValue | null;
+//#endregion
+//#region src/v2/hooks/use-agent.d.ts
+declare enum UseAgentUpdate {
+  OnMessagesChanged = "OnMessagesChanged",
+  OnStateChanged = "OnStateChanged",
+  OnRunStatusChanged = "OnRunStatusChanged"
+}
+interface UseAgentPropsBase {
+  updates?: UseAgentUpdate[];
+  /**
+   * Throttle interval (in milliseconds) for re-renders triggered by
+   * `onMessagesChanged` and `onStateChanged` notifications. Useful to reduce
+   * re-render frequency during high-frequency streaming updates.
+   *
+   * Uses a leading+trailing pattern with a shared window — first update
+   * fires immediately, subsequent updates within the window are coalesced,
+   * and a trailing timer ensures the most recent update fires after the
+   * window expires. See `CopilotKitCore.subscribeToAgentWithOptions` in `@copilotkit/core`
+   * for details.
+   *
+   * Resolved as: `throttleMs ?? provider defaultThrottleMs ?? 0`.
+   * Passing `throttleMs={0}` explicitly disables throttling even when the
+   * provider specifies a non-zero `defaultThrottleMs`.
+   *
+   * Run lifecycle callbacks (`onRunInitialized`, `onRunFinalized`,
+   * `onRunFailed`, `onRunErrorEvent`) always fire immediately.
+   *
+   * @default undefined
+   * When unset, inherits from the provider's `defaultThrottleMs`;
+   * if that is also unset, the effective value is `0` (no throttle).
+   */
+  throttleMs?: number;
+}
+/**
+ * Thread-scoped variant. `agentId`, `runtimeAgentId`, and `threadId` are a
+ * matched set: together they give this hook a *private* agent — registered
+ * under the local `agentId`, routing outbound to `runtimeAgentId` — that is
+ * safe to pin a thread onto. None of the three is meaningful without the other
+ * two, so all are required here.
+ */
+interface UseAgentThreadScopedProps {
+  /**
+   * The name to register this hook's proxied agent under.
+   *
+   * Required, and must not already be taken. The usual fallbacks (the chat
+   * configuration's agentId, then `DEFAULT_AGENT_ID`) name agents that already
+   * exist, and registering over one either throws `already registered` or
+   * silently shadows it, depending on whether runtime discovery has landed — so
+   * the caller has to name it.
+   */
+  agentId: string;
+  /**
+   * Thread to scope the agent's run to. Written onto the underlying agent, so
+   * `/agent/run`, `/agent/connect`, and `/agent/stop` address this thread.
+   *
+   * REQUIRES `runtimeAgentId`. A runtime agent registered under a given id is a
+   * singleton, so writing a per-hook threadId directly onto it would let two
+   * `useAgent` calls that share an `agentId` clobber each other's thread.
+   * Passing a distinct local `agentId` plus the `runtimeAgentId` it routes to
+   * gives this hook a private proxied agent to pin the thread onto instead of a
+   * shared one.
+   */
+  threadId: string;
+  /**
+   * The id of the runtime agent to route outbound requests to, while this hook
+   * exposes a distinct local `agentId`. Registers a proxied agent via
+   * `CopilotKitCore.registerProxiedAgent`, letting several frontend agents
+   * (e.g. one per open thread) mount against a single runtime agent without a
+   * shared-singleton collision.
+   *
+   * When set, `agentId` is the *local* registry id (must not collide with an
+   * existing local or runtime-discovered agent) and `runtimeAgentId` is the
+   * runtime agent the proxy addresses on `/agent/run` etc.
+   *
+   * REQUIRES `threadId`. Registering a private agent is only worth doing to
+   * scope a thread to it; without a `threadId` the private agent would take its
+   * thread from the chat configuration, which is what binding to the shared
+   * agent via `agentId` alone already does — just with an extra registration
+   * and a local id to keep unique.
+   */
+  runtimeAgentId: string;
+}
+/**
+ * Default variant: neither `threadId` nor `runtimeAgentId`. The hook binds to
+ * the shared agent registered under `agentId` and leaves its threadId to the
+ * chat configuration (or to the agent's own auto-minted UUID).
+ *
+ * Both props are typed `undefined` here rather than omitted so that supplying
+ * either one on its own fails to match *both* branches — that is the
+ * type-level enforcement of the all-or-nothing rule.
+ */
+interface UseAgentUnscopedProps {
+  /**
+   * Agent to bind to. Resolution precedence: this property, then the surrounding
+   * chat configuration's agentId, then the global default.
+   */
+  agentId?: string;
+  /** Requires `runtimeAgentId`. See {@link UseAgentThreadScopedProps.threadId}. */
+  threadId?: undefined;
+  /** Requires `threadId`. See {@link UseAgentThreadScopedProps.runtimeAgentId}. */
+  runtimeAgentId?: undefined;
+}
+/**
+ * Props for {@link useAgent}.
+ *
+ * There are exactly two valid shapes, and the type admits nothing in between:
+ *
+ * - **Bind to an agent** — `useAgent()`, `useAgent({ agentId })`. The shared
+ *   instance from the registry; the thread comes from the chat configuration.
+ * - **Bind a private agent to a thread** —
+ *   `useAgent({ agentId, runtimeAgentId, threadId })`. All three required.
+ *
+ * So `useAgent({ agentId, threadId })`, `useAgent({ agentId, runtimeAgentId })`,
+ * and `useAgent({ runtimeAgentId, threadId })` are all compile errors. Each
+ * partial combination is either unsafe (a thread scoped onto a shared singleton)
+ * or pointless (a private agent with no thread, or one registered over an id
+ * that already belongs to a real agent).
+ */
+type UseAgentProps = UseAgentPropsBase & (UseAgentThreadScopedProps | UseAgentUnscopedProps);
+declare function useAgent({
+  agentId,
+  threadId,
+  runtimeAgentId,
+  updates,
+  throttleMs
+}?: UseAgentProps): {
+  agent: AbstractAgent;
+  /**
+   * Whether `agent` is the real, runtime-synced (or locally-registered) agent
+   * rather than a provisional stand-in returned while the runtime is still
+   * connecting (or in an error state).
+   *
+   * `agent` is always a fully-constructed `AbstractAgent`, so calling
+   * `agent.subscribe(...)`, `agent.setState(...)`, etc. is always safe. But
+   * while `isReady` is `false` the instance is a placeholder that will be
+   * swapped for the real agent once the runtime `/info` sync resolves, at
+   * which point `agent` changes reference and dependent effects re-run.
+   * Guard on `isReady` when you only want to act against the real agent —
+   * e.g. subscribing to run-lifecycle events you don't want to miss during
+   * the provisional window (#5000).
+   */
+  isReady: boolean;
+};
+//#endregion
+//#region src/v2/types/react-tool-call-renderer.d.ts
+interface ReactToolCallRenderer<T = unknown> {
+  name: string;
+  /**
+   * Schema describing the tool arguments. Optional — renderers registered for
+   * tools without parameters (e.g. HITL confirm dialogs) have no schema.
+   */
+  args?: StandardSchemaV1<any, T>;
+  /**
+   * Optional agent ID to constrain this tool renderer to a specific agent.
+   * If specified, this renderer will only be used for the specified agent.
+   */
+  agentId?: string;
+  render: React.ComponentType<{
+    name: string;
+    toolCallId: string;
+    args: Partial<T>;
+    status: ToolCallStatus.InProgress;
+    result: undefined;
+  } | {
+    name: string;
+    toolCallId: string;
+    args: T;
+    status: ToolCallStatus.Executing;
+    result: undefined;
+  } | {
+    name: string;
+    toolCallId: string;
+    args: T;
+    status: ToolCallStatus.Complete;
+    result: string;
+  }>;
+}
+//#endregion
+//#region src/v2/types/frontend-tool.d.ts
+type ReactFrontendTool<T extends Record<string, unknown> = Record<string, unknown>> = FrontendTool<T> & {
+  render?: ReactToolCallRenderer<T>["render"];
+};
+//#endregion
+//#region src/v2/hooks/use-frontend-tool.d.ts
+declare function useFrontendTool<T extends Record<string, unknown> = Record<string, unknown>>(tool: ReactFrontendTool<T>, deps?: ReadonlyArray<unknown>): void;
+//#endregion
+//#region src/v2/hooks/use-component.d.ts
+type InferRenderProps<T> = T extends StandardSchemaV1 ? InferSchemaOutput<T> : any;
+/**
+ * Registers a React component as a frontend tool renderer in chat.
+ *
+ * This hook is a convenience wrapper around `useFrontendTool` that:
+ * - builds a model-facing tool description,
+ * - forwards optional schema parameters (any Standard Schema V1 compatible library),
+ * - renders your component with tool call parameters.
+ *
+ * Use this when you want to display a typed visual component for a tool call
+ * without manually wiring a full frontend tool object.
+ *
+ * When `parameters` is provided, render props are inferred from the schema.
+ * When omitted, the render component may accept any props.
+ *
+ * @typeParam TSchema - Schema describing tool parameters, or `undefined` when no schema is given.
+ * @param config - Tool registration config.
+ * @param deps - Optional dependencies to refresh registration (same semantics as `useEffect`).
+ *
+ * @example
+ * ```tsx
+ * // Without parameters — render accepts any props
+ * useComponent({
+ *   name: "showGreeting",
+ *   render: ({ message }: { message: string }) => <div>{message}</div>,
+ * });
+ * ```
+ *
+ * @example
+ * ```tsx
+ * // With parameters — render props inferred from schema
+ * useComponent({
+ *   name: "showWeatherCard",
+ *   parameters: z.object({ city: z.string() }),
+ *   render: ({ city }) => <div>{city}</div>,
+ * });
+ * ```
+ *
+ * @example
+ * ```tsx
+ * useComponent(
+ *   {
+ *     name: "renderProfile",
+ *     parameters: z.object({ userId: z.string() }),
+ *     render: ProfileCard,
+ *     agentId: "support-agent",
+ *   },
+ *   [selectedAgentId],
+ * );
+ * ```
+ */
+declare function useComponent<TSchema extends StandardSchemaV1<any, Record<string, unknown>> | undefined = undefined>(config: {
+  name: string;
+  description?: string;
+  parameters?: TSchema;
+  render: ComponentType<NoInfer<InferRenderProps<TSchema>>>;
+  agentId?: string;
+  followUp?: boolean;
+}, deps?: ReadonlyArray<unknown>): void;
+//#endregion
+//#region src/v2/types/human-in-the-loop.d.ts
+type ReactHumanInTheLoop<T extends Record<string, unknown> = Record<string, unknown>> = Omit<FrontendTool<T>, "handler"> & {
+  /**
+   * Render the human-in-the-loop UI for this tool call.
+   *
+   * Beyond the tool call's `args`/`status`/`result`, the render props carry
+   * attribution:
+   * - `toolCallId` — the AG-UI tool call id, unique per interrupt. It is the
+   *   stable key for correlating this interrupt with runtime (sub)agent
+   *   attribution — e.g. the `agentId` reported by `onToolExecutionStart`, or
+   *   per-run attribution stamped on the event stream — so the UI can label
+   *   the interrupt with the agent that actually raised it.
+   * - `agentId` — the agent this tool was *registered* to (the tool's own
+   *   `agentId`), or `undefined` for an unscoped tool. This is the static
+   *   registration scope; it is NOT necessarily the runtime (sub)agent that
+   *   raised the interrupt. For runtime attribution, correlate `toolCallId`
+   *   with the event-stream/`onToolExecutionStart` agent id.
+   */
+  render: React$1.ComponentType<{
+    name: string;
+    description: string;
+    toolCallId: string;
+    agentId?: string;
+    args: Partial<T>;
+    status: ToolCallStatus.InProgress;
+    result: undefined;
+    respond: undefined;
+  } | {
+    name: string;
+    description: string;
+    toolCallId: string;
+    agentId?: string;
+    args: T;
+    status: ToolCallStatus.Executing;
+    result: undefined;
+    respond: (result: unknown) => Promise<void>;
+  } | {
+    name: string;
+    description: string;
+    toolCallId: string;
+    agentId?: string;
+    args: T;
+    status: ToolCallStatus.Complete;
+    result: string;
+    respond: undefined;
+  }>;
+};
+//#endregion
+//#region src/v2/hooks/use-human-in-the-loop.d.ts
+declare function useHumanInTheLoop<T extends Record<string, unknown> = Record<string, unknown>>(tool: ReactHumanInTheLoop<T>, deps?: ReadonlyArray<unknown>): void;
+//#endregion
+//#region src/v2/types/interrupt.d.ts
+/** Legacy custom-event interrupt payload (agent emits a custom `on_interrupt` event). */
+interface InterruptEvent<TValue = unknown> {
+  name: string;
+  value: TValue;
+}
+/**
+ * Resolve the agent with user input for an interrupt.
+ *
+ * - Standard interrupts: records `{ status: "resolved", payload }` for the target
+ *   interrupt (defaults to the primary one). Resumes once every open interrupt is
+ *   addressed; returns the resume run result, or `void` while still awaiting others.
+ * - Legacy interrupts: resumes immediately via `command.resume = payload`.
+ */
+type InterruptResolveFn = (payload?: unknown, interruptId?: string) => Promise<RunAgentResult | void>;
+/**
+ * Cancel an interrupt.
+ *
+ * - Standard interrupts: records `{ status: "cancelled" }` for the target interrupt
+ *   (defaults to the primary one), then resumes once all are addressed.
+ * - Legacy interrupts: dismisses the pending interrupt without resuming.
+ */
+type InterruptCancelFn = (interruptId?: string) => Promise<RunAgentResult | void>;
+interface InterruptHandlerProps<TValue = unknown> {
+  /**
+   * Legacy event shape (`{ name, value }`). Always present for back-compat: for
+   * standard interrupts, `value` is the primary `Interrupt` and `name` is `"on_interrupt"`.
+   * Prefer `interrupt` / `interrupts` for standard interrupts.
+   */
+  event: InterruptEvent<TValue>;
+  /** Primary standard interrupt (`interrupts[0]`), or `null` for legacy interrupts. */
+  interrupt: Interrupt | null;
+  /** All open standard interrupts (empty array for legacy interrupts). */
+  interrupts: Interrupt[];
+  resolve: InterruptResolveFn;
+  cancel: InterruptCancelFn;
+}
+interface InterruptRenderProps<TValue = unknown, TResult = unknown> {
+  event: InterruptEvent<TValue>;
+  interrupt: Interrupt | null;
+  interrupts: Interrupt[];
+  result: TResult;
+  resolve: InterruptResolveFn;
+  cancel: InterruptCancelFn;
+}
+//#endregion
+//#region src/v2/hooks/use-interrupt.d.ts
+type InterruptHandlerFn<TValue, TResult> = (props: InterruptHandlerProps<TValue>) => TResult | PromiseLike<TResult>;
+type InterruptResultFromHandler<THandler> = THandler extends ((...args: never[]) => infer TResult) ? TResult extends PromiseLike<infer TResolved> ? TResolved | null : TResult | null : null;
+type InterruptResult<TValue, TResult> = InterruptResultFromHandler<InterruptHandlerFn<TValue, TResult>>;
+type InterruptRenderInChat = boolean | undefined;
+type UseInterruptReturn<TRenderInChat extends InterruptRenderInChat> = TRenderInChat extends false ? React$1.ReactElement | null : TRenderInChat extends true | undefined ? void : React$1.ReactElement | null | void;
+/**
+ * Configuration options for `useInterrupt`.
+ */
+interface UseInterruptConfigBase<TValue = unknown, TResult = never> {
+  /**
+   * Render function for the interrupt UI.
+   *
+   * Receives both the standard `interrupt`/`interrupts` and the legacy `event`.
+   * Call `resolve(payload)` to resume with user input, or `cancel()` to cancel.
+   */
+  render: (props: InterruptRenderProps<TValue, InterruptResult<TValue, TResult>>) => React$1.ReactElement;
+  /**
+   * Optional pre-render handler invoked when an interrupt is received.
+   * Return a sync or async value to expose as `result` in `render`.
+   * Rejecting/throwing falls back to `result = null`.
+   */
+  handler?: InterruptHandlerFn<TValue, TResult>;
+  /**
+   * Optional predicate to filter which interrupts this hook handles.
+   * Receives the legacy-compatible event (for standard interrupts, `value` is
+   * the primary `Interrupt`). Return `false` to ignore.
+   */
+  enabled?: (event: InterruptEvent<TValue>) => boolean;
+  /** Optional agent id. Defaults to the current configured chat agent. */
+  agentId?: string;
+}
+type UseInterruptConfig<TValue = unknown, TResult = never, TRenderInChat extends InterruptRenderInChat = undefined> = UseInterruptConfigBase<TValue, TResult> & {
+  /** When true (default), the interrupt UI renders inside `<CopilotChat>` automatically. */renderInChat?: TRenderInChat;
+};
+/**
+ * Handles agent interrupts with optional filtering, preprocessing, and resume behavior.
+ *
+ * Supports both the AG-UI standard interrupt flow (`RUN_FINISHED` with
+ * `outcome.type === "interrupt"`) and the legacy custom-event flow
+ * (`on_interrupt`). For standard interrupts, `render` receives `interrupt`
+ * (the primary one) and `interrupts` (the full open set); call `resolve(payload)`
+ * to resume or `cancel()` to cancel. Resuming addresses the targeted interrupt
+ * and, once every open interrupt is addressed, submits a single spec `resume`
+ * array via `copilotkit.runAgent`.
+ *
+ * - `renderInChat: true` (default): the element is published into `<CopilotChat>`; returns `void`.
+ * - `renderInChat: false`: the hook returns the interrupt element for manual placement.
+ *
+ * @example
+ * ```tsx
+ * useInterrupt({
+ *   render: ({ interrupt, resolve, cancel }) => (
+ *     <div>
+ *       <p>{interrupt?.message}</p>
+ *       <button onClick={() => resolve({ approved: true })}>Approve</button>
+ *       <button onClick={() => cancel()}>Cancel</button>
+ *     </div>
+ *   ),
+ * });
+ * ```
+ */
+declare function useInterrupt<TResult = never, TRenderInChat extends InterruptRenderInChat = undefined>(config: UseInterruptConfig<any, TResult, TRenderInChat>): UseInterruptReturn<TRenderInChat>;
+//#endregion
+//#region src/v2/hooks/use-suggestions.d.ts
+interface UseSuggestionsOptions {
+  agentId?: string;
+}
+interface UseSuggestionsResult {
+  suggestions: Suggestion[];
+  reloadSuggestions: () => void;
+  clearSuggestions: () => void;
+  isLoading: boolean;
+}
+declare function useSuggestions({
+  agentId
+}?: UseSuggestionsOptions): UseSuggestionsResult;
+//#endregion
+//#region src/v2/hooks/use-configure-suggestions.d.ts
+type StaticSuggestionInput = Omit<Suggestion, "isLoading"> & Partial<Pick<Suggestion, "isLoading">>;
+type StaticSuggestionsConfigInput = Omit<StaticSuggestionsConfig, "suggestions"> & {
+  suggestions: StaticSuggestionInput[];
+};
+type SuggestionsConfigInput = DynamicSuggestionsConfig | StaticSuggestionsConfigInput;
+declare function useConfigureSuggestions(config: SuggestionsConfigInput | null | undefined, deps?: ReadonlyArray<unknown>): void;
+//#endregion
+//#region src/v2/hooks/use-agent-context.d.ts
+/**
+ * Represents any value that can be serialized to JSON.
+ */
+type JsonSerializable = string | number | boolean | null | JsonSerializable[] | {
+  [key: string]: JsonSerializable;
+};
+/**
+ * Context configuration for useAgentContext.
+ * Accepts any JSON-serializable value which will be converted to a string.
+ */
+interface AgentContextInput {
+  /** A human-readable description of what this context represents */
+  description: string;
+  /** The context value - will be converted to a JSON string if not already a string */
+  value: JsonSerializable;
+}
+declare function useAgentContext(context: AgentContextInput): void;
+//#endregion
+//#region src/v2/hooks/use-threads.d.ts
+/**
+ * A conversation thread managed by CopilotKit Intelligence.
+ *
+ * Each thread has a unique `id`, an optional human-readable `name`, and
+ * timestamp fields tracking creation and update times.
+ */
+interface Thread {
+  id: string;
+  agentId: string;
+  name: string | null;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+  /**
+   * ISO-8601 timestamp of the most recent agent run on this thread. Absent
+   * when the thread has never been run. Prefer this over `updatedAt` for
+   * user-facing "last activity" displays — it is not bumped by metadata-only
+   * actions like rename or archive.
+   */
+  lastRunAt?: string;
+}
+/**
+ * Configuration for the {@link useThreads} hook.
+ *
+ * Thread operations are scoped to the runtime-authenticated user and the
+ * provided agent on CopilotKit Intelligence.
+ */
+interface UseThreadsInput {
+  /** The ID of the agent whose threads to list and manage. */
+  agentId: string;
+  /** When `true`, archived threads are included in the list. Defaults to `false`. */
+  includeArchived?: boolean;
+  /** Maximum number of threads to fetch per page. When set, enables cursor-based pagination. */
+  limit?: number;
+  /**
+   * When `false`, the hook stays inert: no runtime context is dispatched, so
+   * NO thread-list fetch or realtime subscription is issued. Used by gated
+   * surfaces (e.g. an unlicensed `<CopilotThreadsDrawer>`) that must not touch the
+   * network until the gate opens. Defaults to `true`.
+   *
+   * Flipping `enabled` back to `true` resumes normal fetching on the next
+   * effect run; mutations are likewise short-circuited while disabled.
+   */
+  enabled?: boolean;
+}
+/**
+ * Return value of the {@link useThreads} hook.
+ *
+ * The `threads` array is kept in sync with the platform via a realtime
+ * WebSocket subscription (when available) and is sorted most-recently-updated
+ * first. Mutations reject with an `Error` if the platform request fails.
+ */
+interface UseThreadsResult {
+  /**
+   * Threads for the current user/agent pair, sorted by most recently
+   * updated first. Updated in realtime when the platform pushes metadata
+   * events. Includes archived threads only when `includeArchived` is set.
+   */
+  threads: Thread[];
+  /**
+   * `true` while the initial thread list is being fetched from the platform.
+   * Subsequent realtime updates do not re-enter the loading state.
+   */
+  isLoading: boolean;
+  /**
+   * The most recent error from fetching threads or executing a mutation,
+   * or `null` when there is no error. Reset to `null` on the next
+   * successful fetch.
+   *
+   * This channel folds together developer/config errors (missing runtime URL,
+   * runtime without thread endpoints) and genuine list-load/mutation failures.
+   * End-user surfaces that must not leak config errors should prefer
+   * {@link listError}, which excludes the config/runtime-setup errors.
+   */
+  error: Error | null;
+  /**
+   * The most recent genuine list-load or mutation error from the platform, or
+   * `null`. Unlike {@link error}, this EXCLUDES developer/config errors (a
+   * missing runtime URL, or a runtime that does not advertise thread
+   * endpoints), so an end-user surface can render it directly without leaking
+   * a developer-facing configuration message into the UI.
+   */
+  listError: Error | null;
+  /**
+   * The error from the most recent FAILED next-page (fetch-more) load, or
+   * `null`. Tracked separately from {@link listError} so a paginated-load
+   * failure surfaces an inline "couldn't load more" affordance while the
+   * already-loaded list stays visible. Cleared when a fetch-more is retried or
+   * succeeds.
+   */
+  fetchMoreError: Error | null;
+  /**
+   * `true` when there are more threads available to fetch via
+   * {@link fetchMoreThreads}. Only meaningful when `limit` is set.
+   */
+  hasMoreThreads: boolean;
+  /**
+   * `true` while a subsequent page of threads is being fetched.
+   */
+  isFetchingMoreThreads: boolean;
+  /**
+   * `true` while at least one thread mutation (rename, archive, unarchive,
+   * delete) is awaiting a server response. Mutations apply optimistically, so
+   * this is primarily useful for disabling controls or showing a subtle
+   * in-flight indicator.
+   */
+  isMutating: boolean;
+  /**
+   * Fetch the next page of threads. No-op when {@link hasMoreThreads} is
+   * `false` or a fetch is already in progress.
+   */
+  fetchMoreThreads: () => void;
+  /**
+   * Re-fetch the thread list from the platform without clearing the current
+   * list. Backs the drawer's error-state Retry and the Active/All filter
+   * refetch. No-op until the runtime is connected.
+   */
+  refetchThreads: () => void;
+  /**
+   * Reset to a fresh, non-explicit client-side thread so the welcome screen
+   * shows. Lazy creation: no row appears in {@link threads} until the new
+   * thread's first run persists server-side.
+   */
+  startNewThread: () => void;
+  /**
+   * Rename a thread on the platform.
+   * Resolves when the server confirms the update; rejects on failure.
+   */
+  renameThread: (threadId: string, name: string) => Promise<void>;
+  /**
+   * Archive a thread on the platform.
+   * Archived threads are excluded from subsequent list results.
+   * Resolves when the server confirms the update; rejects on failure.
+   */
+  archiveThread: (threadId: string) => Promise<void>;
+  /**
+   * Restore a previously archived thread on the platform.
+   * The thread re-appears in default (non-archived) list results.
+   * Resolves when the server confirms the update; rejects on failure.
+   */
+  unarchiveThread: (threadId: string) => Promise<void>;
+  /**
+   * Permanently delete a thread from the platform.
+   * This is irreversible. Resolves when the server confirms deletion;
+   * rejects on failure.
+   */
+  deleteThread: (threadId: string) => Promise<void>;
+}
+/**
+ * React hook for listing and managing CopilotKit Intelligence threads.
+ *
+ * On mount the hook fetches the thread list for the runtime-authenticated user
+ * and the given `agentId`. When CopilotKit Intelligence exposes a WebSocket
+ * URL, it also opens a realtime subscription so the `threads` array stays
+ * current without polling — thread creates, renames, archives, and deletes
+ * from any client are reflected immediately.
+ *
+ * Mutation methods (`renameThread`, `archiveThread`, `unarchiveThread`,
+ * `deleteThread`) return promises that resolve once the platform confirms the
+ * operation and reject with an `Error` on failure.
+ *
+ * @param input - Agent identifier and optional list controls.
+ * @returns Thread list state and stable mutation callbacks.
+ *
+ * @example
+ * ```tsx
+ * import { useThreads } from "@copilotkit/react-core";
+ *
+ * function ThreadList() {
+ *   const { threads, isLoading, renameThread, deleteThread } = useThreads({
+ *     agentId: "agent-1",
+ *   });
+ *
+ *   if (isLoading) return <p>Loading…</p>;
+ *
+ *   return (
+ *     <ul>
+ *       {threads.map((t) => (
+ *         <li key={t.id}>
+ *           {t.name ?? "Untitled"}
+ *           <button onClick={() => renameThread(t.id, "New name")}>Rename</button>
+ *           <button onClick={() => deleteThread(t.id)}>Delete</button>
+ *         </li>
+ *       ))}
+ *     </ul>
+ *   );
+ * }
+ * ```
+ */
+declare function useThreads({
+  agentId,
+  includeArchived,
+  limit,
+  enabled
+}: UseThreadsInput): UseThreadsResult;
+//#endregion
+//#region src/v2/hooks/use-render-tool.d.ts
+interface RenderToolInProgressProps<S extends StandardSchemaV1> {
+  name: string;
+  toolCallId: string;
+  parameters: Partial<InferSchemaOutput<S>>;
+  status: "inProgress";
+  result: undefined;
+}
+interface RenderToolExecutingProps<S extends StandardSchemaV1> {
+  name: string;
+  toolCallId: string;
+  parameters: InferSchemaOutput<S>;
+  status: "executing";
+  result: undefined;
+}
+interface RenderToolCompleteProps<S extends StandardSchemaV1> {
+  name: string;
+  toolCallId: string;
+  parameters: InferSchemaOutput<S>;
+  status: "complete";
+  result: string;
+}
+type RenderToolProps<S extends StandardSchemaV1> = RenderToolInProgressProps<S> | RenderToolExecutingProps<S> | RenderToolCompleteProps<S>;
+/**
+ * Registers a wildcard (`"*"`) renderer for tool calls.
+ *
+ * The wildcard renderer is used as a fallback when no exact name-matched
+ * renderer is registered for a tool call.
+ *
+ * @param config - Wildcard renderer configuration.
+ * @param deps - Optional dependencies to refresh registration.
+ *
+ * @example
+ * ```tsx
+ * useRenderTool(
+ *   {
+ *     name: "*",
+ *     render: ({ name, status }) => (
+ *       <div>
+ *         {status === "complete" ? "✓" : "⏳"} {name}
+ *       </div>
+ *     ),
+ *   },
+ *   [],
+ * );
+ * ```
+ */
+declare function useRenderTool(config: {
+  name: "*";
+  render: (props: any) => React.ReactElement | null;
+  agentId?: string;
+}, deps?: ReadonlyArray<unknown>): void;
+/**
+ * Registers a name-scoped renderer for tool calls.
+ *
+ * The provided `parameters` schema defines the typed shape of `props.parameters`
+ * in `render` for `executing` and `complete` states. Accepts any Standard Schema V1
+ * compatible library (Zod, Valibot, ArkType, etc.).
+ *
+ * @typeParam S - Schema type describing tool call parameters.
+ * @param config - Named renderer configuration.
+ * @param deps - Optional dependencies to refresh registration.
+ *
+ * @example
+ * ```tsx
+ * useRenderTool(
+ *   {
+ *     name: "searchDocs",
+ *     parameters: z.object({ query: z.string() }),
+ *     render: ({ status, parameters, result }) => {
+ *       if (status === "inProgress") return <div>Preparing...</div>;
+ *       if (status === "executing") return <div>Searching {parameters.query}</div>;
+ *       return <div>{result}</div>;
+ *     },
+ *   },
+ *   [],
+ * );
+ * ```
+ */
+declare function useRenderTool<S extends StandardSchemaV1>(config: {
+  name: string;
+  parameters: S;
+  render: (props: RenderToolProps<S>) => React.ReactElement | null;
+  agentId?: string;
+}, deps?: ReadonlyArray<unknown>): void;
+//#endregion
+//#region src/v2/hooks/use-render-tool-call.d.ts
+interface UseRenderToolCallProps {
+  toolCall: ToolCall;
+  toolMessage?: ToolMessage;
+}
+/**
+ * Hook that returns a function to render tool calls based on the render functions
+ * defined in CopilotKitProvider.
+ *
+ * @returns A function that takes a tool call and optional tool message and returns the rendered component
+ */
+declare function useRenderToolCall(): ({
+  toolCall,
+  toolMessage
+}: UseRenderToolCallProps) => React$1.ReactElement | null;
+//#endregion
+//#region src/v2/types/defineToolCallRenderer.d.ts
+/**
+ * Helper to define a type-safe tool call renderer entry.
+ * - Accepts a single object whose keys match ReactToolCallRenderer's fields: { name, args, render, agentId? }.
+ * - Derives `args` type from the provided schema (any Standard Schema V1 compatible library).
+ * - Ensures the render function param type exactly matches ReactToolCallRenderer<T>["render"]'s param.
+ * - For wildcard tools (name: "*"), args is optional and defaults to z.any()
+ */
+type RenderProps<T> = {
+  name: string;
+  toolCallId: string;
+  args: Partial<T>;
+  status: ToolCallStatus.InProgress;
+  result: undefined;
+} | {
+  name: string;
+  toolCallId: string;
+  args: T;
+  status: ToolCallStatus.Executing;
+  result: undefined;
+} | {
+  name: string;
+  toolCallId: string;
+  args: T;
+  status: ToolCallStatus.Complete;
+  result: string;
+};
+declare function defineToolCallRenderer(def: {
+  name: "*";
+  render: (props: RenderProps<any>) => React$1.ReactElement | null;
+  agentId?: string;
+}): ReactToolCallRenderer<any>;
+declare function defineToolCallRenderer<S extends StandardSchemaV1>(def: {
+  name: string;
+  args: S;
+  render: (props: RenderProps<InferSchemaOutput<S>>) => React$1.ReactElement | null;
+  agentId?: string;
+}): ReactToolCallRenderer<InferSchemaOutput<S>>;
+//#endregion
+//#region src/v2/hooks/use-capabilities.d.ts
+/**
+ * Returns the capabilities declared by the given agent (or the agent resolved
+ * from the surrounding chat configuration, falling back to the default agent).
+ * Capabilities are populated from the runtime `/info` response at connection
+ * time. The hook reads them synchronously from the agent instance — there is
+ * no separate loading state, but the value will be `undefined` until the
+ * runtime handshake completes.
+ *
+ * @param agentId - Optional agent ID. If omitted, inherits the surrounding
+ *          chat configuration's agent, falling back to the default agent.
+ * @returns The agent's capabilities, or `undefined` if the agent doesn't
+ *          declare capabilities.
+ */
+declare function useCapabilities(agentId?: string): AgentCapabilities | undefined;
+//#endregion
+export { type AgentContextInput, CopilotChatConfigurationProvider, type CopilotChatConfigurationProviderProps, type CopilotChatConfigurationValue, CopilotChatDefaultLabels, type CopilotChatLabels, CopilotKitCoreReact, type CopilotKitCoreReactConfig, type Interrupt, type InterruptEvent, type InterruptHandlerProps, type InterruptRenderProps, type JsonSerializable, type ReactFrontendTool, type ReactHumanInTheLoop, type ReactToolCallRenderer, type RenderToolCompleteProps, type RenderToolExecutingProps, type RenderToolInProgressProps, type RenderToolProps, type ResumeEntry, type ResumeStatus, type Thread, UseAgentUpdate, type UseInterruptConfig, type UseThreadsInput, type UseThreadsResult, defineToolCallRenderer, useAgent, useAgentContext, useCapabilities, useComponent, useConfigureSuggestions, useCopilotChatConfiguration, useCopilotKit, useFrontendTool, useHumanInTheLoop, useInterrupt, useRenderTool, useRenderToolCall, useSuggestions, useThreads };
+//# sourceMappingURL=headless.d.mts.map

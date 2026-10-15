@@ -1,0 +1,164 @@
+I001 [*] Import block is un-sorted or un-formatted
+   --> app\agents\manager.py:329:5
+    |
+327 |   def build_default_manager() -> AgentRuntimeManager:
+328 |       """Manager câblé sur les six agents métier exposés (fabriques paresseuses)."""
+329 | /     from app.agents.agent_rh import DEFINITION as RH_DEF
+330 | |     from app.agents.agent_rh import build_rh
+331 | |     from app.agents.agent_statistique import DEFINITION as STAT_DEF
+332 | |     from app.agents.agent_statistique import build_statistique
+333 | |     from app.agents.analyseur_appel_offre import DEFINITION as ANALYSEUR_DEF
+334 | |     from app.agents.analyseur_appel_offre import build_analyseur
+335 | |     from app.agents.assistant_formateur import DEFINITION as ASSISTANT_DEF
+336 | |     from app.agents.assistant_formateur import build_assistant
+337 | |     from app.agents.generaliste_readonly import DEFINITION as GENERALISTE_DEF
+338 | |     from app.agents.generaliste_readonly import READ_DOCUMENT_TOOL
+339 | |     from app.agents.generaliste_readonly import build_generaliste
+340 | |     from app.agents.generateur_offre import DEFINITION as GENERATEUR_DEF
+341 | |     from app.agents.generateur_offre import build_generateur
+342 | |     from app.agents.outillage import tools_documents_pour
+343 | |     from app.infrastructure.database import SessionLocal
+    | |________________________________________________________^
+344 |
+345 |       def _wrap(builder: Any) -> AgentBuilder:
+    |
+help: Organize imports
+    |
+337 |     from app.agents.generaliste_readonly import DEFINITION as GENERALISTE_DEF
+    -     from app.agents.generaliste_readonly import READ_DOCUMENT_TOOL
+    -     from app.agents.generaliste_readonly import build_generaliste
+338 +     from app.agents.generaliste_readonly import READ_DOCUMENT_TOOL, build_generaliste
+339 |     from app.agents.generateur_offre import DEFINITION as GENERATEUR_DEF
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> app\api\routes\missions.py:7:1
+   |
+ 5 |   """
+ 6 |
+ 7 | / from uuid import UUID
+ 8 | |
+ 9 | | from typing import Annotated
+10 | |
+11 | | from fastapi import APIRouter, Depends, Query, status
+12 | |
+13 | | from app.api.deps import DbSession, get_current_user
+14 | | from app.api.schemas import (
+15 | |     MissionDepuisOffreCreate,
+16 | |     MissionDirecteCreate,
+17 | |     MissionRead,
+18 | |     MissionStatutUpdate,
+19 | | )
+20 | | from app.application.dto import MissionDepuisOffreInput, MissionDirecteInput
+21 | | from app.application.services import MissionService
+22 | | from app.domain.execution import Mission
+   | |________________________________________^
+23 |
+24 |   router = APIRouter(
+   |
+help: Organize imports
+  |
+6 |
+  - from uuid import UUID
+  -
+7 | from typing import Annotated
+8 + from uuid import UUID
+9 |
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> app\infrastructure\repositories\__init__.py:3:1
+   |
+ 1 |   """Repositories — point d'import unique (instruction/09 : centraliser)."""
+ 2 |
+ 3 | / from app.infrastructure.repositories.agent_task import AgentTaskRepository
+ 4 | | from app.infrastructure.repositories.agent_runtime import (
+ 5 | |     ConfigurationRuntimeAgentRepository,
+ 6 | | )
+ 7 | | from app.infrastructure.repositories.appel_offre import (
+ 8 | |     AppelOffreRepository,
+ 9 | |     LotRepository,
+10 | | )
+11 | | from app.infrastructure.repositories.audit import ApprobationRepository, AuditRepository
+12 | | from app.infrastructure.repositories.base import BaseRepository
+13 | | from app.infrastructure.repositories.beneficiaire import (
+14 | |     BeneficiaireRepository,
+15 | |     ParticipationRepository,
+16 | | )
+17 | | from app.infrastructure.repositories.budget import BudgetRepository, LigneBudgetRepository
+18 | | from app.infrastructure.repositories.document import (
+19 | |     DocumentRepository,
+20 | |     ModeleDocumentRepository,
+21 | | )
+22 | | from app.infrastructure.repositories.mission import (
+23 | |     AffectationEquipeRepository,
+24 | |     EquipeRepository,
+25 | |     MissionRepository,
+26 | | )
+27 | | from app.infrastructure.repositories.offre_formation import OffreFormationRepository
+28 | | from app.infrastructure.repositories.organisation import OrganisationRepository
+29 | | from app.infrastructure.repositories.session import SessionRepository
+30 | | from app.infrastructure.repositories.utilisateur import UtilisateurRepository
+   | |_____________________________________________________________________________^
+31 |
+32 |   __all__ = [
+   |
+help: Organize imports
+  |
+2 |
+  - from app.infrastructure.repositories.agent_task import AgentTaskRepository
+3 | from app.infrastructure.repositories.agent_runtime import (
+4 |     ConfigurationRuntimeAgentRepository,
+5 | )
+6 + from app.infrastructure.repositories.agent_task import AgentTaskRepository
+7 | from app.infrastructure.repositories.appel_offre import (
+  |
+
+F401 [*] `pydantic.ValidationError` imported but unused
+  --> tests\test_agent_collaboration.py:18:41
+   |
+17 | import pytest
+18 | from pydantic import ValidationError as PydanticValidationError
+   |                                         ^^^^^^^^^^^^^^^^^^^^^^^
+19 | from sqlalchemy import select
+20 | from sqlalchemy.orm import Session, sessionmaker
+   |
+help: Remove unused import: `pydantic.ValidationError`
+   |
+17 | import pytest
+   - from pydantic import ValidationError as PydanticValidationError
+18 | from sqlalchemy import select
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests\test_agent_runtime.py:16:1
+   |
+14 |   """
+15 |
+16 | / from __future__ import annotations
+17 | |
+18 | | from typing import Any
+19 | | from uuid import uuid4
+20 | |
+21 | | import pytest
+22 | | from fastapi import APIRouter, FastAPI
+23 | | from fastapi.testclient import TestClient
+24 | | from sqlalchemy import select
+25 | | from sqlalchemy.orm import Session, sessionmaker
+26 | |
+27 | | from app.agents.manager import AgentRuntimeManager, AgentRuntimeValues
+28 | | from app.application.services import AgentRuntimeService
+29 | | from app.core.errors import ValidationError as BusinessValidationError
+30 | | from app.domain.document import AuditEvent
+31 | | from app.domain.enums import ActionAudit, RoleUtilisateur
+32 | | from app.domain.identity import Utilisateur
+   | |___________________________________________^
+help: Organize imports
+   |
+33 |
+   -
+34 | # --- Section 1 : service, persistance, audit ---------------------------------
+   |
+
+Found 5 errors.
+[*] 5 fixable with the `--fix` option.

@@ -1,0 +1,1889 @@
+2026-10-05 16:32:37 | WARNING  | app.agents.providers | AGENT_SSL_VERIFY=false : le certificat TLS du provider LLM n'est pas vérifié (environnements de développement uniquement).
+2026-10-05 16:32:41 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-05 16:32:41 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:32:46 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:32:46 | INFO     | mcp.client.streamable_http | Received session ID: d3714d0f-dc91-470a-9bfd-aff6c8766f7f
+2026-10-05 16:32:46 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 16:32:46 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 16:32:47 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-05 16:32:47 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 16:32:47 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 16:32:58 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-05 16:32:58 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-05 16:32:58 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-05 16:32:58 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:33:01 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:33:01 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_generateur_offre : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+2026-10-05 16:33:02 | INFO     | app.agents.checkpointer | Checkpointer LangGraph persistant : PostgreSQL (threads des agents conservés entre les redémarrages)
+2026-10-05 16:33:10 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-05 16:33:10 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:33:15 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:33:15 | INFO     | mcp.client.streamable_http | Received session ID: 956d14c1-0e2f-4775-b639-1deb63d0f0a0
+2026-10-05 16:33:15 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 16:33:15 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 16:33:15 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-05 16:33:15 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 16:33:15 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 16:33:15 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-05 16:33:15 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-05 16:33:15 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-05 16:33:16 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:33:16 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:33:16 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_rh : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+2026-10-05 16:33:17 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-05 16:33:17 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:33:18 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:33:18 | INFO     | mcp.client.streamable_http | Received session ID: 6ee9c020-9e13-42f0-b68c-8dd5fcfa3292
+2026-10-05 16:33:18 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 16:33:18 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 16:33:19 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-05 16:33:19 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 16:33:19 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 16:33:21 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-05 16:33:21 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-05 16:33:21 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-05 16:33:24 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:33:24 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-05 16:33:24 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-05 16:33:24 | DEBUG    | mcp.client.streamable_http | GET stream max reconnection attempts (2) exceeded
+2026-10-05 16:33:24 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:33:24 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_assistant_formateur : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+2026-10-05 16:33:24 | WARNING  | app.agents.mcp | Connecteur MCP Github ignoré pour agent_generaliste_readonly : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-05 16:33:30 | INFO     | app.agents.mcp | Connecteur MCP Time chargé pour agent_generaliste_readonly : 2 outil(s) — Time_convert_time, Time_get_current_time
+2026-10-05 16:33:32 | INFO     | app.agents.mcp | Connecteur MCP Time chargé pour agent_generaliste_readonly : 2 outil(s) — Time_convert_time, Time_get_current_time
+2026-10-05 16:33:33 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://mcp.facebook.com/whatsapp_business_tools
+2026-10-05 16:33:33 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:33:34 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/whatsapp_business_tools "HTTP/1.1 401 Unauthorized"
+2026-10-05 16:33:34 | WARNING  | app.agents.mcp | Connecteur MCP WhatsApp Business Tools injoignable pour agent_generaliste_readonly : HTTPStatusError HTTP 401 https://mcp.facebook.com/whatsapp_business_tools
+2026-10-05 16:33:34 | WARNING  | app.agents.mcp | Connecteur MCP WhatsApp Business Tools ignoré pour agent_generaliste_readonly : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-05 16:33:34 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-05 16:33:34 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:33:40 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:33:40 | INFO     | mcp.client.streamable_http | Received session ID: 62602b53-984b-491c-aef3-6fdbf8f94d93
+2026-10-05 16:33:40 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 16:33:40 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 16:33:43 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-05 16:33:43 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 16:33:43 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 16:33:43 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-05 16:33:43 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-05 16:33:43 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-05 16:33:43 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:33:43 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:33:43 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_generaliste_readonly : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+npm notice run npx
+npm notice run mcp-terminal
+MCP Terminal Server running...
+2026-10-05 16:33:59 | INFO     | app.agents.mcp | Connecteur MCP Terminal chargé pour agent_generaliste_readonly : 1 outil(s) — Terminal_execute_command
+2026-10-05 16:34:01 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-05 16:34:01 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:34:04 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:34:04 | INFO     | mcp.client.streamable_http | Received session ID: a903c01c-5e2d-4b0c-b07a-1d5b3f816124
+2026-10-05 16:34:04 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 16:34:04 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 16:34:07 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-05 16:34:07 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 16:34:07 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 16:34:07 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-05 16:34:07 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-05 16:34:07 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-05 16:34:08 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:34:08 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:34:08 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_statistique : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+2026-10-05 16:34:08 | INFO     | app.api.agui | AG-UI : 5 endpoint(s) monté(s)
+INFO:     Started server process [7204]
+INFO:     Waiting for application startup.
+2026-10-05 16:34:10 | INFO     | app.api.agui | AG-UI : 5 endpoint(s) monté(s)
+2026-10-05 16:34:10 | INFO     | app.agents.manager | Configuration des agents restaurée depuis la base (provider=openai_compatible, model=glm-5.3-flash)
+2026-10-05 16:34:10 | INFO     | __main__ | Bootstrap admin : compte prêt pour admin@carso.mg
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:17189 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17190 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17194 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17196 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17194 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17196 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17199 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17201 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+2026-10-05 16:34:44 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://api.githubcopilot.com/mcp/
+2026-10-05 16:34:44 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:34:48 | INFO     | httpx | HTTP Request: POST https://api.githubcopilot.com/mcp/ "HTTP/1.1 401 Unauthorized"
+2026-10-05 16:34:49 | INFO     | httpx | HTTP Request: GET https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp/ "HTTP/1.1 200 OK"
+2026-10-05 16:34:49 | INFO     | httpx | HTTP Request: GET https://github.com/.well-known/oauth-authorization-server/login/oauth "HTTP/1.1 200 OK"
+2026-10-05 16:34:49 | INFO     | httpx | HTTP Request: POST https://api.githubcopilot.com/register "HTTP/1.1 404 Not Found"
+2026-10-05 16:34:49 | ERROR    | mcp.client.auth.oauth2 | OAuth flow error
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\oauth2.py", line 654, in _auth_flow
+    client_information = await handle_registration_response(registration_response)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\utils.py", line 266, in handle_registration_response
+    raise OAuthRegistrationError(
+mcp.client.auth.exceptions.OAuthRegistrationError: Registration failed: 404 404 page not found
+
+2026-10-05 16:34:49 | WARNING  | app.application.services.mcp_oauth_service | Autorisation OAuth du connecteur Github refusée ou incomplète : OAuthRegistrationError: Registration failed: 404 404 page not found — ce serveur n'annonce **aucun** point d'enregistrement dynamique : la découverte OAuth aboutit, mais l'inscription du client est impossible. Créez une application OAuth dans la console du fournisseur, puis renseignez son Client ID dans le champ « Client OAuth pré-enregistré » — avec l'URI de redirection affichée sous ce champ, déclarée auprès du fournisseur.
+INFO:     127.0.0.1:17201 - "POST /api/v1/parametres/mcp/personnel/Github/autoriser HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:17201 - "POST /api/v1/parametres/mcp/personnel/Github/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17201 - "POST /api/v1/parametres/mcp/personnel/Time/tester HTTP/1.1" 200 OK
+2026-10-05 16:34:55 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://mcp.facebook.com/whatsapp_business_tools
+2026-10-05 16:34:55 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+INFO:     127.0.0.1:17209 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17209 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17211 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17211 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17215 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17217 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17217 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+2026-10-05 16:34:58 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/whatsapp_business_tools "HTTP/1.1 401 Unauthorized"
+INFO:     127.0.0.1:17209 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17211 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17215 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+2026-10-05 16:34:59 | INFO     | httpx | HTTP Request: GET https://mcp.facebook.com/.well-known/oauth-protected-resource/whatsapp_business_tools "HTTP/1.1 200 OK"
+2026-10-05 16:35:02 | INFO     | httpx | HTTP Request: GET https://www.facebook.com/.well-known/oauth-authorization-server/whatsapp_business_tools "HTTP/1.1 200 OK"
+2026-10-05 16:35:03 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/.well-known/register/whatsapp_business_tools "HTTP/1.1 400 Bad Request"
+2026-10-05 16:35:03 | ERROR    | mcp.client.auth.oauth2 | OAuth flow error
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\oauth2.py", line 654, in _auth_flow
+    client_information = await handle_registration_response(registration_response)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\utils.py", line 266, in handle_registration_response
+    raise OAuthRegistrationError(
+mcp.client.auth.exceptions.OAuthRegistrationError: Registration failed: 400 {"error":"invalid_client_metadata","error_description":"Dynamic registration is not available for this client."}
+2026-10-05 16:35:03 | WARNING  | app.application.services.mcp_oauth_service | Autorisation OAuth du connecteur WhatsApp Business Tools refusée ou incomplète : OAuthRegistrationError: Registration failed: 400 {"error":"invalid_client_metadata","error_description":"Dynamic registration is not available for this client."} — ce serveur **refuse** l'enregistrement dynamique (fermeture volontaire de sa part). Créez une application OAuth dans la console du fournisseur, puis renseignez son Client ID dans le champ « Client OAuth pré-enregistré » — avec l'URI de redirection affichée sous ce champ, déclarée auprès du fournisseur.
+INFO:     127.0.0.1:17201 - "POST /api/v1/parametres/mcp/personnel/WhatsApp%20Business%20Tools/autoriser HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:17201 - "POST /api/v1/parametres/mcp/personnel/WhatsApp%20Business%20Tools/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17229 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17229 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17229 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17229 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17231 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17235 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17229 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17231 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17231 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17229 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17231 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17229 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17234 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17234 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17241 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17241 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17243 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17244 - "DELETE /api/v1/parametres/mcp/personnel/whatsapp-business-tools HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:17244 - "PUT /api/v1/parametres/mcp/personnel/whatsapp-business-tools HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17244 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17244 - "POST /api/v1/parametres/mcp/personnel/whatsapp-business-tools/tester HTTP/1.1" 200 OK
+2026-10-05 16:35:38 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://mcp.facebook.com/whatsapp_business_tools
+2026-10-05 16:35:38 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:35:41 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/whatsapp_business_tools "HTTP/1.1 401 Unauthorized"
+2026-10-05 16:35:41 | INFO     | httpx | HTTP Request: GET https://mcp.facebook.com/.well-known/oauth-protected-resource/whatsapp_business_tools "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:17250 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17250 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+2026-10-05 16:35:48 | INFO     | httpx | HTTP Request: GET https://www.facebook.com/.well-known/oauth-authorization-server/whatsapp_business_tools "HTTP/1.1 200 OK"
+2026-10-05 16:35:51 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/.well-known/register/whatsapp_business_tools "HTTP/1.1 400 Bad Request"
+2026-10-05 16:35:51 | ERROR    | mcp.client.auth.oauth2 | OAuth flow error
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\oauth2.py", line 654, in _auth_flow
+    client_information = await handle_registration_response(registration_response)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\utils.py", line 266, in handle_registration_response
+    raise OAuthRegistrationError(
+mcp.client.auth.exceptions.OAuthRegistrationError: Registration failed: 400 {"error":"invalid_client_metadata","error_description":"Dynamic registration is not available for this client."}
+2026-10-05 16:35:51 | WARNING  | app.application.services.mcp_oauth_service | Autorisation OAuth du connecteur whatsapp-business-tools refusée ou incomplète : OAuthRegistrationError: Registration failed: 400 {"error":"invalid_client_metadata","error_description":"Dynamic registration is not available for this client."} — ce serveur **refuse** l'enregistrement dynamique (fermeture volontaire de sa part). Créez une application OAuth dans la console du fournisseur, puis renseignez son Client ID dans le champ « Client OAuth pré-enregistré » — avec l'URI de redirection affichée sous ce champ, déclarée auprès du fournisseur.
+INFO:     127.0.0.1:17244 - "POST /api/v1/parametres/mcp/personnel/whatsapp-business-tools/autoriser HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:17244 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17244 - "DELETE /api/v1/parametres/mcp/personnel/whatsapp-business-tools HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:17244 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17257 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17258 - "DELETE /api/v1/parametres/mcp/personnel/faux-pre-enregistre HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17258 - "PUT /api/v1/parametres/mcp/personnel/faux-pre-enregistre HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+2026-10-05 16:36:03 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: http://127.0.0.1:17259/mcp
+2026-10-05 16:36:03 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:36:03 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 401 Unauthorized"
+2026-10-05 16:36:03 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17259/.well-known/oauth-protected-resource/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:03 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17259/.well-known/oauth-authorization-server "HTTP/1.1 200 OK"
+2026-10-05 16:36:03 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/register "HTTP/1.1 400 Bad Request"
+2026-10-05 16:36:03 | ERROR    | mcp.client.auth.oauth2 | OAuth flow error
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\oauth2.py", line 654, in _auth_flow
+    client_information = await handle_registration_response(registration_response)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\utils.py", line 266, in handle_registration_response
+    raise OAuthRegistrationError(
+mcp.client.auth.exceptions.OAuthRegistrationError: Registration failed: 400 {"error":"invalid_client_metadata","error_description":"Dynamic registration is not available for this client."}
+2026-10-05 16:36:03 | WARNING  | app.application.services.mcp_oauth_service | Autorisation OAuth du connecteur faux-pre-enregistre refusée ou incomplète : OAuthRegistrationError: Registration failed: 400 {"error":"invalid_client_metadata","error_description":"Dynamic registration is not available for this client."} — ce serveur **refuse** l'enregistrement dynamique (fermeture volontaire de sa part). Créez une application OAuth dans la console du fournisseur, puis renseignez son Client ID dans le champ « Client OAuth pré-enregistré » — avec l'URI de redirection affichée sous ce champ, déclarée auprès du fournisseur.
+INFO:     127.0.0.1:17258 - "POST /api/v1/parametres/mcp/personnel/faux-pre-enregistre/autoriser HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:17258 - "PUT /api/v1/parametres/mcp/personnel/faux-pre-enregistre HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+2026-10-05 16:36:04 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: http://127.0.0.1:17259/mcp
+2026-10-05 16:36:04 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:36:04 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 401 Unauthorized"
+2026-10-05 16:36:04 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17259/.well-known/oauth-protected-resource/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:04 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17259/.well-known/oauth-authorization-server "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:17258 - "POST /api/v1/parametres/mcp/personnel/faux-pre-enregistre/autoriser HTTP/1.1" 200 OK
+2026-10-05 16:36:05 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/token "HTTP/1.1 200 OK"
+2026-10-05 16:36:05 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:05 | INFO     | mcp.client.streamable_http | Received session ID: a971c94aaaea494392cb6a6fa6fe0e73
+2026-10-05 16:36:05 | DEBUG    | mcp.client.streamable_http | SSE message: root=JSONRPCResponse(jsonrpc='2.0', id=0, result={'protocolVersion': '2025-11-25', 'capabilities': {'experimental': {}, 'prompts': {'listChanged': False}, 'resources': {'subscribe': False, 'listChanged': False}, 'tools': {'listChanged': False}}, 'serverInfo': {'name': 'faux-serveur', 'version': '1.30.0'}})
+2026-10-05 16:36:05 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 16:36:05 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 16:36:05 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 202 Accepted"
+2026-10-05 16:36:05 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 16:36:05 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 16:36:05 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:05 | DEBUG    | mcp.client.streamable_http | GET SSE connection established
+2026-10-05 16:36:05 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:05 | DEBUG    | mcp.client.streamable_http | SSE message: root=JSONRPCResponse(jsonrpc='2.0', id=1, result={'tools': [{'name': 'ping', 'description': 'Répond pong au message fourni.', 'inputSchema': {'properties': {'message': {'title': 'Message', 'type': 'string'}}, 'required': ['message'], 'title': 'pingArguments', 'type': 'object'}, 'outputSchema': {'properties': {'result': {'title': 'Result', 'type': 'string'}}, 'required': ['result'], 'title': 'pingOutput', 'type': 'object'}}]})
+2026-10-05 16:36:05 | INFO     | httpx | HTTP Request: DELETE http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:06 | INFO     | app.application.services.mcp_oauth_service | Connecteur MCP faux-pre-enregistre autorisé : 1 outil(s) — faux-pre-enregistre_ping
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel/oauth/callback?code=code-5bbed9fcfc&state=NopQQ3n01KV4gnMsVWo-oks1V5TcuQOffuO9DlD4KOA HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+2026-10-05 16:36:06 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: http://127.0.0.1:17259/mcp
+2026-10-05 16:36:06 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:36:06 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:06 | INFO     | mcp.client.streamable_http | Received session ID: 2653b02317474c37b205445e1fda67d8
+2026-10-05 16:36:06 | DEBUG    | mcp.client.streamable_http | SSE message: root=JSONRPCResponse(jsonrpc='2.0', id=0, result={'protocolVersion': '2025-11-25', 'capabilities': {'experimental': {}, 'prompts': {'listChanged': False}, 'resources': {'subscribe': False, 'listChanged': False}, 'tools': {'listChanged': False}}, 'serverInfo': {'name': 'faux-serveur', 'version': '1.30.0'}})
+2026-10-05 16:36:06 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 16:36:06 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 16:36:06 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 202 Accepted"
+2026-10-05 16:36:06 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 16:36:06 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 16:36:06 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:06 | DEBUG    | mcp.client.streamable_http | GET SSE connection established
+2026-10-05 16:36:06 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:06 | DEBUG    | mcp.client.streamable_http | SSE message: root=JSONRPCResponse(jsonrpc='2.0', id=1, result={'tools': [{'name': 'ping', 'description': 'Répond pong au message fourni.', 'inputSchema': {'properties': {'message': {'title': 'Message', 'type': 'string'}}, 'required': ['message'], 'title': 'pingArguments', 'type': 'object'}, 'outputSchema': {'properties': {'result': {'title': 'Result', 'type': 'string'}}, 'required': ['result'], 'title': 'pingOutput', 'type': 'object'}}]})
+2026-10-05 16:36:06 | INFO     | httpx | HTTP Request: DELETE http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:17258 - "POST /api/v1/parametres/mcp/personnel/faux-pre-enregistre/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17258 - "POST /api/v1/parametres/mcp/personnel/faux-pre-enregistre/revoquer HTTP/1.1" 200 OK
+2026-10-05 16:36:07 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: http://127.0.0.1:17259/mcp
+2026-10-05 16:36:07 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:36:07 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 401 Unauthorized"
+2026-10-05 16:36:07 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17259/.well-known/oauth-protected-resource/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:07 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17259/.well-known/oauth-authorization-server "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:17258 - "POST /api/v1/parametres/mcp/personnel/faux-pre-enregistre/autoriser HTTP/1.1" 200 OK
+2026-10-05 16:36:08 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/token "HTTP/1.1 200 OK"
+2026-10-05 16:36:08 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:08 | INFO     | mcp.client.streamable_http | Received session ID: b9663183e150496fb5dca818e4394076
+2026-10-05 16:36:08 | DEBUG    | mcp.client.streamable_http | SSE message: root=JSONRPCResponse(jsonrpc='2.0', id=0, result={'protocolVersion': '2025-11-25', 'capabilities': {'experimental': {}, 'prompts': {'listChanged': False}, 'resources': {'subscribe': False, 'listChanged': False}, 'tools': {'listChanged': False}}, 'serverInfo': {'name': 'faux-serveur', 'version': '1.30.0'}})
+2026-10-05 16:36:08 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 16:36:08 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 16:36:08 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 202 Accepted"
+2026-10-05 16:36:08 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 16:36:08 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 16:36:08 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:08 | DEBUG    | mcp.client.streamable_http | GET SSE connection established
+2026-10-05 16:36:08 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:08 | DEBUG    | mcp.client.streamable_http | SSE message: root=JSONRPCResponse(jsonrpc='2.0', id=1, result={'tools': [{'name': 'ping', 'description': 'Répond pong au message fourni.', 'inputSchema': {'properties': {'message': {'title': 'Message', 'type': 'string'}}, 'required': ['message'], 'title': 'pingArguments', 'type': 'object'}, 'outputSchema': {'properties': {'result': {'title': 'Result', 'type': 'string'}}, 'required': ['result'], 'title': 'pingOutput', 'type': 'object'}}]})
+2026-10-05 16:36:08 | INFO     | httpx | HTTP Request: DELETE http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:08 | INFO     | app.application.services.mcp_oauth_service | Connecteur MCP faux-pre-enregistre autorisé : 1 outil(s) — faux-pre-enregistre_ping
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel/oauth/callback?code=code-e7376a5f2c&state=0-if7VN0VmrzrC15tY8GGGifNkJGy7hsvCwXy7vfIHw HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17258 - "POST /api/v1/parametres/mcp/personnel/faux-pre-enregistre/revoquer HTTP/1.1" 200 OK
+2026-10-05 16:36:09 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: http://127.0.0.1:17259/mcp
+2026-10-05 16:36:09 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:36:09 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 401 Unauthorized"
+2026-10-05 16:36:09 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17259/.well-known/oauth-protected-resource/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:09 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17259/.well-known/oauth-authorization-server "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:17258 - "POST /api/v1/parametres/mcp/personnel/faux-pre-enregistre/autoriser HTTP/1.1" 200 OK
+2026-10-05 16:36:09 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: http://127.0.0.1:17259/mcp
+2026-10-05 16:36:09 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:36:09 | ERROR    | mcp.client.auth.oauth2 | OAuth flow error
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\oauth2.py", line 674, in _auth_flow
+    token_response = yield await self._perform_authorization()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\oauth2.py", line 324, in _perform_authorization
+    auth_code, code_verifier = await self._perform_authorization_code_grant()
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\oauth2.py", line 370, in _perform_authorization_code_grant
+    auth_code, returned_state = await self.context.callback_handler()
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\app\application\services\mcp_oauth_service.py", line 110, in attendre_le_code
+    raise OAuthFlowError(
+mcp.client.auth.exceptions.OAuthFlowError: Autorisation remplacée par une nouvelle demande.
+2026-10-05 16:36:09 | INFO     | app.application.services.mcp_oauth_service | Tentative OAuth remplacée pour le connecteur faux-pre-enregistre : OAuthFlowError: Autorisation remplacée par une nouvelle demande.
+2026-10-05 16:36:09 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 401 Unauthorized"
+2026-10-05 16:36:09 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17259/.well-known/oauth-protected-resource/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:09 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17259/.well-known/oauth-authorization-server "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:17258 - "POST /api/v1/parametres/mcp/personnel/faux-pre-enregistre/autoriser HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17286 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17288 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17286 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17288 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+2026-10-05 16:36:12 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/token "HTTP/1.1 200 OK"
+2026-10-05 16:36:12 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:12 | INFO     | mcp.client.streamable_http | Received session ID: 6b8d160d9e17414689594b48a5574017
+2026-10-05 16:36:12 | DEBUG    | mcp.client.streamable_http | SSE message: root=JSONRPCResponse(jsonrpc='2.0', id=0, result={'protocolVersion': '2025-11-25', 'capabilities': {'experimental': {}, 'prompts': {'listChanged': False}, 'resources': {'subscribe': False, 'listChanged': False}, 'tools': {'listChanged': False}}, 'serverInfo': {'name': 'faux-serveur', 'version': '1.30.0'}})
+2026-10-05 16:36:12 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 16:36:12 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 16:36:12 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 202 Accepted"
+2026-10-05 16:36:12 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 16:36:12 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 16:36:12 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:12 | DEBUG    | mcp.client.streamable_http | GET SSE connection established
+2026-10-05 16:36:12 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:12 | DEBUG    | mcp.client.streamable_http | SSE message: root=JSONRPCResponse(jsonrpc='2.0', id=1, result={'tools': [{'name': 'ping', 'description': 'Répond pong au message fourni.', 'inputSchema': {'properties': {'message': {'title': 'Message', 'type': 'string'}}, 'required': ['message'], 'title': 'pingArguments', 'type': 'object'}, 'outputSchema': {'properties': {'result': {'title': 'Result', 'type': 'string'}}, 'required': ['result'], 'title': 'pingOutput', 'type': 'object'}}]})
+2026-10-05 16:36:12 | INFO     | httpx | HTTP Request: DELETE http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:12 | INFO     | app.application.services.mcp_oauth_service | Connecteur MCP faux-pre-enregistre autorisé : 1 outil(s) — faux-pre-enregistre_ping
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel/oauth/callback?code=code-546fb125e8&state=2CJ1PZxDTOvEPotVz5-ur2kfW29vggvEUyMEVbzHm0c HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+2026-10-05 16:36:13 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: http://127.0.0.1:17259/mcp
+2026-10-05 16:36:13 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:36:13 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:13 | INFO     | mcp.client.streamable_http | Received session ID: 0f2328745ed64e468df2a57948bddb1c
+2026-10-05 16:36:13 | DEBUG    | mcp.client.streamable_http | SSE message: root=JSONRPCResponse(jsonrpc='2.0', id=0, result={'protocolVersion': '2025-11-25', 'capabilities': {'experimental': {}, 'prompts': {'listChanged': False}, 'resources': {'subscribe': False, 'listChanged': False}, 'tools': {'listChanged': False}}, 'serverInfo': {'name': 'faux-serveur', 'version': '1.30.0'}})
+2026-10-05 16:36:13 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 16:36:13 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 16:36:13 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 202 Accepted"
+2026-10-05 16:36:13 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 16:36:13 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 16:36:13 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:13 | DEBUG    | mcp.client.streamable_http | GET SSE connection established
+2026-10-05 16:36:13 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:13 | DEBUG    | mcp.client.streamable_http | SSE message: root=JSONRPCResponse(jsonrpc='2.0', id=1, result={'tools': [{'name': 'ping', 'description': 'Répond pong au message fourni.', 'inputSchema': {'properties': {'message': {'title': 'Message', 'type': 'string'}}, 'required': ['message'], 'title': 'pingArguments', 'type': 'object'}, 'outputSchema': {'properties': {'result': {'title': 'Result', 'type': 'string'}}, 'required': ['result'], 'title': 'pingOutput', 'type': 'object'}}]})
+2026-10-05 16:36:13 | INFO     | httpx | HTTP Request: DELETE http://127.0.0.1:17259/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:13 | INFO     | app.application.services.mcp_oauth_service | Connecteur MCP faux-pre-enregistre autorisé : 1 outil(s) — faux-pre-enregistre_ping
+INFO:     127.0.0.1:17258 - "POST /api/v1/parametres/mcp/personnel/faux-pre-enregistre/autoriser HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:17258 - "DELETE /api/v1/parametres/mcp/personnel/faux-pre-enregistre HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17258 - "PUT /api/v1/parametres/mcp/personnel/faux-pre-enregistre HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+2026-10-05 16:36:15 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: http://127.0.0.1:17299/mcp
+2026-10-05 16:36:15 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:36:15 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17299/mcp "HTTP/1.1 401 Unauthorized"
+2026-10-05 16:36:15 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17299/.well-known/oauth-protected-resource/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:15 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17299/.well-known/oauth-authorization-server "HTTP/1.1 200 OK"
+2026-10-05 16:36:15 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17299/register "HTTP/1.1 201 Created"
+INFO:     127.0.0.1:17258 - "POST /api/v1/parametres/mcp/personnel/faux-pre-enregistre/autoriser HTTP/1.1" 200 OK
+2026-10-05 16:36:16 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17299/token "HTTP/1.1 200 OK"
+2026-10-05 16:36:16 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17299/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:16 | INFO     | mcp.client.streamable_http | Received session ID: ad994b5dd0a34439913f58cca4383b85
+2026-10-05 16:36:16 | DEBUG    | mcp.client.streamable_http | SSE message: root=JSONRPCResponse(jsonrpc='2.0', id=0, result={'protocolVersion': '2025-11-25', 'capabilities': {'experimental': {}, 'prompts': {'listChanged': False}, 'resources': {'subscribe': False, 'listChanged': False}, 'tools': {'listChanged': False}}, 'serverInfo': {'name': 'faux-serveur', 'version': '1.30.0'}})
+2026-10-05 16:36:16 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 16:36:16 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 16:36:16 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17299/mcp "HTTP/1.1 202 Accepted"
+2026-10-05 16:36:16 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 16:36:16 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 16:36:16 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17299/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:16 | DEBUG    | mcp.client.streamable_http | GET SSE connection established
+2026-10-05 16:36:16 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17299/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:16 | DEBUG    | mcp.client.streamable_http | SSE message: root=JSONRPCResponse(jsonrpc='2.0', id=1, result={'tools': [{'name': 'ping', 'description': 'Répond pong au message fourni.', 'inputSchema': {'properties': {'message': {'title': 'Message', 'type': 'string'}}, 'required': ['message'], 'title': 'pingArguments', 'type': 'object'}, 'outputSchema': {'properties': {'result': {'title': 'Result', 'type': 'string'}}, 'required': ['result'], 'title': 'pingOutput', 'type': 'object'}}]})
+2026-10-05 16:36:16 | INFO     | httpx | HTTP Request: DELETE http://127.0.0.1:17299/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:16 | INFO     | app.application.services.mcp_oauth_service | Connecteur MCP faux-pre-enregistre autorisé : 1 outil(s) — faux-pre-enregistre_ping
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel/oauth/callback?code=code-11cf59c54f&state=-nd6AUkYpymA1vwp_9xg8ZbyZVzr6opDyYOSU7fzWmg HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17258 - "POST /api/v1/parametres/mcp/personnel/faux-pre-enregistre/revoquer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17258 - "PUT /api/v1/parametres/mcp/personnel/faux-pre-enregistre HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+2026-10-05 16:36:17 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: http://127.0.0.1:17299/mcp
+2026-10-05 16:36:17 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:36:17 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17299/mcp "HTTP/1.1 401 Unauthorized"
+2026-10-05 16:36:17 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17299/.well-known/oauth-protected-resource/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:17 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17299/.well-known/oauth-authorization-server "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:17258 - "POST /api/v1/parametres/mcp/personnel/faux-pre-enregistre/autoriser HTTP/1.1" 200 OK
+2026-10-05 16:36:18 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17299/token "HTTP/1.1 200 OK"
+2026-10-05 16:36:18 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17299/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:18 | INFO     | mcp.client.streamable_http | Received session ID: bf38de5ba5284aea9e06f5ee72e6b906
+2026-10-05 16:36:18 | DEBUG    | mcp.client.streamable_http | SSE message: root=JSONRPCResponse(jsonrpc='2.0', id=0, result={'protocolVersion': '2025-11-25', 'capabilities': {'experimental': {}, 'prompts': {'listChanged': False}, 'resources': {'subscribe': False, 'listChanged': False}, 'tools': {'listChanged': False}}, 'serverInfo': {'name': 'faux-serveur', 'version': '1.30.0'}})
+2026-10-05 16:36:18 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 16:36:18 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 16:36:18 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17299/mcp "HTTP/1.1 202 Accepted"
+2026-10-05 16:36:18 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 16:36:18 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 16:36:18 | INFO     | httpx | HTTP Request: GET http://127.0.0.1:17299/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:18 | DEBUG    | mcp.client.streamable_http | GET SSE connection established
+2026-10-05 16:36:18 | INFO     | httpx | HTTP Request: POST http://127.0.0.1:17299/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:18 | DEBUG    | mcp.client.streamable_http | SSE message: root=JSONRPCResponse(jsonrpc='2.0', id=1, result={'tools': [{'name': 'ping', 'description': 'Répond pong au message fourni.', 'inputSchema': {'properties': {'message': {'title': 'Message', 'type': 'string'}}, 'required': ['message'], 'title': 'pingArguments', 'type': 'object'}, 'outputSchema': {'properties': {'result': {'title': 'Result', 'type': 'string'}}, 'required': ['result'], 'title': 'pingOutput', 'type': 'object'}}]})
+2026-10-05 16:36:18 | INFO     | httpx | HTTP Request: DELETE http://127.0.0.1:17299/mcp "HTTP/1.1 200 OK"
+2026-10-05 16:36:18 | INFO     | app.application.services.mcp_oauth_service | Connecteur MCP faux-pre-enregistre autorisé : 1 outil(s) — faux-pre-enregistre_ping
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel/oauth/callback?code=code-8de98c04bb&state=YIcEvqQM1e2SiQE5eYayVVBgenb-RfpxFWdF5sV-ItU HTTP/1.1" 303 See Other
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17258 - "DELETE /api/v1/parametres/mcp/personnel/faux-pre-enregistre HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:17258 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17326 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17327 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17326 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17327 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17332 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17334 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17332 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17334 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17340 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17340 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17343 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17345 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17345 - "OPTIONS /api/v1/parametres/mcp/personnel/WhatsApp%20Business%20Tools/autoriser HTTP/1.1" 200 OK
+2026-10-05 16:37:57 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://mcp.facebook.com/whatsapp_business_tools
+2026-10-05 16:37:57 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:38:04 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/whatsapp_business_tools "HTTP/1.1 401 Unauthorized"
+2026-10-05 16:38:07 | INFO     | httpx | HTTP Request: GET https://mcp.facebook.com/.well-known/oauth-protected-resource/whatsapp_business_tools "HTTP/1.1 200 OK"
+2026-10-05 16:38:09 | INFO     | httpx | HTTP Request: GET https://www.facebook.com/.well-known/oauth-authorization-server/whatsapp_business_tools "HTTP/1.1 200 OK"
+2026-10-05 16:38:10 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/.well-known/register/whatsapp_business_tools "HTTP/1.1 400 Bad Request"
+2026-10-05 16:38:10 | ERROR    | mcp.client.auth.oauth2 | OAuth flow error
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\oauth2.py", line 654, in _auth_flow
+    client_information = await handle_registration_response(registration_response)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\utils.py", line 266, in handle_registration_response
+    raise OAuthRegistrationError(
+mcp.client.auth.exceptions.OAuthRegistrationError: Registration failed: 400 {"error":"invalid_client_metadata","error_description":"Dynamic registration is not available for this client."}
+2026-10-05 16:38:10 | WARNING  | app.application.services.mcp_oauth_service | Autorisation OAuth du connecteur WhatsApp Business Tools refusée ou incomplète : OAuthRegistrationError: Registration failed: 400 {"error":"invalid_client_metadata","error_description":"Dynamic registration is not available for this client."} — ce serveur **refuse** l'enregistrement dynamique (fermeture volontaire de sa part). Créez une application OAuth dans la console du fournisseur, puis renseignez son Client ID dans le champ « Client OAuth pré-enregistré » — avec l'URI de redirection affichée sous ce champ, déclarée auprès du fournisseur.
+INFO:     127.0.0.1:17345 - "POST /api/v1/parametres/mcp/personnel/WhatsApp%20Business%20Tools/autoriser HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:17345 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17345 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17345 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17345 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17364 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17366 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17364 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17345 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17345 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17364 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17345 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17364 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17368 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17368 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17378 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17380 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17380 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17409 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17410 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17409 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17410 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17446 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17445 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17444 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17445 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17446 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17444 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17444 - "OPTIONS /api/v1/parametres/mcp/personnel/Github/autoriser HTTP/1.1" 200 OK
+2026-10-05 16:40:29 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://api.githubcopilot.com/mcp/
+2026-10-05 16:40:29 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:40:29 | ERROR    | asyncio | Task exception was never retrieved
+future: <Task finished name='Task-357' coro=<<async_generator_athrow without __name__>()> exception=RuntimeError('The current task is not holding this lock')>
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\oauth2.py", line 535, in _auth_flow
+    response = yield request
+               ^^^^^^^^^^^^^
+GeneratorExit
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\shared\_httpx_utils.py", line 219, in async_auth_flow
+    await flow.aclose()
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\oauth2.py", line 516, in _auth_flow
+    async with self.context.lock:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\anyio\_core\_synchronization.py", line 179, in __aexit__
+    self.release()
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 2005, in release
+    raise RuntimeError("The current task is not holding this lock")
+RuntimeError: The current task is not holding this lock
+2026-10-05 16:40:29 | WARNING  | app.application.services.mcp_oauth_service | Autorisation OAuth du connecteur Github refusée ou incomplète : ConnectError: [Errno 11001] getaddrinfo failed
+INFO:     127.0.0.1:17444 - "POST /api/v1/parametres/mcp/personnel/Github/autoriser HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:17444 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17444 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17444 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17444 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17449 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17449 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17444 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17451 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17455 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17455 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17455 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17455 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17454 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17516 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17454 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17516 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17547 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17547 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17577 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17578 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17577 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17578 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17614 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17616 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17614 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17616 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17616 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17616 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17632 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17632 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17676 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17678 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17676 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17678 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17721 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17723 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17721 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17723 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17734 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17736 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17734 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17736 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17747 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17749 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17747 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17749 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17765 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17767 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17765 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17767 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17806 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17805 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17806 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17805 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17884 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17883 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17884 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17883 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17924 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17923 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17924 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17923 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17950 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17952 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17950 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17952 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17972 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17974 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17974 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17972 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17986 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17987 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17991 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17989 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17999 - "OPTIONS /api/v1/parametres/mcp/personnel/WhatsApp%20Business%20Tools/autoriser HTTP/1.1" 200 OK
+2026-10-05 16:54:08 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://mcp.facebook.com/whatsapp_business_tools
+2026-10-05 16:54:08 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:54:12 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/whatsapp_business_tools "HTTP/1.1 401 Unauthorized"
+INFO:     127.0.0.1:18003 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18005 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18003 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18005 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+2026-10-05 16:54:13 | INFO     | httpx | HTTP Request: GET https://mcp.facebook.com/.well-known/oauth-protected-resource/whatsapp_business_tools "HTTP/1.1 200 OK"
+2026-10-05 16:54:15 | INFO     | httpx | HTTP Request: GET https://www.facebook.com/.well-known/oauth-authorization-server/whatsapp_business_tools "HTTP/1.1 200 OK"
+2026-10-05 16:54:15 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/.well-known/register/whatsapp_business_tools "HTTP/1.1 400 Bad Request"
+2026-10-05 16:54:15 | ERROR    | mcp.client.auth.oauth2 | OAuth flow error
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\oauth2.py", line 654, in _auth_flow
+    client_information = await handle_registration_response(registration_response)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\utils.py", line 266, in handle_registration_response
+    raise OAuthRegistrationError(
+mcp.client.auth.exceptions.OAuthRegistrationError: Registration failed: 400 {"error":"invalid_client_metadata","error_description":"Dynamic registration is not available for this client."}
+2026-10-05 16:54:15 | WARNING  | app.application.services.mcp_oauth_service | Autorisation OAuth du connecteur WhatsApp Business Tools refusée ou incomplète : OAuthRegistrationError: Registration failed: 400 {"error":"invalid_client_metadata","error_description":"Dynamic registration is not available for this client."} — ce serveur **refuse** l'enregistrement dynamique (fermeture volontaire de sa part). Créez une application OAuth dans la console du fournisseur, puis renseignez son Client ID dans le champ « Client OAuth pré-enregistré » — avec l'URI de redirection affichée sous ce champ, déclarée auprès du fournisseur.
+INFO:     127.0.0.1:17999 - "POST /api/v1/parametres/mcp/personnel/WhatsApp%20Business%20Tools/autoriser HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:17999 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17999 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17999 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18008 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17999 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18008 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18010 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:17999 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18022 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18022 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18032 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18034 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18032 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18034 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18052 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18051 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18051 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18052 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18052 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18051 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18052 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18051 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18064 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18064 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18080 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18082 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18080 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18082 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18091 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18092 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18094 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18091 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18099 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18099 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18104 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18106 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18104 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18106 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18109 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18109 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18112 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18112 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18112 - "OPTIONS /api/v1/parametres/mcp/personnel/Meta%20Social%20Technologies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18112 - "PUT /api/v1/parametres/mcp/personnel/Meta%20Social%20Technologies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18112 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18112 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18115 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18117 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18112 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18115 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18115 - "OPTIONS /api/v1/parametres/mcp/personnel/Meta%20Social%20Technologies/autoriser HTTP/1.1" 200 OK
+2026-10-05 16:58:38 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://mcp.facebook.com/devtools
+2026-10-05 16:58:38 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 16:58:39 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/devtools "HTTP/1.1 401 Unauthorized"
+2026-10-05 16:58:39 | INFO     | httpx | HTTP Request: GET https://mcp.facebook.com/.well-known/oauth-protected-resource/devtools "HTTP/1.1 200 OK"
+2026-10-05 16:58:40 | INFO     | httpx | HTTP Request: GET https://www.facebook.com/.well-known/oauth-authorization-server/devtools "HTTP/1.1 200 OK"
+2026-10-05 16:58:40 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/.well-known/register/devtools "HTTP/1.1 400 Bad Request"
+2026-10-05 16:58:40 | ERROR    | mcp.client.auth.oauth2 | OAuth flow error
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\oauth2.py", line 654, in _auth_flow
+    client_information = await handle_registration_response(registration_response)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\utils.py", line 266, in handle_registration_response
+    raise OAuthRegistrationError(
+mcp.client.auth.exceptions.OAuthRegistrationError: Registration failed: 400 {"error":"invalid_client_metadata","error_description":"Dynamic registration is not available for this client."}
+2026-10-05 16:58:40 | WARNING  | app.application.services.mcp_oauth_service | Autorisation OAuth du connecteur Meta Social Technologies refusée ou incomplète : OAuthRegistrationError: Registration failed: 400 {"error":"invalid_client_metadata","error_description":"Dynamic registration is not available for this client."} — ce serveur **refuse** l'enregistrement dynamique (fermeture volontaire de sa part). Créez une application OAuth dans la console du fournisseur, puis renseignez son Client ID dans le champ « Client OAuth pré-enregistré » — avec l'URI de redirection affichée sous ce champ, déclarée auprès du fournisseur.
+INFO:     127.0.0.1:18115 - "POST /api/v1/parametres/mcp/personnel/Meta%20Social%20Technologies/autoriser HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:18115 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18115 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18115 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18119 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18115 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18123 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18119 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18123 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18123 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18123 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18126 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18126 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18133 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18135 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18133 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18135 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18155 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18155 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18187 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18187 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18195 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18196 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18195 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18196 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18196 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18196 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18196 - "PUT /api/v1/parametres/mcp/personnel/Meta%20Social%20Technologies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18196 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18195 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18199 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18196 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18199 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18195 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18195 - "OPTIONS /api/v1/parametres/mcp/personnel/Meta%20Social%20Technologies/tester HTTP/1.1" 200 OK
+2026-10-05 17:00:20 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://mcp.facebook.com/devtools
+2026-10-05 17:00:20 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+INFO:     127.0.0.1:18206 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18206 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18206 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18208 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18210 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18206 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18210 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18208 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+2026-10-05 17:00:29 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/devtools "HTTP/1.1 401 Unauthorized"
+INFO:     127.0.0.1:18195 - "POST /api/v1/parametres/mcp/personnel/Meta%20Social%20Technologies/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18195 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18213 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18214 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18195 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18214 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18213 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18213 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18213 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18213 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18214 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18195 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18213 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18195 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18214 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18217 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18217 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18217 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18217 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+2026-10-05 17:00:49 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://mcp.facebook.com/devtools
+2026-10-05 17:00:49 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 17:00:50 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/devtools "HTTP/1.1 401 Unauthorized"
+INFO:     127.0.0.1:18221 - "POST /api/v1/parametres/mcp/personnel/Meta%20Social%20Technologies/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18221 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18221 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18224 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18221 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18224 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18228 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18228 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18228 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18228 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18228 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18221 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18221 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18228 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18224 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18227 - "PUT /api/v1/parametres/mcp/personnel/Meta%20Social%20Technologies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18227 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18230 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18227 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18233 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18227 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18230 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18230 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18230 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18230 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18227 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18227 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18227 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18230 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18233 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18233 - "POST /api/v1/parametres/mcp/personnel/Meta%20Social%20Technologies/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18233 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18230 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18233 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18227 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18230 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18227 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+2026-10-05 17:01:07 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://mcp.facebook.com/devtools
+2026-10-05 17:01:07 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 17:01:08 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/devtools "HTTP/1.1 401 Unauthorized"
+2026-10-05 17:01:08 | INFO     | httpx | HTTP Request: GET https://mcp.facebook.com/.well-known/oauth-protected-resource/devtools "HTTP/1.1 200 OK"
+2026-10-05 17:01:09 | INFO     | httpx | HTTP Request: GET https://www.facebook.com/.well-known/oauth-authorization-server/devtools "HTTP/1.1 200 OK"
+2026-10-05 17:01:10 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/.well-known/register/devtools "HTTP/1.1 400 Bad Request"
+2026-10-05 17:01:10 | ERROR    | mcp.client.auth.oauth2 | OAuth flow error
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\oauth2.py", line 654, in _auth_flow
+    client_information = await handle_registration_response(registration_response)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\mcp\client\auth\utils.py", line 266, in handle_registration_response
+    raise OAuthRegistrationError(
+mcp.client.auth.exceptions.OAuthRegistrationError: Registration failed: 400 {"error":"invalid_client_metadata","error_description":"Dynamic registration is not available for this client."}
+2026-10-05 17:01:10 | WARNING  | app.application.services.mcp_oauth_service | Autorisation OAuth du connecteur Meta Social Technologies refusée ou incomplète : OAuthRegistrationError: Registration failed: 400 {"error":"invalid_client_metadata","error_description":"Dynamic registration is not available for this client."} — ce serveur **refuse** l'enregistrement dynamique (fermeture volontaire de sa part). Créez une application OAuth dans la console du fournisseur, puis renseignez son Client ID dans le champ « Client OAuth pré-enregistré » — avec l'URI de redirection affichée sous ce champ, déclarée auprès du fournisseur.
+INFO:     127.0.0.1:18227 - "POST /api/v1/parametres/mcp/personnel/Meta%20Social%20Technologies/autoriser HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:18227 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18227 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18227 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18241 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18242 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18241 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18242 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18227 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18227 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18227 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18241 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18242 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18245 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18245 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18249 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18249 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18253 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18253 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18253 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18253 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18261 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18263 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18261 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18263 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18269 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18269 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18287 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18289 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18287 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18289 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18299 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18298 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18299 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18298 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18310 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18310 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18320 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18320 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18320 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18322 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18320 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18322 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18326 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18326 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18329 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18329 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18333 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18333 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18340 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18342 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18342 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18340 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18360 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18362 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18362 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18360 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18388 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18389 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18389 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18388 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18472 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18474 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18474 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18474 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18510 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18512 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18510 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18512 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18527 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18527 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18527 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18527 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18536 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18536 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18545 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18547 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18547 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18545 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18567 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18569 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18567 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18569 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18585 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18587 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18587 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18585 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18634 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18634 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18634 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18634 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18675 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18677 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18677 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18675 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18698 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18698 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18698 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18698 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18725 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18725 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18727 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18727 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18748 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18750 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18748 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18750 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18789 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18791 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18789 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18791 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18795 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18795 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:18795 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:18795 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46645 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46644 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46644 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46645 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46668 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46670 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46670 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46668 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46732 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46734 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46732 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46734 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46787 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46789 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46789 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46787 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46861 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46860 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46860 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46861 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46873 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46874 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46874 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46873 - "GET /api/v1/social/non-lus HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46873 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46873 - "GET /api/v1/notifications/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46882 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46882 - "GET /api/v1/evenements/revision HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46882 - "OPTIONS /api/v1/parametres/mcp/personnel/Meta%20Social%20Technologies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46882 - "DELETE /api/v1/parametres/mcp/personnel/Meta%20Social%20Technologies HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46898 - "OPTIONS /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46898 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46898 - "OPTIONS /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46898 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46898 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46908 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46912 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46911 - "OPTIONS /api/v1/auth/me/photo-profil HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46914 - "OPTIONS /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46916 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46898 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46908 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46912 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46914 - "OPTIONS /api/v1/auth/me/photo-profil HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46911 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46912 - "OPTIONS /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46908 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46898 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46916 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46898 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46908 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46914 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46916 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46908 - "GET /api/v1/agents/catalogue HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46898 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46911 - "GET /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46914 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46908 - "GET /api/v1/tableau-bord/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46912 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46916 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46924 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46924 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46924 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46928 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46928 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46932 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46932 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46928 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46932 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46924 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46930 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46934 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46934 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46930 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46930 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46934 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46937 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46937 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46937 - "DELETE /api/v1/parametres/mcp/personnel/Meta%20Social%20Technologies HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:46937 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46939 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46941 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+2026-10-05 17:26:19 | ERROR    | asyncio | Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Une connexion existante a dû être fermée par l’hôte distant
+INFO:     127.0.0.1:46937 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46941 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46943 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46946 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46948 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46948 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46946 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46946 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46948 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46946 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46946 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46948 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46950 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46954 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46954 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46959 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46959 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46963 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46965 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46967 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46965 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46963 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46967 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46967 - "OPTIONS /api/v1/parametres/mcp/personnel/Gmail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46967 - "PUT /api/v1/parametres/mcp/personnel/Gmail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46967 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46963 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46965 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46965 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46967 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46963 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46963 - "OPTIONS /api/v1/parametres/mcp/personnel/Gmail/autoriser HTTP/1.1" 200 OK
+2026-10-05 17:27:06 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://gmailmcp.googleapis.com/mcp/v1
+2026-10-05 17:27:06 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 17:27:08 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:27:08 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 17:27:08 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 17:27:08 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 202 Accepted"
+2026-10-05 17:27:08 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 17:27:08 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 17:27:10 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:27:10 | INFO     | app.application.services.mcp_oauth_service | Connecteur MCP Gmail autorisé : 23 outil(s) — Gmail_apply_sensitive_message_label, Gmail_apply_sensitive_thread_label, Gmail_create_draft, Gmail_create_label, Gmail_get_draft, Gmail_get_message, Gmail_get_thread, Gmail_label_message, Gmail_label_thread, Gmail_list_drafts, Gmail_list_labels, Gmail_mark_message_spam, Gmail_mark_thread_spam, Gmail_search_threads, Gmail_trash_message, Gmail_trash_thread, Gmail_unlabel_message, Gmail_unlabel_thread, Gmail_unmark_message_spam, Gmail_unmark_thread_spam, Gmail_untrash_message, Gmail_untrash_thread, Gmail_update_message_labels
+INFO:     127.0.0.1:46963 - "POST /api/v1/parametres/mcp/personnel/Gmail/autoriser HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:46963 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46963 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46963 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46978 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46963 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46978 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46980 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46963 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46984 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46984 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46990 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46990 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46990 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46990 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46993 - "PUT /api/v1/parametres/mcp/personnel/Gmail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46993 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46995 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46997 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46997 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46993 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46995 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46995 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46995 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46995 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46993 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46995 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+2026-10-05 17:27:40 | ERROR    | asyncio | Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Une connexion existante a dû être fermée par l’hôte distant
+INFO:     127.0.0.1:46993 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46999 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46997 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46997 - "OPTIONS /api/v1/parametres/mcp/personnel/Gmail/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46997 - "POST /api/v1/parametres/mcp/personnel/Gmail/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46997 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46999 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46997 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46999 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46997 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46993 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46993 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46993 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46993 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47004 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47005 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47007 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46993 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47009 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+2026-10-05 17:27:57 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://gmailmcp.googleapis.com/mcp/v1
+2026-10-05 17:27:57 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+INFO:     127.0.0.1:47021 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47023 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47021 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47023 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+2026-10-05 17:28:12 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:28:12 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 17:28:12 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 17:28:15 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 202 Accepted"
+2026-10-05 17:28:15 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 17:28:15 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 17:28:18 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:28:18 | INFO     | app.application.services.mcp_oauth_service | Connecteur MCP Gmail autorisé : 23 outil(s) — Gmail_apply_sensitive_message_label, Gmail_apply_sensitive_thread_label, Gmail_create_draft, Gmail_create_label, Gmail_get_draft, Gmail_get_message, Gmail_get_thread, Gmail_label_message, Gmail_label_thread, Gmail_list_drafts, Gmail_list_labels, Gmail_mark_message_spam, Gmail_mark_thread_spam, Gmail_search_threads, Gmail_trash_message, Gmail_trash_thread, Gmail_unlabel_message, Gmail_unlabel_thread, Gmail_unmark_message_spam, Gmail_unmark_thread_spam, Gmail_untrash_message, Gmail_untrash_thread, Gmail_update_message_labels
+INFO:     127.0.0.1:47013 - "POST /api/v1/parametres/mcp/personnel/Gmail/autoriser HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:47013 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47013 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47013 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47013 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47041 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47041 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47013 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47043 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47048 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47048 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47048 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47048 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47051 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47051 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47055 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47055 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47059 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47060 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47059 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47060 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47060 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47060 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47060 - "OPTIONS /api/v1/agui/agent_generaliste_readonly HTTP/1.1" 200 OK
+2026-10-05 17:29:00 | WARNING  | app.agents.mcp | Connecteur MCP Github ignoré pour agent_generaliste_readonly : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-05 17:29:00 | WARNING  | app.agents.mcp | Connecteur MCP Gmail ignoré pour agent_generaliste_readonly : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-05 17:29:08 | INFO     | app.agents.mcp | Connecteur MCP Time chargé pour agent_generaliste_readonly : 2 outil(s) — Time_convert_time, Time_get_current_time
+2026-10-05 17:29:08 | WARNING  | app.agents.mcp | Connecteur MCP WhatsApp Business Tools ignoré pour agent_generaliste_readonly : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-05 17:29:09 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-05 17:29:09 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 17:29:10 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 17:29:10 | INFO     | mcp.client.streamable_http | Received session ID: 0b9d5aa4-12cc-4ab5-972d-d8fa20270a38
+2026-10-05 17:29:10 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 17:29:10 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 17:29:11 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-05 17:29:11 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 17:29:11 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 17:29:12 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-05 17:29:12 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-05 17:29:12 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-05 17:29:12 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 17:29:12 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 17:29:12 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_generaliste_readonly : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+npm notice run npx
+npm notice run mcp-terminal
+MCP Terminal Server running...
+2026-10-05 17:29:22 | INFO     | app.agents.mcp | Connecteur MCP Terminal chargé pour agent_generaliste_readonly : 1 outil(s) — Terminal_execute_command
+INFO:     127.0.0.1:47060 - "POST /api/v1/agui/agent_generaliste_readonly HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47059 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47083 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47059 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47083 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47083 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47083 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47083 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47083 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+2026-10-05 17:29:33 | INFO     | httpx | HTTP Request: POST https://freeinference.org/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:47060 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47060 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47101 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47101 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47101 - "PUT /api/v1/parametres/mcp/personnel/Gmail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47101 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47103 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47105 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47105 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47103 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47101 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47111 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47113 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47111 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47113 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47113 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47113 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47113 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47111 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47113 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47111 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47115 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47113 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47125 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47125 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47140 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47140 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47150 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47150 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47150 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47150 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47162 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47162 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47167 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47169 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47167 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47169 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47169 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47169 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47179 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47179 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47179 - "PUT /api/v1/parametres/mcp/personnel/Gmail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47179 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47179 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47186 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47185 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47186 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47179 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47200 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47200 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47200 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47203 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47204 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47200 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47204 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47203 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+2026-10-05 17:31:23 | WARNING  | app.agents.mcp | Connecteur MCP Github ignoré pour agent_generaliste_readonly : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-05 17:31:23 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://gmailmcp.googleapis.com/mcp/v1
+2026-10-05 17:31:23 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 17:31:34 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:31:34 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 17:31:34 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 17:31:35 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 202 Accepted"
+2026-10-05 17:31:35 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 17:31:35 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 17:31:37 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:31:37 | INFO     | app.agents.mcp | Connecteur MCP Gmail chargé pour agent_generaliste_readonly : 23 outil(s) — Gmail_apply_sensitive_message_label, Gmail_apply_sensitive_thread_label, Gmail_create_draft, Gmail_create_label, Gmail_get_draft, Gmail_get_message, Gmail_get_thread, Gmail_label_message, Gmail_label_thread, Gmail_list_drafts, Gmail_list_labels, Gmail_mark_message_spam, Gmail_mark_thread_spam, Gmail_search_threads, Gmail_trash_message, Gmail_trash_thread, Gmail_unlabel_message, Gmail_unlabel_thread, Gmail_unmark_message_spam, Gmail_unmark_thread_spam, Gmail_untrash_message, Gmail_untrash_thread, Gmail_update_message_labels
+2026-10-05 17:31:40 | INFO     | app.agents.mcp | Connecteur MCP Time chargé pour agent_generaliste_readonly : 2 outil(s) — Time_convert_time, Time_get_current_time
+2026-10-05 17:31:40 | WARNING  | app.agents.mcp | Connecteur MCP WhatsApp Business Tools ignoré pour agent_generaliste_readonly : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-05 17:31:40 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-05 17:31:40 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 17:31:44 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 17:31:44 | INFO     | mcp.client.streamable_http | Received session ID: 79e03dc8-9940-4f9d-a60a-54b293fc341c
+2026-10-05 17:31:48 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-05 17:31:48 | WARNING  | app.agents.mcp | Connecteur MCP Parallel Search injoignable pour agent_generaliste_readonly : McpError: You've hit the free-tier rate limit for Parallel Search MCP. To continue with higher limits, add your own API key — set header `x-api-key: YOUR_KEY` or `Authorization: Bearer YOUR_KEY`. Get a key at h…
+npm notice run npx
+npm notice run mcp-terminal
+MCP Terminal Server running...
+2026-10-05 17:32:07 | INFO     | app.agents.mcp | Connecteur MCP Terminal chargé pour agent_generaliste_readonly : 1 outil(s) — Terminal_execute_command
+INFO:     127.0.0.1:47203 - "POST /api/v1/agui/agent_generaliste_readonly HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47204 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47200 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47225 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47233 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47254 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47204 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47200 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47204 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47225 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47225 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47204 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47254 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47233 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47200 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47200 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47200 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+2026-10-05 17:32:10 | INFO     | httpx | HTTP Request: POST https://freeinference.org/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-05 17:32:14 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://gmailmcp.googleapis.com/mcp/v1
+2026-10-05 17:32:14 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+INFO:     127.0.0.1:47276 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47276 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+2026-10-05 17:32:17 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:32:17 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 17:32:17 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 17:32:18 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 202 Accepted"
+2026-10-05 17:32:18 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 17:32:18 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/call', params={'name': 'list_labels', 'arguments': {}}, jsonrpc='2.0', id=1)
+2026-10-05 17:32:19 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 401 Unauthorized"
+2026-10-05 17:32:19 | DEBUG    | ag_ui_langgraph.agent | on_tool_error received — clearing model_made_tool_call/state_reliable (tool=Gmail_list_labels)
+2026-10-05 17:32:19 | WARNING  | app.agents.mcp | Outil MCP Gmail_list_labels (connecteur Gmail) en échec : ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+2026-10-05 17:32:21 | INFO     | httpx | HTTP Request: POST https://freeinference.org/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:47203 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47203 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47203 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47203 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47303 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47303 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47313 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47313 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47316 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47316 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47316 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47319 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47319 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47316 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47326 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47326 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47332 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47332 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47340 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47340 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47340 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47340 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47340 - "POST /api/v1/agui/agent_generaliste_readonly HTTP/1.1" 200 OK
+2026-10-05 17:33:36 | INFO     | httpx | HTTP Request: POST https://freeinference.org/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-05 17:33:37 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://gmailmcp.googleapis.com/mcp/v1
+2026-10-05 17:33:37 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 17:33:37 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://gmailmcp.googleapis.com/mcp/v1
+INFO:     127.0.0.1:47350 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+2026-10-05 17:33:37 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+INFO:     127.0.0.1:47350 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+2026-10-05 17:33:38 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:33:38 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 17:33:38 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:33:38 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 17:33:38 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 17:33:38 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 17:33:39 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 202 Accepted"
+2026-10-05 17:33:39 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 17:33:39 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/call', params={'name': 'search_threads', 'arguments': {'pageSize': 5, 'query': 'in:inbox'}}, jsonrpc='2.0', id=1)
+2026-10-05 17:33:39 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 202 Accepted"
+2026-10-05 17:33:39 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 17:33:39 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/call', params={'name': 'list_drafts', 'arguments': {'pageSize': 5}}, jsonrpc='2.0', id=1)
+2026-10-05 17:33:40 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 401 Unauthorized"
+2026-10-05 17:33:40 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 401 Unauthorized"
+2026-10-05 17:33:40 | DEBUG    | ag_ui_langgraph.agent | on_tool_error received — clearing model_made_tool_call/state_reliable (tool=Gmail_list_drafts)
+2026-10-05 17:33:40 | WARNING  | app.agents.mcp | Outil MCP Gmail_list_drafts (connecteur Gmail) en échec : ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+2026-10-05 17:33:40 | DEBUG    | ag_ui_langgraph.agent | on_tool_error received — clearing model_made_tool_call/state_reliable (tool=Gmail_search_threads)
+2026-10-05 17:33:40 | WARNING  | app.agents.mcp | Outil MCP Gmail_search_threads (connecteur Gmail) en échec : ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+2026-10-05 17:33:42 | INFO     | httpx | HTTP Request: POST https://freeinference.org/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:47368 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47368 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47373 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47373 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47373 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47376 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47373 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47376 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47388 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47388 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47392 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47392 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47400 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47400 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47400 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47400 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47400 - "PUT /api/v1/parametres/mcp/personnel/Gmail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47400 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47408 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47410 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47400 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47410 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47408 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+2026-10-05 17:34:36 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://gmailmcp.googleapis.com/mcp/v1
+2026-10-05 17:34:36 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 17:34:37 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:34:37 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 17:34:37 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 17:34:38 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 202 Accepted"
+2026-10-05 17:34:38 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 17:34:38 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 17:34:39 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:34:39 | INFO     | app.application.services.mcp_oauth_service | Connecteur MCP Gmail autorisé : 23 outil(s) — Gmail_apply_sensitive_message_label, Gmail_apply_sensitive_thread_label, Gmail_create_draft, Gmail_create_label, Gmail_get_draft, Gmail_get_message, Gmail_get_thread, Gmail_label_message, Gmail_label_thread, Gmail_list_drafts, Gmail_list_labels, Gmail_mark_message_spam, Gmail_mark_thread_spam, Gmail_search_threads, Gmail_trash_message, Gmail_trash_thread, Gmail_unlabel_message, Gmail_unlabel_thread, Gmail_unmark_message_spam, Gmail_unmark_thread_spam, Gmail_untrash_message, Gmail_untrash_thread, Gmail_update_message_labels
+INFO:     127.0.0.1:47408 - "POST /api/v1/parametres/mcp/personnel/Gmail/autoriser HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:47408 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47408 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47408 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47408 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47429 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47408 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47427 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47429 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47433 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47433 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47442 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47442 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47442 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47447 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47442 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47447 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47447 - "PUT /api/v1/parametres/mcp/personnel/Gmail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47447 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47447 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47442 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47442 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47447 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47453 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47453 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47453 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47453 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47447 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47442 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47447 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47453 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47442 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+2026-10-05 17:35:06 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://gmailmcp.googleapis.com/mcp/v1
+2026-10-05 17:35:06 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 17:35:07 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:35:07 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 17:35:07 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 17:35:08 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 202 Accepted"
+2026-10-05 17:35:08 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 17:35:08 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 17:35:10 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:47442 - "POST /api/v1/parametres/mcp/personnel/Gmail/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47442 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47453 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47447 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47442 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47453 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47447 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+2026-10-05 17:35:13 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://gmailmcp.googleapis.com/mcp/v1
+2026-10-05 17:35:13 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 17:35:14 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:35:14 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 17:35:14 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 17:35:15 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 202 Accepted"
+2026-10-05 17:35:15 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 17:35:15 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+INFO:     127.0.0.1:47461 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47461 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47461 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47464 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47465 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47465 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47464 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47461 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+2026-10-05 17:35:16 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:47447 - "POST /api/v1/parametres/mcp/personnel/Gmail/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47447 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47461 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47464 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47464 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47447 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47461 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47470 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47470 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47470 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47470 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47474 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47473 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47474 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47470 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47470 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47470 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47476 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47476 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47503 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47505 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47503 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47505 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47520 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47520 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47555 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47555 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47555 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47555 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47597 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47599 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47597 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47599 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47617 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47619 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47617 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47619 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47654 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47655 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47654 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47657 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47697 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47697 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47697 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47697 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47723 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47725 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47723 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47725 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47805 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47807 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47805 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47807 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48073 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48073 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48073 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48075 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48229 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48229 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48229 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48229 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48229 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48232 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48234 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48234 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48272 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48272 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48272 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48272 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48281 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48281 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48284 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48284 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48312 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48312 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48312 - "OPTIONS /api/v1/parametres/mcp/personnel/Gmail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48312 - "PUT /api/v1/parametres/mcp/personnel/Gmail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48312 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48312 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48328 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48312 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48329 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48328 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48328 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48329 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48328 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48329 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48329 - "OPTIONS /api/v1/parametres/mcp/personnel/Gmail/tester HTTP/1.1" 200 OK
+2026-10-05 17:46:01 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://gmailmcp.googleapis.com/mcp/v1
+2026-10-05 17:46:01 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 17:46:02 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:46:02 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 17:46:02 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 17:46:03 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 202 Accepted"
+2026-10-05 17:46:03 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 17:46:03 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+INFO:     127.0.0.1:48338 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48338 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48338 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48342 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48341 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48338 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48342 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48341 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+2026-10-05 17:46:05 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 401 Unauthorized"
+INFO:     127.0.0.1:48329 - "POST /api/v1/parametres/mcp/personnel/Gmail/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48329 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48341 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48342 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+2026-10-05 17:46:05 | ERROR    | asyncio | Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Une connexion existante a dû être fermée par l’hôte distant
+INFO:     127.0.0.1:48342 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48338 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48341 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48356 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48356 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48356 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48356 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48360 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48356 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48359 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48360 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48366 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48366 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+2026-10-05 17:46:26 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://gmailmcp.googleapis.com/mcp/v1
+2026-10-05 17:46:26 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 17:46:27 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:46:27 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 17:46:27 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 17:46:27 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 202 Accepted"
+2026-10-05 17:46:27 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 17:46:27 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+INFO:     127.0.0.1:48366 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48366 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+2026-10-05 17:46:28 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 401 Unauthorized"
+INFO:     127.0.0.1:48364 - "POST /api/v1/parametres/mcp/personnel/Gmail/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48364 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48366 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48372 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48364 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48372 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48366 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48366 - "PUT /api/v1/parametres/mcp/personnel/Gmail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48366 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48372 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48364 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48366 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48372 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48364 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48364 - "POST /api/v1/parametres/mcp/personnel/Gmail/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48364 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48372 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48366 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48366 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48364 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48372 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48372 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48372 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48372 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48364 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48366 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48366 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48372 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48364 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48364 - "OPTIONS /api/v1/parametres/mcp/personnel/Gmail/autoriser HTTP/1.1" 200 OK
+2026-10-05 17:46:40 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://gmailmcp.googleapis.com/mcp/v1
+2026-10-05 17:46:40 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 17:46:41 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:46:41 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 17:46:41 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 17:46:42 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 202 Accepted"
+2026-10-05 17:46:42 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 17:46:42 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+INFO:     127.0.0.1:48434 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48434 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48434 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48437 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48434 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48437 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48439 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48434 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+2026-10-05 17:46:43 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:46:43 | INFO     | app.application.services.mcp_oauth_service | Connecteur MCP Gmail autorisé : 23 outil(s) — Gmail_apply_sensitive_message_label, Gmail_apply_sensitive_thread_label, Gmail_create_draft, Gmail_create_label, Gmail_get_draft, Gmail_get_message, Gmail_get_thread, Gmail_label_message, Gmail_label_thread, Gmail_list_drafts, Gmail_list_labels, Gmail_mark_message_spam, Gmail_mark_thread_spam, Gmail_search_threads, Gmail_trash_message, Gmail_trash_thread, Gmail_unlabel_message, Gmail_unlabel_thread, Gmail_unmark_message_spam, Gmail_unmark_thread_spam, Gmail_untrash_message, Gmail_untrash_thread, Gmail_update_message_labels
+INFO:     127.0.0.1:48364 - "POST /api/v1/parametres/mcp/personnel/Gmail/autoriser HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:48487 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48487 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48487 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48491 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48490 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48487 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48490 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48491 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48514 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48516 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48514 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48516 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48516 - "OPTIONS /api/v1/parametres/mcp/personnel/Gmail/revoquer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48516 - "POST /api/v1/parametres/mcp/personnel/Gmail/revoquer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48516 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48514 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48516 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48519 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48516 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48514 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48514 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48514 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48514 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48514 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48516 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48514 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48519 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48516 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48516 - "POST /api/v1/parametres/mcp/personnel/Gmail/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48516 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48519 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48514 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48514 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48519 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48516 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48575 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48575 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48575 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48577 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48575 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48579 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48577 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48575 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48597 - "POST /api/v1/parametres/mcp/personnel/Gmail/tester HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48597 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48600 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48601 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48600 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48597 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48601 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48601 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48601 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48601 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48597 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48600 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48601 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48600 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48597 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+2026-10-05 17:47:25 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://gmailmcp.googleapis.com/mcp/v1
+2026-10-05 17:47:25 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 17:47:26 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:47:26 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 17:47:26 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 17:47:26 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 202 Accepted"
+2026-10-05 17:47:26 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 17:47:26 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+INFO:     127.0.0.1:48627 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48627 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+2026-10-05 17:47:28 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:47:28 | INFO     | app.application.services.mcp_oauth_service | Connecteur MCP Gmail autorisé : 23 outil(s) — Gmail_apply_sensitive_message_label, Gmail_apply_sensitive_thread_label, Gmail_create_draft, Gmail_create_label, Gmail_get_draft, Gmail_get_message, Gmail_get_thread, Gmail_label_message, Gmail_label_thread, Gmail_list_drafts, Gmail_list_labels, Gmail_mark_message_spam, Gmail_mark_thread_spam, Gmail_search_threads, Gmail_trash_message, Gmail_trash_thread, Gmail_unlabel_message, Gmail_unlabel_thread, Gmail_unmark_message_spam, Gmail_unmark_thread_spam, Gmail_untrash_message, Gmail_untrash_thread, Gmail_update_message_labels
+INFO:     127.0.0.1:48597 - "POST /api/v1/parametres/mcp/personnel/Gmail/autoriser HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:48597 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48597 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48597 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48627 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48597 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48629 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48597 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48627 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48655 - "PUT /api/v1/parametres/mcp/personnel/Gmail HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48655 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48655 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48657 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48659 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48657 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48655 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48655 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48655 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48655 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48657 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48659 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48655 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48659 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48657 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+2026-10-05 17:47:42 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://gmailmcp.googleapis.com/mcp/v1
+2026-10-05 17:47:42 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-05 17:47:43 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:47:43 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-05 17:47:43 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-05 17:47:44 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 202 Accepted"
+2026-10-05 17:47:44 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-05 17:47:44 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-05 17:47:45 | INFO     | httpx | HTTP Request: POST https://gmailmcp.googleapis.com/mcp/v1 "HTTP/1.1 200 OK"
+2026-10-05 17:47:45 | INFO     | app.application.services.mcp_oauth_service | Connecteur MCP Gmail autorisé : 23 outil(s) — Gmail_apply_sensitive_message_label, Gmail_apply_sensitive_thread_label, Gmail_create_draft, Gmail_create_label, Gmail_get_draft, Gmail_get_message, Gmail_get_thread, Gmail_label_message, Gmail_label_thread, Gmail_list_drafts, Gmail_list_labels, Gmail_mark_message_spam, Gmail_mark_thread_spam, Gmail_search_threads, Gmail_trash_message, Gmail_trash_thread, Gmail_unlabel_message, Gmail_unlabel_thread, Gmail_unmark_message_spam, Gmail_unmark_thread_spam, Gmail_untrash_message, Gmail_untrash_thread, Gmail_update_message_labels
+INFO:     127.0.0.1:48657 - "POST /api/v1/parametres/mcp/personnel/Gmail/autoriser HTTP/1.1" 422 Unprocessable Entity
+INFO:     127.0.0.1:48657 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48657 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48657 - "OPTIONS /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48657 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48686 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48686 - "GET /api/v1/parametres/etat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48657 - "GET /api/v1/agents/runtime HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48685 - "GET /api/v1/parametres/mcp/personnel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48689 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48691 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+2026-10-05 17:47:58 | ERROR    | asyncio | Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Une connexion existante a dû être fermée par l’hôte distant
+INFO:     127.0.0.1:48689 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48693 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48722 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48722 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49529 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49529 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49529 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49529 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49603 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49604 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49604 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49603 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49932 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49932 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49932 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49932 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50070 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50069 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50070 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50069 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50131 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50133 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50133 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50131 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50206 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50206 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50206 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50206 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50266 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50268 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50266 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50268 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50310 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50311 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50310 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50311 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50566 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50566 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50566 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50568 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50660 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50660 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50660 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50660 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50706 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50707 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50706 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50707 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50755 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50756 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50755 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50756 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50847 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50849 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50847 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50849 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50915 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50915 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50915 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50915 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50915 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50939 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50939 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50915 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50951 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50951 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50973 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50973 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50973 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50973 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50973 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50973 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50973 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50973 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50996 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50996 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50996 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50998 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51016 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51016 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51046 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51046 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51070 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51070 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51106 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51108 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51106 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51108 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51138 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51138 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51180 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51179 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51182 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51179 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51182 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51180 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51180 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51180 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51204 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51204 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51227 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51227 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51227 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51227 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51227 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51229 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51240 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51242 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51240 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51242 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51260 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51261 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51260 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51261 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51264 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51264 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51276 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51276 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51289 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51291 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51289 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51291 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51303 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51303 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51306 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51306 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51306 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51306 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51306 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51306 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51306 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51306 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51315 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51315 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51315 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51315 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51323 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51323 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51323 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51323 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51346 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51346 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51346 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51346 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51357 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51359 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51359 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51359 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51359 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51359 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51368 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51368 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51368 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51368 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51368 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51368 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51371 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51368 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51368 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51368 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51373 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51373 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51412 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51414 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51414 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51416 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51416 - "GET /api/v1/notifications/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51414 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51449 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51449 - "GET /api/v1/evenements/revision HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51449 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51449 - "GET /api/v1/social/non-lus HTTP/1.1" 200 OK

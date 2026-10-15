@@ -1,0 +1,108 @@
+2026-10-15 08:49:51 | WARNING  | app.agents.providers | AGENT_SSL_VERIFY=false : le certificat TLS du provider LLM n'est pas vérifié (environnements de développement uniquement).
+2026-10-15 08:49:54 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-15 08:49:54 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-15 08:49:55 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-15 08:49:55 | INFO     | mcp.client.streamable_http | Received session ID: 3bb63ff7-5a56-4c81-89c9-0eb00e302d09
+2026-10-15 08:49:55 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-15 08:49:55 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-15 08:49:55 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-15 08:49:55 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-15 08:49:55 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-15 08:49:55 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-15 08:49:55 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-15 08:49:55 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-15 08:49:56 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-15 08:49:56 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-15 08:49:56 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_generateur_offre : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+2026-10-15 08:49:56 | INFO     | app.agents.checkpointer | Checkpointer LangGraph persistant : PostgreSQL (threads des agents conservés entre les redémarrages)
+2026-10-15 08:50:00 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-15 08:50:00 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-15 08:50:01 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-15 08:50:01 | INFO     | mcp.client.streamable_http | Received session ID: c584bcee-9098-4df8-a3cc-f383557dc26a
+2026-10-15 08:50:01 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-15 08:50:01 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-15 08:50:01 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-15 08:50:01 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-15 08:50:01 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-15 08:50:02 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-15 08:50:02 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-15 08:50:02 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-15 08:50:02 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-15 08:50:02 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-15 08:50:02 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_rh : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+2026-10-15 08:50:03 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-15 08:50:03 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-15 08:50:04 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-15 08:50:04 | INFO     | mcp.client.streamable_http | Received session ID: 3e86baf6-c5d2-4c8f-a230-72384a5bf584
+2026-10-15 08:50:04 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-15 08:50:04 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-15 08:50:04 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-15 08:50:04 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-15 08:50:04 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-15 08:50:04 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-15 08:50:04 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-15 08:50:04 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-15 08:50:05 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-15 08:50:05 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-15 08:50:05 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_assistant_formateur : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+2026-10-15 08:50:05 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-15 08:50:05 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-15 08:50:06 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-15 08:50:06 | INFO     | mcp.client.streamable_http | Received session ID: 3313e07f-391b-4588-89ca-40f36753e41d
+2026-10-15 08:50:06 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-15 08:50:06 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-15 08:50:07 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-15 08:50:07 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-15 08:50:07 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-15 08:50:07 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-15 08:50:07 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-15 08:50:07 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-15 08:50:07 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-15 08:50:08 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-15 08:50:08 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_generaliste_readonly : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+npm notice run npx
+npm notice run mcp-terminal
+MCP Terminal Server running...
+2026-10-15 08:50:15 | INFO     | app.agents.mcp | Connecteur MCP Terminal chargé pour agent_generaliste_readonly : 1 outil(s) — Terminal_execute_command
+2026-10-15 08:50:16 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-15 08:50:16 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-15 08:50:16 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-15 08:50:16 | INFO     | mcp.client.streamable_http | Received session ID: be20a50c-f996-4b10-8bdb-7cf048be710e
+2026-10-15 08:50:16 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-15 08:50:16 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-15 08:50:17 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-15 08:50:17 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-15 08:50:17 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-15 08:50:17 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-15 08:50:17 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-15 08:50:17 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-15 08:50:17 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-15 08:50:18 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-15 08:50:18 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_statistique : 2 outil(s) — Parallel Search_web_fetch, Parallel Search_web_search
+2026-10-15 08:50:19 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://bqksu-153-67-85-88.run.pinggy-free.link/mcp
+2026-10-15 08:50:19 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-15 08:50:19 | WARNING  | app.agents.mcp | Connecteur MCP Desktop injoignable pour agent_personnel : ConnectError: [Errno 11001] getaddrinfo failed
+2026-10-15 08:50:19 | WARNING  | app.agents.mcp | Connecteur MCP Github ignoré pour agent_personnel : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-15 08:50:19 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://153.67.85.88:18976/mcp
+2026-10-15 08:50:19 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-15 08:50:33 | WARNING  | app.agents.mcp | Connecteur MCP Mon desktop injoignable pour agent_personnel : ConnectError: All connection attempts failed
+2026-10-15 08:50:35 | INFO     | app.agents.mcp | Connecteur MCP Time chargé pour agent_personnel : 2 outil(s) — Time_convert_time, Time_get_current_time
+2026-10-15 08:50:35 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://mcp.facebook.com/whatsapp_business_tools
+2026-10-15 08:50:35 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-15 08:50:36 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/whatsapp_business_tools "HTTP/1.1 401 Unauthorized"
+2026-10-15 08:50:36 | WARNING  | app.agents.mcp | Connecteur MCP WhatsApp Business Tools injoignable pour agent_personnel : HTTPStatusError HTTP 401 https://mcp.facebook.com/whatsapp_business_tools
+2026-10-15 08:50:36 | WARNING  | app.agents.mcp | Connecteur MCP WhatsApp Business Tools ignoré pour agent_personnel : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-15 08:50:36 | INFO     | app.api.agui | AG-UI : 6 endpoint(s) monté(s)
+INFO:     Started server process [15372]
+INFO:     Waiting for application startup.
+2026-10-15 08:50:37 | INFO     | app.api.agui | AG-UI : 6 endpoint(s) monté(s)
+2026-10-15 08:50:37 | INFO     | app.agents.manager | Configuration des agents restaurée depuis la base (provider=openai_compatible, model=glm-5.3-flash)
+2026-10-15 08:50:37 | INFO     | app.main | Bootstrap admin : compte prêt pour admin@carso.mg
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:50616 - "GET /api/v1/health HTTP/1.1" 200 OK

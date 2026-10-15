@@ -1,0 +1,660 @@
+INFO:     Started server process [16060]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 500, in wait_for
+    return fut.result()
+           ^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\openai\_streaming.py", line 165, in __aiter__
+    async for item in self._iterator:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\openai\_streaming.py", line 184, in __stream__
+    async for sse in iterator:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\openai\_streaming.py", line 170, in _iter_events
+    async for sse in self._decoder.aiter_bytes(self.response.aiter_bytes()):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\openai\_streaming.py", line 375, in aiter_bytes
+    async for chunk in iterator:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\httpx\_models.py", line 997, in aiter_bytes
+    async for raw_bytes in self.aiter_raw():
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\httpx\_models.py", line 1055, in aiter_raw
+    async for raw_stream_bytes in self.stream:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\httpx\_client.py", line 176, in __aiter__
+    async for chunk in self._stream:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\httpx\_transports\default.py", line 271, in __aiter__
+    async for part in self._httpcore_stream:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\httpcore\_async\connection_pool.py", line 407, in __aiter__
+    raise exc from None
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\httpcore\_async\connection_pool.py", line 403, in __aiter__
+    async for part in self._stream:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\httpcore\_async\http11.py", line 342, in __aiter__
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\httpcore\_async\http11.py", line 334, in __aiter__
+    async for chunk in self._connection._receive_response_body(**kwargs):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\httpcore\_async\http11.py", line 203, in _receive_response_body
+    event = await self._receive_event(timeout=timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\httpcore\_async\http11.py", line 217, in _receive_event
+    data = await self._network_stream.read(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\httpcore\_backends\anyio.py", line 35, in read
+    return await self._stream.receive(max_bytes=max_bytes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\anyio\streams\tls.py", line 254, in receive
+    data = await self._call_sslobject_method(self._ssl_object.read, max_bytes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\anyio\streams\tls.py", line 194, in _call_sslobject_method
+    data = await self.transport_stream.receive()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 1407, in receive
+    await self._protocol.read_event.wait()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\locks.py", line 213, in wait
+    await fut
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_openai\chat_models\_client_utils.py", line 651, in _astream_with_chunk_timeout
+    chunk = await asyncio.wait_for(it.__anext__(), timeout=timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 502, in wait_for
+    raise exceptions.TimeoutError() from exc
+TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 422, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\applications.py", line 96, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 96, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 154, in simple_response
+    await self.app(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\routing.py", line 670, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 2734, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 1281, in handle
+    await super().handle(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\routing.py", line 280, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 158, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 145, in app
+    await response(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\responses.py", line 273, in __call__
+    async with create_collapsing_task_group() as task_group:
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\contextlib.py", line 231, in __aexit__
+    await self.gen.athrow(typ, value, traceback)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in create_collapsing_task_group
+    raise exc from exc.__cause__ or context
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\anyio\_core\_tasks.py", line 327, in _run_coro
+    retval = await self._coro
+             ^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\responses.py", line 276, in wrap
+    await func()
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\responses.py", line 250, in stream_response
+    async for chunk in self.body_iterator:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\ag_ui_langgraph\endpoint.py", line 44, in event_generator
+    async for event in request_agent.run(input_data):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\ag_ui_langgraph\agent.py", line 1586, in run
+    async for event_str in self._handle_stream_events(input.model_copy(update=update)):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\ag_ui_langgraph\agent.py", line 1722, in _handle_stream_events
+    async for event in stream:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 1670, in _astream_events_v1_v2
+    async for event in event_stream:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 1101, in _astream_events_implementation_v2
+    await task
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 1056, in consume_astream
+    async for _ in event_streamer.tap_output_aiter(run_id, stream):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 220, in tap_output_aiter
+    async for chunk in output:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\pregel\main.py", line 3440, in astream
+    async for _ in runner.atick(
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\pregel\_runner.py", line 557, in atick
+    _panic_or_proceed(
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\pregel\_runner.py", line 687, in _panic_or_proceed
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\pregel\_retry.py", line 741, in arun_with_retry
+    async for _ in task.proc.astream(task.input, config):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\_internal\_runnable.py", line 890, in astream
+    output = await asyncio.create_task(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\_internal\_runnable.py", line 959, in _consume_aiter
+    async for chunk in it:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 197, in tap_output_aiter
+    first = await anext(output, sentinel)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 1830, in atransform
+    async for ichunk in input:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 1830, in atransform
+    async for ichunk in input:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 1234, in astream
+    yield await self.ainvoke(input, config, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\_internal\_runnable.py", line 522, in ainvoke
+    ret = await self.afunc(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 1537, in amodel_node
+    result = await awrap_model_call_handler(request, _execute_model_async)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 430, in composed
+    outer_result = await outer(request, inner_handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langsmith\run_helpers.py", line 675, in async_wrapper
+    function_result = await asyncio.create_task(  # type: ignore[call-arg]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\deepagents\middleware\filesystem.py", line 3280, in awrap_model_call
+    return await handler(request)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 420, in inner_handler
+    inner_result = await inner(req, handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 430, in composed
+    outer_result = await outer(request, inner_handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langsmith\run_helpers.py", line 675, in async_wrapper
+    function_result = await asyncio.create_task(  # type: ignore[call-arg]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\deepagents\middleware\subagents.py", line 988, in awrap_model_call
+    return await handler(request)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 420, in inner_handler
+    inner_result = await inner(req, handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 430, in composed
+    outer_result = await outer(request, inner_handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langsmith\run_helpers.py", line 675, in async_wrapper
+    function_result = await asyncio.create_task(  # type: ignore[call-arg]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\deepagents\middleware\summarization.py", line 1668, in awrap_model_call
+    return await handler(request.override(messages=truncated_messages))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 420, in inner_handler
+    inner_result = await inner(req, handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langsmith\run_helpers.py", line 675, in async_wrapper
+    function_result = await asyncio.create_task(  # type: ignore[call-arg]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_anthropic\middleware\prompt_caching.py", line 201, in awrap_model_call
+    return await handler(request)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 1505, in _execute_model_async
+    output = await model_.ainvoke(messages)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 6027, in ainvoke
+    return await self.bound.ainvoke(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 511, in ainvoke
+    llm_result = await self.agenerate_prompt(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1888, in agenerate_prompt
+    return await self.agenerate(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1846, in agenerate
+    raise exceptions[0]
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 2136, in _agenerate_with_cache
+    async for chunk in self._astream(messages, stop=stop, **kwargs):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_openai\chat_models\base.py", line 3741, in _astream
+    async for chunk in super()._astream(*args, **kwargs):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_openai\chat_models\base.py", line 2110, in _astream
+    async for chunk in _astream_with_chunk_timeout(
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_openai\chat_models\_client_utils.py", line 664, in _astream_with_chunk_timeout
+    raise StreamChunkTimeoutError(
+langchain_openai.chat_models._client_utils.StreamChunkTimeoutError: No streaming chunk received for 300.0s (model=grok-4.6, chunks_received=0). The connection may be alive at the TCP layer but is not producing content. Tune or disable via the `stream_chunk_timeout` constructor kwarg (set to None or 0 to disable) or the `LANGCHAIN_OPENAI_STREAM_CHUNK_TIMEOUT_S` env var. See also `http_socket_options` for the kernel-level TCP timeout that catches dead TCP peers.
+During task with name 'model' and id '0bf38b8a-8fbc-bee4-c47c-e208ea55d0ef'
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_openai\chat_models\base.py", line 2106, in _astream
+    response = await self.async_client.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\openai\resources\chat\completions\completions.py", line 2931, in create
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\openai\_base_client.py", line 1979, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\openai\_base_client.py", line 1764, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.InternalServerError: <html>
+<head><title>502 Bad Gateway</title></head>
+<body>
+<center><h1>502 Bad Gateway</h1></center>
+<hr><center>nginx</center>
+</body>
+</html>
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 422, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\applications.py", line 96, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 96, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 154, in simple_response
+    await self.app(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\routing.py", line 670, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 2734, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 1281, in handle
+    await super().handle(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\routing.py", line 280, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 158, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 145, in app
+    await response(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\responses.py", line 273, in __call__
+    async with create_collapsing_task_group() as task_group:
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\contextlib.py", line 231, in __aexit__
+    await self.gen.athrow(typ, value, traceback)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in create_collapsing_task_group
+    raise exc from exc.__cause__ or context
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\anyio\_core\_tasks.py", line 327, in _run_coro
+    retval = await self._coro
+             ^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\responses.py", line 276, in wrap
+    await func()
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\responses.py", line 250, in stream_response
+    async for chunk in self.body_iterator:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\ag_ui_langgraph\endpoint.py", line 44, in event_generator
+    async for event in request_agent.run(input_data):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\ag_ui_langgraph\agent.py", line 1586, in run
+    async for event_str in self._handle_stream_events(input.model_copy(update=update)):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\ag_ui_langgraph\agent.py", line 1722, in _handle_stream_events
+    async for event in stream:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 1670, in _astream_events_v1_v2
+    async for event in event_stream:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 1101, in _astream_events_implementation_v2
+    await task
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 1056, in consume_astream
+    async for _ in event_streamer.tap_output_aiter(run_id, stream):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 220, in tap_output_aiter
+    async for chunk in output:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\pregel\main.py", line 3440, in astream
+    async for _ in runner.atick(
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\pregel\_runner.py", line 557, in atick
+    _panic_or_proceed(
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\pregel\_runner.py", line 687, in _panic_or_proceed
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\pregel\_retry.py", line 741, in arun_with_retry
+    async for _ in task.proc.astream(task.input, config):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\_internal\_runnable.py", line 890, in astream
+    output = await asyncio.create_task(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\_internal\_runnable.py", line 959, in _consume_aiter
+    async for chunk in it:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 197, in tap_output_aiter
+    first = await anext(output, sentinel)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 1830, in atransform
+    async for ichunk in input:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 1234, in astream
+    yield await self.ainvoke(input, config, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\_internal\_runnable.py", line 522, in ainvoke
+    ret = await self.afunc(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 1537, in amodel_node
+    result = await awrap_model_call_handler(request, _execute_model_async)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 430, in composed
+    outer_result = await outer(request, inner_handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langsmith\run_helpers.py", line 675, in async_wrapper
+    function_result = await asyncio.create_task(  # type: ignore[call-arg]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\deepagents\middleware\skills.py", line 1055, in awrap_model_call
+    return await handler(modified_request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 420, in inner_handler
+    inner_result = await inner(req, handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 430, in composed
+    outer_result = await outer(request, inner_handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langsmith\run_helpers.py", line 675, in async_wrapper
+    function_result = await asyncio.create_task(  # type: ignore[call-arg]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\deepagents\middleware\filesystem.py", line 3280, in awrap_model_call
+    return await handler(request)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 420, in inner_handler
+    inner_result = await inner(req, handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 430, in composed
+    outer_result = await outer(request, inner_handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langsmith\run_helpers.py", line 675, in async_wrapper
+    function_result = await asyncio.create_task(  # type: ignore[call-arg]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\deepagents\middleware\subagents.py", line 988, in awrap_model_call
+    return await handler(request)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 420, in inner_handler
+    inner_result = await inner(req, handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 430, in composed
+    outer_result = await outer(request, inner_handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langsmith\run_helpers.py", line 675, in async_wrapper
+    function_result = await asyncio.create_task(  # type: ignore[call-arg]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\deepagents\middleware\summarization.py", line 1668, in awrap_model_call
+    return await handler(request.override(messages=truncated_messages))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 420, in inner_handler
+    inner_result = await inner(req, handler)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langsmith\run_helpers.py", line 675, in async_wrapper
+    function_result = await asyncio.create_task(  # type: ignore[call-arg]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_anthropic\middleware\prompt_caching.py", line 201, in awrap_model_call
+    return await handler(request)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain\agents\factory.py", line 1505, in _execute_model_async
+    output = await model_.ainvoke(messages)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 6027, in ainvoke
+    return await self.bound.ainvoke(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 511, in ainvoke
+    llm_result = await self.agenerate_prompt(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1888, in agenerate_prompt
+    return await self.agenerate(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1846, in agenerate
+    raise exceptions[0]
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 2136, in _agenerate_with_cache
+    async for chunk in self._astream(messages, stop=stop, **kwargs):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_openai\chat_models\base.py", line 3741, in _astream
+    async for chunk in super()._astream(*args, **kwargs):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_openai\chat_models\base.py", line 2137, in _astream
+    _handle_openai_api_error(e)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_openai\chat_models\base.py", line 672, in _handle_openai_api_error
+    raise OpenAIAPIError(message=e.message, response=e.response, body=e.body) from e
+langchain_openai.chat_models.base.OpenAIAPIError: <html>
+<head><title>502 Bad Gateway</title></head>
+<body>
+<center><h1>502 Bad Gateway</h1></center>
+<hr><center>nginx</center>
+</body>
+</html>
+During task with name 'model' and id 'b08973a9-f4f8-eee7-1ea0-5bb36383e213'
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 422, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\applications.py", line 96, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 96, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 154, in simple_response
+    await self.app(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\routing.py", line 670, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 2734, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 1281, in handle
+    await super().handle(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\routing.py", line 280, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 158, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 145, in app
+    await response(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\responses.py", line 273, in __call__
+    async with create_collapsing_task_group() as task_group:
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\contextlib.py", line 231, in __aexit__
+    await self.gen.athrow(typ, value, traceback)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in create_collapsing_task_group
+    raise exc from exc.__cause__ or context
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\anyio\_core\_tasks.py", line 327, in _run_coro
+    retval = await self._coro
+             ^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\responses.py", line 276, in wrap
+    await func()
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\responses.py", line 250, in stream_response
+    async for chunk in self.body_iterator:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\ag_ui_langgraph\endpoint.py", line 44, in event_generator
+    async for event in request_agent.run(input_data):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\ag_ui_langgraph\agent.py", line 1586, in run
+    async for event_str in self._handle_stream_events(input.model_copy(update=update)):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\ag_ui_langgraph\agent.py", line 1722, in _handle_stream_events
+    async for event in stream:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 1670, in _astream_events_v1_v2
+    async for event in event_stream:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 1101, in _astream_events_implementation_v2
+    await task
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 1056, in consume_astream
+    async for _ in event_streamer.tap_output_aiter(run_id, stream):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 220, in tap_output_aiter
+    async for chunk in output:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\pregel\main.py", line 3492, in astream
+    raise GraphRecursionError(msg)
+langgraph.errors.GraphRecursionError: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
+For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 422, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\applications.py", line 96, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 96, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 154, in simple_response
+    await self.app(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\routing.py", line 670, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 2734, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 1281, in handle
+    await super().handle(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\routing.py", line 280, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 158, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 145, in app
+    await response(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\responses.py", line 273, in __call__
+    async with create_collapsing_task_group() as task_group:
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\contextlib.py", line 231, in __aexit__
+    await self.gen.athrow(typ, value, traceback)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in create_collapsing_task_group
+    raise exc from exc.__cause__ or context
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\anyio\_core\_tasks.py", line 327, in _run_coro
+    retval = await self._coro
+             ^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\responses.py", line 276, in wrap
+    await func()
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\responses.py", line 250, in stream_response
+    async for chunk in self.body_iterator:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\ag_ui_langgraph\endpoint.py", line 44, in event_generator
+    async for event in request_agent.run(input_data):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\ag_ui_langgraph\agent.py", line 1586, in run
+    async for event_str in self._handle_stream_events(input.model_copy(update=update)):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\ag_ui_langgraph\agent.py", line 1722, in _handle_stream_events
+    async for event in stream:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 1670, in _astream_events_v1_v2
+    async for event in event_stream:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 1101, in _astream_events_implementation_v2
+    await task
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 1056, in consume_astream
+    async for _ in event_streamer.tap_output_aiter(run_id, stream):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 220, in tap_output_aiter
+    async for chunk in output:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\pregel\main.py", line 3492, in astream
+    raise GraphRecursionError(msg)
+langgraph.errors.GraphRecursionError: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
+For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 422, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\applications.py", line 96, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 96, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 154, in simple_response
+    await self.app(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\routing.py", line 670, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 2734, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 1281, in handle
+    await super().handle(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\routing.py", line 280, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 158, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\fastapi\routing.py", line 145, in app
+    await response(scope, receive, send)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\responses.py", line 273, in __call__
+    async with create_collapsing_task_group() as task_group:
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\contextlib.py", line 231, in __aexit__
+    await self.gen.athrow(typ, value, traceback)
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\_utils.py", line 93, in create_collapsing_task_group
+    raise exc from exc.__cause__ or context
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\anyio\_core\_tasks.py", line 327, in _run_coro
+    retval = await self._coro
+             ^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\responses.py", line 276, in wrap
+    await func()
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\responses.py", line 250, in stream_response
+    async for chunk in self.body_iterator:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\ag_ui_langgraph\endpoint.py", line 44, in event_generator
+    async for event in request_agent.run(input_data):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\ag_ui_langgraph\agent.py", line 1586, in run
+    async for event_str in self._handle_stream_events(input.model_copy(update=update)):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\ag_ui_langgraph\agent.py", line 1722, in _handle_stream_events
+    async for event in stream:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 1670, in _astream_events_v1_v2
+    async for event in event_stream:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 1101, in _astream_events_implementation_v2
+    await task
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 1056, in consume_astream
+    async for _ in event_streamer.tap_output_aiter(run_id, stream):
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langchain_core\tracers\event_stream.py", line 220, in tap_output_aiter
+    async for chunk in output:
+  File "C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\langgraph\pregel\main.py", line 3492, in astream
+    raise GraphRecursionError(msg)
+langgraph.errors.GraphRecursionError: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
+For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
