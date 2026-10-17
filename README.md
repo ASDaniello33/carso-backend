@@ -76,8 +76,9 @@ explicitement tant que le modèle n'est pas configuré.
 ## Lancer avec Docker
 
 Le backend a son image (`backend/Dockerfile`). **Le contexte de build est la
-racine du dépôt**, pas `backend/` : l'image embarque `backend/` **et**
-`skills/agents` (les skills des agents vivent hors de `backend/`).
+racine du dépôt**, pas `backend/` (chemins du Dockerfile exprimés depuis la
+racine) ; les skills des agents vivent dans `backend/app/agents/skills/` et
+voyagent avec le paquet.
 
 ```bash
 # image seule

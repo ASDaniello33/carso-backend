@@ -10,7 +10,7 @@ from datetime import date as DateType
 from datetime import time
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class SessionCreate(BaseModel):
@@ -49,10 +49,40 @@ class SessionRead(BaseModel):
     statut: str
 
 
-class ParticipationCreate(BaseModel):
-    """Inscription d'un bénéficiaire à une session."""
+class FicheBeneficiaireCreate(BaseModel):
+    """Fiche minimale d'une personne à créer **en même temps** que son inscription.
 
-    beneficiaire_id: UUID
+    Même vocabulaire que le registre (``BeneficiaireCreate``) : c'est le même
+    geste que l'import Excel, fait à la main — la personne entre au registre
+    et dans la session en une seule opération.
+    """
+
+    nom: str = Field(min_length=1, max_length=100)
+    prenom: str = Field(min_length=1, max_length=100)
+    contact: str | None = Field(default=None, max_length=255)
+    organisation_origine: str | None = Field(default=None, max_length=255)
+    identifiant_externe: str | None = Field(default=None, max_length=100)
+
+
+class ParticipationCreate(BaseModel):
+    """Inscription d'un bénéficiaire à une session.
+
+    Deux formes exclusives : une personne **déjà au registre"
+    (``beneficiaire_id``) ou une **nouvelle fiche** (``fiche``), créée puis
+    inscrite — le chemin de l'import Excel, pour une seule personne.
+    """
+
+    beneficiaire_id: UUID | None = None
+    fiche: FicheBeneficiaireCreate | None = None
+
+    @model_validator(mode="after")
+    def _exactement_une_forme(self) -> "ParticipationCreate":
+        if (self.beneficiaire_id is None) == (self.fiche is None):
+            raise ValueError(
+                "Fournissez soit beneficiaire_id (personne déjà au registre), "
+                "soit fiche (nouvelle personne) — pas les deux, pas neither"
+            )
+        return self
 
 
 class PresencePointageCreate(BaseModel):

@@ -107,13 +107,19 @@ def build_system_prompt(definition: AgentDefinition, *, extra: str | None = None
     tâche), issus de ses ``CollaborationGrant`` — rien d'inventé. Vide pour
     un agent sans collaboration. Le bloc d'affichage liste les outils
     frontend réellement enregistrés pour cet agent — jamais un nom inventé.
+    Le bloc skills liste les skills déclarés (nom + description) : l'agent
+    sait quels guides il peut charger et quand.
     """
+    from app.agents.registre_skills import bloc_skills
+
     annuaire = bloc_annuaire(definition)
     affichage = bloc_outils_frontend(definition.agent_id)
+    skills = bloc_skills(definition)
     parties = [
         definition.prompt.strip() or definition.description.strip(),
         _CADRE_CARSO,
         BLOC_PIECES_JOINTES,
+        skills,
         affichage,
         annuaire,
     ]
@@ -178,7 +184,7 @@ def create_carso_deep_agent(
     interrupt_on = _politique_approbation(definition, tools, config)
     checkpointer = _checkpointer(config, interrupt_on)
 
-    from app.agents.skills import resoudre_skills
+    from app.agents.registre_skills import resoudre_skills
 
     skills_resolus = resoudre_skills(definition.skills, settings=settings)
     kwargs: dict[str, Any] = {

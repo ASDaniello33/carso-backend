@@ -10,6 +10,9 @@ moteur se charge du design.
   sommaire dont les numéros de page sont **calculés**, polices intégrées.
 - **DOCX**—rendu natif (``python-docx``)—vrais styles Word, couverture colorée,
   tableaux et KPI colorés, encadrés, sommaire Word, numéros de page.
+- **PPTX**—deck natif 16:9 (``python-pptx``, format ``pptx``)—vraies formes,
+  tableaux, images et notes présentateur, thèmes CARSO appliqués ; le corps
+  HTML suit le contrat ``presentation.py`` (``<section class="slide">``).
 
 Ce que CARSO change par rapport au module d'origine :
 
@@ -28,15 +31,21 @@ Voir ``docs/adr/0011-outil-generation-document-professionnel.md``.
 
 from __future__ import annotations
 
+from .graphiques import TYPES_GRAPHIQUES, render_chart
+from .presentation import lire_presentation, verifier_presentation
 from .rendu import RenduProfessionnel, rendre_professionnel
 from .themes import THEMES, Theme, get_theme
 from .verification import verifier
 
 __all__ = [
     "THEMES",
+    "TYPES_GRAPHIQUES",
     "RenduProfessionnel",
     "Theme",
     "get_theme",
+    "lire_presentation",
+    "render_chart",
     "rendre_professionnel",
     "verifier",
+    "verifier_presentation",
 ]

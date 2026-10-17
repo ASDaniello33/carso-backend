@@ -59,7 +59,9 @@ __all__ = [
     "GenererDocumentInput",
     "GenererDocumentHtmlInput",
     "GenererDocumentProfessionnelInput",
+    "GraphiqueInput",
     "ImporterTableauInput",
+    "SerieGraphiqueInput",
     "LireDocumentInput",
     "InspecterDocumentInput",
     "LirePlageInput",
@@ -149,6 +151,14 @@ _FORMATS: dict[str, tuple[str, str]] = {
     "xlsx": (".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
     "pdf": (".pdf", "application/pdf"),
 }
+
+#: Le PPTX n'existe que sur la voie professionnelle (``format='pptx'`` du tool
+#: ``generer_document_professionnel``) : ``TypeFormat`` du tool structuré ne le
+#: propose pas, sa génération DOCX/XLSX/PDF n'a pas de deck natif.
+_FORMAT_PPTX: tuple[str, str] = (
+    ".pptx",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+)
 
 
 class GenererDocumentInput(BaseModel):
@@ -325,6 +335,92 @@ class GenererDocumentHtmlInput(BaseModel):
     )
 
 
+class SerieGraphiqueInput(BaseModel):
+    """Une série nommée d'un graphique à axes : un nom et ses valeurs."""
+
+    nom: str = Field(
+        min_length=1,
+        max_length=60,
+        description="Nom de la série (affiché dans la légende), ex. '2025' ou 'Réalisé'.",
+    )
+    valeurs: list[float] = Field(
+        min_length=1,
+        max_length=60,
+        description="Une valeur par label du graphique, dans le même ordre.",
+    )
+
+
+class GraphiqueInput(BaseModel):
+    """Spec d'un graphique inséré dans un livrable professionnel (incrément 69).
+
+    Le SVG est construit **par le moteur** — l'agent ne fournit que des données
+    et ne peut donc pas injecter de balise. Les valeurs doivent venir d'une
+    lecture réelle (``search_*``, ``read_document``) ou de l'utilisateur : une
+    donnée absente s'écrit « (à compléter) », jamais une invention.
+
+    L'insertion se fait par ancre : le corps HTML porte
+    ``<figure data-graphique="id"></figure>`` au même ``id``, et le moteur
+    remplace l'ancre par le graphique et sa légende.
+    """
+
+    id: str = Field(
+        min_length=1,
+        max_length=64,
+        description=(
+            "Identifiant d'ancrage, unique dans le document. Le corps HTML doit "
+            "porter <figure data-graphique=\"ce-meme-id\"></figure> là où le "
+            "graphique doit apparaître."
+        ),
+    )
+    type: Literal["bar", "line", "pie", "donut"] = Field(
+        description=(
+            "'bar' : barres groupées (comparer des séries par catégorie) ; "
+            "'line' : courbes (évolution dans le temps) ; "
+            "'pie' : camembert (répartition, ≤ 5-6 parts) ; "
+            "'donut' : anneau (répartition avec total au centre)."
+        )
+    )
+    titre: str | None = Field(
+        default=None, max_length=200, description="Titre affiché au-dessus du graphique."
+    )
+    labels: list[str] = Field(
+        min_length=1,
+        max_length=60,
+        description=(
+            "Étiquettes de l'axe X (bar/line) ou parts (pie/donut). Courts : les "
+            "libellés trop longs sont tronqués à l'affichage."
+        ),
+    )
+    series: list[SerieGraphiqueInput] | None = Field(
+        default=None,
+        description=(
+            "bar/line uniquement : une ou plusieurs séries nommées, chacune avec "
+            "autant de valeurs que de labels. Deux séries donnent des barres "
+            "groupées ou deux courbes."
+        ),
+    )
+    valeurs: list[float] | None = Field(
+        default=None,
+        description=(
+            "pie/donut uniquement : une valeur par label (toutes ≥ 0, somme > 0). "
+            "Valeurs négatives refusées."
+        ),
+    )
+    y_label: str | None = Field(
+        default=None, max_length=40, description="Titre de l'axe Y (bar/line)."
+    )
+    legende: str | None = Field(
+        default=None,
+        max_length=300,
+        description=(
+            "Légende de la figure (figcaption), par exemple « Figure 1 – CA par "
+            "trimestre ». Sans légende, le titre est repris."
+        ),
+    )
+    largeur: int = Field(default=640, ge=200, le=2400, description="Largeur en pixels.")
+    hauteur: int = Field(default=400, ge=150, le=1600, description="Hauteur en pixels.")
+
+
 class GenererDocumentProfessionnelInput(BaseModel):
     """Entrée du tool ``generer_document_professionnel`` : corps HTML + habillage.
 
@@ -360,11 +456,29 @@ class GenererDocumentProfessionnelInput(BaseModel):
             "(+ success | warning | danger), <table class='layout'>, <div "
             "class='page-break'>, <span class='badge'>, <figure>, <div "
             "class='signature'>. "
+            "GRAPHIQUE DE DONNÉES : pour un graphique à partir de chiffres, écris une "
+            "ancre <figure data-graphique='id'></figure> (VIDE) à l'endroit voulu et "
+            "déclare le même 'id' dans le paramètre graphiques — le moteur dessine "
+            "barres, courbes, camembert ou anneau. "
+            "SCHÉMA / ILLUSTRATION : tu peux écrire toi-même un <svg> inline "
+            "(organigramme, flèches, cycle, frise, diagramme, schéma technique) ; il "
+            "est nettoyé (ni <script>, ni <foreignObject>, ni référence distante) puis "
+            "intégré au document — vectoriel en PDF, converti en image en DOCX."
+            "Donne-lui un viewBox et une <title> (elle devient le texte alternatif), "
+            "et une couleur explicite (fill/stroke) : le thème ne colore pas le SVG. "
             "Ne PAS écrire de <style> ni de CSS en ligne (le thème est injecté ; "
             "un <style> est supprimé et signalé en avertissement). "
             "Données : uniquement des informations réelles issues de lectures "
             "(search_*, read_document) ou de l'utilisateur — une donnée absente "
             "s'écrit '(à compléter)', jamais une invention."
+            " DECK PPTX (format='pptx') : même paramètre, mais le corps est une "
+            "suite de diapositives — une <section class='cover'> (title de "
+            "couverture, .cover-label, .cover-subtitle, .cover-meta) puis une "
+            "<section class='slide'> par diapositive (h1 = titre, p.lead = "
+            "message clé, ul/ol, table.kpi, table.data, figure, div.callout, "
+            "aside.notes = notes présentateur). Une idée par diapositive, "
+            "6 puces maximum : le moteur REFUSE ce qui déborderait plutôt que "
+            "de rogner le texte."
         ),
     )
     titre: str = Field(
@@ -375,10 +489,11 @@ class GenererDocumentProfessionnelInput(BaseModel):
             "les métadonnées du fichier. Titre court et explicite."
         ),
     )
-    format: Literal["pdf", "docx"] = Field(
+    format: Literal["pdf", "docx", "pptx"] = Field(
         description=(
             "Format cible. 'pdf' (défaut de fait pour un livrable à remettre), "
-            "'docx' seulement si l'utilisateur doit modifier le fichier."
+            "'docx' seulement si l'utilisateur doit modifier le fichier, "
+            "'pptx' pour une présentation/deck 16:9 native (PowerPoint)."
         )
     )
     theme: Literal["corporate", "moderne", "nature"] = Field(
@@ -390,7 +505,10 @@ class GenererDocumentProfessionnelInput(BaseModel):
     )
     orientation: Literal["portrait", "paysage"] = Field(
         default="portrait",
-        description="Orientation A4. 'paysage' si un tableau dépasse 6 colonnes.",
+        description=(
+            "Orientation A4. 'paysage' si un tableau dépasse 6 colonnes. "
+            "Sans objet pour 'pptx' (16:9 fixe)."
+        ),
     )
     auteur: str | None = Field(
         default=None,
@@ -407,6 +525,18 @@ class GenererDocumentProfessionnelInput(BaseModel):
         description=(
             "Nom logique du document (sans extension). Dérivé du titre si omis. "
             "L'extension est ajoutée selon le format."
+        ),
+    )
+    graphiques: list[GraphiqueInput] | None = Field(
+        default=None,
+        max_length=12,
+        description=(
+            "Graphiques de DONNÉES (barres, courbes, camembert, anneau). Chaque "
+            "entrée remplace l'ancre <figure data-graphique='id'> de même 'id'. "
+            "Le graphique est dessiné par le moteur et il est intégré au PDF comme "
+            "au DOCX. À utiliser dès qu'un jeu de chiffres réels gagnerait à être "
+            "comparé visuellement. Pour un schéma sans chiffres (organigramme, "
+            "flux, cycle), écris directement un <svg> dans contenu_html."
         ),
     )
     type_document: str = Field(
@@ -870,6 +1000,50 @@ _ALIAS_TYPE_DOCUMENT: dict[str, str] = {
 }
 
 
+def _specs_graphiques(bruts: Any) -> dict[str, dict[str, Any]]:
+    """Convertit les entrées du tool en specs de ``render_chart`` (ordre conservé).
+
+    C'est ici que la forme « outil » (séries nommées en liste, valeurs séparées)
+    rejoint la forme « moteur » attendue par ``graphiques.render_chart`` : un seul
+    point de traduction, plutôt que deux vocabulaires qui divergent.
+
+    Raises:
+        ValidationError: deux graphiques partagent le même ``id`` (l'insertion
+            serait ambiguë : le moteur refuserait la seconde ancre).
+    """
+    specs: dict[str, dict[str, Any]] = {}
+    for brut in bruts or []:
+        entree = brut if isinstance(brut, dict) else brut.model_dump()
+        identifiant = str(entree.get("id") or "").strip()
+        if not identifiant:
+            raise ValidationError("Chaque graphique doit porter un 'id' non vide.")
+        if identifiant in specs:
+            raise ValidationError(
+                f"Identifiant de graphique en double : {identifiant!r}",
+                details={"ids": sorted(specs)},
+            )
+        spec: dict[str, Any] = {
+            "type": entree.get("type"),
+            "labels": list(entree.get("labels") or []),
+            "title": entree.get("titre") or "",
+            "y_label": entree.get("y_label") or "",
+            "legende": entree.get("legende") or "",
+            "description": entree.get("legende") or entree.get("titre") or "",
+            "width": entree.get("largeur", 640),
+            "height": entree.get("hauteur", 400),
+        }
+        series = entree.get("series")
+        if series:
+            spec["series"] = {
+                str(s.get("nom")): list(s.get("valeurs") or [])
+                for s in (s if isinstance(s, dict) else s.model_dump() for s in series)
+            }
+        if entree.get("valeurs") is not None:
+            spec["values"] = list(entree["valeurs"])
+        specs[identifiant] = spec
+    return specs
+
+
 def _type_depot(payload: dict[str, Any]) -> str:
     """Type de dépôt normalisé : alias converti, inconnu → erreur pédagogique.
 
@@ -1192,6 +1366,7 @@ def build_document_tools(
         from app.documents.professionnel import rendre_professionnel
         from app.documents.professionnel.html_builder import slugifier
 
+        graphes = _specs_graphiques(payload.get("graphiques"))
         rendu = rendre_professionnel(
             payload["contenu_html"],
             payload["titre"],
@@ -1200,8 +1375,12 @@ def build_document_tools(
             theme=payload.get("theme") or "corporate",
             orientation=payload.get("orientation") or "portrait",
             css_supplementaire=payload.get("css_supplementaire"),
+            graphiques=graphes or None,
         )
-        extension, _mime = _FORMATS[rendu.format]
+        if rendu.format == "pptx":
+            extension, _mime = _FORMAT_PPTX
+        else:
+            extension, _mime = _FORMATS[rendu.format]
         base = payload.get("nom_fichier") or payload["titre"]
         nom = slugifier(Path(str(base)).stem, "_")[:60] or "document"
 
@@ -1223,16 +1402,37 @@ def build_document_tools(
         sortie["documents"] = documents
         sortie["pages"] = rendu.pages
         sortie["theme"] = rendu.theme
+        if rendu.format == "pptx":
+            # Un deck compte ses diapositives : dire « pages » à l'agent
+            # l'inviterait à en rajouter pour tenir une pagination A4.
+            sortie["diapositives"] = rendu.pages
+            # render_document ne rend que des PDF : le dire plutôt que laisser
+            # l'agent découvrir l'échec en appelant l'outil sur un .pptx.
+            sortie["limite_apercu"] = (
+                "render_document ne prévisualise que les PDF : pour un PPTX, "
+                "relis le contenu de chaque diapositive avant de le présenter."
+            )
+        if graphes:
+            sortie["graphiques"] = {
+                "nombre": len(graphes),
+                "ids": list(graphes),
+                "integration": {
+                    "pdf": "SVG vectoriel (nettete maximale a l'impression).",
+                    "docx": "PNG haute resolution (Word ne lit pas le SVG).",
+                    "pptx": "PNG haute resolution (PowerPoint ne lit pas le SVG).",
+                }.get(rendu.format, "SVG vectoriel."),
+            }
         if rendu.avertissements:
             sortie["avertissements"] = list(rendu.avertissements)
         sortie["conseil"] = rendu.conseil
+        libelle = "Présentation" if rendu.format == "pptx" else "Document professionnel"
         sortie["message"] = (
-            "Document professionnel généré et déposé en statut 'proposed' sans "
+            f"{libelle} généré et déposé en statut 'proposed' sans "
             f"rattachement métier (generated/{sortie['document_id']}). "
             "Validation humaine requise. Appeler proposer_telechargement_document."
             if sortie.get("non_classe")
             else (
-                "Document professionnel généré et déposé en statut 'proposed' "
+                f"{libelle} généré et déposé en statut 'proposed' "
                 "(validation humaine requise). Lire ``avertissements`` et les "
                 "corriger avant de présenter : appeler render_document puis "
                 "proposer_telechargement_document."
@@ -1962,7 +2162,7 @@ def build_document_tools(
         TypedTool(
             name="generer_document_professionnel",
             description=(
-                "GÉNÉRATION PRIORITAIRE d'un livrable DOCX ou PDF : écris le "
+                "GÉNÉRATION PRIORITAIRE d'un livrable DOCX, PDF ou PPTX : écris le "
                 "**corps** du document en HTML avec les classes du thème "
                 "(cover, toc, lead, table.kpi, table.data, callout, table.layout, "
                 "badge, page-break, signature) et le moteur se charge du design — "
@@ -1973,6 +2173,20 @@ def build_document_tools(
                 "À utiliser par DÉFAUT pour tout document DOCX/PDF : rapports, "
                 "offres, notes, comptes rendus, propositions, courriers, CV, "
                 "fiches personnalisées. "
+                "PRÉSENTATION : format='pptx' rend un deck 16:9 natif "
+                "(vraies formes, tableaux et images PowerPoint, notes "
+                "présentateur, thème appliqué) à partir du même ``contenu_html`` : "
+                "<section class='cover'> puis une <section class='slide'> par "
+                "diapositive (h1, p.lead, ul/ol, table.kpi, table.data, figure, "
+                "div.callout, aside.notes). Le moteur REFUSE une diapositive "
+                "dont le texte déborderait (message « scinde la diapositive ») "
+                "plutôt que de le rogner. "
+                "Graphiques de DONNÉES via le paramètre ``graphiques`` (ancre "
+                "<figure data-graphique='id'></figure>) ; SCHÉMAS et "
+                "ILLUSTRATIONS en écrivant toi-même un <svg> inline dans "
+                "``contenu_html`` (organigramme, flèches, cycle, frise, "
+                "diagramme) : il est nettoyé, rendu vectoriel en PDF et "
+                "converti en image en DOCX. "
                 "NE PAS écrire de <style> ni de CSS en ligne : le thème est "
                 "injecté (un <style> est supprimé et signalé en avertissement). "
                 "Autres voies : ``generer_document_html`` pour un document "

@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
 # CARSO AI — image du backend (FastAPI + agents Deep Agents).
 #
-# Le contexte de build est la RACINE du dépôt, pas `backend/` : les skills des
-# agents vivent dans `skills/agents`, hors de `backend/`, et
-# `app/agents/skills.py` les résout par défaut à cet emplacement. La disposition
-# du dépôt est donc préservée dans l'image : `/app/backend` + `/app/skills`.
+# Le contexte de build est la RACINE du dépôt, pas `backend/` (choix conservé :
+# les arguments et chemins du Dockerfile sont exprimés depuis la racine). Les
+# skills des agents vivent dans `backend/app/agents/skills/` : ils voyagent
+# avec le paquet et sont copiés par `COPY backend/` — aucune copie séparée.
 #
 #   docker build -f backend/Dockerfile -t carso-backend .
 #   docker compose up --build backend     # avec la base PostgreSQL du compose
@@ -95,10 +95,9 @@ RUN if [ "$INSTALL_PLAYWRIGHT" = "1" ]; then \
         echo "Chromium non installé (INSTALL_PLAYWRIGHT=0) : generer_document_professionnel échouera explicitement." ; \
     fi
 
-# --- Le backend complet, puis les skills des agents --------------------------
+# --- Le backend complet (skills des agents inclus) ----------------------------
 WORKDIR /app
 COPY backend/ ./backend/
-COPY skills/ ./skills/
 
 # --- Stockage documentaire et compte d'exécution -----------------------------
 # `/storage/carso` est la racine documentaire de référence : créée et possédée

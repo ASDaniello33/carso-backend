@@ -68,6 +68,7 @@ from app.api.schemas.organisation import (
     OrganisationUpdate,
 )
 from app.api.schemas.session import (
+    FicheBeneficiaireCreate,
     FichePresenceCreate,
     ImportApercuCreate,
     ImportApercuRead,
@@ -155,6 +156,7 @@ __all__ = [
     "RapportPurgeRead",
     "FichePresenceCreate",
     "ParticipationCreate",
+    "FicheBeneficiaireCreate",
     "ParticipationRead",
     "ParticipationUpdate",
     "ImportApercuCreate",

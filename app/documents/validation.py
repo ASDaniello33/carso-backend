@@ -92,6 +92,14 @@ FILE_TYPES: dict[str, FileTypeRule] = {
         _ZIP_SIGNATURE,
         zip_entries=("xl/workbook.xml",),
     ),
+    # Un deck natif est une archive OOXML : sans ``ppt/presentation.xml``,
+    # un .docx renommé .pptx serait accepté. Le nom logique n'est jamais cru.
+    "pptx": FileTypeRule(
+        "pptx",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        _ZIP_SIGNATURE,
+        zip_entries=("ppt/presentation.xml",),
+    ),
     "doc": FileTypeRule("doc", "application/msword", _OLE_SIGNATURE),
     "xls": FileTypeRule("xls", "application/vnd.ms-excel", _OLE_SIGNATURE),
     "csv": FileTypeRule("csv", "text/csv", is_text=True),

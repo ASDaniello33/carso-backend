@@ -26,6 +26,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.api.deps import get_current_user
@@ -646,3 +647,99 @@ def test_participation_hors_perimetre_reste_invisible(
     assert (
         client_formateur.get(f"{PRÉFIXE}/participations/{identifiant}").status_code == 404
     )
+
+
+# --- Inscription avec fiche : le formateur ajoute SES bénéficiaires (15/10) -------
+
+
+def test_formateur_inscrit_une_nouvelle_personne_avec_sa_fiche(
+    client_formateur: TestClient, contexte: SimpleNamespace
+) -> None:
+    """Le geste manuel de l'import : une fiche, une inscription, un appel."""
+    reponse = client_formateur.post(
+        f"{PRÉFIXE}/sessions/{contexte.session.id}/participations",
+        json={
+            "fiche": {
+                "nom": "Andrianina",
+                "prenom": "Toavina",
+                "contact": "034 00 000 00",
+            }
+        },
+    )
+    assert reponse.status_code == 201, reponse.text
+    corps = reponse.json()
+    assert corps["beneficiaire"]["nom"] == "Andrianina"
+    assert corps["beneficiaire"]["contact"] == "034 00 000 00"
+
+
+def test_fiche_deja_connue_est_reutilisee_sans_doublon(
+    client_formateur: TestClient,
+    contexte: SimpleNamespace,
+    api_session_factory: sessionmaker[Session],
+) -> None:
+    """Même nom + prénom (casse libre) : on réinscrit la fiche existante."""
+    premiere = client_formateur.post(
+        f"{PRÉFIXE}/sessions/{contexte.session.id}/participations",
+        json={"fiche": {"nom": "Rabe", "prenom": "Naina"}},
+    )
+    assert premiere.status_code == 201, premiere.text
+
+    seconde = client_formateur.post(
+        f"{PRÉFIXE}/sessions/{contexte.session.id}/participations",
+        json={"fiche": {"nom": " rabe ", "prenom": "NAINA"}},
+    )
+    assert seconde.status_code == 409  # déjà inscrit à cette session
+
+    session_base = api_session_factory()
+    try:
+        fiches = list(
+            session_base.scalars(
+                select(Beneficiaire).where(Beneficiaire.nom == "Rabe")
+            )
+        )
+        assert len(fiches) == 1  # réutilisée, jamais dupliquée
+    finally:
+        session_base.close()
+
+
+def test_fiche_d_une_personne_archivee_est_refusee(
+    client_formateur: TestClient,
+    contexte: SimpleNamespace,
+    api_session_factory: sessionmaker[Session],
+) -> None:
+    """Une fiche close par l'équipe interne n'est pas ressuscitée en silence."""
+    session_base = api_session_factory()
+    try:
+        fiche = session_base.get(Beneficiaire, contexte.beneficiaire.id)
+        assert fiche is not None
+        fiche.statut = "archive"
+        session_base.commit()
+    finally:
+        session_base.close()
+
+    reponse = client_formateur.post(
+        f"{PRÉFIXE}/sessions/{contexte.session.id}/participations",
+        json={"fiche": {"nom": "Rakoto", "prenom": "Béatrice"}},
+    )
+    assert reponse.status_code == 422
+    assert "archivé" in reponse.json()["error"]["message"]
+
+
+def test_fiche_sur_une_session_hors_perimetre_404(
+    client_formateur: TestClient, contexte: SimpleNamespace
+) -> None:
+    reponse = client_formateur.post(
+        f"{PRÉFIXE}/sessions/{contexte.session_hors.id}/participations",
+        json={"fiche": {"nom": "Inconnu", "prenom": "Hors"}},
+    )
+    assert reponse.status_code == 404
+
+
+def test_participation_sans_id_ni_fiche_422(
+    client_formateur: TestClient, contexte: SimpleNamespace
+) -> None:
+    reponse = client_formateur.post(
+        f"{PRÉFIXE}/sessions/{contexte.session.id}/participations",
+        json={},
+    )
+    assert reponse.status_code == 422

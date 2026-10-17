@@ -271,3 +271,5 @@ def rendre_pdf(
         _rendre, doc, Path(chemin), theme, titre, auteur, orientation, css_supplementaire,
         Path(base_dir) if base_dir else None,
     )
+
+

@@ -72,8 +72,8 @@ from app.agents.providers import (
     build_chat_model,
     is_agent_configured,
 )
+from app.agents.registre_skills import lister_skills, racine_skills, resoudre_skills
 from app.agents.runtime import AgentTaskService, strip_secrets
-from app.agents.skills import lister_skills, racine_skills, resoudre_skills
 from app.agents.toolkit import (
     KIT_CAPABILITY,
     AgentTools,

@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from app.agents.catalogue import AGENT_DEFINITIONS
 from app.agents.manager import get_runtime_manager
 from app.agents.providers import SUPPORTED_PROVIDERS
-from app.agents.skills import lister_skills, racine_skills
+from app.agents.registre_skills import lister_skills, racine_skills
 from app.api.deps import AdminUser, CurrentUser, DbSession, get_current_user
 from app.api.schemas.parametres import (
     AgentParametrableRead,

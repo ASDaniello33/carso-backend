@@ -26,6 +26,7 @@ from docx.shared import Mm, Pt, RGBColor
 from PIL import Image
 
 from .html_builder import DocumentPrepare
+from .rasterisation import dimension_px
 from .themes import BORDURE, CALLOUT_VARIANTES, MUTED, TEXTE, Theme, get_theme
 
 POLICE = "Calibri"
@@ -296,6 +297,21 @@ def _metadonnees(doc, titre: str, auteur: str) -> None:
     cp.category = ""
 
 
+def _taille_declaree(el: Tag) -> tuple[float, float] | None:
+    """``width``/``height`` d'une balise en pixels logiques, si exploitables.
+
+    Une image née d'un SVG porte sa taille logique ici (voir
+    ``html_builder.convertir_svg_en_png``) : c'est elle qui dit la place que le
+    schéma doit occuper, et non les pixels du PNG embarqué (rendu au double pour
+    la netteté à l'impression).
+    """
+
+    largeur, hauteur = dimension_px(el.get("width")), dimension_px(el.get("height"))
+    if largeur is None or hauteur is None:
+        return None
+    return largeur, hauteur
+
+
 # ---------------------------------------------------------- conversion HTML -> Word
 class _Rendu:
     def __init__(
@@ -305,12 +321,14 @@ class _Rendu:
         base_dir: Path,
         largeur_utile_mm: float,
         hauteur_couverture_mm: float,
+        hauteur_utile_mm: float,
     ):
         self.doc = doc
         self.t = theme
         self.base_dir = base_dir
         self.largeur_utile_mm = largeur_utile_mm
         self.hauteur_couverture_mm = hauteur_couverture_mm
+        self.hauteur_utile_mm = hauteur_utile_mm
         self.a_sommaire = False
 
     # ---- utilitaires
@@ -789,6 +807,34 @@ class _Rendu:
             chemin = self.base_dir / chemin
         return chemin.read_bytes() if chemin.is_file() else None
 
+    def _mesure_mm(self, el: Tag, donnees: bytes) -> tuple[float, float]:
+        """Taille d'une image en millimètres, bornée à la page (ratio conservé).
+
+        La **taille déclarée** par la balise (pixels logiques, convention CSS
+        96 dpi) prime ; à défaut, la taille réelle du fichier à son dpi —
+        comportement d'origine pour les images déposées par l'agent.
+
+        La hauteur est bornée comme la largeur : un schéma vertical plus haut que
+        la zone de texte n'a pas de mise en page possible dans Word.
+        """
+        with Image.open(io.BytesIO(donnees)) as image:
+            largeur_px, hauteur_px = image.width, image.height
+            dpi = float((image.info.get("dpi") or (96, 96))[0]) or 96.0
+        declaree = _taille_declaree(el)
+        if declaree is not None:
+            largeur_mm = declaree[0] / 96 * 25.4
+            ratio = declaree[1] / declaree[0]
+        else:
+            largeur_mm = largeur_px / dpi * 25.4
+            ratio = hauteur_px / largeur_px
+        hauteur_mm = largeur_mm * ratio
+        facteur = min(
+            1.0,
+            self.largeur_utile_mm / largeur_mm,
+            self.hauteur_utile_mm / hauteur_mm,
+        )
+        return largeur_mm * facteur, hauteur_mm * facteur
+
     def _image_dans(self, p, el: Tag) -> bool:
         donnees = self._source_image(str(el.get("src", "")))
         if donnees is None:
@@ -797,11 +843,15 @@ class _Rendu:
             run.font.color.rgb = _rgb(MUTED)
             return False
         try:
-            with Image.open(io.BytesIO(donnees)) as image:
-                largeur_px = image.width
-                dpi = float((image.info.get("dpi") or (96, 96))[0]) or 96.0
-            largeur_mm = min(largeur_px / dpi * 25.4, self.largeur_utile_mm)
-            p.add_run().add_picture(io.BytesIO(donnees), width=Mm(largeur_mm))
+            largeur_mm, hauteur_mm = self._mesure_mm(el, donnees)
+            forme = p.add_run().add_picture(
+                io.BytesIO(donnees), width=Mm(largeur_mm), height=Mm(hauteur_mm)
+            )
+            libelle = str(el.get("alt") or "").strip()
+            if libelle:
+                # Le texte alternatif du HTML devient la **description de l'image
+                # Word** : c'est ce qu'annonce un lecteur d'écran sur un DOCX.
+                forme._inline.docPr.set("descr", libelle)
             return True
         except Exception:  # noqa: BLE001 - format non supporté (SVG...)
             run = p.add_run(f"Image non intégrée (format non supporté) : {el.get('alt', '')}")
@@ -836,7 +886,15 @@ def rendre_docx(
 
     _configurer_styles(doc, t)
     _configurer_page(doc, titre, paysage, bool(document.couverture))
-    rendu = _Rendu(doc, t, Path(base_dir or "."), 261 if paysage else 174, 140 if paysage else 225)
+    rendu = _Rendu(
+        doc,
+        t,
+        Path(base_dir or "."),
+        largeur_utile_mm=261 if paysage else 174,
+        hauteur_couverture_mm=140 if paysage else 225,
+        # Zone de texte : A4 moins les marges de page du thème.
+        hauteur_utile_mm=184 if paysage else 257,
+    )
 
     if document.couverture:
         section = BeautifulSoup(document.couverture, "html.parser").find("section")

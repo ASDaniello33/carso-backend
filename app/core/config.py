@@ -263,7 +263,7 @@ class Settings(BaseSettings):
     # chargées à la demande, jamais du code exécuté implicitement).
     skills_root: str = Field(
         default="",
-        description="Racine des skills agents (vide = <repo>/skills/agents).",
+        description="Racine des skills agents (vide = app/agents/skills, livrée avec le paquet).",
     )
     # Sandbox des scripts Python lancés par ``run_python_script``. Vide =
     # <storage_root>/_scripts — jamais le disque hôte entier.

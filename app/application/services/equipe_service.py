@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.application.dto import EquipeInput, EquipeUpdateInput
@@ -57,7 +57,17 @@ class EquipeService:
 
         ``StatutEquipe`` porte le vocabulaire : sans statut fourni, la personne
         naît ``actif`` — une personne créée ne peut pas être invisible des
-        listes actives par surprise.
+        listes actives par surprise. ``role_compte`` est conservé : il porte
+        le rôle du futur compte lié (incrément 24).
+
+        Si un compte **actif** de même email a perdu sa fiche (suppression
+        d'une fiche vivier : ``equipe_id`` repasse à NULL via la FK), la
+        création **relit** ce compte orphelin à la nouvelle fiche et le
+        resynchronise — l'invariant « un compte hors admin correspond à une
+        personne du vivier » (``app/domain/identity.py``) se rétablit au
+        moment où la source de vérité renaît, sans geste supplémentaire et
+        sans présumer quoi que ce soit d'autre (les droits restent calculés
+        depuis les affectations approuvées de CETTE fiche).
         """
         equipe = Equipe(
             nom=entree.nom,
@@ -66,17 +76,64 @@ class EquipeService:
             telephone=entree.telephone,
             profil=entree.profil,
             statut=entree.statut or StatutEquipe.ACTIF.value,
+            role_compte=entree.role_compte,
         )
         self.equipes.add(equipe)
         self._session.flush()
+        compte_relit = self._relier_compte_orphelin(equipe)
         self._trace.record_event(
             actor_type=ActorType.HUMAIN.value,
             action=ActionAudit.EQUIPE_ENREGISTREE.value,
             entity_type=_ENTITY,
             entity_id=equipe.id,
-            after={"nom": equipe.nom, "prenom": equipe.prenom},
+            after={
+                "nom": equipe.nom,
+                "prenom": equipe.prenom,
+                "role_compte": equipe.role_compte,
+            },
+            event_metadata=(
+                {"compte_relit": str(compte_relit.id)} if compte_relit is not None else None
+            ),
         )
         return equipe
+
+    def _relier_compte_orphelin(self, equipe: Equipe) -> Utilisateur | None:
+        """Relit le compte orphelin de même email à la fiche qui renaît.
+
+        Une fiche supprimée laisse son compte vivant mais délié
+        (``utilisateurs.equipe_id`` en ``SET NULL``) : un formateur ainsi
+        délié garde un périmètre **vide** — ses missions « disparaissent »
+        (constat utilisateur 15/10 : affecté et approuvé, Missions = 0).
+        Recréer la fiche avec le même email est le geste qui restaure la
+        source de vérité : le lien suit.
+
+        Portée volontairement étroite :
+        - le compte doit être **orphelin** (``equipe_id IS NULL``) — on ne
+          vole jamais un compte déjà lié à une autre fiche ;
+        - il doit porter un rôle gérable (collaborateur/formateur) — un
+          administrateur n'est jamais lié au vivier ;
+        - l'appariement est l'email (clé métier de l'inscription), en
+          insensible à la casse.
+
+        Returns:
+            Le compte relié, ``None`` sinon (cas ordinaire : fiche nouvelle).
+        """
+        if not equipe.email:
+            return None
+        compte = self._session.scalar(
+            select(Utilisateur).where(
+                Utilisateur.equipe_id.is_(None),
+                func.lower(Utilisateur.email) == equipe.email.lower().strip(),
+                Utilisateur.role.in_(
+                    (RoleUtilisateur.COLLABORATEUR.value, RoleUtilisateur.FORMATEUR.value)
+                ),
+            )
+        )
+        if compte is None:
+            return None
+        compte.equipe_id = equipe.id
+        self._synchroniser_compte(equipe)
+        return compte
 
     def modifier(self, equipe_id: UUID, entree: EquipeUpdateInput) -> Equipe:
         """Modification partielle : seuls les champs fournis sont appliqués.
@@ -104,7 +161,11 @@ class EquipeService:
             action=ActionAudit.EQUIPE_MODIFIEE.value,
             entity_type=_ENTITY,
             entity_id=equipe.id,
-            after={"nom": equipe.nom, "prenom": equipe.prenom},
+            after={
+                "nom": equipe.nom,
+                "prenom": equipe.prenom,
+                "role_compte": equipe.role_compte,
+            },
         )
         return equipe
 

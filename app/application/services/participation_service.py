@@ -20,14 +20,15 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.application.dto import (
+    BeneficiaireInput,
     ParticipationInscriptionInput,
     ParticipationUpdateInput,
 )
 from app.application.perimetre import Perimetre, perimetre_effectif
 from app.application.trace import TraceContext
 from app.core.errors import ConflictError, NotFoundError, ValidationError
-from app.domain.enums import ActionAudit, ActorType
-from app.domain.execution import Participation
+from app.domain.enums import ActionAudit, ActorType, StatutBeneficiaire
+from app.domain.execution import Beneficiaire, Participation
 from app.infrastructure.repositories import (
     BeneficiaireRepository,
     ParticipationRepository,
@@ -93,6 +94,73 @@ class ParticipationService:
             },
         )
         return participation
+
+    def inscrire_avec_fiche(self, session_id: UUID, fiche: BeneficiaireInput) -> Participation:
+        """Crée (ou réutilise) la personne puis l'inscrit — le geste manuel
+        de l'import Excel.
+
+        Un formateur ajoute ainsi **sa** gente à **sa** session sans toucher
+        au registre : la session est exigée dans son périmètre
+        (``_session_requise``), et la création suit la même sémantique que
+        l'import — une personne active déjà connue (nom + prénom, insensible
+        à la casse) est **réutilisée**, jamais dupliquée ; une personne
+        archivée est signalée plutôt que ressuscitée en silence.
+
+        Raises:
+            NotFoundError: session hors périmètre (404 côté API).
+            ValidationError: nom ou prénom absent, ou personne archivée.
+            ConflictError: personne déjà inscrite à cette session.
+        """
+        self._session_requise(session_id)
+        nom = (fiche.nom or "").strip()
+        prenom = (fiche.prenom or "").strip()
+        if not nom or not prenom:
+            raise ValidationError("Le nom et le prénom sont tous deux nécessaires")
+
+        existant = self._trouver_par_identite(nom, prenom)
+        if existant is not None and (
+            existant.statut or StatutBeneficiaire.ACTIF.value
+        ) == StatutBeneficiaire.ARCHIVE.value:
+            raise ValidationError(
+                f"{prenom} {nom} est archivé(e) dans le registre : "
+                "demandez à l'équipe interne de le/la réactiver",
+                details={"beneficiaire_id": str(existant.id)},
+            )
+        if existant is None:
+            from app.application.services.beneficiaire_service import BeneficiaireService
+
+            beneficiaire = BeneficiaireService(
+                self._session, actor_id=self._trace.actor_id
+            ).creer(
+                BeneficiaireInput(
+                    nom=nom,
+                    prenom=prenom,
+                    contact=fiche.contact,
+                    organisation_origine=fiche.organisation_origine,
+                    identifiant_externe=fiche.identifiant_externe,
+                )
+            )
+        else:
+            beneficiaire = existant
+        return self.inscrire(
+            session_id, ParticipationInscriptionInput(beneficiaire_id=beneficiaire.id)
+        )
+
+    def _trouver_par_identite(self, nom: str, prenom: str) -> Beneficiaire | None:
+        """Personne du registre portant ce nom + prénom (insensible à la casse).
+
+        Archivés inclus : une correspondance archivée doit être **signalée**,
+        pas ignorée — sinon une réinscription silencieuse ressusciterait une
+        fiche que l'équipe interne a délibérément close.
+        """
+        for statut in (StatutBeneficiaire.ACTIF.value, StatutBeneficiaire.ARCHIVE.value):
+            for candidat in self.beneficiaires.list_by_statut(statut):
+                if (
+                    (candidat.nom or "").strip().lower() == nom.lower()
+                    and (candidat.prenom or "").strip().lower() == prenom.lower()
+                ):
+                    return candidat
+        return None
 
     def modifier(self, participation_id: UUID, entree: ParticipationUpdateInput) -> Participation:
         """Complète évaluation/observations.

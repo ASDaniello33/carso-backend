@@ -67,10 +67,19 @@ video = [
 # ``pypdf`` fusionne la couverture et les passés de sommaire ; ``pillow`` mesure
 # les images pour les dimensionner dans le DOCX (import direct de
 # ``docx_renderer``).
+# ``resvg-py`` rasterise les graphiques SVG en PNG pour le DOCX (Word ne lit pas
+# le SVG) : 1,2 Mo, aucune dépendance Python, aucun navigateur ni GTK — choisi
+# précisément pour NE PAS alourdir le déploiement cloud (voir
+# app/documents/professionnel/rasterisation.py). Le PDF reste vectoriel sans lui.
 documents_pro = [
     "playwright>=1.45",
     "pypdf>=4.2",
     "pillow>=10.0",
+    "resvg-py>=0.5",
+    # Deck PowerPoint natif (format 'pptx' du tool) : la mise en page, les
+    # tableaux et les images sont de vrais objets PowerPoint, pas un PDF
+    # renommé. Pur Python (lxml), aucune dépendance système.
+    "python-pptx>=1.0",
 ]
 
 # Recherche web texte et lecture de pages par les agents (app/tools/web.py).
@@ -123,6 +132,8 @@ dev = [
     "playwright>=1.45",
     "pillow>=10.0",
     "fpdf2>=2.7",
+    # Le deck PPTX est relu dans les tests (formes, textes, notes).
+    "python-pptx>=1.0",
     # Les tests d'agents construisent un vrai graphe Deep Agents avec un modèle
     # factice (aucun appel réseau) — extra 'agents' dupliqué pour la même raison.
     "deepagents>=0.7",
@@ -143,6 +154,12 @@ dev = [
 
 [tool.setuptools.packages.find]
 include = ["app*"]
+
+# Les skills des agents (``app/agents/skills/<nom>/SKILL.md``) sont des données
+# du paquet : sans cette entrée, un wheel n'embarquerait que les .py et les
+# agents montés depuis un wheel perdraient leurs skills.
+[tool.setuptools.package-data]
+"app.agents" = ["skills/**/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

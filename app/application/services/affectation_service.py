@@ -195,6 +195,46 @@ class AffectationService:
             },
         )
 
+    def annuler(self, affectation_id: UUID, reason: str | None = None) -> None:
+        """Annule une proposition **en attente** (proposee) et la retire.
+
+        Demandé le 17/10 : la carte de proposition de l'AgentRH doit permettre
+        de revenir sur son geste. Une proposition encore ``proposee`` n'a jamais
+        été décidée et n'a aucun effet : l'annuler la retire de la liste.
+
+        Ce n'est **pas** un refus : un refus est une décision humaine, conservée
+        dans l'historique (elle peut éventuellement être retirée ensuite). Une
+        affectation approuvée reste l'historique de la mission et ne peut pas
+        disparaître. Le retrait est tracé dans l'audit.
+        """
+        affectation = self._get(affectation_id)
+        statut = self._current_statut(affectation)
+        if statut != StatutAffectation.PROPOSEE.value:
+            raise ConflictError(
+                "Seule une proposition en attente peut être annulée",
+                details={"affectation_id": str(affectation_id), "statut": statut},
+            )
+        avant = {
+            "mission_id": str(affectation.mission_id),
+            "equipe_id": str(affectation.equipe_id),
+            "role": affectation.role_dans_mission,
+            "source": affectation.source_affectation,
+            "statut": statut,
+        }
+        self._session.delete(affectation)
+        self._session.flush()
+        self._trace.record_event(
+            actor_type=ActorType.HUMAIN.value,
+            action=ActionAudit.AFFECTATION_ANNULEE.value,
+            entity_type=_ENTITY,
+            entity_id=affectation.id,
+            before=avant,
+            event_metadata={
+                "retrait": True,
+                "motif": reason or "Annulation d'une proposition en attente",
+            },
+        )
+
     def lister_pour_mission(self, mission_id: UUID) -> list[AffectationEquipe]:
         """Affectations d'une mission, pour la UI de validation."""
         self._get_mission(mission_id)  # NotFoundError si mission absente

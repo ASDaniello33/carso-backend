@@ -106,6 +106,28 @@ def delete_affectation(
 
 
 @router.post(
+    "/affectations/{affectation_id}/annulation",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(exiger_interne)],
+)
+def annuler_affectation(
+    affectation_id: UUID,
+    session: DbSession,
+    user: CurrentUser,
+) -> None:
+    """Annule une proposition d'affectation **encore en attente** (17/10).
+
+    Le geste est celui qui a proposé : la carte de l'AgentRH peut ainsi revenir
+    sur une proposition non décidée. Une affectation approuvée ou refusée est
+    figée (409) — elle porte une décision, pas une intention.
+
+    Distinct du refus : l'annulation retire la proposition de la liste, le refus
+    la conserve comme décision tracée.
+    """
+    AffectationService(session, actor_id=str(user.id)).annuler(affectation_id)
+
+
+@router.post(
     "/affectations/{affectation_id}/approbation",
     response_model=AffectationRead,
     dependencies=[Depends(exiger_interne)],

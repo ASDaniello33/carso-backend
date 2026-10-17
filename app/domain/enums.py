@@ -353,6 +353,10 @@ class ActionAudit(StrEnum):
     AFFECTATION_VALIDEE = "affectation.validee"
     AFFECTATION_REFUSEE = "affectation.refusee"
     AFFECTATION_MODIFIEE = "affectation.modifiee"
+    #: Annulation d'une proposition **jamais décidée** (retrait tracé).
+    #: Distincte du refus : un refus est une décision conservee, une annulation
+    #: retire une proposition sans effet de la liste d'attente.
+    AFFECTATION_ANNULEE = "affectation.annulee"
     BUDGET_APPROUVE = "budget.approuve"
     DOCUMENT_ENREGISTRE = "document.enregistre"
     DOCUMENT_SOUMIS = "document.soumis"

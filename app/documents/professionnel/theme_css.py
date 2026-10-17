@@ -161,6 +161,11 @@ table.layout > tbody > tr > td, table.layout > tr > td { vertical-align: top; pa
 }
 figure { margin: 5mm 0; text-align: center; break-inside: avoid; }
 figure img, p img { max-width: 100%; max-height: 110mm; }
+/* Un schéma écrit par l'agent est un SVG inline : il doit se replier dans la
+   page (mêmes bornes que les images : largeur utile, 110 mm de haut).
+   Mesuré : sans `max-height`, un schéma vertical de 400 x 900 débordait sur
+   3 pages ; avec, il tient sur une page (62 x 110 mm), ratio conservé. */
+figure svg, p svg { max-width: 100%; max-height: 110mm; height: auto; }
 figcaption { font-size: 8.5pt; color: var(--muted); margin-top: 2mm; font-style: italic; }
 .signature { margin-top: 12mm; margin-left: 55%; break-inside: avoid; }
 .page-break { break-after: page; page-break-after: always; height: 0; }

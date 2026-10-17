@@ -1,0 +1,40 @@
+........FF.............................................................. [ 76%]
+......................                                                   [100%]
+================================== FAILURES ===================================
+________________ test_bloc_skills_liste_les_skills_de_l_agent _________________
+
+    def test_bloc_skills_liste_les_skills_de_l_agent() -> None:
+        """Le harnais injecte le contexte : nom + description de chaque skill."""
+        from app.agents.assistant_formateur import DEFINITION as assistant
+        from app.agents.registre_skills import bloc_skills
+    
+        bloc = bloc_skills(assistant)
+        assert "## Skills disponibles" in bloc
+        assert "- generation-document : " in bloc
+        assert "professionnel" in bloc.lower()
+        # Un agent sans skill n'a pas de bloc (pas une section vide qui ment).
+>       assert bloc_skills(assistant.model_copy(update={"skills": ()})) == ""
+                           ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'AgentDefinition' object has no attribute 'model_copy'
+
+tests\test_documents_t1.py:113: AttributeError
+__________________ test_prompt_systeme_inclut_le_bloc_skills __________________
+
+    def test_prompt_systeme_inclut_le_bloc_skills() -> None:
+        """Le harnais met le contexte skills DANS le prompt système (pas à part)."""
+        from app.agents.harness import build_system_prompt
+    
+>       prompt = build_system_prompt(assistant)
+                                     ^^^^^^^^^
+E       NameError: name 'assistant' is not defined
+
+tests\test_documents_t1.py:120: NameError
+============================== warnings summary ===============================
+.venv\Lib\site-packages\starlette\testclient.py:53
+  C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_documents_t1.py::test_bloc_skills_liste_les_skills_de_l_agent
+FAILED tests/test_documents_t1.py::test_prompt_systeme_inclut_le_bloc_skills

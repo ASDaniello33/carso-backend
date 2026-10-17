@@ -70,6 +70,7 @@ LIBELLES_ACTION: dict[str, str] = {
     ActionAudit.AFFECTATION_VALIDEE.value: "Affectation validée",
     ActionAudit.AFFECTATION_REFUSEE.value: "Affectation refusée",
     ActionAudit.AFFECTATION_MODIFIEE.value: "Affectation corrigée",
+    ActionAudit.AFFECTATION_ANNULEE.value: "Proposition d'affectation annulée",
     # Budget
     ActionAudit.BUDGET_APPROUVE.value: "Budget approuvé",
     ActionAudit.BUDGET_LIGNE_AJOUTEE.value: "Ligne de budget ajoutée",

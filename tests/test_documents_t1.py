@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.agents.skills import lister_skills, racine_skills, resoudre_skills
+from app.agents.registre_skills import lister_skills, racine_skills, resoudre_skills
 from app.core.errors import PermissionDeniedError, ValidationError
 from app.documents.cloning import cloner_docx, remplir_template_docx
 from app.documents.generation import build_docx, build_pdf, build_xlsx
@@ -84,4 +84,42 @@ def test_skills_resolus() -> None:
         resoudre_skills(("inexistant",))
     with pytest.raises(ValidationError):
         resoudre_skills(("../etc",))
-    assert racine_skills().name == "agents"
+    racine = racine_skills()
+    assert racine.name == "skills"
+    assert racine.parent.name == "agents"  # livré avec le paquet, pas au bord du repo
+
+
+def test_description_skill_lit_le_frontmatter_plie() -> None:
+    """La description YAML pliée (``>``) est lue sans dépendance yaml."""
+    from app.agents.registre_skills import description_skill
+
+    racine = racine_skills()
+    description = description_skill(racine / "generation-document" / "SKILL.md")
+    assert "DOCX" in description
+    assert "\n" not in description  # bloc plié : une seule ligne lisible
+    assert description_skill(racine / "docx-officiels" / "SKILL.md") != ""
+
+
+def test_bloc_skills_liste_les_skills_de_l_agent() -> None:
+    """Le harnais injecte le contexte : nom + description de chaque skill."""
+    from app.agents.assistant_formateur import DEFINITION as assistant
+    from app.agents.registre_skills import bloc_skills
+
+    bloc = bloc_skills(assistant)
+    assert "## Skills disponibles" in bloc
+    assert "- generation-document : " in bloc
+    assert "professionnel" in bloc.lower()
+    # Un agent sans skill n'a pas de bloc (pas une section vide qui ment).
+    from dataclasses import replace
+
+    assert bloc_skills(replace(assistant, skills=())) == ""
+
+
+def test_prompt_systeme_inclut_le_bloc_skills() -> None:
+    """Le harnais met le contexte skills DANS le prompt système (pas à part)."""
+    from app.agents.assistant_formateur import DEFINITION as assistant
+    from app.agents.harness import build_system_prompt
+
+    prompt = build_system_prompt(assistant)
+    assert "## Skills disponibles" in prompt
+    assert "SKILL.md" in prompt

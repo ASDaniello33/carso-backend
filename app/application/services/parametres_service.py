@@ -153,7 +153,7 @@ class ParametresAgentService:
     @staticmethod
     def _valider_skills(noms: list[str]) -> list[str]:
         """Valide des noms de skills contre le registre (``SKILL.md`` présent)."""
-        from app.agents.skills import lister_skills
+        from app.agents.registre_skills import lister_skills
 
         demandes = sorted({nom for nom in noms if nom})
         if not demandes:

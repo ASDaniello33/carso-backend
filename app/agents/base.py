@@ -53,7 +53,7 @@ class AgentDefinition:
             le schéma Pydantic lui-même est fourni au harnais).
         skills: noms des skills Deep Agents (répertoires ``SKILL.md``) que
             cet agent a le droit de charger. Vide = aucun skill. Le harnais
-            résout ces noms via ``app.agents.skills`` — jamais un chemin
+            résout ces noms via ``app.agents.registre_skills`` — jamais un chemin
             libre fourni par le modèle.
         hitl_scenarios: moments où l'agent interrompt et questionne
             l'utilisateur dans le chat, avec les réponses prédéfinies proposées

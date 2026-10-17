@@ -39,6 +39,7 @@ from app.api.schemas import (
     SessionUpdate,
 )
 from app.application.dto import (
+    BeneficiaireInput,
     DocumentUploadInput,
     ParticipationInscriptionInput,
     ParticipationUpdateInput,
@@ -55,6 +56,7 @@ from app.application.services import (
     SessionService,
 )
 from app.application.services.import_beneficiaires_service import LigneImport
+from app.core.errors import ValidationError
 from app.documents.generation import build_xlsx
 from app.domain.document import Document
 from app.domain.enums import TypeDocument
@@ -200,13 +202,30 @@ def inscrire_beneficiaire(
     """Inscrit un bénéficiaire à la session (409 si déjà inscrit).
 
     Opération de session : ouverte à un formateur **sur ses sessions**, dans la
-    limite de son périmètre.
+    limite de son périmètre. Deux formes : une personne déjà au registre
+    (``beneficiaire_id``) ou une nouvelle fiche (``fiche``), créée puis
+    inscrite — le geste manuel de l'import Excel.
     """
-    return ParticipationService(
+    service = ParticipationService(
         session, actor_id=str(utilisateur.id), perimetre=perimetre
-    ).inscrire(
+    )
+    if payload.fiche is not None:
+        return service.inscrire_avec_fiche(
+            session_id,
+            BeneficiaireInput(
+                nom=payload.fiche.nom,
+                prenom=payload.fiche.prenom,
+                contact=payload.fiche.contact,
+                organisation_origine=payload.fiche.organisation_origine,
+                identifiant_externe=payload.fiche.identifiant_externe,
+            ),
+        )
+    beneficiaire_id = payload.beneficiaire_id
+    if beneficiaire_id is None:  # impossible (validateur) — défense en profondeur
+        raise ValidationError("Fournissez beneficiaire_id ou fiche")
+    return service.inscrire(
         session_id,
-        ParticipationInscriptionInput(beneficiaire_id=payload.beneficiaire_id),
+        ParticipationInscriptionInput(beneficiaire_id=beneficiaire_id),
     )
 
 
