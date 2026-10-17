@@ -1,0 +1,112 @@
+....F................................................F.................. [ 50%]
+..................................................................F..... [100%]
+================================== FAILURES ===================================
+____________ test_document_genere_visible_de_son_compte_seulement _____________
+
+session = <sqlalchemy.orm.session.Session object at 0x000001471EF07F90>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x000001471EEEEB50>
+
+    def test_document_genere_visible_de_son_compte_seulement(
+        session: Session, storage: LocalDocumentStorage
+    ) -> None:
+        """Le formateur retrouve ce qu'il fait générer par l'agent, sans ancre."""
+        utilisateur = uuid4()
+        restreint = DocumentService(
+            session,
+            storage=storage,
+            actor_id="agent_assistant_formateur",
+            perimetre=Perimetre(role="formateur", utilisateur_id=utilisateur, est_complet=False),
+        )
+>       document = restreint.enregistrer_document(
+            DocumentUploadInput(
+                type_document="rapport",
+                nom="note_agent.docx",
+                stream=io.BytesIO(b"contenu"),
+                created_by="agent_assistant_formateur",
+            )
+        )
+
+tests\test_documents_classeur_xlsx.py:133: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app\application\services\document_service.py:237: in enregistrer_document
+    self._exiger_ancre_autorisee(ancre.champ, ancre.entity_id)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <app.application.services.document_service.DocumentService object at 0x000001471EF12810>
+filtre = '', entity_id = UUID('8ff141df-7612-46fb-a3ab-90a6c0728fc1')
+
+    def _exiger_ancre_autorisee(self, filtre: str, entity_id: UUID) -> None:
+        """Refuse une ancre hors périmètre (404 : l'objet reste invisible).
+    
+        Raises:
+            NotFoundError: ancre hors périmètre pour un compte restreint.
+        """
+        perimetre = self._perimetre
+        if perimetre.est_complet:
+            return
+        if filtre == "mission_id" and perimetre.mission_autorisee(entity_id):
+            return
+        if filtre == "session_id":
+            session_formation = self._sessions.get(entity_id)
+            if session_formation is not None and perimetre.mission_autorisee(
+                session_formation.mission_id
+            ):
+                return
+        if filtre == "equipe_id" and perimetre.equipe_autorisee(entity_id):
+            return
+>       raise NotFoundError(
+            "Documents introuvables pour votre périmètre",
+            details={"filtre": filtre},
+        )
+E       app.core.errors.NotFoundError: Documents introuvables pour votre périmètre
+
+app\application\services\document_service.py:1267: NotFoundError
+_________________ test_catalogue_aligne_sur_les_hooks_client __________________
+
+    def test_catalogue_aligne_sur_les_hooks_client() -> None:
+        """Chaque outil du catalogue a un hook ; aucun nom inventé."""
+        attendus = {
+            "naviguer_vers",
+            "afficher_tableau_donnees",
+            "proposer_telechargement_document",
+            "afficher_synthese_lecture",
+            "afficher_resultats_web",
+            "afficher_lots_appel",
+            "proposer_creation_mission",
+            "afficher_proposition_affectation",
+            "afficher_liste_beneficiaires",
+            "afficher_tableau_import_beneficiaires",
+            "afficher_indicateurs",
+            "generer_dashboard",
+            "poser_questionnaire",
+        }
+>       assert {outil.name for outil in OUTILS_FRONTEND} == attendus
+E       AssertionError: assert {'afficher_in...lecture', ...} == {'afficher_in...lecture', ...}
+E         
+E         Extra items in the left set:
+E         'page_actuelle'
+E         Use -v to get more diff
+
+tests\test_frontend_tools_liaison.py:368: AssertionError
+_________________ test_tool_refuse_un_format_hors_vocabulaire _________________
+
+service = <app.application.services.document_service.DocumentService object at 0x0000014720E52210>
+
+    def test_tool_refuse_un_format_hors_vocabulaire(service: DocumentService) -> None:
+        outil = _tools(service)["generer_document_professionnel"]
+        sortie = outil.invoke(_payload(None, format="xlsx"))
+    
+>       assert sortie["ok"] is False
+E       assert True is False
+
+tests\test_documents_professionnel.py:288: AssertionError
+============================== warnings summary ===============================
+.venv\Lib\site-packages\starlette\testclient.py:53
+  C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_documents_classeur_xlsx.py::test_document_genere_visible_de_son_compte_seulement
+FAILED tests/test_frontend_tools_liaison.py::test_catalogue_aligne_sur_les_hooks_client
+FAILED tests/test_documents_professionnel.py::test_tool_refuse_un_format_hors_vocabulaire

@@ -66,6 +66,22 @@ OUTILS_FRONTEND: tuple[OutilFrontend, ...] = (
         usage="Après une lecture, amener l'utilisateur sur la fiche concernée.",
     ),
     OutilFrontend(
+        name="page_actuelle",
+        description=(
+            "Lit la page actuellement ouverte par l'utilisateur : chemin, section, "
+            "identifiant de l'entité affichée et ancre documentaire suggérée "
+            "(appel_a_proposition_id, offre_id, session_id, mission_id, equipe_id). "
+            "À appeler AVANT de générer ou déposer un document quand l'utilisateur "
+            "est sur une fiche : le document se rattache au bon élément sans "
+            "demander d'UUID. Lecture seule : ne modifie rien."
+        ),
+        agents=TOUS_LES_AGENTS_UI,
+        usage=(
+            "Avant generer_document / generer_document_professionnel : récupérer "
+            "l'ancre réelle de la page ouverte (recopier les champs tels quels)."
+        ),
+    ),
+    OutilFrontend(
         name="afficher_tableau_donnees",
         description=(
             "Affiche des lignes métier déjà lues (appels, offres, missions, "
@@ -383,6 +399,16 @@ class PayloadNavigation(BaseModel):
     url: str = Field(description="Chemin d'une page, par exemple /offres/<id>.")
     libelle: str | None = Field(default=None, description="Texte du bouton.")
     raison: str | None = Field(default=None, description="Pourquoi ouvrir cette page.")
+
+
+class PayloadPageActuelle(BaseModel):
+    """Arguments de ``page_actuelle`` : aucun.
+
+    L'outil lit l'écran courant du navigateur : tout argument serait une
+    invention du modèle, il n'en accepte donc aucun.
+    """
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class PayloadTelechargement(BaseModel):
@@ -710,6 +736,7 @@ class PayloadResultatsWeb(BaseModel):
 
 SCHEMAS_FRONTEND: dict[str, type[BaseModel]] = {
     "naviguer_vers": PayloadNavigation,
+    "page_actuelle": PayloadPageActuelle,
     "afficher_tableau_donnees": PayloadTableau,
     "afficher_resultats_web": PayloadResultatsWeb,
     "proposer_telechargement_document": PayloadTelechargement,

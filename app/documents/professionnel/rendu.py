@@ -49,12 +49,14 @@ from .verification import verifier
 
 __all__ = ["FORMATS_PROFESSIONNEL", "ORIENTATIONS", "RenduProfessionnel", "rendre_professionnel"]
 
-#: Formats de sortie du moteur (vocabulaire fermé : ni xlsx, ni html).
-#: ``pptx`` est le deck natif 16:9 (``presentation`` + ``pptx_renderer``).
-FORMATS_PROFESSIONNEL = ("pdf", "docx", "pptx")
+#: Formats de sortie du moteur (vocabulaire fermé : ni html).
+#: ``pptx`` est le deck natif 16:9 (``presentation`` + ``pptx_renderer``) ;
+#: ``xlsx`` le classeur natif (``xlsx_renderer`` : les tableaux du corps).
+FORMATS_PROFESSIONNEL = ("pdf", "docx", "pptx", "xlsx")
 
-#: Un deck ne se met pas en page A4 : l'orientation est ignorée (jamais refusée).
-FORMATS_SANS_ORIENTATION = ("pptx",)
+#: Un deck ne se met pas en page A4 ; un classeur non plus. Ignorées, jamais
+#: refusées.
+FORMATS_SANS_ORIENTATION = ("pptx", "xlsx")
 
 #: Orientations A4 acceptées.
 ORIENTATIONS = ("portrait", "paysage")
@@ -93,6 +95,97 @@ class RenduProfessionnel:
         if self.avertissements:
             return "Corrige les avertissements puis regenere le document avant de le presenter."
         return "Rendu sans avertissement : verifie tout de meme l'apercu des pages."
+
+
+def _rendre_classeur(
+    contenu_html: str,
+    titre: str,
+    *,
+    theme: str,
+    auteur: str,
+    base_dir: str | Path | None,
+    graphiques: Mapping[str, Mapping[str, Any]] | None,
+) -> RenduProfessionnel:
+    """Corps HTML → classeur Excel natif (les tableaux du document).
+
+    Chaque ``table.data`` devient une feuille stylée ; les ``table.kpi`` une
+    feuille « Chiffres clés » ; sans tableau, refus explicite (jamais un .xlsx
+    vide livré). Un PDF jumeau rend le classeur prévisualisable, comme pour un
+    DOCX.
+    """
+    from .xlsx_renderer import rendre_xlsx
+
+    if not contenu_html or not contenu_html.strip():
+        raise ValidationError("contenu_html est vide : rien à rendre.")
+    if theme not in THEMES:
+        raise ValidationError(
+            f"Thème inconnu : {theme!r}",
+            details={"themes_disponibles": list(THEMES)},
+        )
+    avertissements: list[str] = []
+    if graphiques:
+        avertissements.append(
+            "Paramètre 'graphiques' sans effet sur un classeur xlsx : les "
+            "graphiques ne s'intègrent qu'aux formats pdf, docx et pptx."
+        )
+    # Nettoyage de sécurité commun (scripts, on*, SVG assainis) ; la couverture
+    # est remise en tête pour ne rien perdre, puis on extrait les tableaux.
+    document = preparer(contenu_html)
+    corps = (document.couverture or "") + document.corps
+    avertissements.extend(verifier(contenu_html, format="xlsx", orientation="portrait"))
+
+    with tempfile.TemporaryDirectory(prefix="carso_gendoc_") as dossier:
+        chemin = rendre_xlsx(
+            corps,
+            Path(dossier) / f"{_NOM_INTERNE}.xlsx",
+            theme=theme,
+            titre=titre,
+            auteur=auteur,
+        )
+        octets = Path(chemin).read_bytes()
+
+    # Le PDF jumeau rend le classeur prévisualisable (render_document ne rend
+    # que des PDF) ; son absence est annoncée, jamais silencieuse.
+    pdf_jumeau: bytes | None = None
+    disponible, raison = navigateur_disponible()
+    if disponible:
+        try:
+            doc, avertissements_insertion = _preparer_document(
+                contenu_html, "pdf", "portrait", theme, graphiques
+            )
+            avertissements.extend(avertissements_insertion)
+            with tempfile.TemporaryDirectory(prefix="carso_gendoc_") as dossier:
+                chemin_pdf = Path(dossier) / f"{_NOM_INTERNE}_apercu.pdf"
+                rendre_pdf(
+                    doc,
+                    chemin_pdf,
+                    css_supplementaire="",
+                    theme=theme,
+                    titre=titre,
+                    auteur=auteur,
+                    orientation="portrait",
+                    base_dir=Path(base_dir) if base_dir else None,
+                )
+                pdf_jumeau = chemin_pdf.read_bytes()
+        except Exception as erreur:  # noqa: BLE001 - dégradation annoncée
+            avertissements.append(
+                "PDF jumeau indisponible (le classeur reste livrable) : "
+                f"{type(erreur).__name__}: {_sans_chemin(str(erreur))}"
+            )
+    else:
+        avertissements.append(
+            "PDF jumeau indisponible (le classeur reste livrable, sans aperçu "
+            f"des pages) : {raison}"
+        )
+
+    return RenduProfessionnel(
+        octets=octets,
+        format="xlsx",
+        pages=None,
+        avertissements=tuple(avertissements),
+        jumeau_pdf=pdf_jumeau,
+        theme=theme,
+    )
 
 
 def _rendre_presentation(
@@ -247,7 +340,8 @@ def rendre_professionnel(
             retirés : le thème est injecté par le moteur). Chaque emplacement de
             graphique s'écrit ``<figure data-graphique="id"></figure>``.
         titre: titre du document (en-tête de page, métadonnées).
-        format: ``pdf`` (défaut), ``docx`` ou ``pptx`` (diapositives 16:9).
+        format: ``pdf`` (défaut), ``docx``, ``pptx`` (diapositives 16:9) ou
+            ``xlsx`` (classeur : les tableaux du corps).
         auteur: auteur inscrit dans les métadonnées.
         theme: ``corporate``, ``moderne`` ou ``nature``.
         orientation: ``portrait`` (défaut) ou ``paysage``.
@@ -270,6 +364,16 @@ def rendre_professionnel(
     orientation = (orientation or "portrait").strip().lower()
     theme = (theme or "corporate").strip().lower()
     titre = (titre or "").strip() or "Document"
+
+    if format == "xlsx":
+        return _rendre_classeur(
+            contenu_html,
+            titre,
+            theme=theme,
+            auteur=auteur,
+            base_dir=base_dir,
+            graphiques=graphiques,
+        )
 
     if format == "pptx":
         return _rendre_presentation(

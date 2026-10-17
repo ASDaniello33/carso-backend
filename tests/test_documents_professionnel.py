@@ -282,8 +282,10 @@ def test_tool_ne_renvoie_aucun_chemin_disque(
 
 
 def test_tool_refuse_un_format_hors_vocabulaire(service: DocumentService) -> None:
+    # ``xlsx`` est devenu un format du moteur (incrément 74) : le hors
+    # vocabulaire est désormais un format qui n'existe pas du tout.
     outil = _tools(service)["generer_document_professionnel"]
-    sortie = outil.invoke(_payload(None, format="xlsx"))
+    sortie = outil.invoke(_payload(None, format="flac"))
 
     assert sortie["ok"] is False
 

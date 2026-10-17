@@ -365,6 +365,9 @@ Le retour porte `statut`, `nom`, `type_document`, `pages`, `avertissements`,
   avoir au moins un élément visuel (kpi, tableau, encadré, graphique) quand le contenu s'y prête.
 - Numéroter les sections des documents longs (1., 1.1…).
 - Chiffres au format français : `1 250`, `4 800 €`, `12,5 %`.
+- **Jamais le tiret cadratin « — »** dans un document : le remplacer par « : »,
+  une virgule ou des parenthèses (le moteur remonte un avertissement et il
+  faudra régénérer).
 - Éviter : « Il est important de noter que », « Dans un monde en constante
   évolution », « jouer un rôle crucial », « En somme », « Plongeons »,
   « N'hésitez pas à ».

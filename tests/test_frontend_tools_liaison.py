@@ -353,6 +353,7 @@ def test_catalogue_aligne_sur_les_hooks_client() -> None:
     attendus = {
         "naviguer_vers",
         "afficher_tableau_donnees",
+        "page_actuelle",
         "proposer_telechargement_document",
         "afficher_synthese_lecture",
         "afficher_resultats_web",

@@ -470,15 +470,22 @@ class GenererDocumentProfessionnelInput(BaseModel):
             "un <style> est supprimé et signalé en avertissement). "
             "Données : uniquement des informations réelles issues de lectures "
             "(search_*, read_document) ou de l'utilisateur — une donnée absente "
-            "s'écrit '(à compléter)', jamais une invention."
-            " DECK PPTX (format='pptx') : même paramètre, mais le corps est une "
+            "s'écrit '(à compléter)', jamais une invention. "
+            "DECK PPTX (format='pptx') : même paramètre, mais le corps est une "
             "suite de diapositives — une <section class='cover'> (title de "
             "couverture, .cover-label, .cover-subtitle, .cover-meta) puis une "
             "<section class='slide'> par diapositive (h1 = titre, p.lead = "
             "message clé, ul/ol, table.kpi, table.data, figure, div.callout, "
             "aside.notes = notes présentateur). Une idée par diapositive, "
             "6 puces maximum : le moteur REFUSE ce qui déborderait plutôt que "
-            "de rogner le texte."
+            "de rogner le texte. "
+            "CLASSEUR XLSX (format='xlsx') : chaque table.data (thead + lignes, "
+            "classe 'num' sur les colonnes de chiffres) devient une feuille "
+            "stylée (en-tête figé, colonnes dimensionnées, lignes alternées) "
+            "nommée d'après le titre qui la précède ; les table.kpi alimentent "
+            "une feuille « Chiffres clés ». Un PDF jumeau est déposé pour "
+            "l'aperçu. SANS AUCUN TABLEAU, l'appel échoue : pour un document "
+            "texte, choisir pdf/docx."
         ),
     )
     titre: str = Field(
@@ -489,11 +496,13 @@ class GenererDocumentProfessionnelInput(BaseModel):
             "les métadonnées du fichier. Titre court et explicite."
         ),
     )
-    format: Literal["pdf", "docx", "pptx"] = Field(
+    format: Literal["pdf", "docx", "pptx", "xlsx"] = Field(
         description=(
             "Format cible. 'pdf' (défaut de fait pour un livrable à remettre), "
             "'docx' seulement si l'utilisateur doit modifier le fichier, "
-            "'pptx' pour une présentation/deck 16:9 native (PowerPoint)."
+            "'pptx' pour une présentation/deck 16:9 native (PowerPoint), "
+            "'xlsx' pour un classeur Excel stylé (chaque table.data devient une "
+            "feuille : exige au moins un tableau dans le contenu)."
         )
     )
     theme: Literal["corporate", "moderne", "nature"] = Field(
@@ -1425,7 +1434,10 @@ def build_document_tools(
         if rendu.avertissements:
             sortie["avertissements"] = list(rendu.avertissements)
         sortie["conseil"] = rendu.conseil
-        libelle = "Présentation" if rendu.format == "pptx" else "Document professionnel"
+        libelle = {
+            "pptx": "Présentation",
+            "xlsx": "Classeur Excel",
+        }.get(rendu.format, "Document professionnel")
         sortie["message"] = (
             f"{libelle} généré et déposé en statut 'proposed' sans "
             f"rattachement métier (generated/{sortie['document_id']}). "
@@ -2162,7 +2174,7 @@ def build_document_tools(
         TypedTool(
             name="generer_document_professionnel",
             description=(
-                "GÉNÉRATION PRIORITAIRE d'un livrable DOCX, PDF ou PPTX : écris le "
+                "GÉNÉRATION PRIORITAIRE d'un livrable DOCX, PDF, PPTX ou XLSX : écris le "
                 "**corps** du document en HTML avec les classes du thème "
                 "(cover, toc, lead, table.kpi, table.data, callout, table.layout, "
                 "badge, page-break, signature) et le moteur se charge du design — "
@@ -2181,6 +2193,9 @@ def build_document_tools(
                 "div.callout, aside.notes). Le moteur REFUSE une diapositive "
                 "dont le texte déborderait (message « scinde la diapositive ») "
                 "plutôt que de le rogner. "
+                "CLASSEUR : format='xlsx' rend chaque table.data en feuille Excel "
+                "stylée (thème, en-tête figé, filtre automatique) : exige au moins "
+                "un tableau. "
                 "Graphiques de DONNÉES via le paramètre ``graphiques`` (ancre "
                 "<figure data-graphique='id'></figure>) ; SCHÉMAS et "
                 "ILLUSTRATIONS en écrivant toi-même un <svg> inline dans "

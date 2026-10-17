@@ -93,6 +93,15 @@ def verifier(contenu: str, format: str = "pdf", orientation: str = "portrait") -
             + " -> remplace par une vraie valeur."
         )
 
+    # Typographie imposée : le tiret cadratin n'a pas sa place dans un
+    # livrable CARSO (demande 17/10). Le constat est hors SVG : un <text>
+    # de schéma n'est pas de la prose.
+    if "—" in hors_svg.get_text(" ", strip=True):
+        avertissements.append(
+            "Tiret cadratin « — » détecté : à ne jamais utiliser dans un "
+            "document ; remplace-le par « : », une virgule ou des parenthèses."
+        )
+
     if not soup.find("h1"):
         avertissements.append("Aucun titre <h1> : la hiérarchie du document est absente.")
 

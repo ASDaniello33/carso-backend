@@ -1,0 +1,87 @@
+....F................................................................... [ 32%]
+........................................................................ [ 64%]
+........................................................................ [ 97%]
+......                                                                   [100%]
+================================== FAILURES ===================================
+____________ test_document_genere_visible_de_son_compte_seulement _____________
+
+session = <sqlalchemy.orm.session.Session object at 0x0000027007A01750>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x0000027007A02910>
+
+    def test_document_genere_visible_de_son_compte_seulement(
+        session: Session, storage: LocalDocumentStorage
+    ) -> None:
+        """Le formateur retrouve ce qu'il fait générer par l'agent, sans ancre."""
+        utilisateur = uuid4()
+        restreint = DocumentService(
+            session,
+            storage=storage,
+            actor_id="agent_assistant_formateur",
+            perimetre=Perimetre(role="formateur", utilisateur_id=utilisateur, est_complet=False),
+        )
+>       document = restreint.enregistrer_document(
+            DocumentUploadInput(
+                type_document="rapport",
+                nom="note_agent.docx",
+                stream=io.BytesIO(b"contenu"),
+                created_by="agent_assistant_formateur",
+            )
+        )
+
+tests\test_documents_classeur_xlsx.py:133: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app\application\services\document_service.py:261: in enregistrer_document
+    self._materialiser(document, chemin_logique, entree)
+app\application\services\document_service.py:1476: in _materialiser
+    stocke = self.storage.save(chemin_logique, entree.stream)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\documents\storage.py:114: in save
+    regle = inspect_file(temporaire, nom_fichier=definitif.name)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+path = WindowsPath('C:/Users/Asus/AppData/Local/Temp/pytest-of-Asus/pytest-1036/test_document_genere_visible_d0/carso/generated/bbebe957-824c-45a5-8abb-35898816a076/.part-bcaa4e524aa543ac82816eb5401473c9.docx')
+nom_fichier = 'note_agent.docx'
+
+    def inspect_file(path: Path, *, nom_fichier: str) -> FileTypeRule:
+        """Valide le contenu d'un fichier et renvoie sa règle de type.
+    
+        Le fichier doit être un fichier temporaire **déjà écrit** mais pas encore
+        publié sous son nom définitif : rien d'invalide n'apparaît dans
+        l'arborescence documentaire.
+    
+        Args:
+            path: chemin du fichier temporaire à inspecter.
+            nom_fichier: nom définitif (détermine l'extension attendue).
+    
+        Returns:
+            La ``FileTypeRule`` correspondante (MIME de confiance côté serveur).
+    
+        Raises:
+            ValidationError: extension hors allowlist, signature incohérente,
+                archive OOXML invalide, ou texte non décodable.
+        """
+        extension = extension_of(nom_fichier)
+        regle = FILE_TYPES.get(extension)
+        if regle is None:
+            msg = f"Extension de fichier non autorisée : .{extension or '?'}"
+            raise ValidationError(msg, details={"extensions_autorisees": sorted(ALLOWED_EXTENSIONS)})
+    
+        entete = _read_head(path, taille=_LECTURE_ENTETE)
+        if not signature_valide(entete, regle):
+            msg = (
+                "Le contenu du fichier ne correspond pas à son extension "
+                f"(.{extension}) : signature binaire invalide"
+            )
+>           raise ValidationError(msg, details={"extension": extension})
+E           app.core.errors.ValidationError: Le contenu du fichier ne correspond pas à son extension (.docx) : signature binaire invalide
+
+app\documents\validation.py:152: ValidationError
+============================== warnings summary ===============================
+.venv\Lib\site-packages\starlette\testclient.py:53
+  C:\Users\Asus\Documents\CARSO_AI\backend\.venv\Lib\site-packages\starlette\testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_documents_classeur_xlsx.py::test_document_genere_visible_de_son_compte_seulement

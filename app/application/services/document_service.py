@@ -121,6 +121,12 @@ _ANCHORS: dict[str, str] = {
 
 _META_KEY = "proposed_by_agent"
 
+#: Compte pour lequel un document a été créé sous périmètre restreint : un
+#: formateur qui fait générer un document par l'agent (ou le dépose lui-même)
+#: doit toujours le retrouver dans Documents, même sans ancre métier
+#: (incrément 74 : « tous les utilisateurs accèdent à ce qu'ils génèrent »).
+_META_GENERE_POUR = "genere_pour"
+
 #: Clé du *tombstone* écrit dans ``doc_metadata`` à la suppression logique :
 #: qui, quand, pourquoi — la fiche survit au fichier. Il porte aussi l'échéance
 #: de conservation et le statut de retour (ADR 0006).
@@ -168,6 +174,16 @@ def document_dans_perimetre(
         )
     if document.equipe_id is not None:
         return perimetre.equipe_autorisee(document.equipe_id)
+    # Sans ancre métier : visible du compte qui l'a créée ou fait produire
+    # par l'agent — jamais du reste d'un compte restreint (incrément 74).
+    # L'ancre prime : un document rattaché à une autre mission reste caché,
+    # même s'il a été créé par ce compte.
+    if perimetre.utilisateur_id is not None:
+        pour = str(perimetre.utilisateur_id)
+        if document.created_by == pour:
+            return True
+        meta = document.doc_metadata or {}
+        return meta.get(_META_GENERE_POUR) == pour
     return False
 
 
@@ -1238,6 +1254,11 @@ class DocumentService:
         perimetre = self._perimetre
         if perimetre.est_complet:
             return
+        if not filtre:
+            # Sans ancre, le document part en ``generated/{id}`` (non_classe) :
+            # le dépôt d'un compte restreint est légitime et la fiche reste
+            # visible de son demandeur via ``genere_pour`` (incrément 74).
+            return
         if filtre == "mission_id" and perimetre.mission_autorisee(entity_id):
             return
         if filtre == "session_id":
@@ -1648,17 +1669,21 @@ class DocumentService:
             return StatutDocument.PROPOSED.value
         return StatutDocument.DRAFT.value
 
-    @staticmethod
-    def _metadonnees(entree: DocumentUploadInput) -> dict[str, object] | None:
-        """Métadonnées de la fiche : celles fournies, plus la trace d'agent.
+    def _metadonnees(self, entree: DocumentUploadInput) -> dict[str, object] | None:
+        """Métadonnées de la fiche : celles fournies, plus les traces d'origine.
 
         Les métadonnées apportées par l'appelant (provenance d'un média importé
-        du web, par exemple) sont conservées telles quelles ; la clé d'agent est
-        ajoutée **après**, donc jamais écrasée par une valeur d'appelant.
+        du web, par exemple) sont conservées telles quelles ; les clés de trace
+        (agent, compte demandeur) sont ajoutées **après**, donc jamais écrasées
+        par une valeur d'appelant.
         """
         meta: dict[str, object] = dict(entree.doc_metadata or {})
         if entree.proposed_by_agent:
             meta[_META_KEY] = entree.proposed_by_agent
+        if not self._perimetre.est_complet and self._perimetre.utilisateur_id is not None:
+            # Créé sous périmètre restreint : le compte garde la vue sur son
+            # document, ancre ou pas (voir ``document_dans_perimetre``).
+            meta.setdefault(_META_GENERE_POUR, str(self._perimetre.utilisateur_id))
         return meta or None
 
     def _acteur(self, entree: DocumentUploadInput) -> str:

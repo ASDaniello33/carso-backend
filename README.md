@@ -31,6 +31,40 @@ alembic upgrade head          # depuis backend/ avec .env configuré
 La migration `0001` est une base vide : les entités métier arrivent en Phase 3
 après validation du modèle (`../docs/analysis/PHASE0_INVENTORY.md §7`).
 
+### Supabase (base de déploiement)
+
+Le schéma complet est livré dans `scripts/supabase_init.sql` (les 22
+migrations repliées, `alembic_version = 0022`) : à coller **une seule fois**
+dans le SQL Editor d'un projet Supabase vierge. Alembic reprend ensuite la main
+sur les migrations suivantes (`alembic upgrade head`).
+
+`DATABASE_URL` doit viser le **pooler de session**, jamais le direct endpoint :
+ce dernier (`db.<ref>.supabase.co:5432`) est **IPv6-only** par défaut et reste
+injoignable depuis une machine sans routage IPv6 — symptôme : `connection
+timeout expired`, checkpointer en mémoire, configs MCP non résolues.
+
+```bash
+# .env — hôte et utilisateur repris du dialogue Connect du projet Supabase :
+DATABASE_URL=postgresql+psycopg://postgres.<ref>:<mot_de_passe>@aws-N-<region>.pooler.supabase.com:5432/postgres?sslmode=require
+```
+
+Quatre pièges documentés (vérifiés le 17/10/2026, projet « Carso », eu-west-1) :
+
+- **mode session (5432), pas transaction (6543)** : psycopg3 et SQLAlchemy
+  utilisent les prepared statements, que le mode transaction refuse — les
+  échecs n'apparaîtraient qu'après la 5ᵉ requête identique ;
+- l'utilisateur du pooler est `postgres.<ref>`, **pas** `postgres` (sinon
+  `ENOIDENTIFIER`) ;
+- l'index `aws-N` **n'est pas déductible de la région** : `aws-0-eu-west-1`
+  répond mais ne connaît pas le tenant (`ENOTFOUND`) — reprendre l'hôte exact
+  du dialogue Connect (ici `aws-1-eu-west-1.pooler.supabase.com`) ;
+- `sslmode=require` est obligatoire (Supabase n'accepte que TLS).
+
+Le premier administrateur est créé **au démarrage** si `BOOTSTRAP_ADMIN_EMAIL`
+et `BOOTSTRAP_ADMIN_PASSWORD` (≥ 8 caractères) sont posés dans `.env` —
+création idempotante, voir `../docs/api/AUTH.md`. Les secrets de déploiement
+restent dans l'environnement du backend, jamais dans le SQL.
+
 ## Génération documentaire professionnelle (option)
 
 Le tool `generer_document_professionnel` (thème injecté, couverture, sommaire

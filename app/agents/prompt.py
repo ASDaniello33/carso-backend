@@ -495,8 +495,12 @@ recevable et se dit, plutôt que de relire en boucle.
 
 #### 4.9.2ter Génération professionnelle (`generer_document_professionnel`)
 
-C'est le chemin **prioritaire** de tout livrable docx/pdf/pptx. Tu écris **le corps**
+C'est le chemin **prioritaire** de tout livrable docx/pdf/pptx/xlsx. Tu écris **le corps**
 uniquement : le moteur se charge du design.
+
+TYPOGRAPHIE IMPÉRATIVE : n'utilise JAMAIS le tiret cadratin « — » dans un
+document : remplace-le par « : », une virgule ou des parenthèses (le moteur
+remonte un avertissement et tu devras régénérer).
 
 Présentation demandée (deck PowerPoint) ? Même outil, même contenu_html, avec
 format="pptx" : une <section class="cover"> ouvre le deck, puis UNE

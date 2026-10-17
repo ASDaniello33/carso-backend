@@ -200,3 +200,12 @@ def test_image_distante_en_docx_uniquement() -> None:
 
     assert _contient(verifier(html, "docx"), "Image distante")
     assert not _contient(verifier(html, "pdf"), "Image distante")
+
+
+def test_tiret_cadratin_signale() -> None:
+    """Typographie imposée : le « — » est refusé au profit de « : », « , », « () ». """
+    assert _contient(verifier("<h1>T</h1><p>Le bilan — solide et détaillé.</p>"), "Tiret cadratin")
+    assert not _contient(
+        verifier("<h1>T</h1><p>Le bilan : solide et détaillé (deux axes).</p>"),
+        "Tiret cadratin",
+    )

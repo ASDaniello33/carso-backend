@@ -1,0 +1,3 @@
+npm notice run frontend@0.1.0 npx
+npm notice run tsc --noEmit
+src/app/(prive)/documents/page.tsx(125,52): error TS2367: This comparison appears to be unintentional because the types '"appel_offre" | "appel_proposition" | "rapport" | "template" | "cv" | "fiche_presence" | "liste_beneficiaires" | "fiche_technique" | "checklist" | "justificatif" | "budget" | "autre" | "non_classe"' and '"offre_formation"' have no overlap.
