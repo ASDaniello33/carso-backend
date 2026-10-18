@@ -39,16 +39,22 @@ from __future__ import annotations
 
 import json
 import re
-import time
 from dataclasses import dataclass
 from typing import Any, Literal
-from urllib.parse import parse_qs, urljoin, urlsplit
+from urllib.parse import urljoin, urlsplit
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.errors import ValidationError
 from app.documents.telechargement import url_publique_verifiee
+from app.tools.fournisseurs_recherche import (
+    EN_TETES,
+    TIMEOUT_HTTP,
+    pages_duckduckgo,
+    pages_langsearch,
+    soupe,
+)
 from app.tools.permissions import AgentIdentity, PermissionPolicy
 
 __all__ = [
@@ -71,26 +77,9 @@ _MAX_RESULTATS = 10
 #: Borne du schéma ``read_urls`` : la configuration peut serrer en dessous
 #: (``web_read_urls_max``), jamais au-delà.
 _MAX_URLS = 8
-_TIMEOUT_HTTP = 15.0
 _MAX_REDIRECTIONS = 3
 _STATUTS_REDIRECTION = frozenset({301, 302, 303, 307, 308})
-#: Refus **temporaires** : ils valent une seconde tentative avant d'être annoncés.
-_STATUTS_TEMPORAIRES = frozenset({429, 500, 502, 503, 504})
-_TENTATIVES = 2
-_ATTENTE_BASE = 1.5
 _BLOC_LECTURE = 65_536
-
-#: Identité déclarée : un agent CARSO qui lit une page publique n'est pas un
-#: navigateur anonyme (mêmes en-têtes que la recherche média).
-_EN_TETES = {
-    "User-Agent": "CARSO-AI/1.0 (+agent interne CARSO)",
-    "Accept": "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
-    "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.5",
-}
-
-#: Page publique de résultats DuckDuckGo : la seule à honorer ``df`` (fraîcheur)
-#: sans exiger de jeton ``vqd``.
-_PAGE_DUCKDUCKGO = "https://html.duckduckgo.com/html/"
 
 # --- Fraîcheur ---------------------------------------------------------------
 #: Vocabulaire reçu → jeton LangSearch. Les deux vocabulaires (API et moteur) et
@@ -212,212 +201,11 @@ class WebSearchInput(BaseModel):
         return _fraicheur_canonique(valeur)
 
 
-def _url_reelle(brut: str) -> str:
-    """Adresse visée par un résultat de moteur : l'enveloppe ``uddg=`` est retirée.
-
-    Rendre l'enveloppe ferait croire que la page est hébergée chez le moteur ;
-    c'est l'adresse réelle qui est présentée à l'agent et à l'utilisateur.
-    """
-    absolue = (brut or "").strip()
-    if absolue.startswith("//"):
-        absolue = f"https:{absolue}"
-    if "uddg=" not in absolue:
-        return absolue
-    vise = parse_qs(urlsplit(absolue).query).get("uddg")
-    return vise[0] if vise else absolue
-
-
 def _cle_url(url: str) -> str:
     """Clé de dédoublonnage : schéma et hôte insensibles à la casse, fragment ignoré."""
     parties = urlsplit((url or "").strip())
     chemin = parties.path.rstrip("/")
     return f"{parties.scheme.lower()}://{parties.netloc.lower()}{chemin}?{parties.query}"
-
-
-def _attendre(secondes: float) -> None:
-    """Pause entre deux tentatives (remplacée dans les tests : aucune attente)."""
-    time.sleep(secondes)
-
-
-def _envoyer(
-    client: httpx.Client,
-    methode: str,
-    url: str,
-    *,
-    params: dict[str, Any] | None = None,
-    donnees: dict[str, Any] | None = None,
-    corps: dict[str, Any] | None = None,
-    entetes: dict[str, str] | None = None,
-    timeout: float,
-) -> httpx.Response:
-    """Une requête HTTP, avec une reprise brève sur un échec **transitoire**.
-
-    Un fournisseur ne refuse pas toujours franchement : une rafale reçoit un
-    « 202 » (accusé de réception, corps vide) ou un « 429 » avant d'être servie.
-    Un échec **réseau** (``ConnectTimeout``, DNS, connexion coupée) est traité
-    pareil : retenté, puis converti en erreur **métier** explicite — laissé
-    brut, il traverserait le tool, crasherait le graphe LangGraph et tuerait
-    tout le run AG-UI au lieu d'être dit à l'agent.
-    """
-    reponse: httpx.Response | None = None
-    dernier_echec: httpx.RequestError | None = None
-    for essai in range(_TENTATIVES):
-        if essai:
-            _attendre(_ATTENTE_BASE * essai)
-        try:
-            reponse = client.request(
-                methode,
-                url,
-                params=params,
-                data=donnees,
-                json=corps,
-                headers=entetes,
-                timeout=timeout,
-                follow_redirects=False,
-            )
-        except httpx.RequestError as erreur:
-            dernier_echec = erreur
-            continue
-        if reponse.status_code not in _STATUTS_TEMPORAIRES:
-            return reponse
-    if reponse is not None:
-        return reponse
-    cause = type(dernier_echec).__name__ if dernier_echec else "réseau"
-    msg = (
-        f"Service web injoignable depuis le serveur ({cause} après "
-        f"{_TENTATIVES} tentatives) : réseau sortant indisponible ou fournisseur "
-        "momentanément inaccessible. Réessayer plus tard."
-    )
-    raise ValidationError(msg, details={"cause": cause}) from dernier_echec
-
-
-def _chercher_langsearch(
-    client: httpx.Client,
-    *,
-    cle: str,
-    base_url: str,
-    requete: str,
-    nb: int,
-    fraicheur: str,
-    include_domains: list[str] | None,
-    exclude_domains: list[str] | None,
-    texte_complet: bool,
-    max_caracteres: int,
-) -> tuple[list[dict[str, Any]], dict[str, Any], str | None]:
-    """Résultats LangSearch — ``(resultats, usage, log_id)``.
-
-    Raises:
-        ValidationError: appel refusé (statut non 200, corps illisible).
-    """
-    # Endpoint officiel : POST /v1/web-search (tiret, docs.langsearch.com).
-    corps: dict[str, Any] = {"query": requete, "count": nb, "freshness": fraicheur}
-    if include_domains:
-        corps["includeDomains"] = list(include_domains)
-    if exclude_domains:
-        corps["excludeDomains"] = list(exclude_domains)
-    if texte_complet:
-        corps["contents"] = {"text": {"max_characters": max_caracteres}}
-
-    reponse = _envoyer(
-        client,
-        "POST",
-        f"{base_url}/v1/web-search",
-        corps=corps,
-        # SecretStr : la clé est déballée uniquement pour cet en-tête.
-        entetes={"Authorization": f"Bearer {cle}", "Content-Type": "application/json"},
-        timeout=_TIMEOUT_HTTP,
-    )
-    if reponse.status_code != 200:
-        msg = f"LangSearch a répondu {reponse.status_code} (recherche web refusée)"
-        raise ValidationError(msg, details={"status": reponse.status_code})
-
-    try:
-        donnees = json.loads(reponse.text)
-    except ValueError as erreur:
-        # Un 200 non-JSON (mur anti-bot, corps tronqué) ne doit pas sortir en
-        # JSONDecodeError brut : ce serait un run AG-UI interrompu au lieu
-        # d'une erreur dite à l'agent.
-        msg = (
-            "LangSearch a répondu un corps illisible (JSON attendu) : recherche "
-            "abandonnée, aucun résultat n'est inventé"
-        )
-        raise ValidationError(msg) from erreur
-    brut = donnees.get("data", {}).get("webPages", {}).get("value", [])
-    resultats = []
-    for item in brut[:nb]:
-        resultats.append(
-            {
-                "titre": item.get("name") or "",
-                "url": item.get("url") or "",
-                "resume": item.get("text") or item.get("snippet") or "",
-                "date_publication": item.get("datePublished"),
-                "sources": [SOURCE_LANGSEARCH],
-            }
-        )
-    usage = donnees.get("usage") or {}
-    return (
-        resultats,
-        {
-            "input_tokens": usage.get("input_tokens"),
-            "output_tokens": usage.get("output_tokens"),
-        },
-        donnees.get("log_id"),
-    )
-
-
-def _chercher_duckduckgo(
-    client: httpx.Client, *, requete: str, fraicheur: str, nb: int
-) -> list[dict[str, Any]]:
-    """Résultats de la page publique DuckDuckGo — liste vide si aucune réponse.
-
-    Raises:
-        ValidationError: refus du fournisseur (statut inattendu), page illisible
-            (BeautifulSoup absent).
-    """
-    donnees: dict[str, Any] = {"q": requete}
-    code = _FRAICHEUR_DUCKDUCKGO.get(fraicheur)
-    if code:
-        donnees["df"] = code
-
-    reponse = _envoyer(client, "POST", _PAGE_DUCKDUCKGO, donnees=donnees, timeout=_TIMEOUT_HTTP)
-    if reponse.status_code != 200:
-        msg = f"DuckDuckGo a répondu {reponse.status_code} (recherche web refusée)"
-        raise ValidationError(msg, details={"status": reponse.status_code})
-
-    soup = _soupe(reponse.text)
-    resultats: list[dict[str, Any]] = []
-    for bloc in soup.select("div.result"):
-        lien = bloc.select_one("a.result__a")
-        if lien is None:
-            continue
-        extrait = bloc.select_one(".result__snippet")
-        resultats.append(
-            {
-                "titre": " ".join(lien.get_text(" ", strip=True).split()),
-                "url": _url_reelle(lien.get("href", "")),
-                "resume": (
-                    " ".join(extrait.get_text(" ", strip=True).split()) if extrait else ""
-                ),
-                "date_publication": None,
-                "sources": [SOURCE_DUCKDUCKGO],
-            }
-        )
-        if len(resultats) >= nb:
-            break
-    return resultats
-
-
-def _soupe(html: str) -> Any:
-    """Arbre BeautifulSoup d'une page, ou refus explicite si la lib est absente."""
-    try:
-        from bs4 import BeautifulSoup
-    except ImportError as exc:  # pragma: no cover - dépend de l'environnement
-        msg = (
-            "Lecture HTML indisponible : le paquet beautifulsoup4 n'est pas "
-            "installé (extra « web » du backend) — aucun texte n'est deviné"
-        )
-        raise ValidationError(msg) from exc
-    return BeautifulSoup(html, "html.parser")
 
 
 def _fusionner(
@@ -472,6 +260,36 @@ def _completer(connu: dict[str, Any], item: dict[str, Any]) -> None:
             connu["sources"].append(source)
 
 
+def _corps_langsearch(
+    payload: dict[str, Any],
+    *,
+    requete: str,
+    nb: int,
+    fraicheur: str,
+    plafond_texte: int,
+) -> dict[str, Any]:
+    """Corps JSON de ``POST /v1/web-search`` : la demande, traduite pour l'API.
+
+    Endpoint officiel (tiret, docs.langsearch.com). Le mode texte passe par
+    ``contents.text`` — l'API rend le contexte de la page, ce n'est pas un
+    scraping (instruction/05 §4).
+    """
+    corps: dict[str, Any] = {"query": requete, "count": nb, "freshness": fraicheur}
+    if payload.get("include_domains"):
+        corps["includeDomains"] = list(payload["include_domains"])
+    if payload.get("exclude_domains"):
+        corps["excludeDomains"] = list(payload["exclude_domains"])
+    if payload.get("texte_complet"):
+        corps["contents"] = {
+            "text": {
+                "max_characters": min(
+                    int(payload.get("max_caracteres") or 3000), plafond_texte
+                )
+            }
+        }
+    return corps
+
+
 def build_web_search_tool(
     *,
     identite: AgentIdentity,
@@ -523,21 +341,26 @@ def build_web_search_tool(
                         "répond"
                     )
                     raise ValidationError(msg)
-                resultats, usage, log_id = _chercher_langsearch(
+                resultats, usage, log_id = pages_langsearch(
                     cible,
                     cle=cle.get_secret_value(),
                     base_url=base_url,
-                    requete=requete,
-                    nb=nb,
-                    fraicheur=fraicheur,
-                    include_domains=payload.get("include_domains"),
-                    exclude_domains=payload.get("exclude_domains"),
-                    texte_complet=bool(payload.get("texte_complet")),
-                    max_caracteres=min(
-                        int(payload.get("max_caracteres") or 3000), plafond_texte
+                    corps=_corps_langsearch(
+                        payload,
+                        requete=requete,
+                        nb=nb,
+                        fraicheur=fraicheur,
+                        plafond_texte=plafond_texte,
                     ),
+                    nb=nb,
+                    timeout=TIMEOUT_HTTP,
                 )
-                lots.append((SOURCE_LANGSEARCH, resultats))
+                lots.append(
+                    (
+                        SOURCE_LANGSEARCH,
+                        [{**item, "sources": [SOURCE_LANGSEARCH]} for item in resultats],
+                    )
+                )
             except (ValidationError, httpx.HTTPError) as erreur:
                 avertissements.append(f"LangSearch indisponible : {erreur}")
 
@@ -546,9 +369,16 @@ def build_web_search_tool(
                 lots.append(
                     (
                         SOURCE_DUCKDUCKGO,
-                        _chercher_duckduckgo(
-                            cible, requete=requete, fraicheur=fraicheur, nb=nb
-                        ),
+                        [
+                            {**item, "sources": [SOURCE_DUCKDUCKGO]}
+                            for item in pages_duckduckgo(
+                                cible,
+                                requete=requete,
+                                nb=nb,
+                                date_filtre=_FRAICHEUR_DUCKDUCKGO.get(fraicheur),
+                                timeout=TIMEOUT_HTTP,
+                            )
+                        ],
                     )
                 )
             except (ValidationError, httpx.HTTPError) as erreur:
@@ -589,7 +419,7 @@ def build_web_search_tool(
             return _rechercher(client, payload)
         # Client éphémère par appel : pas d'état partagé à fermer, un agent peut
         # enchaîner plusieurs recherches sans ressource orpheline.
-        with httpx.Client(timeout=_TIMEOUT_HTTP, headers=_EN_TETES) as temporaire:
+        with httpx.Client(timeout=TIMEOUT_HTTP, headers=EN_TETES) as temporaire:
             return _rechercher(temporaire, payload)
 
     from app.tools.base import TypedTool
@@ -669,7 +499,7 @@ def _texte_lisible(html: str, url: str) -> tuple[str, str]:
     texte qu'un lecteur humain retiendrait. Absent, l'extraction retombe sur
     BeautifulSoup — un peu plus bruyante, jamais vide ni inventée.
     """
-    soup = _soupe(html)
+    soup = soupe(html)
     titre = " ".join(soup.title.get_text(" ", strip=True).split()) if soup.title else ""
 
     texte = ""
@@ -941,7 +771,7 @@ def build_fetch_url_tool(
     def _handler(payload: dict[str, Any]) -> dict[str, Any]:
         if client_fourni and client is not None:
             return _lire(client, payload)
-        with httpx.Client(timeout=timeout, headers=_EN_TETES) as temporaire:
+        with httpx.Client(timeout=timeout, headers=EN_TETES) as temporaire:
             return _lire(temporaire, payload)
 
     from app.tools.base import TypedTool
@@ -1060,7 +890,7 @@ def build_read_urls_tool(
     def _handler(payload: dict[str, Any]) -> dict[str, Any]:
         if client_fourni and client is not None:
             return _lire(client, payload)
-        with httpx.Client(timeout=timeout, headers=_EN_TETES) as temporaire:
+        with httpx.Client(timeout=timeout, headers=EN_TETES) as temporaire:
             return _lire(temporaire, payload)
 
     from app.tools.base import TypedTool

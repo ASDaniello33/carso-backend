@@ -190,3 +190,20 @@ def session_locale(monkeypatch: pytest.MonkeyPatch, api_session_factory):
 
     monkeypatch.setattr(base, "SessionLocal", api_session_factory)
     return api_session_factory
+
+
+# --- Aucun appel ddgs réel dans la suite ----------------------------------------
+# ``ddgs`` gère son propre HTTP (primp) : le transport httpx injecté dans les
+# tools ne le contourne pas, et un test qui n'installe pas de faux moteur ferait
+# un vrai appel réseau (10 s par moteur). Seul ``test_tools_recherche_media.py``
+# exerce le repli, via ``_moteur_ddgs`` ; partout ailleurs, un appel ddgs est
+# une fuite réseau qui doit échouer fort.
+
+
+def _ddgs_interdit(**_kwargs: object) -> object:
+    raise AssertionError("appel ddgs réel dans la suite : installer un faux moteur")
+
+
+@pytest.fixture(autouse=True)
+def sans_ddgs_reel(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.tools.fournisseurs_ddgs._DDGS_REEL", _ddgs_interdit)

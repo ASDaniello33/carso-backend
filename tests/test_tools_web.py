@@ -19,7 +19,6 @@ import httpx
 import pytest
 
 from app.core.config import Settings
-from app.tools import web
 from app.tools.permissions import AgentIdentity, PermissionPolicy
 from app.tools.web import (
     FetchUrlInput,
@@ -131,7 +130,7 @@ def test_reseau_injoignable_est_une_erreur_explicite(monkeypatch: pytest.MonkeyP
         appels["post"] += 1
         raise httpx.ConnectTimeout("timed out", request=request)
 
-    monkeypatch.setattr(web, "_attendre", lambda _secondes: None)
+    monkeypatch.setattr("app.tools.fournisseurs_recherche.attendre", lambda _secondes: None)
     tool = build_web_search_tool(
         identite=IDENTITE,
         policy=POLICY_WEB,
@@ -353,7 +352,7 @@ def test_refus_temporaire_est_retente(monkeypatch: pytest.MonkeyPatch) -> None:
             return httpx.Response(503, text="indisponible")
         return httpx.Response(200, text=_reponse_langsearch("https://exemple.org/1"))
 
-    monkeypatch.setattr(web, "_attendre", lambda _secondes: None)
+    monkeypatch.setattr("app.tools.fournisseurs_recherche.attendre", lambda _secondes: None)
     tool = build_web_search_tool(
         identite=IDENTITE,
         policy=POLICY_WEB,
