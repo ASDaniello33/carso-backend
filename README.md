@@ -136,6 +136,27 @@ Deux arguments de build utiles :
 
 Détail complet, choix techniques et limites : `../docs/api/DOCKER-BACKEND.md`.
 
+## Déployer sur Render
+
+Le dépôt fournit un blueprint (`../render.yaml`, racine) : extras complets
+(`agents,documents,documents_pro,web,video`), Chromium **et** resvg-py pour la
+génération documentaire, polices et `pdftoppm` pour les aperçus, migrations en
+pre-deploy. Un déploiement natif avec un simple `pip install ./backend` n'a ni
+le navigateur ni `resvg-py` : `generer_document_professionnel` échoue alors
+avec « Aucun navigateur Chromium trouve » et « resvg-py n'est pas installé ».
+
+```bash
+# Vérification après déploiement (Render → Shell) :
+python - <<'PY'
+from app.documents.professionnel.pdf_renderer import navigateur_disponible
+from app.documents.professionnel.rasterisation import rasterisation_disponible
+print(navigateur_disponible(), rasterisation_disponible())   # attendu : (True, ...) True
+PY
+```
+
+Procédure complète, variables d'environnement, disque persistant et option
+Docker : `../docs/api/RENDER-DEPLOIEMENT.md`.
+
 ## Tests et qualité
 
 ```bash

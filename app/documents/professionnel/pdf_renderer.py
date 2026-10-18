@@ -58,10 +58,18 @@ def _sans_chemin(texte: str) -> str:
 
 
 def _href_carso() -> str:
-    """Consigne d'installation du navigateur (cause réelle, jamais un renvoi à uv)."""
+    """Consigne d'installation du navigateur (cause réelle, jamais un renvoi à uv).
+
+    Le serveur passe d'abord : un Linux headless n'a ni Edge ni Chrome, et le
+    Chromium téléchargé sans ``--with-deps`` démarre mal (bibliothèques
+    partagées absentes). Le poste de développement, ensuite : Edge/Chrome y
+    sont déjà installés et suffisent.
+    """
     return (
-        "Installer Microsoft Edge ou Google Chrome, ou executer "
-        "`python -m playwright install chromium` dans l'environnement du backend."
+        "Dans l'environnement du backend, executer `python -m playwright install "
+        "--with-deps chromium` (serveur Linux/conteneur : --with-deps installe "
+        "aussi les bibliotheques systeme du navigateur) ; sur un poste de "
+        "developpement, Microsoft Edge ou Google Chrome installe suffit."
     )
 
 
