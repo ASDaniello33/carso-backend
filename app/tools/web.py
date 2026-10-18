@@ -250,38 +250,45 @@ def _envoyer(
     entetes: dict[str, str] | None = None,
     timeout: float,
 ) -> httpx.Response:
-    """Une requête HTTP, avec une reprise brève sur un refus **temporaire**.
+    """Une requête HTTP, avec une reprise brève sur un échec **transitoire**.
 
     Un fournisseur ne refuse pas toujours franchement : une rafale reçoit un
     « 202 » (accusé de réception, corps vide) ou un « 429 » avant d'être servie.
-    Une recherche qui aurait abouti une seconde plus tard ne doit pas se solder
-    par un échec.
+    Un échec **réseau** (``ConnectTimeout``, DNS, connexion coupée) est traité
+    pareil : retenté, puis converti en erreur **métier** explicite — laissé
+    brut, il traverserait le tool, crasherait le graphe LangGraph et tuerait
+    tout le run AG-UI au lieu d'être dit à l'agent.
     """
-    reponse = client.request(
-        methode,
-        url,
-        params=params,
-        data=donnees,
-        json=corps,
-        headers=entetes,
-        timeout=timeout,
-        follow_redirects=False,
-    )
-    for essai in range(1, _TENTATIVES):
+    reponse: httpx.Response | None = None
+    dernier_echec: httpx.RequestError | None = None
+    for essai in range(_TENTATIVES):
+        if essai:
+            _attendre(_ATTENTE_BASE * essai)
+        try:
+            reponse = client.request(
+                methode,
+                url,
+                params=params,
+                data=donnees,
+                json=corps,
+                headers=entetes,
+                timeout=timeout,
+                follow_redirects=False,
+            )
+        except httpx.RequestError as erreur:
+            dernier_echec = erreur
+            continue
         if reponse.status_code not in _STATUTS_TEMPORAIRES:
             return reponse
-        _attendre(_ATTENTE_BASE * essai)
-        reponse = client.request(
-            methode,
-            url,
-            params=params,
-            data=donnees,
-            json=corps,
-            headers=entetes,
-            timeout=timeout,
-            follow_redirects=False,
-        )
-    return reponse
+    if reponse is not None:
+        return reponse
+    cause = type(dernier_echec).__name__ if dernier_echec else "réseau"
+    msg = (
+        f"Service web injoignable depuis le serveur ({cause} après "
+        f"{_TENTATIVES} tentatives) : réseau sortant indisponible ou fournisseur "
+        "momentanément inaccessible. Réessayer plus tard."
+    )
+    raise ValidationError(msg, details={"cause": cause}) from dernier_echec
 
 
 def _chercher_langsearch(
@@ -324,7 +331,17 @@ def _chercher_langsearch(
         msg = f"LangSearch a répondu {reponse.status_code} (recherche web refusée)"
         raise ValidationError(msg, details={"status": reponse.status_code})
 
-    donnees = json.loads(reponse.text)
+    try:
+        donnees = json.loads(reponse.text)
+    except ValueError as erreur:
+        # Un 200 non-JSON (mur anti-bot, corps tronqué) ne doit pas sortir en
+        # JSONDecodeError brut : ce serait un run AG-UI interrompu au lieu
+        # d'une erreur dite à l'agent.
+        msg = (
+            "LangSearch a répondu un corps illisible (JSON attendu) : recherche "
+            "abandonnée, aucun résultat n'est inventé"
+        )
+        raise ValidationError(msg) from erreur
     brut = donnees.get("data", {}).get("webPages", {}).get("value", [])
     resultats = []
     for item in brut[:nb]:

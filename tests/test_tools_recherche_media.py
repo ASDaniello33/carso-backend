@@ -250,6 +250,48 @@ def test_recherche_document_borne_les_extensions_demandees() -> None:
     assert [item["type_fichier"] for item in sortie["resultats"]] == ["pdf"]
 
 
+def test_reseau_injoignable_est_une_erreur_explicite(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Un ``ConnectTimeout`` est dit à l'agent, jamais laissé crasher le run.
+
+    Une exception hors ``CarsoError`` traverse ``to_langchain_tool`` (qui ne
+    rattrape que ``ToolException``) et interrompt tout le run AG-UI — c'est
+    exactement l'incident vu en production le 18/10/2026 (tool=rechercher_image,
+    « Run AG-UI interrompu : ConnectTimeout »).
+    """
+    appels = {"page": 0}
+
+    def _route(request: httpx.Request) -> httpx.Response:
+        appels["page"] += 1
+        raise httpx.ConnectTimeout("timed out", request=request)
+
+    monkeypatch.setattr(recherche_media, "_attendre", lambda _secondes: None)
+    tool = _tool("image", client=httpx.Client(transport=httpx.MockTransport(_route)))
+    sortie = tool.invoke({"requete": "formation"})
+    assert sortie["ok"] is False
+    assert "injoignable" in sortie["error"]["message"]
+    assert "ConnectTimeout" in sortie["error"]["message"]
+    assert appels["page"] == 3, "un échec réseau doit être retenté, puis dit"
+
+
+def test_reponse_non_json_est_une_erreur_explicite(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Un 200 non-JSON (mur anti-bot, corps tronqué) ne sort pas en JSONDecodeError.
+
+    Même contrat que pour le réseau : erreur métier dite à l'agent, jamais une
+    exception brute qui interromprait le run AG-UI.
+    """
+
+    def _route(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/i.js"):
+            return httpx.Response(200, text="<html>blocage anti-bot</html>")
+        return httpx.Response(200, text=PAGE_VQD)
+
+    monkeypatch.setattr(recherche_media, "_attendre", lambda _secondes: None)
+    tool = _tool("image", client=httpx.Client(transport=httpx.MockTransport(_route)))
+    sortie = tool.invoke({"requete": "formation"})
+    assert sortie["ok"] is False
+    assert "illisible" in sortie["error"]["message"]
+
+
 def test_jeton_absent_est_une_erreur_explicite() -> None:
     """Sans jeton, aucun résultat n'est inventé : l'erreur est dite."""
 

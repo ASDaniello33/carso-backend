@@ -20,8 +20,13 @@ les tests ne touchent pas au réseau. Le jour où CARSO préfère une API offici
 avec clé, seul ce module change—les tools et leurs schémas restent.
 
 Un refus **temporaire** du fournisseur (le « 202 » qu'il renvoie aux rafales de
-requêtes) est retenté brièvement avant d'être annoncé—une recherche qui aurait
-abouti une seconde plus tard ne doit pas se solder par un échec.
+requêtes) et un échec **réseau** (``ConnectTimeout``, DNS, connexion coupée)
+sont retentés brièvement avant d'être annoncés — une recherche qui aurait
+abouti une seconde plus tard ne doit pas se solder par un échec. Et un échec
+réel est toujours converti en erreur métier : une exception brute (``httpx``,
+``JSONDecodeError``) traverserait le tool et interromprait **tout le run
+AG-UI** (``app/api/agui.py`` ne rattrape que pour dire) — l'agent doit la
+recevoir comme un résultat lisible et pouvoir la raconter à l'utilisateur.
 """
 
 from __future__ import annotations
@@ -190,14 +195,36 @@ def _attendre(secondes: float) -> None:
 
 
 def _get(client: httpx.Client, url: str, params: dict[str, Any]) -> httpx.Response:
-    """GET avec reprise brève sur un refus **temporaire** du fournisseur."""
-    reponse = client.get(url, params=params, timeout=_TIMEOUT_HTTP)
-    for essai in range(1, _TENTATIVES):
+    """GET avec reprise brève sur un échec **transitoire** du fournisseur.
+
+    Transitoire couvre les deux visages du même problème : le refus HTTP d'une
+    rafale (202/429/503) et l'échec réseau (``ConnectTimeout``, DNS, connexion
+    réinitialisée). Après reprises vaines, un échec réseau lève une erreur
+    **métier** explicite : laissée brute, elle crasherait le graphe LangGraph
+    (``base.to_langchain_tool`` ne rattrape que ``ToolException``) et tuerait
+    tout le run AG-UI au lieu d'être dite à l'agent.
+    """
+    reponse: httpx.Response | None = None
+    dernier_echec: httpx.RequestError | None = None
+    for essai in range(_TENTATIVES):
+        if essai:
+            _attendre(_ATTENTE_BASE * (2 ** (essai - 1)))
+        try:
+            reponse = client.get(url, params=params, timeout=_TIMEOUT_HTTP)
+        except httpx.RequestError as erreur:
+            dernier_echec = erreur
+            continue
         if reponse.status_code not in _STATUTS_TEMPORAIRES:
             return reponse
-        _attendre(_ATTENTE_BASE * (2 ** (essai - 1)))
-        reponse = client.get(url, params=params, timeout=_TIMEOUT_HTTP)
-    return reponse
+    if reponse is not None:
+        return reponse
+    cause = type(dernier_echec).__name__ if dernier_echec else "réseau"
+    msg = (
+        f"DuckDuckGo est injoignable depuis le serveur ({cause} après "
+        f"{_TENTATIVES} tentatives) : réseau sortant indisponible ou fournisseur "
+        "momentanément inaccessible. Réessayer plus tard ou passer par une autre source."
+    )
+    raise ValidationError(msg, details={"cause": cause}) from dernier_echec
 
 
 def _message_refus(reponse: httpx.Response, recherche: str) -> str:
@@ -249,7 +276,17 @@ def _verticale(
     if reponse.status_code != 200:
         msg = _message_refus(reponse, f"recherche {verticale}")
         raise ValidationError(msg, details={"status": reponse.status_code})
-    donnees = reponse.json()
+    try:
+        donnees = reponse.json()
+    except ValueError as erreur:
+        # Un 200 non-JSON (mur anti-bot, corps tronqué) ne doit pas sortir en
+        # JSONDecodeError brut : ce serait un run AG-UI interrompu au lieu d'une
+        # erreur dite à l'agent (même garde que pour le réseau dans ``_get``).
+        msg = (
+            "DuckDuckGo a répondu un corps illisible (JSON attendu) : la recherche "
+            "est abandonnée, aucun résultat n'est inventé"
+        )
+        raise ValidationError(msg) from erreur
     return list(donnees.get("results") or [])[:nb]
 
 

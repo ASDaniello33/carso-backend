@@ -138,12 +138,16 @@ Détail complet, choix techniques et limites : `../docs/api/DOCKER-BACKEND.md`.
 
 ## Déployer sur Render
 
-Le dépôt fournit un blueprint (`../render.yaml`, racine) : extras complets
-(`agents,documents,documents_pro,web,video`), Chromium **et** resvg-py pour la
-génération documentaire, polices et `pdftoppm` pour les aperçus, migrations en
-pre-deploy. Un déploiement natif avec un simple `pip install ./backend` n'a ni
-le navigateur ni `resvg-py` : `generer_document_professionnel` échoue alors
-avec « Aucun navigateur Chromium trouve » et « resvg-py n'est pas installé ».
+**Runtime Docker obligatoire** : Render natif n'accorde pas root (ni `su` ni
+`sudo`), donc impossible d'y installer Chromium et ses bibliothèques — le build
+échoue avec « su: Authentication failure » ou le PDF crash au lancement. Le
+dépôt fournit un blueprint (`../render.yaml`, racine, runtime `docker`) qui
+pointe sur l'image du dépôt : extras complets
+(`agents,documents,documents_pro,web,video`), Chromium `--with-deps`, polices,
+`pdftoppm`, migrations en pre-deploy. Un déploiement natif avec un simple
+`pip install ".[dev]"` n'a ni le navigateur ni `resvg-py` :
+`generer_document_professionnel` échoue alors avec « Aucun navigateur Chromium
+trouve » et « resvg-py n'est pas installé ».
 
 ```bash
 # Vérification après déploiement (Render → Shell) :
@@ -154,8 +158,8 @@ print(navigateur_disponible(), rasterisation_disponible())   # attendu : (True, 
 PY
 ```
 
-Procédure complète, variables d'environnement, disque persistant et option
-Docker : `../docs/api/RENDER-DEPLOIEMENT.md`.
+Procédure complète, migration d'un service natif existant, variables
+d'environnement et disque persistant : `../docs/api/RENDER-DEPLOIEMENT.md`.
 
 ## Tests et qualité
 

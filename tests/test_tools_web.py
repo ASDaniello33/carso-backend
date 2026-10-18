@@ -119,6 +119,45 @@ def test_permission_absente_refusee() -> None:
     assert sortie["error"]["code"] == "permission_denied"
 
 
+def test_reseau_injoignable_est_une_erreur_explicite(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Un ``ConnectTimeout`` est dit à l'agent (erreur métier), jamais brut.
+
+    Laissé traverser, il crasherait le graphe LangGraph et interromprait tout
+    le run AG-UI (incident vu en production le 18/10/2026).
+    """
+    appels = {"post": 0}
+
+    def _route(request: httpx.Request) -> httpx.Response:
+        appels["post"] += 1
+        raise httpx.ConnectTimeout("timed out", request=request)
+
+    monkeypatch.setattr(web, "_attendre", lambda _secondes: None)
+    tool = build_web_search_tool(
+        identite=IDENTITE,
+        policy=POLICY_WEB,
+        settings=_settings(),
+        client=_transport(_route),
+    )
+    sortie = tool.invoke({"requete": "formation", "sources": ["langsearch"]})
+    assert sortie["ok"] is False
+    assert "injoignable" in sortie["error"]["message"]
+    assert "ConnectTimeout" in sortie["error"]["message"]
+    assert appels["post"] == 2, "un échec réseau doit être retenté (_TENTATIVES), puis dit"
+
+
+def test_corps_langsearch_illisible_est_une_erreur_explicite() -> None:
+    """Un 200 non-JSON de LangSearch ne sort pas en JSONDecodeError brut."""
+    tool = build_web_search_tool(
+        identite=IDENTITE,
+        policy=POLICY_WEB,
+        settings=_settings(),
+        client=_transport(lambda r: httpx.Response(200, text="<html>anti-bot</html>")),
+    )
+    sortie = tool.invoke({"requete": "formation", "sources": ["langsearch"]})
+    assert sortie["ok"] is False
+    assert "illisible" in sortie["error"]["message"]
+
+
 def test_cle_absente_erreur_explicite() -> None:
     """Sans clé : erreur explicite quand LangSearch est la seule source demandée."""
     appels: list[httpx.Request] = []
