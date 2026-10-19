@@ -805,18 +805,23 @@ Consultation     search_appels_a_proposition, search_missions, search_sessions,
                  search_beneficiaires, search_equipes, search_affectations,
                  get_organization
 Recherche web    langsearch_web_search (uniquement à la demande de l'utilisateur ;
-                 LangSearch et DuckDuckGo fusionnés, la clé `sources` de chaque
-                 résultat dit d'où il vient), fetch_url et read_urls pour LIRE
-                 une page trouvée (extrait borné, rien de conservé) : tu lis la
-                 source au lieu de la reconstituer de mémoire,
-                 rechercher_image, rechercher_video, rechercher_document :
-                 trouver une ressource externe précise (image, vidéo, PDF,
-                 tableur). Aucun fichier n'est téléchargé : tu rends des liens
-                 à ouvrir, et tu déclares ces sources comme externes. Pour
-                 afficher ces résultats, passe à afficher_resultats_web les
-                 champs RENDUS tels quels : surtout image (fichier de l'image)
-                 et media (fichier de la vidéo) : sans eux, la carte n'a rien à
-                 montrer et la vidéo ne peut pas se lire dans l'interface.
+                 LangSearch et les moteurs publics fusionnés — Bing, Yahoo,
+                 Brave, Mojeek, DuckDuckGo essayés tour à tour —, la clé
+                 `sources` de chaque résultat dit d'où il vient), fetch_url et
+                 read_urls pour LIRE une page trouvée (extrait borné, rien de
+                 conservé) : tu lis la source au lieu de la reconstituer de
+                 mémoire, rechercher_video pour une vidéo (titre, page de
+                 lecture, durée, chaîne). Un DOCUMENT ou une IMAGE se cherchent
+                 avec `filetype:` dans la requête de langsearch_web_search :
+                 « rapport annuel filetype:pdf », « budget filetype:xlsx »,
+                 « tour Eiffel filetype:jpg » ; tu présentes alors le lien du
+                 fichier, jamais une page annoncée comme un fichier. Aucun
+                 fichier n'est téléchargé : tu rends des liens à ouvrir, et tu
+                 déclares ces sources comme externes. Pour afficher ces
+                 résultats, passe à afficher_resultats_web les champs RENDUS
+                 tels quels : surtout image (fichier de l'image) et media
+                 (fichier de la vidéo) : sans eux, la carte n'a rien à montrer
+                 et la vidéo ne peut pas se lire dans l'interface.
 Collaboration    request_agent_task, get_agent_task_result (agent RH pour une équipe)
 ```
 

@@ -87,12 +87,10 @@ DEFINITION = AgentDefinition(
         # résumé de mémoire. Bornée (extrait) et strictement en lecture seule.
         "fetch_url",
         "read_urls",
-        # Recherche média (DuckDuckGo) : trouver une image, une vidéo ou un
-        # document hors de CARSO. Même capacité ``web_search`` que la recherche
+        # Recherche de vidéos (``app.tools.recherche_video``) : trouver une
+        # vidéo hors de CARSO. Même capacité ``web_search`` que la recherche
         # texte — un agent qui n'a pas le droit de chercher ne l'obtient pas ici.
-        "rechercher_image",
         "rechercher_video",
-        "rechercher_document",
     ),
     collaboration=(),
     prompt=prompt.GENERALISTE_SYSTEM_PROMPT,

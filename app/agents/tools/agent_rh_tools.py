@@ -99,14 +99,12 @@ NOMS_TOOLS: tuple[str, ...] = (
     # Envoi d'un email au nom de CARSO à un contact **enregistré** (HITL :
     # approbation avant envoi, cf. ``approval_required`` du contrat).
     "envoyer_email",
-    # Recherche web fédérée + lecture de pages, et recherche média : la même
-    # surface de lecture externe que les autres agents (capacité ``web_search``).
+    # Recherche web fédérée + lecture de pages, et recherche de vidéos : la
+    # même surface de lecture externe que les autres agents (``web_search``).
     "langsearch_web_search",
     "fetch_url",
     "read_urls",
-    "rechercher_image",
     "rechercher_video",
-    "rechercher_document",
 )
 
 
@@ -715,10 +713,10 @@ def construire_tools_rh(
         run=_envoyer_email,
     ))
 
-    from app.tools.recherche_media import attacher_recherche_media
+    from app.tools.recherche_video import attacher_recherche_video
     from app.tools.web import attacher_outils_web
 
-    return attacher_recherche_media(
+    return attacher_recherche_video(
         definition, attacher_outils_web(definition, tuple(kit.construire()) + extra_tools)
     )
 

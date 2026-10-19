@@ -45,9 +45,7 @@ def test_deep_tools_apercu_seulement() -> None:
         "langsearch_web_search",
         "fetch_url",
         "read_urls",
-        "rechercher_image",
         "rechercher_video",
-        "rechercher_document",
     } <= noms
     # L'aperçu n'écrit jamais : seul le tool HITL séparé importe.
     assert "import_beneficiaires" in noms

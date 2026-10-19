@@ -73,11 +73,9 @@ NOMS_TOOLS: tuple[str, ...] = (
     # une référence externe se lit, borné, au lieu d'être reconstitué de mémoire.
     "fetch_url",
     "read_urls",
-    # Recherche média (``app.tools.recherche_media``) : même surface de recherche
-    # externe que les autres agents (capacité ``web_search``).
-    "rechercher_image",
+    # Recherche de vidéos (``app.tools.recherche_video``) : même surface de
+    # recherche externe que les autres agents (capacité ``web_search``).
     "rechercher_video",
-    "rechercher_document",
 )
 
 
@@ -420,7 +418,7 @@ def construire_tools_assistant_formateur(
         run=_list_mission_equipe,
     ))
 
-    from app.tools.recherche_media import attacher_recherche_media
+    from app.tools.recherche_video import attacher_recherche_video
     from app.tools.web import attacher_outils_web
 
     extras = (
@@ -428,7 +426,7 @@ def construire_tools_assistant_formateur(
         + tools_documents_pour(definition, session_factory)
         + tools_scripts_pour(definition)
     )
-    return attacher_recherche_media(
+    return attacher_recherche_video(
         definition, attacher_outils_web(definition, tuple(kit.construire()) + extras)
     )
 

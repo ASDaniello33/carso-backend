@@ -89,16 +89,16 @@ documents_pro = [
 # page) ; absent, BeautifulSoup fait le travail — jamais un échec pour cette
 # seule raison. Les requêtes passent par le client ``httpx`` du projet, dont le
 # transport est injectable (tests hors réseau).
-# ``ddgs`` (18/10/2026) : repli multi-moteurs (Bing, Yahoo, Google) de la
-# recherche média quand DuckDuckGo limite les adresses d'hébergeur. Il gère son
-# propre HTTP avec empreinte de navigateur (``primp``) — c'est justement ce
-# qu'un blocage par empreinte contourne ; les moteurs sont appelés un par un
-# (app/tools/fournisseurs_ddgs.py), jamais via ``backend="auto"``. Absent, le
-# repli échoue avec un message explicite (extra « web »).
+# ``curl_cffi`` reproduit l'empreinte TLS/HTTP2 de Chrome (app/tools/moteurs_web.py) :
+# c'est ce qui ramène la page de résultats d'un moteur public depuis un
+# hébergeur, là où un client HTTP ordinaire reçoit un 403 ou un corps vide. Il
+# n'y a plus de paquet de recherche intermédiaire : les moteurs sont interrogés
+# un par un par notre code, et chacun qui bloque laisse la place au suivant.
+# Absent, la recherche web externe est dite indisponible — jamais devinée.
 web = [
     "beautifulsoup4>=4.10",
     "trafilatura>=1.8",
-    "ddgs>=9.0",
+    "curl_cffi>=0.7",
 ]
 
 # Agents métier exécutés par Deep Agents (instruction/05). Optionnel : le backend

@@ -1,8 +1,9 @@
-"""Tools web — recherche fédérée (LangSearch + DuckDuckGo) et lecture de pages.
+"""Tools web — recherche fédérée (LangSearch + moteurs publics) et lecture de pages.
 
 Aucun appel réseau : le transport httpx est remplacé par un ``httpx.MockTransport``
 qui rejoue la surface réellement consommée (POST /v1/web-search, page publique de
-résultats, GET/POST d'une page), et la résolution DNS par une adresse publique
+résultats, GET/POST d'une page), les moteurs publics par un substitut explicite,
+et la résolution DNS par une adresse publique
 fixe — les gardes anti-SSRF sont donc exercées pour de vrai.
 """
 
@@ -19,6 +20,7 @@ import httpx
 import pytest
 
 from app.core.config import Settings
+from app.core.errors import ValidationError
 from app.tools.permissions import AgentIdentity, PermissionPolicy
 from app.tools.web import (
     FetchUrlInput,
@@ -368,83 +370,111 @@ def test_refus_temporaire_est_retente(monkeypatch: pytest.MonkeyPatch) -> None:
 # --- Recherche web : fusion des deux fournisseurs ----------------------------
 
 
-def _route_fusion(request: httpx.Request) -> httpx.Response:
-    if "langsearch" in request.url.host or request.url.path.endswith("/v1/web-search"):
-        return httpx.Response(
-            200,
-            text=_reponse_langsearch(
-                "https://exemple.org/a", "https://exemple.org/b"
-            ),
-        )
-    return httpx.Response(
-        200,
-        text=_page_resultats(
-            ("Moteur A", "https://exemple.org/a"),
-            ("Moteur C", "https://exemple.org/c"),
-        ),
+def _moteurs(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    resultats: list[dict[str, Any]] | None = None,
+    erreur: Exception | None = None,
+) -> None:
+    """Remplace les moteurs publics : aucun appel réseau, comportement piloté.
+
+    Les moteurs ont leur propre HTTP (``curl_cffi``), que le transport httpx
+    injecté ne contourne pas : c'est ici qu'on décide ce qu'ils répondent.
+    """
+    if erreur is not None:
+
+        def _echouer(_requete: str, _nb: int) -> list[dict[str, Any]]:
+            raise erreur
+
+        monkeypatch.setattr("app.tools.moteurs_web.pages", _echouer)
+        return
+    monkeypatch.setattr(
+        "app.tools.moteurs_web.pages", lambda _requete, _nb: list(resultats or [])
     )
 
 
-def test_fusion_alternee_et_dedoublonnage() -> None:
+def _route_langsearch(*urls: str) -> Callable[[httpx.Request], httpx.Response]:
+    def _route(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text=_reponse_langsearch(*urls))
+
+    return _route
+
+
+def test_fusion_alternee_et_dedoublonnage(monkeypatch: pytest.MonkeyPatch) -> None:
     """Les deux sources sont fondues : une adresse vue deux fois reste une entrée."""
+    _moteurs(
+        monkeypatch,
+        resultats=[
+            {"titre": "Moteur A", "url": "https://exemple.org/a", "resume": ""},
+            {"titre": "Moteur C", "url": "https://exemple.org/c", "resume": "Moteur C — extrait"},
+        ],
+    )
     tool = build_web_search_tool(
         identite=IDENTITE,
         policy=POLICY_WEB,
         settings=_settings(),
-        client=_transport(_route_fusion),
+        client=_transport(_route_langsearch("https://exemple.org/a", "https://exemple.org/b")),
     )
     sortie = tool.invoke({"requete": "barème formation", "max_results": 5})
 
-    assert sortie["sources_utilisees"] == ["langsearch", "duckduckgo"]
+    assert sortie["sources_utilisees"] == ["langsearch", "moteurs"]
     urls = [item["url"] for item in sortie["resultats"]]
     assert urls == [
         "https://exemple.org/a",  # meilleur LangSearch, en tête
-        "https://exemple.org/c",  # meilleur DuckDuckGo, juste après
+        "https://exemple.org/c",  # meilleur moteur public, juste après
         "https://exemple.org/b",
     ]
     # La première garde son résumé ; un résumé manquant est complété par l'autre.
-    assert sortie["resultats"][0]["sources"] == ["langsearch", "duckduckgo"]
+    assert sortie["resultats"][0]["sources"] == ["langsearch", "moteurs"]
     assert sortie["resultats"][0]["resume"] == "Résumé 0"
-    assert sortie["resultats"][1]["sources"] == ["duckduckgo"]
+    assert sortie["resultats"][1]["sources"] == ["moteurs"]
     assert sortie["resultats"][1]["resume"] == "Moteur C — extrait"
 
 
-def test_duckduckgo_remplace_langsearch_en_panne() -> None:
-    """Clé absente : le moteur public répond, et la réponse dit ce qui manque."""
+def test_moteurs_remplacent_langsearch_sans_cle(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Clé absente : les moteurs publics répondent, et la réponse dit ce qui manque."""
+    _moteurs(
+        monkeypatch,
+        resultats=[
+            {"titre": "Moteur A", "url": "https://exemple.org/a", "resume": ""},
+            {"titre": "Moteur C", "url": "https://exemple.org/c", "resume": "extrait"},
+        ],
+    )
     tool = build_web_search_tool(
         identite=IDENTITE,
         policy=POLICY_WEB,
         settings=_settings(langsearch_api_key=None),
-        client=_transport(_route_fusion),
+        client=_transport(lambda r: httpx.Response(500)),
     )
     sortie = tool.invoke({"requete": "barème formation"})
 
     assert sortie["ok"] is True
-    assert sortie["sources_utilisees"] == ["duckduckgo"]
+    assert sortie["sources_utilisees"] == ["moteurs"]
     assert sortie["nb_resultats"] == 2
-    assert all(item["sources"] == ["duckduckgo"] for item in sortie["resultats"])
+    assert all(item["sources"] == ["moteurs"] for item in sortie["resultats"])
     assert any("LANGSEARCH_API_KEY" in motif for motif in sortie["avertissements"])
 
 
-def test_langsearch_repond_quand_duckduckgo_refuse() -> None:
-    def _route(request: httpx.Request) -> httpx.Response:
-        if request.url.path.endswith("/v1/web-search"):
-            return httpx.Response(200, text=_reponse_langsearch("https://exemple.org/a"))
-        return httpx.Response(403, text="bloqué")
-
+def test_langsearch_repond_quand_les_moteurs_refusent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Un refus des moteurs publics n'emporte pas la réponse de l'API."""
+    _moteurs(
+        monkeypatch,
+        erreur=ValidationError("Aucun moteur public n'a répondu : bing : HTTP 403"),
+    )
     tool = build_web_search_tool(
         identite=IDENTITE,
         policy=POLICY_WEB,
         settings=_settings(),
-        client=_transport(_route),
+        client=_transport(_route_langsearch("https://exemple.org/a")),
     )
     sortie = tool.invoke({"requete": "formation"})
     assert sortie["ok"] is True
     assert sortie["sources_utilisees"] == ["langsearch"]
-    assert any("DuckDuckGo indisponible" in motif for motif in sortie["avertissements"])
+    assert any("Moteurs publics indisponibles" in motif for motif in sortie["avertissements"])
 
 
-def test_aucun_fournisseur_ne_repond_est_un_echec_dit() -> None:
+def test_aucun_fournisseur_ne_repond_est_un_echec_dit(monkeypatch: pytest.MonkeyPatch) -> None:
+    _moteurs(monkeypatch, erreur=ValidationError("Aucun moteur public n'a répondu"))
     tool = build_web_search_tool(
         identite=IDENTITE,
         policy=POLICY_WEB,
@@ -454,39 +484,40 @@ def test_aucun_fournisseur_ne_repond_est_un_echec_dit() -> None:
     sortie = tool.invoke({"requete": "formation"})
     assert sortie["ok"] is False
     assert "LangSearch indisponible" in sortie["error"]["message"]
-    assert "DuckDuckGo indisponible" in sortie["error"]["message"]
+    assert "Moteurs publics indisponibles" in sortie["error"]["message"]
 
 
-def test_sources_restreintes_a_duckduckgo() -> None:
+def test_sources_restreintes_aux_moteurs(monkeypatch: pytest.MonkeyPatch) -> None:
     """``sources`` restreint vraiment : aucun appel à l'API non demandée."""
     vus: list[str] = []
 
     def _route(request: httpx.Request) -> httpx.Response:
         vus.append(str(request.url))
-        return httpx.Response(200, text=_page_resultats(("Moteur", "https://exemple.org/c")))
+        return httpx.Response(500)
 
+    _moteurs(
+        monkeypatch, resultats=[{"titre": "Moteur", "url": "https://exemple.org/c", "resume": ""}]
+    )
     tool = build_web_search_tool(
         identite=IDENTITE,
         policy=POLICY_WEB,
         settings=_settings(),
         client=_transport(_route),
     )
-    sortie = tool.invoke({"requete": "formation", "sources": ["duckduckgo"]})
+    sortie = tool.invoke({"requete": "formation", "sources": ["moteurs"]})
     assert sortie["nb_resultats"] == 1
-    assert all("web-search" not in url for url in vus)
+    assert vus == []
 
 
-def test_fraicheur_traduite_pour_chaque_fournisseur() -> None:
-    """« semaine » est la même demande : ``oneWeek`` pour l'API, ``w`` pour le moteur."""
+def test_fraicheur_seulement_pour_langsearch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """« semaine » part à l'API ; les moteurs ne la reçoivent pas — et c'est dit."""
     captures: dict[str, Any] = {}
 
     def _route(request: httpx.Request) -> httpx.Response:
-        if request.url.path.endswith("/v1/web-search"):
-            captures["langsearch"] = json.loads(request.content.decode("utf-8"))["freshness"]
-            return httpx.Response(200, text=_reponse_langsearch("https://exemple.org/a"))
-        captures["duckduckgo"] = request.content.decode("utf-8")
-        return httpx.Response(200, text=_page_resultats(("Moteur", "https://exemple.org/c")))
+        captures["langsearch"] = json.loads(request.content.decode("utf-8"))["freshness"]
+        return httpx.Response(200, text=_reponse_langsearch("https://exemple.org/a"))
 
+    _moteurs(monkeypatch, resultats=[])
     tool = build_web_search_tool(
         identite=IDENTITE,
         policy=POLICY_WEB,
@@ -496,20 +527,20 @@ def test_fraicheur_traduite_pour_chaque_fournisseur() -> None:
     sortie = tool.invoke({"requete": "formation", "freshness": "semaine"})
 
     assert captures["langsearch"] == "oneWeek"
-    assert "df=w" in captures["duckduckgo"]
-    assert sortie["avertissements"] == []
+    assert any("moteurs publics" in motif for motif in sortie["avertissements"])
 
 
-def test_fraicheur_en_date_avertit_pour_duckduckgo() -> None:
+def test_fraicheur_en_date_avertit_pour_les_moteurs(monkeypatch: pytest.MonkeyPatch) -> None:
     """Une plage de dates n'est comprise que par l'API : le dire, jamais l'ignorer."""
+    _moteurs(monkeypatch, resultats=[])
     tool = build_web_search_tool(
         identite=IDENTITE,
         policy=POLICY_WEB,
         settings=_settings(),
-        client=_transport(_route_fusion),
+        client=_transport(_route_langsearch("https://exemple.org/a")),
     )
     sortie = tool.invoke({"requete": "formation", "freshness": "2026-01-01"})
-    assert any("DuckDuckGo" in motif for motif in sortie["avertissements"])
+    assert any("moteurs publics" in motif for motif in sortie["avertissements"])
 
 
 # --- Lecture d'une page : ``fetch_url`` --------------------------------------

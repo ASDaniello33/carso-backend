@@ -69,10 +69,8 @@ DEFINITION = AgentDefinition(
         # la source et citée, jamais estimée. Même capacité ``web_search``.
         "fetch_url",
         "read_urls",
-        # Recherche média (DuckDuckGo) : même capacité ``web_search``.
-        "rechercher_image",
+        # Recherche de vidéos : même capacité ``web_search``.
         "rechercher_video",
-        "rechercher_document",
     ),
     collaboration=(),
     approval_required=(),

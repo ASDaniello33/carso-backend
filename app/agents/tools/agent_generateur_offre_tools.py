@@ -109,13 +109,11 @@ NOMS_TOOLS: tuple[str, ...] = (
     # charges est lu dans la source, borné, jamais reconstitué de mémoire.
     "fetch_url",
     "read_urls",
-    # Recherche média (module ``app.tools.recherche_media``) : la surface de
+    # Recherche de vidéos (module ``app.tools.recherche_video``) : la surface de
     # recherche externe est la **même pour tous les agents** (capacité
-    # ``web_search``) — un modèle de document ou une référence visuelle se
-    # cherche au même endroit que le texte.
-    "rechercher_image",
+    # ``web_search``). Un document ou une image se cherchent, eux, dans
+    # ``langsearch_web_search`` avec l'opérateur ``filetype:``.
     "rechercher_video",
-    "rechercher_document",
     "request_agent_task",
     "get_agent_task_result",
 )
@@ -777,10 +775,10 @@ def construire_tools_generateur_offre(
         run=rechercher_documents,
     ))
 
-    from app.tools.recherche_media import attacher_recherche_media
+    from app.tools.recherche_video import attacher_recherche_video
     from app.tools.web import attacher_outils_web
 
-    return attacher_recherche_media(
+    return attacher_recherche_video(
         definition, attacher_outils_web(definition, tuple(kit.construire()) + extra_tools)
     )
 

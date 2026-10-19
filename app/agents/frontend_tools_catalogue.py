@@ -115,7 +115,8 @@ OUTILS_FRONTEND: tuple[OutilFrontend, ...] = (
         ),
         agents=TOUS_LES_AGENTS_UI,
         usage=(
-            "Après rechercher_image / rechercher_video / rechercher_document : "
+            "Après une recherche web qui a rendu des fichiers ou une vidéo "
+            "(langsearch_web_search avec filetype:, ou rechercher_video) : "
             "afficher les liens trouvés et dire qu'ils sont externes, à vérifier. "
             "Ne jamais recopier un contenu qu'on n'a pas lu."
         ),

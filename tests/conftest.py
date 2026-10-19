@@ -192,18 +192,20 @@ def session_locale(monkeypatch: pytest.MonkeyPatch, api_session_factory):
     return api_session_factory
 
 
-# --- Aucun appel ddgs réel dans la suite ----------------------------------------
-# ``ddgs`` gère son propre HTTP (primp) : le transport httpx injecté dans les
-# tools ne le contourne pas, et un test qui n'installe pas de faux moteur ferait
-# un vrai appel réseau (10 s par moteur). Seul ``test_tools_recherche_media.py``
-# exerce le repli, via ``_moteur_ddgs`` ; partout ailleurs, un appel ddgs est
+# --- Aucun appel réel aux moteurs publics dans la suite -----------------------
+# La recherche web passe par ``curl_cffi`` (empreinte de navigateur), qui gère son
+# propre HTTP : le transport httpx injecté dans les tools ne le contourne pas, et
+# un test qui n'installe pas de faux moteur ferait un vrai appel réseau — cinq
+# moteurs, 12 s chacun, plus YouTube. Seuls ``test_moteurs_web.py`` et
+# ``test_tools_recherche_video.py`` exercent cette couche, avec une session
+# factice ou ``pages``/``videos`` remplacées ; partout ailleurs, un appel réel est
 # une fuite réseau qui doit échouer fort.
 
 
-def _ddgs_interdit(**_kwargs: object) -> object:
-    raise AssertionError("appel ddgs réel dans la suite : installer un faux moteur")
+def _session_interdite() -> object:
+    raise AssertionError("session curl_cffi réelle dans la suite : installer un faux moteur")
 
 
 @pytest.fixture(autouse=True)
-def sans_ddgs_reel(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("app.tools.fournisseurs_ddgs._DDGS_REEL", _ddgs_interdit)
+def sans_moteurs_reels(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.tools.moteurs_web._session", _session_interdite)

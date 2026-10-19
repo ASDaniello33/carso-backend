@@ -141,9 +141,7 @@ def test_proposer_affectation(session: Session) -> None:
         "langsearch_web_search",
         "fetch_url",
         "read_urls",
-        "rechercher_image",
         "rechercher_video",
-        "rechercher_document",
         "envoyer_email",
     } <= noms
     assert "read_document" in noms

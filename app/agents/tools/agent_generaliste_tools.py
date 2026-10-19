@@ -96,10 +96,8 @@ NOMS_TOOLS: tuple[str, ...] = (
     # texte officiel, article) se lit **ici**, borné, plutôt que d'être deviné.
     "fetch_url",
     "read_urls",
-    # Recherche média (module ``app.tools.recherche_media``).
-    "rechercher_image",
+    # Recherche de vidéos (module ``app.tools.recherche_video``).
     "rechercher_video",
-    "rechercher_document",
 )
 
 
@@ -445,13 +443,13 @@ def construire_tools_generaliste(
         run=executer_analytique,
     ))
 
-    from app.tools.recherche_media import attacher_recherche_media
+    from app.tools.recherche_video import attacher_recherche_video
     from app.tools.web import attacher_outils_web
 
     outils = list(kit.construire())
     if read_document_tool is not None:
         outils.append(read_document_tool)
-    return attacher_recherche_media(
+    return attacher_recherche_video(
         definition, attacher_outils_web(definition, tuple(outils))
     )
 

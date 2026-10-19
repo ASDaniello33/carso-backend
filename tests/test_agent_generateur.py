@@ -127,9 +127,7 @@ def test_preparer_lot_valide_brouillon(session: Session) -> None:
         "langsearch_web_search",
         "fetch_url",
         "read_urls",
-        "rechercher_image",
         "rechercher_video",
-        "rechercher_document",
     } <= noms
     assert "request_agent_task" in noms
     assert "get_agent_task_result" in noms

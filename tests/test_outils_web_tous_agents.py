@@ -4,20 +4,21 @@ Demande utilisateur : « assurez-vous que tous les agents ont l'outil de recherc
 web complet et les outils fetch urls ». L'invariant est donc verrouillé ici, une
 fois pour tout le catalogue :
 
-1. chaque agent du **runtime** déclare les six tools de lecture externe —
-   ``langsearch_web_search`` (recherche fédérée), ``fetch_url`` / ``read_urls``
-   (lecture d'une adresse, seule ou par lot), ``rechercher_image``,
-   ``rechercher_video``, ``rechercher_document`` (recherche média) ;
+1. chaque agent du **runtime** déclare les quatre tools de lecture externe —
+   ``langsearch_web_search`` (recherche fédérée : pages, et fichiers via
+   ``filetype:``), ``fetch_url`` / ``read_urls`` (lecture d'une adresse, seule
+   ou par lot), ``rechercher_video`` (vidéos) ;
 2. chaque agent porte la capacité ``web_search`` — sans elle, les tools
    lèveraient ``PermissionDeniedError`` à l'appel (garde de ``app.tools.web`` /
-   ``app.tools.recherche_media``) : déclarer sans capacité serait un contrat mort ;
+   ``app.tools.recherche_video``) : déclarer sans capacité serait un contrat mort ;
 3. chaque **fabrique d'agent** les matérialise réellement (``deep_tools``) — un
    contrat peut déclarer un tool que le constructeur n'attache pas, et le modèle
    ne le verrait jamais.
 
 Ce que ce test ne fait pas : appeler le réseau. Les tools restent en lecture
 pure ; leur comportement (fédération, anti-SSRF, bornes) est testé dans
-``test_tools_web.py`` et ``test_tools_recherche_media.py``.
+``test_tools_web.py``, ``test_moteurs_web.py`` et
+``test_tools_recherche_video.py``.
 """
 
 from __future__ import annotations
@@ -31,15 +32,13 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.agents.base import AgentDefinition
 from app.agents.catalogue import AGENT_RUNTIME
 
-#: Les six tools de lecture externe attendus sur **chaque** agent.
+#: Les quatre tools de lecture externe attendus sur **chaque** agent.
 TOOLS_WEB: frozenset[str] = frozenset(
     {
         "langsearch_web_search",
         "fetch_url",
         "read_urls",
-        "rechercher_image",
         "rechercher_video",
-        "rechercher_document",
     }
 )
 
@@ -75,7 +74,7 @@ def _fabriques() -> dict[str, Callable[..., Any]]:
 
 @pytest.mark.parametrize("definition", AGENT_RUNTIME, ids=lambda d: d.agent_id)
 def test_chaque_agent_declare_la_surface_web_complete(definition: AgentDefinition) -> None:
-    """Six tools déclarés, capacité ``web_search`` présente : ni plus, ni moins."""
+    """Quatre tools déclarés, capacité ``web_search`` présente : ni plus, ni moins."""
     outils = set(definition.tools)
     manquants = TOOLS_WEB - outils
     assert not manquants, f"{definition.agent_id} n'a pas {sorted(manquants)}"

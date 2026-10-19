@@ -91,11 +91,9 @@ NOMS_TOOLS: tuple[str, ...] = (
     # jamais estimé. Même capacité ``web_search`` que la recherche.
     "fetch_url",
     "read_urls",
-    # Recherche média (module ``app.tools.recherche_media``) : attachée au
+    # Recherche de vidéos (module ``app.tools.recherche_video``) : attachée au
     # contrat par le même kit, donc déclarée ici comme le reste du périmètre.
-    "rechercher_image",
     "rechercher_video",
-    "rechercher_document",
 )
 
 SCENARIOS_HITL = (
@@ -229,10 +227,10 @@ def construire_tools_statistique(
     if read_document_tool is not None and read_document_tool.name not in noms:
         outils = (*outils, read_document_tool)
 
-    from app.tools.recherche_media import attacher_recherche_media
+    from app.tools.recherche_video import attacher_recherche_video
     from app.tools.web import attacher_outils_web
 
-    return attacher_recherche_media(definition, attacher_outils_web(definition, outils))
+    return attacher_recherche_video(definition, attacher_outils_web(definition, outils))
 
 
 # Alias stable pour les agents (chemin déterministe) : une seule porte.

@@ -3,12 +3,19 @@
 Trois tools, tous en **lecture pure** :
 
 - ``langsearch_web_search``—recherche web **fédérée**—les résultats de l'API
-  LangSearch et ceux de la page publique DuckDuckGo sont fusionnés en **une**
-  liste, alternée puis dédupliquée par URL, où chaque entrée porte ses
-  ``sources``. Un fournisseur qui refuse (clé absente, panne, quota) ne fait pas
-  échouer la recherche—les avertissements sont rendus tels quels et l'autre
-  répond. Si **aucun** ne répond, l'échec est explicite—jamais une liste vide
-  qui ferait croire à une absence de résultats.
+  LangSearch et ceux des **moteurs publics** (``app/tools/moteurs_web`` : Bing,
+  Yahoo, Brave, Mojeek, DuckDuckGo, interrogés tour à tour avec une empreinte de
+  Chrome) sont fusionnés en **une** liste, alternée puis dédupliquée par URL, où
+  chaque entrée porte ses ``sources``. Un fournisseur qui refuse (clé absente,
+  panne, quota, captcha) ne fait pas échouer la recherche—les avertissements
+  sont rendus tels quels et l'autre répond. Si **aucun** ne répond, l'échec est
+  explicite—jamais une liste vide qui ferait croire à une absence de résultats.
+
+C'est aussi le tool des **fichiers** : une image ou un document se cherchent avec
+la recherche web classique et son opérateur ``filetype:`` (``… filetype:pdf``,
+``… filetype:xlsx``, ``… filetype:jpg``), sans tool dédié. Les moteurs publics
+qui honorent l'opérateur rendent directement l'adresse du fichier ; l'agent dit
+lequel il a obtenu, et ne présente jamais une page comme un fichier.
 - ``fetch_url``—contenu lisible d'une adresse—texte extrait d'une page HTML,
   JSON reformaté, ou texte brut.
 - ``read_urls``—la même lecture sur plusieurs adresses en un appel, sous un
@@ -48,10 +55,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.errors import ValidationError
 from app.documents.telechargement import url_publique_verifiee
+from app.tools import moteurs_web
 from app.tools.fournisseurs_recherche import (
     EN_TETES,
     TIMEOUT_HTTP,
-    pages_duckduckgo,
     pages_langsearch,
     soupe,
 )
@@ -70,7 +77,7 @@ __all__ = [
 #: Fournisseurs de la recherche fédérée. Ce sont aussi les valeurs du champ
 #: ``sources`` du schéma d'entrée et des ``sources`` rendues par résultat.
 SOURCE_LANGSEARCH = "langsearch"
-SOURCE_DUCKDUCKGO = "duckduckgo"
+SOURCE_MOTEURS = "moteurs"
 
 _MAX_REQUETE = 400
 _MAX_RESULTATS = 10
@@ -109,10 +116,9 @@ _FRAICHEUR = {
     "an": "oneYear",
     "annee": "oneYear",
 }
-#: Jeton canonique → code DuckDuckGo. Hors de cette table, le moteur ne filtre
-#: pas : c'est dit dans les avertissements, jamais passé sous silence.
-_FRAICHEUR_DUCKDUCKGO = {"oneDay": "d", "oneWeek": "w", "oneMonth": "m", "oneYear": "y"}
-#: Une plage de dates est comprise par l'API LangSearch **seule**.
+#: Une plage de dates est comprise par l'API LangSearch **seule** : les moteurs
+#: publics ne reçoivent pas de filtre de fraîcheur, et le dire vaut mieux que
+#: laisser croire qu'il a été appliqué.
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -185,12 +191,13 @@ class WebSearchInput(BaseModel):
         le=5000,
         description="Plafond par résultat en mode texte (défaut API = 5000).",
     )
-    sources: list[Literal["langsearch", "duckduckgo"]] | None = Field(
+    sources: list[Literal["langsearch", "moteurs"]] | None = Field(
         default=None,
         description=(
-            "Fournisseurs interrogés. Par défaut les deux : celui qui refuse "
-            "n'empêche pas l'autre de répondre. Pour lire une page trouvée, "
-            "utilise fetch_url ou read_urls."
+            "Fournisseurs interrogés : langsearch (API) et moteurs (Bing, Yahoo, "
+            "Brave, Mojeek, DuckDuckGo, essayés tour à tour). Par défaut les "
+            "deux : celui qui refuse n'empêche pas l'autre de répondre. Pour "
+            "lire une page trouvée, utilise fetch_url ou read_urls."
         ),
     )
 
@@ -319,7 +326,7 @@ def build_web_search_tool(
     def _rechercher(cible: httpx.Client, payload: dict[str, Any]) -> dict[str, Any]:
         policy.require(identite.agent_id, "web_search")
 
-        demandees = list(payload.get("sources") or (SOURCE_LANGSEARCH, SOURCE_DUCKDUCKGO))
+        demandees = list(payload.get("sources") or (SOURCE_LANGSEARCH, SOURCE_MOTEURS))
         demande = payload.get("max_results") or plafond
         nb = min(int(demande), plafond)
         fraicheur = payload["freshness"]
@@ -364,25 +371,19 @@ def build_web_search_tool(
             except (ValidationError, httpx.HTTPError) as erreur:
                 avertissements.append(f"LangSearch indisponible : {erreur}")
 
-        if SOURCE_DUCKDUCKGO in demandees:
+        if SOURCE_MOTEURS in demandees:
             try:
                 lots.append(
                     (
-                        SOURCE_DUCKDUCKGO,
+                        SOURCE_MOTEURS,
                         [
-                            {**item, "sources": [SOURCE_DUCKDUCKGO]}
-                            for item in pages_duckduckgo(
-                                cible,
-                                requete=requete,
-                                nb=nb,
-                                date_filtre=_FRAICHEUR_DUCKDUCKGO.get(fraicheur),
-                                timeout=TIMEOUT_HTTP,
-                            )
+                            {**item, "sources": [SOURCE_MOTEURS]}
+                            for item in moteurs_web.pages(requete, nb)
                         ],
                     )
                 )
-            except (ValidationError, httpx.HTTPError) as erreur:
-                avertissements.append(f"DuckDuckGo indisponible : {erreur}")
+            except ValidationError as erreur:
+                avertissements.append(f"Moteurs publics indisponibles : {erreur}")
 
         if not lots:
             msg = "Recherche web impossible : " + " ; ".join(avertissements)
@@ -396,13 +397,12 @@ def build_web_search_tool(
             msg = "Recherche web sans résultat : " + " ; ".join(avertissements)
             raise ValidationError(msg, details={"sources": demandees})
 
-        if SOURCE_DUCKDUCKGO in demandees and fraicheur not in _FRAICHEUR_DUCKDUCKGO:
-            if fraicheur != "noLimit":
-                avertissements.append(
-                    "filtre de fraîcheur non appliqué par DuckDuckGo (réservé à "
-                    "LangSearch) : les résultats du moteur public peuvent être "
-                    "plus anciens que demandé"
-                )
+        if SOURCE_MOTEURS in demandees and fraicheur != "noLimit":
+            avertissements.append(
+                "filtre de fraîcheur non appliqué par les moteurs publics "
+                "(réservé à LangSearch) : leurs résultats peuvent être plus "
+                "anciens que demandé"
+            )
 
         return {
             "requete": requete,
@@ -427,11 +427,16 @@ def build_web_search_tool(
     return TypedTool(
         name="langsearch_web_search",
         description=(
-            "Recherche web sur deux sources fusionnées : l'API LangSearch et le "
-            "moteur public DuckDuckGo. Un fournisseur en panne n'empêche pas "
-            "l'autre de répondre — les avertissements le disent, résultat par "
-            "résultat la clé `sources` dit d'où il vient. Titre, URL, résumé (ou "
-            "texte de page via texte_complet), fraîcheur et filtres de domaines. "
+            "Recherche web sur deux sources fusionnées : l'API LangSearch et les "
+            "moteurs publics (Bing, Yahoo, Brave, Mojeek, DuckDuckGo, essayés tour "
+            "à tour). Un fournisseur en panne n'empêche pas l'autre de répondre — "
+            "les avertissements le disent, résultat par résultat la clé `sources` "
+            "dit d'où il vient. Titre, URL, résumé (ou texte de page via "
+            "texte_complet), fraîcheur et filtres de domaines. "
+            "FICHIERS : un document ou une image se cherchent ici, avec "
+            "l'opérateur dans la requête — « rapport annuel filetype:pdf », "
+            "« budget filetype:xlsx », « tour Eiffel filetype:jpg » ; le lien "
+            "rendu est alors celui du fichier, pas d'une page. "
             "Lecture seule : rien n'est écrit, aucun fichier n'est conservé. Pour "
             "lire le contenu d'une page trouvée, utilise fetch_url ou read_urls. "
             "Source complémentaire, jamais la vérité métier."
