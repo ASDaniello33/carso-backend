@@ -13,8 +13,9 @@ module **aucune** option ``--output``, et pas la moindre invocation de ffmpeg.
 Ce qu'il ne fait pas non plus—décider de l'adresse (elle vient de
 l'utilisateur), deviner une résolution absente, recomposer un fichier qui n'existe
 pas, ni contourner une protection. Aucun cookie, aucun jeton anti-robot, aucun
-proxy—si le site refuse l'adresse du serveur, le refus est remonté **tel quel**
-avec son motif—la leçon des connecteurs MCP.
+proxy—si le site refuse l'adresse du serveur, le refus est **traduit** en une
+phrase actionnable : la sortie brute d'yt-dlp reste dans les journaux, jamais
+à l'écran—la leçon des connecteurs MCP.
 
 **Image et son peuvent être deux fichiers distincts** (mesuré le 08/10/2026—la
 plupart des hauteurs d'une vidéo YouTube n'existent qu'en image seule, avec une
@@ -53,6 +54,7 @@ depuis le poste qui télécharge, et l'écran offre de relancer la lecture.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -71,6 +73,8 @@ __all__ = [
     "paquet_disponible",
 ]
 
+_logger = logging.getLogger(__name__)
+
 #: Délai de connexion/lecture d'yt-dlp, par requête. Un site qui ne répond pas
 #: ne doit pas consommer tout le délai global.
 _SOCKET_TIMEOUT = 20
@@ -85,36 +89,58 @@ _PROTOCOLES_EXCLUS = ("mhtml",)
 #: manifestes (``m3u8_native``, ``dash``) portent une adresse qui se lit avec un
 #: lecteur : elles ne sont pas présentées comme un lien direct.
 _PROTOCOLES_DIRECTS = ("https", "http")
-#: Motifs de refus reconnus, du plus explicite au plus général.
-_REFUS_CONNUS = (
+#: Motifs de refus reconnus → ce que l'utilisateur peut faire. Comparés sur la
+#: forme **repliée** de la sortie (typographie, casse, espaces) : le site change
+#: d'apostrophe sans préavis — « you’re » (U+2019) n'est pas « you're ». C'est
+#: précisément ce détail qui laissait passer le message brut d'yt-dlp à l'écran
+#: (constaté le 19/10/2026 sur le service Render).
+_REFUS_CONNUS: tuple[tuple[tuple[str, ...], str], ...] = (
     (
-        "Sign in to confirm you're not a bot",
-        "Le site demande une vérification anti-robot pour l'adresse du serveur "
-        "(réputation d'IP). CARSO ne présente ni cookie ni jeton de connexion : "
-        "réessayez plus tard, ou ouvrez la vidéo depuis votre poste.",
+        ("not a bot", "confirm you're not a robot", "checking your browser"),
+        "Le site exige une vérification anti-robot pour l'adresse du serveur "
+        "(réputation d'IP). CARSO ne présente ni cookie ni compte : réessayez plus "
+        "tard, ou ouvrez la vidéo depuis son site.",
     ),
     (
-        "Unsupported URL",
+        ("unsupported url", "no suitable extractor"),
         "Cette adresse n'est pas prise en charge : aucun extracteur ne sait en lire "
         "le contenu. Vérifiez qu'il s'agit bien d'une page vidéo et non d'un lien "
         "vers autre chose.",
     ),
     (
-        "No suitable extractor",
-        "Cette adresse n'est pas prise en charge : aucun extracteur ne sait en lire "
-        "le contenu. Vérifiez qu'il s'agit bien d'une page vidéo et non d'un lien "
-        "vers autre chose.",
-    ),
-    (
-        "Video unavailable",
+        ("video unavailable",),
         "Le site déclare cette vidéo indisponible (retirée, privée ou réservée à "
         "une région).",
     ),
     (
-        "Private video",
+        ("private video",),
         "Cette vidéo est privée : elle exige une connexion que CARSO ne présente pas.",
     ),
+    (
+        ("members-only", "join this channel"),
+        "Cette vidéo est réservée aux membres d'une chaîne : elle exige une "
+        "connexion que CARSO ne présente pas.",
+    ),
+    (
+        ("confirm your age", "age-restricted", "inappropriate"),
+        "Cette vidéo est réservée à un public majeur : le site exige une connexion "
+        "que CARSO ne présente pas.",
+    ),
+    (
+        ("not available in your country", "blocked it in your country"),
+        "Le site réserve cette vidéo à un autre pays : la lecture est refusée à "
+        "l'adresse du serveur.",
+    ),
 )
+
+#: Caractères typographiques que les sites emploient là où l'extracteur écrit une
+#: apostrophe ou un tiret droits.
+_EQUIVALENTS = str.maketrans({"’": "'", "‘": "'", "´": "'", "`": "'", "—": "-", "–": "-"})
+
+
+def _replier(texte: str) -> str:
+    """Forme comparable d'une sortie d'extracteur : typographie, casse, espaces."""
+    return " ".join(texte.translate(_EQUIVALENTS).split()).lower()
 
 
 @dataclass(frozen=True, slots=True)
@@ -357,21 +383,30 @@ def _executer(commande: list[str], *, timeout: float) -> tuple[str, str]:
     return sortie or "", erreurs or ""
 
 
-def _motif_refus(erreurs: str, code: int) -> str:
-    """Motif de refus lisible, pris dans la sortie réelle d'yt-dlp.
+def _motif_refus(erreurs: str, code: int, url: str) -> str:
+    """Ce que l'écran peut dire du refus — **jamais** la sortie brute de l'outil.
 
-    Le message du site est préféré à un « échec » générique : c'est lui qui dit
-    quoi faire (« vérification anti-robot », « vidéo indisponible », extracteur
-    absent). Les motifs connus reçoivent en plus un conseil.
+    La sortie réelle sert à reconnaître une panne connue, puis à nourrir les
+    journaux. Elle ne franchit pas cette frontière : c'est un texte d'outil
+    (« Use --cookies… », liens wiki, anglais non traduit) qui ne dit rien à un
+    collaborateur CARSO. Un motif inconnu reçoit donc une phrase générique et
+    actionnable, et le détail technique reste côté serveur.
     """
-    texte = " ".join(erreurs.split())
-    for motif, conseil in _REFUS_CONNUS:
-        if motif.lower() in texte.lower():
+    texte = _replier(erreurs)
+    for motifs, conseil in _REFUS_CONNUS:
+        if any(motif in texte for motif in motifs):
             return conseil
-    lignes = [ligne.strip() for ligne in erreurs.splitlines() if "ERROR:" in ligne]
-    if lignes:
-        return lignes[-1].replace("ERROR:", "").strip()[:300]
-    return f"L'extracteur a échoué (code {code}) sans message exploitable."
+    _logger.warning(
+        "Extracteur vidéo en échec (code %s) sur %s : %s",
+        code,
+        url,
+        " ".join(erreurs.split())[:400] or "aucune sortie",
+    )
+    return (
+        "CARSO n'a pas pu lire ce que cette page propose : le site a refusé la "
+        "demande ou répondu autre chose qu'une page vidéo. Ouvrez la vidéo depuis "
+        "son site, ou réessayez plus tard."
+    )
 
 
 def _codec(valeur: Any) -> str:
@@ -540,7 +575,7 @@ def _obtenir_info(url: str, *, timeout: float) -> dict[str, Any]:
         info = json.loads(sortie)
     except json.JSONDecodeError as exc:
         raise ValidationError(
-            _motif_refus(erreurs, -1),
+            _motif_refus(erreurs, -1, url),
             details={"url": url, "sortie": sortie[:200]},
         ) from exc
     if not isinstance(info, dict):
@@ -549,7 +584,7 @@ def _obtenir_info(url: str, *, timeout: float) -> dict[str, Any]:
         # d'erreur (« Unsupported URL »). Le rendre plutôt qu'un « réponse
         # inattendue » qui ne dit pas quoi corriger.
         raise ValidationError(
-            _motif_refus(erreurs, -1),
+            _motif_refus(erreurs, -1, url),
             details={"url": url, "sortie": sortie[:200]},
         )
     return info

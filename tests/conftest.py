@@ -209,3 +209,18 @@ def _session_interdite() -> object:
 @pytest.fixture(autouse=True)
 def sans_moteurs_reels(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("app.tools.moteurs_web._session", _session_interdite)
+
+
+@pytest.fixture(autouse=True)
+def caches_recherche_vides() -> None:
+    """Chaque test part d'un cache de recherche vide.
+
+    Les caches TTL sont des objets de module : sans remise à zéro, une entrée
+    écrite par un test serait servie au suivant et masquerait un appel réseau
+    que ce test-là croit exercer.
+    """
+    from app.tools.recherche_video import CACHE_RECHERCHE_VIDEO
+    from app.tools.web import CACHE_RECHERCHE_WEB
+
+    CACHE_RECHERCHE_WEB.vider()
+    CACHE_RECHERCHE_VIDEO.vider()

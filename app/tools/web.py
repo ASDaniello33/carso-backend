@@ -27,6 +27,12 @@ qu'un octet ne parte, **à chaque saut de redirection**—la boucle locale, le
 réseau interne et les identifiants dans l'URL sont refusés (anti-SSRF). Les
 redirections sont suivies explicitement, une par une, jamais déléguées à httpx.
 
+Les **recherches** de ``langsearch_web_search`` sont mémorisées 30 minutes en
+mémoire (``app/tools/cache_ttl``) : une requête identique rejouée dans un run ne
+repart ni chez LangSearch ni chez les moteurs publics. Les échecs ne sont jamais
+mémorisés, et la permission est revérifiée **avant** de lire le cache — un agent
+sans ``web_search`` ne récupère pas le résultat d'un autre.
+
 Ce que ces tools ne font pas—aucun fichier n'est écrit ni déposé, aucune ligne
 n'est insérée en base. Une page est lue **en flux**, bornée en octets puis en
 caractères—une adresse volumineuse est dite, jamais aspirée. Le texte rendu est
@@ -56,6 +62,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.core.errors import ValidationError
 from app.documents.telechargement import url_publique_verifiee
 from app.tools import moteurs_web
+from app.tools.cache_ttl import CacheTTL
 from app.tools.fournisseurs_recherche import (
     EN_TETES,
     TIMEOUT_HTTP,
@@ -65,6 +72,7 @@ from app.tools.fournisseurs_recherche import (
 from app.tools.permissions import AgentIdentity, PermissionPolicy
 
 __all__ = [
+    "CACHE_RECHERCHE_WEB",
     "FetchUrlInput",
     "ReadUrlsInput",
     "WebSearchInput",
@@ -78,6 +86,10 @@ __all__ = [
 #: ``sources`` du schéma d'entrée et des ``sources`` rendues par résultat.
 SOURCE_LANGSEARCH = "langsearch"
 SOURCE_MOTEURS = "moteurs"
+
+#: Recherches web mémorisées 30 minutes, partagées par tous les agents du
+#: processus : les résultats publics ne dépendent pas de l'agent qui demande.
+CACHE_RECHERCHE_WEB: CacheTTL[dict[str, Any]] = CacheTTL()
 
 _MAX_REQUETE = 400
 _MAX_RESULTATS = 10
@@ -331,6 +343,23 @@ def build_web_search_tool(
         nb = min(int(demande), plafond)
         fraicheur = payload["freshness"]
         requete = payload["requete"]
+
+        # Clé = tout ce qui peut changer la réponse. La permission vient d'être
+        # vérifiée : un agent refusé ne lit jamais une entrée écrite par un autre.
+        cle_cache = (
+            requete,
+            nb,
+            fraicheur,
+            tuple(demandees),
+            tuple(payload.get("include_domains") or ()),
+            tuple(payload.get("exclude_domains") or ()),
+            bool(payload.get("texte_complet")),
+            int(payload.get("max_caracteres") or 0),
+        )
+        en_cache = CACHE_RECHERCHE_WEB.obtenir(cle_cache)
+        if en_cache is not None:
+            return en_cache
+
         avertissements: list[str] = []
 
         lots: list[tuple[str, list[dict[str, Any]]]] = []
@@ -404,7 +433,7 @@ def build_web_search_tool(
                 "anciens que demandé"
             )
 
-        return {
+        reponse = {
             "requete": requete,
             "nb_resultats": len(resultats),
             "resultats": resultats,
@@ -413,6 +442,10 @@ def build_web_search_tool(
             "usage": usage,
             "log_id": log_id,
         }
+        # Seul un résultat réussi est mémorisé : une panne passagère doit pouvoir
+        # être retentée au prochain appel, pas rester collée 30 minutes.
+        CACHE_RECHERCHE_WEB.memoriser(cle_cache, reponse)
+        return reponse
 
     def _handler(payload: dict[str, Any]) -> dict[str, Any]:
         if client_fourni and client is not None:

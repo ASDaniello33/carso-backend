@@ -13,6 +13,10 @@ depuis un hébergeur.
 Un échec **réel** est une erreur métier explicite : une exception de transport
 brute traverserait le tool et interromprait tout le run AG-UI (``app/api/agui.py``
 ne rattrape que pour dire) au lieu d'être dite à l'agent.
+
+Une recherche identique (même requête, même nombre de résultats) est mémorisée
+**30 minutes** en mémoire (``app/tools/cache_ttl``) : la répéter ne repart pas
+chez YouTube. Un échec n'est jamais mémorisé.
 """
 
 from __future__ import annotations
@@ -22,12 +26,21 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.tools import moteurs_web
+from app.tools.cache_ttl import CacheTTL
 from app.tools.permissions import AgentIdentity, PermissionPolicy
 
-__all__ = ["RechercheVideoInput", "attacher_recherche_video", "build_recherche_video_tool"]
+__all__ = [
+    "CACHE_RECHERCHE_VIDEO",
+    "RechercheVideoInput",
+    "attacher_recherche_video",
+    "build_recherche_video_tool",
+]
 
 _CARACTERES_MAX_REQUETE = 300
 _MAX_RESULTATS = 10
+
+#: Recherches vidéo mémorisées 30 minutes, partagées par tous les agents.
+CACHE_RECHERCHE_VIDEO: CacheTTL[dict[str, Any]] = CacheTTL()
 
 
 class RechercheVideoInput(BaseModel):
@@ -73,15 +86,28 @@ def build_recherche_video_tool(
     plafond = int(getattr(settings, "web_search_max_results", 5) or 5)
 
     def _handler(payload: dict[str, Any]) -> dict[str, Any]:
+        # La permission est vérifiée **avant** le cache : un agent sans
+        # ``web_search`` ne doit pas récupérer le résultat d'un autre.
         policy.require(identite.agent_id, "web_search")
-        resultats = moteurs_web.videos(payload["requete"], _borne(payload, plafond))
-        return {
-            "requete": payload["requete"],
+        requete = payload["requete"]
+        nb = _borne(payload, plafond)
+
+        cle_cache = (requete, nb)
+        en_cache = CACHE_RECHERCHE_VIDEO.obtenir(cle_cache)
+        if en_cache is not None:
+            return en_cache
+
+        resultats = moteurs_web.videos(requete, nb)
+        reponse = {
+            "requete": requete,
             "nb_resultats": len(resultats),
             "resultats": resultats,
             "sources_utilisees": ["youtube"],
             "avertissements": [],
         }
+        # Seul un résultat réussi est mémorisé (une panne se retente).
+        CACHE_RECHERCHE_VIDEO.memoriser(cle_cache, reponse)
+        return reponse
 
     from app.tools.base import TypedTool
 

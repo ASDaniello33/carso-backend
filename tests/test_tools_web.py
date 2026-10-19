@@ -367,6 +367,45 @@ def test_refus_temporaire_est_retente(monkeypatch: pytest.MonkeyPatch) -> None:
     assert sortie["nb_resultats"] == 1
 
 
+def test_une_recherche_web_repetee_ne_repasse_pas_par_le_reseau(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Deux fois la même recherche : un seul appel HTTP, un seul appel aux moteurs.
+
+    Le cache couvre la recherche **entière** (LangSearch *et* moteurs publics),
+    pas seulement l'un des deux fournisseurs : une répétition ne doit rien
+    renvoyer au réseau, quel qu'il soit.
+    """
+    appels = {"langsearch": 0, "moteurs": 0}
+
+    def _route(_request: httpx.Request) -> httpx.Response:
+        appels["langsearch"] += 1
+        return httpx.Response(200, text=_reponse_langsearch("https://exemple.org/a"))
+
+    def _pages(_requete: str, _nb: int) -> list[dict[str, Any]]:
+        appels["moteurs"] += 1
+        return [{"titre": "Moteur", "url": "https://exemple.org/c", "resume": ""}]
+
+    monkeypatch.setattr("app.tools.moteurs_web.pages", _pages)
+    tool = build_web_search_tool(
+        identite=IDENTITE,
+        policy=POLICY_WEB,
+        settings=_settings(),
+        client=_transport(_route),
+    )
+
+    premier = tool.invoke({"requete": "barème formation"})
+    second = tool.invoke({"requete": "barème formation"})
+
+    assert premier == second, "la répétition rend exactement le même résultat"
+    assert appels == {"langsearch": 1, "moteurs": 1}, "aucun appel réseau au second passage"
+
+    # Une autre requête a sa propre entrée : le cache n'est pas un « dernier
+    # résultat » resservi à tort.
+    tool.invoke({"requete": "autre recherche"})
+    assert appels == {"langsearch": 2, "moteurs": 2}
+
+
 # --- Recherche web : fusion des deux fournisseurs ----------------------------
 
 

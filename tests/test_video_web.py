@@ -436,11 +436,17 @@ def test_support_absent_est_un_refus_explicite(
 
 
 def test_le_refus_du_site_est_affiche_avec_son_remède(lecture: dict[str, Any]) -> None:
-    """Le motif réel remonte : « pas de jeton » n'est pas la même panne qu'un 404."""
+    """Le vrai libellé de YouTube (apostrophe typographique) reçoit son conseil.
+
+    Constaté le 19/10/2026 sur le service Render : le libellé servi emploie « you’re »
+    (U+2019) là où sa documentation écrit « you're ». Une comparaison littérale
+    laissait alors passer la ligne brute — flags et liens wiki compris.
+    """
     lecture["sortie"] = ""
     lecture["erreurs"] = (
-        "ERROR: [youtube] jNQXAC9IVRw: Sign in to confirm you're not a bot. "
-        "Use --cookies-from-browser or --cookies for the authentication."
+        "ERROR: [youtube] O8egem8pDxE: Sign in to confirm you’re not a bot. "
+        "Use --cookies-from-browser or --cookies for the authentication. "
+        "See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ  for how to manually pass cookies"
     )
 
     with pytest.raises(ValidationError) as refus:
@@ -448,10 +454,33 @@ def test_le_refus_du_site_est_affiche_avec_son_remède(lecture: dict[str, Any]) 
 
     assert "anti-robot" in refus.value.message
     assert "cookie" in refus.value.message.lower()
+    assert "--" not in refus.value.message, "aucun drapeau d'outil à l'écran"
+    assert "http" not in refus.value.message.lower(), "aucun lien de documentation à l'écran"
 
 
-def test_une_sortie_illisible_rend_le_motif_reel(lecture: dict[str, Any]) -> None:
-    """Un JSON invalide n'efface pas la raison : la dernière ligne d'erreur reste."""
+def test_un_motif_inconnu_ne_livre_pas_la_sortie_de_l_outil(lecture: dict[str, Any]) -> None:
+    """Un libellé nouveau n'expose jamais la ligne d'yt-dlp : phrase générique.
+
+    C'est l'invariant de l'écran : la sortie de l'extracteur sert aux journaux,
+    jamais au collaborateur. Une reformulation côté site ne doit pas rouvrir la
+    fuite qu'a montrée le 19/10/2026.
+    """
+    lecture["sortie"] = "pas du json"
+    lecture["erreurs"] = (
+        "ERROR: [youtube] abc: A wording the maintainers just changed. "
+        "Use --extractor-args for the workaround. See https://exemple.test/x"
+    )
+
+    with pytest.raises(ValidationError) as refus:
+        _lire()
+
+    assert "CARSO n'a pas pu lire" in refus.value.message
+    assert "--" not in refus.value.message
+    assert "exemple.test" not in refus.value.message
+
+
+def test_une_sortie_illisible_garde_le_motif_connu(lecture: dict[str, Any]) -> None:
+    """Un JSON invalide n'efface pas la cause : l'extracteur absent est nommé."""
     lecture["sortie"] = "pas du json"
     lecture["erreurs"] = "ERROR: No suitable extractor found"
 

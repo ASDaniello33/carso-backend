@@ -114,6 +114,48 @@ def test_un_echec_du_fournisseur_est_dit(monkeypatch: pytest.MonkeyPatch) -> Non
     assert "YouTube" in sortie["error"]["message"]
 
 
+def test_une_recherche_video_repetee_ne_repasse_pas_par_le_reseau(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Même requête, même plafond : YouTube n'est interrogé qu'une fois."""
+    appels: list[tuple[str, int]] = []
+
+    def _videos(requete: str, nb: int) -> list[dict[str, Any]]:
+        appels.append((requete, nb))
+        return [dict(VIDEO)]
+
+    monkeypatch.setattr(moteurs_web, "videos", _videos)
+    tool = _tool()
+
+    premier = tool.invoke({"requete": "tuto fastapi"})
+    second = tool.invoke({"requete": "tuto fastapi"})
+
+    assert premier == second, "la répétition rend exactement le même résultat"
+    assert appels == [("tuto fastapi", 5)], "aucun appel réseau au second passage"
+
+    # Une autre requête a sa propre entrée.
+    tool.invoke({"requete": "autre tuto"})
+    assert len(appels) == 2
+
+
+def test_un_echec_n_est_pas_memorise(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Une panne passagère se retente : elle ne reste pas collée 30 minutes."""
+    appels = {"n": 0}
+
+    def _videos(_requete: str, _nb: int) -> list[dict[str, Any]]:
+        appels["n"] += 1
+        if appels["n"] == 1:
+            raise ValidationError("YouTube n'a pas répondu")
+        return [dict(VIDEO)]
+
+    monkeypatch.setattr(moteurs_web, "videos", _videos)
+    tool = _tool()
+
+    assert tool.invoke({"requete": "tuto"})["ok"] is False
+    assert tool.invoke({"requete": "tuto"})["ok"] is True
+    assert appels["n"] == 2
+
+
 def test_attache_ce_que_le_contrat_declare() -> None:
     class _Contrat:
         agent_id = "agent_test"
