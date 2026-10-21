@@ -49,6 +49,10 @@ class AgentDefinition:
             (``instruction/05 §5``). Vide = agent autonome, sans délégation.
         approval_required: tools dont l'exécution est soumise à approbation
             humaine interactive (``interrupt_on`` du harnais, instruction/08 §7).
+        approval_editable: sous-ensemble de ``approval_required`` dont les
+            **arguments** peuvent être corrigés par l'humain avant exécution
+            (décision ``edit``). L'agent ne décide pas du contenu final :
+            l'utilisateur relit et modifie, puis l'outil part avec ses valeurs.
         output_schema_name: schéma de sortie structurée attendu (documentaire ;
             le schéma Pydantic lui-même est fourni au harnais).
         skills: noms des skills Deep Agents (répertoires ``SKILL.md``) que
@@ -77,6 +81,7 @@ class AgentDefinition:
     collaboration: tuple[CollaborationGrant, ...] = ()
     prompt: str = ""
     approval_required: tuple[str, ...] = field(default=())
+    approval_editable: tuple[str, ...] = field(default=())
     output_schema_name: str | None = None
     skills: tuple[str, ...] = field(default=())
     hitl_scenarios: tuple[HitlScenario, ...] = field(default=())

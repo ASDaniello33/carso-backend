@@ -38,7 +38,7 @@ from app.api.routes import (
     social_ws,
     tableau_bord,
 )
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
 from app.infrastructure.database import SessionLocal
@@ -92,23 +92,73 @@ def bootstrap_admin() -> bool:
         session.close()
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Charge la config mémorisée, le premier admin et le checkpointer, puis libère."""
-    from app.agents.checkpointer import liberer_checkpointer, prechauffer_checkpointer
+def initialiser_runtime() -> None:
+    """Restaure la configuration d'agents et le premier admin (tâche de fond).
 
-    prechauffer_checkpointer()
+    Cette initialisation touche PostgreSQL. L'exécuter **avant** ``yield``
+    retardait l'acceptation de la première requête du temps de la base (et la
+    bloquait sans borne si elle était injoignable), jusqu'au délai
+    d'initialisation de la plateforme. Le serveur répond désormais tout de
+    suite ; la configuration administrée s'applique dès que la lecture aboutit
+    (le manager est thread-safe et notifie AG-UI).
+
+    Le checkpointer n'est plus préchauffé : sa fabrique est déjà paresseuse par
+    contrat (créée au premier graphe) — le préchauffer au démarrage ouvrait un
+    pool PostgreSQL et exécutait ``setup()`` pour rien, sur le chemin critique.
+    """
     restaurer_runtime_agents()
     bootstrap_admin()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Démarre l'API immédiatement, initialise la base en tâche de fond."""
+    import threading
+
+    from app.agents.checkpointer import liberer_checkpointer
+
+    initialisation: threading.Thread | None = None
+    if get_settings().demarrage_initialise_runtime:
+        initialisation = threading.Thread(
+            target=initialiser_runtime,
+            name="carso-initialisation-runtime",
+            daemon=True,
+        )
+        initialisation.start()
     yield
+    # Un arrêt ne doit pas attendre indéfiniment une base lente.
+    if initialisation is not None:
+        initialisation.join(timeout=5)
     get_runtime_manager().release()
     liberer_checkpointer()
+
+
+def _signaler_origine_frontend_absente(settings: Settings) -> None:
+    """Journalise une incohérence CORS qui casse la connexion en silence.
+
+    Le piège documenté (docs/api/TUNNEL-DEPLOIEMENT.md §1) : c'est l'origine de
+    la **page** qui est vérifiée. Quand le frontend change d'adresse et que
+    ``CORS_ORIGINS`` n'est pas mis à jour, le préflight reçoit 400 et le
+    navigateur annule le POST — aucun message côté backend. Le signaler au
+    démarrage évite de chercher la panne dans le tunnel.
+    """
+    logger = logging.getLogger(__name__)
+    origines = {origine.rstrip("/") for origine in settings.cors_origins}
+    frontend = settings.frontend_public_url.rstrip("/")
+    if frontend and frontend not in origines:
+        logger.warning(
+            "CORS : l'origine du frontend (%s) est absente de CORS_ORIGINS %s — "
+            "le navigateur annulera chaque requête (préflight 400).",
+            frontend,
+            sorted(origines),
+        )
 
 
 def create_app() -> FastAPI:
     """Build and configure the CARSO backend application."""
     settings = get_settings()
     configure_logging(level=logging_level(settings.debug))
+    _signaler_origine_frontend_absente(settings)
 
     app = FastAPI(
         title=settings.app_name,
@@ -134,6 +184,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    print(f"\nALLOWED ORIGINS: {settings.cors_origins}\n")
     app.include_router(health.router, prefix=settings.api_v1_prefix)
     app.include_router(auth.router, prefix=settings.api_v1_prefix)
     app.include_router(appels_a_proposition.router, prefix=settings.api_v1_prefix)

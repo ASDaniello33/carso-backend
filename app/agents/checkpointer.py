@@ -142,13 +142,25 @@ def _construire_saver(settings: Settings) -> object | None:
         # (``setup()`` exécute ``CREATE INDEX CONCURRENTLY``, interdit dans un
         # bloc transactionnel) et ``row_factory=dict_row`` (le saver lit les
         # lignes par nom de colonne — un tuple lève ``TypeError``).
+        #
+        # Délais bornés (mêmes bornes que l'engine applicatif) : sans
+        # ``connect_timeout``, ``setup()`` attendait la fin des tentatives TCP
+        # quand la base était injoignable ; sans ``timeout`` de pool, l'attente
+        # d'une connexion libre pouvait durer indéfiniment.
+        from app.infrastructure.database import DB_CONNECT_TIMEOUT_S
+
         pool = ConnectionPool(
             url,
             name="carso-checkpoints",
             min_size=1,
             max_size=8,
+            timeout=DB_CONNECT_TIMEOUT_S,
             open=False,
-            kwargs={"autocommit": True, "row_factory": dict_row},
+            kwargs={
+                "autocommit": True,
+                "row_factory": dict_row,
+                "connect_timeout": DB_CONNECT_TIMEOUT_S,
+            },
             check=ConnectionPool.check_connection,
         )
         pool.open(wait=False)  # Sans attente : un serveur down échoue vite.

@@ -21,7 +21,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import func, select, true
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.application.services.social_evenements import (
@@ -333,42 +333,42 @@ class SocialService:
     def non_lus_par_conversation(
         self, utilisateur_id: UUID, conversation_ids: list[UUID]
     ) -> dict[UUID, int]:
-        """Nombre de messages non lus de l'utilisateur, par conversation (une requête).
+        """Nombre de messages non lus de l'utilisateur, par conversation.
 
         Non lu = message (non supprimé, pas de moi) posté après la dernière
         lecture du membre ; jamais lu → tous comptent. Les directes archivées
         par l'utilisateur ne sont pas comptées (hors de sa liste).
+
+        **Une seule requête agrégée.** La version précédente comptait les
+        messages conversation par conversation (N+1) : le badge de la barre
+        latérale, relu à chaque page et à chaque message, payait un aller-retour
+        par discussion. Le ``GROUP BY`` donne exactement les mêmes comptes.
         """
         if not conversation_ids:
             return {}
-        membres = self._session.scalars(
-            select(MembreConversation).where(
-                MembreConversation.conversation_id.in_(conversation_ids),
-                MembreConversation.utilisateur_id == utilisateur_id,
-                MembreConversation.parti_at.is_(None),
+        lignes = self._session.execute(
+            select(Message.conversation_id, func.count())
+            .join(
+                MembreConversation,
+                and_(
+                    MembreConversation.conversation_id == Message.conversation_id,
+                    MembreConversation.utilisateur_id == utilisateur_id,
+                    MembreConversation.parti_at.is_(None),
+                    MembreConversation.archive_at.is_(None),
+                ),
             )
+            .where(
+                Message.conversation_id.in_(conversation_ids),
+                Message.supprime_at.is_(None),
+                Message.auteur_id != utilisateur_id,
+                or_(
+                    MembreConversation.derniere_lecture_at.is_(None),
+                    Message.created_at > MembreConversation.derniere_lecture_at,
+                ),
+            )
+            .group_by(Message.conversation_id)
         ).all()
-        resultat: dict[UUID, int] = {}
-        for membre in membres:
-            if membre.archive_at is not None:
-                continue
-            total = self._session.scalar(
-                select(func.count())
-                .select_from(Message)
-                .where(
-                    Message.conversation_id == membre.conversation_id,
-                    Message.supprime_at.is_(None),
-                    Message.auteur_id != utilisateur_id,
-                    (
-                        Message.created_at > membre.derniere_lecture_at
-                        if membre.derniere_lecture_at is not None
-                        else true()
-                    ),
-                )
-            )
-            if total:
-                resultat[membre.conversation_id] = total
-        return resultat
+        return {conversation_id: int(total) for conversation_id, total in lignes if total}
 
     def marquer_lu(self, conversation_id: UUID, *, utilisateur_id: UUID) -> None:
         """Pose la dernière lecture à « maintenant » (membre actif requis)."""

@@ -1185,3 +1185,159 @@ def test_read_document_range_refuse_trop_de_plages(
 
     assert sortie["ok"] is False
     assert "plages" in sortie["error"]["message"]
+
+
+# --- Lecture par cibles hétérogènes et fenêtres de tableau (incrément 79) ------
+
+
+def test_lire_element_document_cibles_heterogenes_en_un_appel(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """``cibles`` lit des éléments de types différents en UN appel.
+
+    Cas réel : l'agent voulait le paragraphe ET une ligne précise du tableau ;
+    avec un seul ``type_element`` commun il enchaînait deux (voire N) appels.
+    """
+    outils = _tools(service)
+    depose = outils["generer_document"].invoke(
+        _payload(
+            organisation,
+            nom_fichier="cibles_heterogenes",
+            paragraphes=["Synthèse des travaux."],
+            tableau=[["Thème", "Effectif"], ["Gestion", "12"], ["Logistique", "8"]],
+        )
+    )
+
+    sortie = outils["lire_element_document"].invoke(
+        {
+            "document_id": depose["document_id"],
+            "cibles": [
+                # Le titre du document est le paragraphe 1 : le corps commence à 2.
+                {"type_element": "paragraphe", "index": 2},
+                {"type_element": "tableau", "index": 1, "sous_index": 2},
+            ],
+        }
+    )
+
+    assert sortie["nb_demandes"] == 2
+    assert sortie["nb_lus"] == 2 and sortie["nb_echecs"] == 0
+    assert [element["cible"] for element in sortie["elements"]] == [1, 2]
+    assert sortie["elements"][0]["type"] == "paragraphe"
+    assert "Synthèse" in sortie["elements"][0]["texte"]
+    assert sortie["elements"][1]["type"] == "ligne_tableau"
+    assert sortie["elements"][1]["ligne_tableau"] == 2
+    assert "Gestion | 12" in sortie["elements"][1]["texte"]
+
+
+def test_lire_element_document_cibles_et_index_sont_exclusifs(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """Deux formes groupées mélangées = ambiguïté refusée, jamais devinée."""
+    outils = _tools(service)
+    depose = outils["generer_document"].invoke(_payload(organisation, nom_fichier="cibles_index"))
+
+    sortie = outils["lire_element_document"].invoke(
+        {
+            "document_id": depose["document_id"],
+            "index": [1],
+            "cibles": [{"type_element": "element", "index": 1}],
+        }
+    )
+
+    assert sortie["ok"] is False
+    assert "cibles" in sortie["error"]["message"].lower()
+
+
+def test_lire_element_document_cible_en_echec_n_efface_pas_les_autres(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """Une cible hors document est dite à sa place, les autres restent lues."""
+    outils = _tools(service)
+    depose = outils["generer_document"].invoke(
+        _payload(organisation, nom_fichier="cibles_echec", tableau=None, paragraphes=["Seul"])
+    )
+
+    sortie = outils["lire_element_document"].invoke(
+        {
+            "document_id": depose["document_id"],
+            "cibles": [
+                {"type_element": "element", "index": 1},
+                {"type_element": "element", "index": 42},
+            ],
+        }
+    )
+
+    assert sortie["nb_lus"] == 1 and sortie["nb_echecs"] == 1
+    assert sortie["elements"][0]["lu"] is True
+    assert sortie["elements"][1]["cible"] == 2
+    assert sortie["elements"][1]["lu"] is False
+    assert "hors document" in sortie["elements"][1]["erreur"]
+
+
+def test_lire_element_document_tableau_donne_la_suite_sans_boucle(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """Un grand tableau se lit par fenêtres : ``relire_suite`` donne la suivante.
+
+    La boucle constatée : l'agent ne pouvait lire que les ``max_lignes``
+    premières lignes et n'avait aucun moyen de demander la suite autrement
+    qu'une ligne à la fois (``sous_index``). La fenêtre ouvre ``ligne_debut``.
+    """
+    lignes = [["Thème", "Effectif"]] + [[f"Thème {numero}", str(numero)] for numero in range(1, 31)]
+    outils = _tools(service)
+    depose = outils["generer_document"].invoke(
+        _payload(
+            organisation,
+            nom_fichier="tableau_long",
+            paragraphes=["Avant le tableau."],
+            tableau=lignes,
+        )
+    )
+
+    debut = outils["lire_element_document"].invoke(
+        {
+            "document_id": depose["document_id"],
+            "type_element": "tableau",
+            "index": 1,
+            "max_lignes": 10,
+        }
+    )
+
+    assert debut["nb_lignes"] == 31
+    assert debut["lignes_lues"] == {"debut": 1, "fin": 10}
+    assert debut["tronque"] is True
+    assert debut["prochaine_ligne"] == 11
+    assert debut["relire_suite"] == {
+        "type_element": "tableau",
+        "index": 1,
+        "ligne_debut": 11,
+        "max_lignes": 10,
+    }
+
+    suite = outils["lire_element_document"].invoke(
+        {"document_id": depose["document_id"], "cibles": [debut["relire_suite"]]}
+    )
+
+    assert suite["elements"][0]["lignes_lues"] == {"debut": 11, "fin": 20}
+    # Ligne 11 = « Thème 10 » (la ligne 1 est l'en-tête), ligne 20 = « Thème 19 ».
+    assert "Thème 10" in suite["elements"][0]["texte"]
+    assert "Thème 19" in suite["elements"][0]["texte"]
+    assert "Thème 20" not in suite["elements"][0]["texte"]
+    assert suite["elements"][0]["prochaine_ligne"] == 21
+
+
+def test_lire_element_document_refuse_ligne_debut_sur_un_pdf(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """``ligne_debut`` est une notion de tableau : refus explicite ailleurs."""
+    outils = _tools(service)
+    depose = outils["generer_document"].invoke(
+        _payload(organisation, format="pdf", nom_fichier="pdf_sans_tableau")
+    )
+
+    sortie = outils["lire_element_document"].invoke(
+        {"document_id": depose["document_id"], "type_element": "page", "index": 1, "ligne_debut": 2}
+    )
+
+    assert sortie["ok"] is False
+    assert "DOCX" in sortie["error"]["message"]

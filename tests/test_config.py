@@ -1,8 +1,9 @@
 """Tests for configuration loading."""
 
 import logging
+from pathlib import Path
 
-from app.core.config import Settings
+from app.core.config import RACINE_BACKEND, Settings
 
 
 def test_settings_defaults() -> None:
@@ -14,6 +15,33 @@ def test_settings_defaults() -> None:
     assert settings.run_db_tests is False
     assert settings.agent_max_iterations == 1000
     assert settings.agent_attachment_excerpt_chars == 4000
+
+
+def test_env_file_ancre_sur_le_paquet() -> None:
+    """Le ``.env`` est lu quel que soit le répertoire de lancement.
+
+    Un ``env_file=".env"`` relatif n'est résolu que dans le répertoire courant :
+    lancé depuis la racine (``uvicorn app.main:app --app-dir backend``), le
+    fichier était ignoré — ``CORS_ORIGINS`` retombait sur les origines locales
+    (préflight 400 pour le frontend déployé), comme ``DATABASE_URL`` ou
+    ``AUTH_SECRET``. Constat de production du 20/10/2026.
+    """
+    fichier = Path(Settings.model_config["env_file"])
+
+    assert fichier.is_absolute()
+    assert fichier == RACINE_BACKEND / ".env"
+
+
+def test_env_file_ne_suit_pas_le_repertoire_courant(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Un ``.env`` posé dans le répertoire courant ne change rien."""
+    (tmp_path / ".env").write_text(
+        "CORS_ORIGINS=https://marqueur.invalid\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    assert "https://marqueur.invalid" not in Settings().cors_origins
 
 
 def test_settings_env_override(monkeypatch) -> None:

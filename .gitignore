@@ -20,3 +20,6 @@ venv/
 
 # Alembic
 migrations/versions/__pycache__/
+
+.vercel
+.env*

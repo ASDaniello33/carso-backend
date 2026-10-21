@@ -12,6 +12,9 @@ os.environ["AUTH_SECRET"] = ""
 # réelle via le manager — fallback mémoire, sauf les tests gated qui passent
 # des Settings explicites (RUN_DB_TESTS).
 os.environ["AGENT_CHECKPOINT_PERSISTANT"] = "0"
+# Initialisation de démarrage (config d'agents + premier admin) : hors du
+# chemin des tests — elle ouvre PostgreSQL et fausserait les durées.
+os.environ["DEMARRAGE_INITIALISE_RUNTIME"] = "0"
 
 import pytest
 from fastapi.testclient import TestClient

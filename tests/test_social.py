@@ -508,6 +508,70 @@ def test_non_lus_et_marquage_lecture(api_session_factory) -> None:
         session.close()
 
 
+def test_non_lus_une_seule_requete_agregee(api_session_factory) -> None:
+    """Le badge compte toutes les conversations en **une** requête (plus de N+1).
+
+    La route ``/social/non-lus`` est appelée à chaque page et à chaque message :
+    un aller-retour par discussion y était le principal coût de la barre
+    latérale. Le ``GROUP BY`` doit rendre les mêmes comptes, une seule fois.
+    """
+    from sqlalchemy import event as sa_event
+
+    session = api_session_factory()
+    try:
+        alice = _compte()
+        bob = _compte()
+        session.add_all([alice, bob])
+        session.commit()
+
+        service = SocialService(session)
+        directe = service.creer_directe(creee_par=alice.id, autre=bob.id)
+        service.poster_message(directe.id, auteur_id=alice.id, contenu="un")
+        service.poster_message(directe.id, auteur_id=alice.id, contenu="deux")
+        conference = service.creer_conference(
+            titre="Point", creee_par=alice.id, membres=[bob.id]
+        )
+        service.poster_message(conference.id, auteur_id=alice.id, contenu="trois")
+        # Pas de message de Bob ici : poster marque la conversation comme lue
+        # jusqu'à maintenant ("le mien" effacerait le non-lu de « trois »).
+
+        # Vide les écritures en attente : l'autoflush ne doit pas être compté
+        # comme une requête du badge.
+        service._session.flush()
+        requetes: list[str] = []
+        moteur = session.get_bind()
+
+        def compter(conn, cursor, statement, parameters, context, executemany):
+            requetes.append(statement)
+
+        sa_event.listen(moteur, "before_cursor_execute", compter)
+        try:
+            comptes = service.non_lus_par_conversation(
+                bob.id, [directe.id, conference.id]
+            )
+        finally:
+            sa_event.remove(moteur, "before_cursor_execute", compter)
+
+        assert comptes == {directe.id: 2, conference.id: 1}
+        assert len(requetes) == 1, requetes
+
+        # Une conversation archivée par l'utilisateur sort du badge, toujours
+        # en une requête.
+        service.supprimer_conversation(directe.id, utilisateur_id=bob.id)
+        service._session.flush()
+        sa_event.listen(moteur, "before_cursor_execute", compter)
+        try:
+            comptes = service.non_lus_par_conversation(
+                bob.id, [directe.id, conference.id]
+            )
+        finally:
+            sa_event.remove(moteur, "before_cursor_execute", compter)
+        assert directe.id not in comptes
+        assert comptes == {conference.id: 1}
+    finally:
+        session.close()
+
+
 def test_suppression_directe_par_membre_unilateral(api_session_factory) -> None:
     session = api_session_factory()
     try:

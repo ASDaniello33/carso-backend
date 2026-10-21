@@ -36,6 +36,26 @@ from app.core.config import Settings, get_settings
 
 _logger = logging.getLogger(__name__)
 
+
+class _GrapheSansTopologie:
+    """Stand-in de construction : ``ag_ui_langgraph`` ne lit que ``nodes``.
+
+    ``LangGraphAGUIAgent.__init__`` parcourt ``graph.nodes`` pour repérer des
+    sous-graphes compilés. Avec le proxy ``GrapheParUtilisateur``, cette lecture
+    déclenchait la résolution du graphe **au montage**—donc une connexion
+    PostgreSQL dès l'import de l'application, avant que le serveur ne réponde.
+    Une base lente ou injoignable bloquait alors le démarrage entier (les
+    préflights OPTIONS eux-mêmes recevaient une erreur d'initialisation).
+
+    La topologie n'est utile qu'à l'attribution des événements de sous-agents,
+    désactivée ici (``subagent_visibility`` par défaut). On construit donc le
+    wrapper sans toucher à la base, puis on lui rend le proxy : chaque accès
+    réel (schémas, état, flux) est résolu au run, dans le contexte du compte.
+    """
+
+    nodes: dict[str, Any] = {}
+
+
 router = APIRouter(
     prefix="/agui",
     tags=["ag-ui"],
@@ -245,7 +265,9 @@ def _ajouter_endpoint(
             agent = wrapper(
                 name=definition.agent_id,
                 description=definition.description,
-                graph=graph,
+                # Topologie vide : ne résout pas le graphe (donc aucune base)
+                # pendant le montage ; le proxy est rendu juste après.
+                graph=_GrapheSansTopologie(),
                 config=_config_agui(),
                 # Interruptions HITL : émettre l'outcome structuré AG-UI
                 # (RUN_FINISHED outcome.type="interrupt") pour que le frontend
@@ -255,6 +277,7 @@ def _ajouter_endpoint(
                 emit_interrupt_outcome=True,
                 enable_legacy_on_interrupt_event=False,
             )
+            agent.graph = graph
             # Les providers réutilisent call_0 / call_1 d'un tour à l'autre.
             # On réécrit uniquement les ids d'appels d'outils (hors reprise
             # HITL ancien canal) : les ids de messages appartiennent au

@@ -314,8 +314,13 @@ def test_envoyer_email_est_sous_interruption_du_harnais(
     politique = _politique_approbation(
         DEFINITION, outils, AgentRuntimeConfig(interactive=True)
     )
-    assert politique["envoyer_email"] is True
-    # Les autres écritures sensibles de l'agent restent couvertes.
+    # L'email est **éditable** : l'utilisateur corrige destinataires, objet et
+    # corps dans la carte, puis la reprise exécute l'outil avec ses valeurs.
+    assert politique["envoyer_email"] == {
+        "allowed_decisions": ["approve", "edit", "reject"]
+    }
+    # Les autres écritures sensibles de l'agent restent couvertes (approbation
+    # seule, pas de correction d'arguments).
     assert politique["create_assignment_proposal"] is True
     assert politique["generer_document"] is True
 

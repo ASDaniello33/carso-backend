@@ -74,6 +74,10 @@ DEFINITION = AgentDefinition(
         # l'exécution, comme toute écriture sensible de l'agent.
         "envoyer_email",
     ),
+    # Le contenu du message est corrigeable dans la carte de confirmation
+    # (destinataires, objet, corps) : l'à-valider est le message réel, pas
+    # seulement l'intention. L'outil revalide chaque valeur à l'exécution.
+    approval_editable=("envoyer_email",),
     output_schema_name="AssignmentProposal",
     # ``generation-document`` : la méthode et les composants HTML du générateur
     # professionnel — la référence des documents de l'agent (CV, notes).

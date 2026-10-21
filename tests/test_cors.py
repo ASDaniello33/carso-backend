@@ -96,6 +96,53 @@ def test_preflight_origine_inconnue_refusee(origine: str) -> None:
     assert "access-control-allow-origin" not in reponse.headers
 
 
+def test_preflight_social_non_lus_repond_avant_toute_logique() -> None:
+    """Le préflight du badge social ne traverse ni session ni initialisation.
+
+    Incident de production : ``OPTIONS /api/v1/social/non-lus`` répondait 500
+    (« application initialization timed out ») parce que l'application montait
+    les agents—et ouvrait PostgreSQL—avant de servir la moindre requête.
+    """
+    origine = "https://carso-ai.onrender.com"
+    client = _app_avec([origine])
+
+    reponse = client.options(
+        "/api/v1/social/non-lus",
+        headers={
+            "Origin": origine,
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+
+    assert reponse.status_code == 200
+    assert reponse.headers["access-control-allow-origin"] == origine
+    assert "authorization" in reponse.headers["access-control-allow-headers"].lower()
+
+
+def test_avertit_quand_l_origine_du_frontend_est_absente(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Le piège n°1 (front changé, allowlist oubliée) est signalé au démarrage.
+
+    Sans ce signal, le backend n'écrit rien : le préflight reçoit 400 et le
+    navigateur annule le POST — le symptôme se cherche dans le tunnel.
+    """
+    from app.main import _signaler_origine_frontend_absente
+
+    with caplog.at_level("WARNING"):
+        _signaler_origine_frontend_absente(
+            Settings(
+                _env_file=None,
+                cors_origins=["http://localhost:3000"],
+                frontend_public_url="https://carso-ai.onrender.com",
+            )
+        )
+
+    assert "CORS_ORIGINS" in caplog.text
+    assert "https://carso-ai.onrender.com" in caplog.text
+
+
 def test_app_par_defaut_autorise_localhost(monkeypatch: pytest.MonkeyPatch) -> None:
     """create_app() lit bien l'allowlist de la configuration (et pas une liste figée)."""
     monkeypatch.setattr(

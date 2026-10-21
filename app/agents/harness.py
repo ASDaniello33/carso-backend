@@ -377,11 +377,23 @@ def _politique_approbation(
     if not config.interactive:
         return {}
     fournis = {tool.name for tool in tools}
+    # Un outil "éditable" doit accepter la décision `edit` : sans elle le
+    # middleware refuse la reprise et l'utilisateur ne pourrait que
+    # approuver/refuser (formulaire de correction impossible).
+    editables = set(definition.approval_editable)
     politique: dict[str, Any] = {
-        nom: True for nom in definition.approval_required if nom in fournis
+        nom: (
+            {"allowed_decisions": ["approve", "edit", "reject"]}
+            if nom in editables
+            else True
+        )
+        for nom in definition.approval_required
+        if nom in fournis
     }
     from app.agents.frontend_tools_catalogue import politique_interrupt_frontend
 
+    # Un outil frontend HITL n'accepte que `respond` : il ne peut pas être
+    # "éditable" au sens LangGraph (il n'exécute rien côté serveur).
     politique.update(politique_interrupt_frontend(definition.agent_id))
     return politique
 

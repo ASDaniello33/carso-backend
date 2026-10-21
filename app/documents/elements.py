@@ -170,6 +170,9 @@ def decrire_element_docx(
     index_tableau: int | None = None,
     sous_index: int | None = None,
     max_lignes: int = LIGNES_TABLEAU_DEFAUT,
+    ligne_debut: int | None = None,
+    relire_type: str | None = None,
+    relire_index: int | None = None,
 ) -> dict[str, Any]:
     """Décrit un élément du flux DOCX : paragraphe ou tableau (borné).
 
@@ -180,6 +183,14 @@ def decrire_element_docx(
         index_tableau: rang du tableau (``document.tables``), si pertinent.
         sous_index: ligne de tableau ciblée (1-indexée) — une seule ligne lue.
         max_lignes: plafond de lignes d'un tableau.
+        ligne_debut: première ligne d'une **fenêtre** de tableau (1-indexée) :
+            c'est ce qui permet de lire la suite d'un grand tableau en un appel
+            (`ligne_debut = lignes_lues.fin + 1`), au lieu d'un appel par ligne.
+        relire_type: type d'élément utilisé par l'appelant (``tableau``,
+            ``element``…) — recopié dans ``relire_suite`` pour que la suite se
+            demande avec le **même** repère.
+        relire_index: index utilisé par l'appelant (rang de tableau ou position
+            de flux) — recopié dans ``relire_suite``.
     """
     if not _est_tableau(bloc):
         texte = (getattr(bloc, "text", "") or "").strip()
@@ -193,14 +204,31 @@ def decrire_element_docx(
 
     lignes = list(bloc.rows)
     total_lignes = len(lignes)
-    debut = 1 if sous_index is None else _index_dans_total(sous_index, total_lignes, "ligne")
-    fin = debut if sous_index is not None else min(total_lignes, max_lignes)
+    if total_lignes == 0:
+        debut, fin = 1, 0
+    elif sous_index is not None:
+        debut = _index_dans_total(sous_index, total_lignes, "ligne")
+        fin = debut
+    else:
+        debut = 1 if ligne_debut is None else _index_dans_total(ligne_debut, total_lignes, "ligne")
+        fin = min(total_lignes, debut + max_lignes - 1)
     rendues = [
         {"ligne": numero, "texte": _texte_rang(rang)}
         for numero, rang in enumerate(lignes, start=1)
         if debut <= numero <= fin
     ]
     entete = cellules_rang(lignes[0]) if lignes else []
+    prochaine = fin + 1 if total_lignes > 0 and fin < total_lignes else None
+    suite = (
+        {
+            "type_element": relire_type,
+            "index": relire_index if relire_index is not None else index,
+            "ligne_debut": prochaine,
+            "max_lignes": max_lignes,
+        }
+        if prochaine is not None and relire_type is not None
+        else None
+    )
     return {
         "element": index,
         "type": "ligne_tableau" if sous_index is not None else "tableau",
@@ -212,6 +240,11 @@ def decrire_element_docx(
         "entete": entete,
         "lignes_lues": {"debut": debut, "fin": fin},
         "tronque": fin < total_lignes,
+        "ligne_debut": debut,
+        "prochaine_ligne": prochaine,
+        # Prêt à recopier : la suite du tableau en **un** appel, pas une
+        # lecture par ligne (cause réelle des boucles de l'agent sur un DOCX).
+        "relire_suite": suite,
         "lignes": rendues,
         "texte": "\n".join(ligne["texte"] for ligne in rendues),
     }
@@ -373,14 +406,21 @@ def lire_element_docx(
     index: int | None = None,
     sous_index: int | None = None,
     max_lignes: Any = None,
+    ligne_debut: Any = None,
 ) -> dict[str, Any]:
     """Lit **un** élément d'un DOCX : flux, paragraphe, tableau, en-tête, pied.
+
+    ``ligne_debut`` ouvre une **fenêtre** dans un tableau : le tableau est lu
+    de cette ligne à ``ligne_debut + max_lignes - 1``. Sans lui, la lecture
+    repart de la ligne 1 — c'était la seule façon de lire un grand tableau, et
+    l'agent multipliait les appels de une ligne (boucle constatée).
 
     Raises:
         ValidationError: DOCX illisible, type inconnu, index hors document.
     """
     type_propre = _type_valide("docx", type_element)
     plafond_lignes = _plafond(max_lignes, LIGNES_TABLEAU_DEFAUT, MAX_LIGNES_TABLEAU, "max_lignes")
+    debut_lignes = None if ligne_debut in (None, "") else _index_entier(ligne_debut, "ligne_debut")
     docx = require_library("docx")
     try:
         document = docx.Document(str(chemin))
@@ -422,6 +462,9 @@ def lire_element_docx(
                 index_tableau=_rangs_tableaux(elements).get(position),
                 sous_index=sous_index if _est_tableau(elements[position - 1]) else None,
                 max_lignes=plafond_lignes,
+                ligne_debut=debut_lignes,
+                relire_type="element",
+                relire_index=position,
             ),
         }
 
@@ -445,6 +488,9 @@ def lire_element_docx(
                 index_tableau=rang,
                 sous_index=sous_index,
                 max_lignes=plafond_lignes,
+                ligne_debut=debut_lignes,
+                relire_type="tableau",
+                relire_index=rang,
             ),
         }
 
@@ -616,6 +662,7 @@ def lire_element(
     feuille: Any = None,
     max_lignes: Any = None,
     max_caracteres: Any = None,
+    ligne_debut: Any = None,
 ) -> dict[str, Any]:
     """Lit un élément d'un document, quel que soit son format (docx, pdf, xlsx).
 
@@ -623,7 +670,8 @@ def lire_element(
     page PDF, ligne XLSX — celui que rend ``chercher_dans_document``.
 
     Raises:
-        ValidationError: format sans lecture d'élément, type ou index invalide.
+        ValidationError: format sans lecture d'élément, type ou index invalide,
+            ou ``ligne_debut`` demandé sur un format sans tableau.
     """
     suffixe = chemin.suffix.lower()
     if suffixe == ".docx":
@@ -633,6 +681,13 @@ def lire_element(
             index=index,
             sous_index=sous_index,
             max_lignes=max_lignes,
+            ligne_debut=ligne_debut,
+        )
+    if ligne_debut not in (None, ""):
+        raise ValidationError(
+            "ligne_debut s'applique aux tableaux d'un DOCX : ce document n'en a pas "
+            "(utiliser max_caracteres pour une page PDF, max_lignes pour une feuille XLSX)",
+            details={"format": suffixe.lstrip(".")},
         )
     if suffixe == ".pdf":
         return lire_element_pdf(

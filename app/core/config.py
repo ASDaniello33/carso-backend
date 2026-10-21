@@ -1,17 +1,30 @@
 """Centralized, validated application configuration (instruction/09 §10)."""
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Annotated
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+#: Racine du paquet backend (``backend/``), indépendante du répertoire courant.
+RACINE_BACKEND = Path(__file__).resolve().parents[2]
+
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment / backend/.env."""
+    """Application settings loaded from environment / backend/.env.
+
+    ``env_file`` est **absolu** : un chemin relatif (``.env``) est résolu contre
+    le répertoire courant. Lancé depuis la racine du dépôt —
+    ``uvicorn app.main:app --app-dir backend``, un script, un service systemd —
+    le fichier n'était pas lu : ``CORS_ORIGINS`` retombait silencieusement sur
+    les seules origines locales, le préflight du frontend déployé recevait 400
+    et le navigateur annulait la connexion. Les autres réglages (base, secret
+    JWT) retombaient de la même manière sur leurs valeurs par défaut.
+    """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(RACINE_BACKEND / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -189,6 +202,11 @@ class Settings(BaseSettings):
     # redémarrages). ``0`` force le fallback mémoire — la suite de tests le
     # pose pour ne jamais toucher la base réelle.
     agent_checkpoint_persistant: bool = Field(default=True)
+    # Initialisation au démarrage (restauration de la configuration d'agents,
+    # premier administrateur) : exécutée en tâche de fond pour que l'API réponde
+    # sans attendre PostgreSQL. ``0`` la désactive (suite de tests, qui ne doit
+    # jamais toucher la base réelle ni payer son délai de connexion).
+    demarrage_initialise_runtime: bool = Field(default=True)
     # Extrait de texte injecté dans le ``context`` AG-UI pour chaque pièce
     # jointe du tour (caractères). Les octets ne passent jamais au modèle ;
     # la suite se lit via les tools du contrat.

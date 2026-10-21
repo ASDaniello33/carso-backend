@@ -819,14 +819,56 @@ class ChercherDocumentInput(BaseModel):
         return valeur
 
 
+class CibleLecture(BaseModel):
+    """Une cible de lecture : **son** type, **son** index, **sa** ligne.
+
+    ``index`` (liste simple) impose un seul ``type_element`` et interdit
+    ``sous_index`` : lire l'en-tête d'un tableau et trois de ses lignes exigeait
+    donc plusieurs appels. Une cible porte ses propres paramètres — un appel,
+    plusieurs éléments hétérogènes.
+    """
+
+    index: int | None = Field(
+        default=None,
+        ge=1,
+        description="Position 1-indexée dans l'unité du type (obligatoire sauf type 'feuille').",
+    )
+    type_element: TypeElement | None = Field(
+        default=None,
+        description="Type de CETTE cible ; absent = le type_element de l'appel.",
+    )
+    sous_index: int | None = Field(
+        default=None,
+        ge=1,
+        description="DOCX : ligne de tableau à lire seule (1-indexée).",
+    )
+    ligne_debut: int | None = Field(
+        default=None,
+        ge=1,
+        description="DOCX, tableau : première ligne d'une fenêtre de max_lignes lignes.",
+    )
+    max_lignes: int | None = Field(
+        default=None,
+        ge=1,
+        le=200,
+        description="Fenêtre de CETTE cible (tableau DOCX, feuille XLSX) ; absent = le plafond de l'appel.",
+    )
+
+
 class LireElementInput(BaseModel):
     """Entrée de ``lire_element_document`` : un document + un ou plusieurs éléments.
 
-    ``type_element`` dit **quoi** lire, ``index`` **où** (1-indexé, une liste
-    pour lire plusieurs éléments en un appel). Le repère ``element`` est commun
-    aux trois formats (élément de flux DOCX, page PDF, ligne XLSX) : c'est celui
-    que ``chercher_dans_document`` renvoie dans ``relire`` — à recopier tel quel,
-    jamais à recalculer.
+    Deux façons de lire plusieurs éléments, jamais mélangées :
+
+    - ``index`` : une liste de positions, **un seul** ``type_element`` commun ;
+    - ``cibles`` : une liste de cibles hétérogènes — chacune porte son type,
+      son index, sa ligne de tableau. C'est la forme à préférer dès que les
+      éléments ne sont pas tous du même type (en-tête + lignes d'un tableau,
+      paragraphe + tableau…).
+
+    Le repère ``element`` est commun aux trois formats (élément de flux DOCX,
+    page PDF, ligne XLSX) : c'est celui que ``chercher_dans_document`` renvoie
+    dans ``relire`` — à recopier tel quel, jamais à recalculer.
     """
 
     document_id: UUID = Field(description="UUID du document à lire.")
@@ -851,10 +893,32 @@ class LireElementInput(BaseModel):
             "pour type_element='feuille', décrite par son nom via 'feuille'."
         ),
     )
+    cibles: list[CibleLecture] | None = Field(
+        default=None,
+        min_length=1,
+        max_length=MAX_ELEMENTS_PAR_LECTURE,
+        description=(
+            "Cibles hétérogènes lues en UN appel : cibles: [{\"index\": 16, "
+            "\"type_element\": \"tableau\", \"sous_index\": 3}, {\"index\": 12, "
+            "\"type_element\": \"paragraphe\"}] → une entrée par cible. "
+            "Exclusif avec 'index'. À préférer quand les éléments n'ont pas le "
+            "même type ou la même ligne."
+        ),
+    )
     sous_index: int | None = Field(
         default=None,
         ge=1,
         description="DOCX uniquement : ligne d'un tableau à lire seule (1-indexée).",
+    )
+    ligne_debut: int | None = Field(
+        default=None,
+        ge=1,
+        description=(
+            "DOCX, tableau : première ligne de la fenêtre lue (max_lignes). "
+            "Pour lire la suite d'un grand tableau : recopier "
+            "``relire_suite.ligne_debut`` rendu par l'appel précédent — jamais "
+            "un appel par ligne."
+        ),
     )
     feuille: str | None = Field(
         default=None,
@@ -2019,12 +2083,17 @@ def build_document_tools(
         tableau, un en-tête, une page, une ligne de feuille — tout élément du
         document est lisible, sans relire le document entier.
 
-        ``index`` est une **liste** : plusieurs éléments sont lus en un appel et
-        rendus sous ``elements`` (une entrée par index, dans l'ordre demandé).
-        Un index en échec (hors document…) est **dit dans son entrée** sans faire
-        perdre les autres lectures — même contrat que ``read_urls`` pour ses
-        adresses. Un index unique garde le retour unitaire d'origine (forme des
-        locators ``hit['relire']``).
+        Deux formes groupées, exclusives l'une de l'autre :
+
+        - ``index`` : plusieurs positions, **un seul** ``type_element`` ;
+        - ``cibles`` : plusieurs cibles hétérogènes, chacune avec son type, son
+          index et sa ligne — un appel pour « l'en-tête du tableau 2 + les
+          lignes 3 et 12 du tableau 1 + le paragraphe 8 ».
+
+        Un index une cible en échec (hors document…) est **dit dans son entrée**
+        sans faire perdre les autres lectures — même contrat que ``read_urls``
+        pour ses adresses. Un index unique garde le retour unitaire d'origine
+        (forme des locators ``hit['relire']``).
         """
         policy.require(identite.agent_id, "document_read")
         from app.documents.elements import lire_element
@@ -2034,14 +2103,10 @@ def build_document_tools(
         document = service.obtenir(document_id)
         _nom, chemin = service.telecharger(document_id)
         indexes = payload.get("index")
+        cibles = payload.get("cibles") or []
         type_element = payload.get("type_element") or "element"
-        commun: dict[str, Any] = {
-            "type_element": type_element,
-            "sous_index": payload.get("sous_index"),
-            "feuille": payload.get("feuille"),
-            "max_lignes": payload.get("max_lignes"),
-            "max_caracteres": payload.get("max_caracteres"),
-        }
+        sous_index = payload.get("sous_index")
+        ligne_debut = payload.get("ligne_debut")
         entete = {
             "document_id": str(document.id),
             "nom": document.nom,
@@ -2049,13 +2114,80 @@ def build_document_tools(
             "type_document": document.type_document,
         }
 
+        if cibles and indexes:
+            raise ValidationError(
+                "'index' et 'cibles' sont exclusifs : 'cibles' porte déjà l'index "
+                "de chaque élément (et son type, sa ligne)",
+                details={"index": indexes, "nb_cibles": len(cibles)},
+            )
+        if cibles and (sous_index is not None or ligne_debut is not None):
+            raise ValidationError(
+                "avec 'cibles', sous_index et ligne_debut se portent DANS chaque "
+                "cible (les éléments n'ont pas forcément la même ligne)",
+                details={"sous_index": sous_index, "ligne_debut": ligne_debut},
+            )
+
+        def lire(
+            position: int | None,
+            type_lu: str = type_element,
+            sous: int | None = sous_index,
+            debut: int | None = ligne_debut,
+            plafond: int | None = None,
+        ) -> dict[str, Any]:
+            return lire_element(
+                chemin,
+                index=position,
+                type_element=type_lu,
+                sous_index=sous,
+                ligne_debut=debut,
+                feuille=payload.get("feuille"),
+                max_lignes=plafond or payload.get("max_lignes"),
+                max_caracteres=payload.get("max_caracteres"),
+            )
+
+        if cibles:
+            elements: list[dict[str, Any]] = []
+            for numero, cible in enumerate(cibles, start=1):
+                try:
+                    resultat = lire(
+                        cible.get("index"),
+                        cible.get("type_element") or type_element,
+                        cible.get("sous_index"),
+                        cible.get("ligne_debut"),
+                        cible.get("max_lignes"),
+                    )
+                except ValidationError as refus:
+                    elements.append(
+                        {
+                            "cible": numero,
+                            "index": cible.get("index"),
+                            "lu": False,
+                            "erreur": str(refus),
+                        }
+                    )
+                    continue
+                elements.append(
+                    {"cible": numero, "index": cible.get("index"), "lu": True, **resultat}
+                )
+            nb_lus = sum(1 for element in elements if element["lu"])
+            return {
+                **entete,
+                "nb_demandes": len(cibles),
+                "nb_lus": nb_lus,
+                "nb_echecs": len(elements) - nb_lus,
+                "elements": elements,
+                "message": (
+                    "Une entrée de 'elements' par cible, dans l'ordre demandé : "
+                    "chaque entrée reprend 'cible' (son numéro) et 'index'. Une "
+                    "cible 'lu': false porte 'erreur' sans faire perdre les "
+                    "autres lectures."
+                ),
+            }
+
         # Un index unique (ou absent : le moteur dira l'obligation) : retour
         # unitaire inchangé.
         if not indexes or len(indexes) == 1:
-            resultat = lire_element(
-                chemin, index=(indexes[0] if indexes else None), **commun
-            )
-            return {**entete, **resultat}
+            return {**entete, **lire(indexes[0] if indexes else None)}
 
         # Lecture groupée : deux ambiguïtés refusées, jamais devinées.
         if type_element == "feuille":
@@ -2065,17 +2197,17 @@ def build_document_tools(
                 "index de lignes)",
                 details={"type_element": type_element, "index": indexes},
             )
-        if commun["sous_index"] is not None:
+        if sous_index is not None:
             raise ValidationError(
-                "sous_index ne s'applique qu'à UN index : appeler une fois par "
-                "ligne, ou lire le tableau entier avec sous_index omis",
-                details={"index": indexes, "sous_index": commun["sous_index"]},
+                "sous_index ne s'applique qu'à UN index : utiliser 'cibles' "
+                "(une cible par ligne), ou lire le tableau avec ligne_debut",
+                details={"index": indexes, "sous_index": sous_index},
             )
 
-        elements: list[dict[str, Any]] = []
+        elements = []
         for numero in indexes:
             try:
-                resultat = lire_element(chemin, index=numero, **commun)
+                resultat = lire(numero)
             except ValidationError as refus:
                 # L'échec d'un index est **dit** (message exact : hors document,
                 # type absent du format…) sans faire perdre les autres lectures.
@@ -2433,17 +2565,23 @@ def build_document_tools(
         TypedTool(
             name="lire_element_document",
             description=(
-                "Lit un ou plusieurs éléments d'un document, avec le repère "
-                "rendu par chercher_dans_document (``hit['relire']``) : "
-                "'element' (élément de flux DOCX, page PDF, ligne XLSX), "
-                "'tableau' avec ``sous_index`` = ligne, 'paragraphe', "
-                "'entete'/'pied' (DOCX, par section), 'feuille' (XLSX). "
-                "``index`` accepte une LISTE : index: [100, 120, 130] lit "
-                "plusieurs éléments en UN appel et rend ``elements`` (une "
-                "entrée par index ; une entrée en échec porte 'erreur' sans "
-                "faire perdre les autres lectures) — un seul aller-retour au "
-                "lieu d'un par élément. Un index seul garde le retour unitaire. "
-                "Retour borné (``max_lignes``, ``max_caracteres``) qui dit sa "
+                "Lit un ou plusieurs éléments d'un document (docx, pdf, xlsx), "
+                "avec le repère rendu par chercher_dans_document "
+                "(``hit['relire']``) : 'element' (flux DOCX, page PDF, ligne "
+                "XLSX), 'tableau' (rang du tableau, pas la position du flux), "
+                "'paragraphe', 'entete'/'pied' (DOCX), 'feuille' (XLSX). "
+                "DEUX formes groupées, jamais un appel par élément : "
+                "`cibles: [{\"index\": 16, \"type_element\": \"tableau\", "
+                "\"sous_index\": 3}, {\"index\": 12, \"type_element\": "
+                "\"paragraphe\"}]` pour des éléments hétérogènes (chacun son "
+                "type, son index, sa ligne) ; `index: [100, 120]` quand le "
+                "type est commun. Les deux rendent `elements` (une entrée par "
+                "cible ; une entrée en échec porte 'erreur' sans faire perdre "
+                "les autres). TABLEAUX : un appel lit `max_lignes` lignes "
+                "(40 par défaut, 200 au plus) ; si `tronque` est vrai, relire "
+                "la suite avec `ligne_debut` = `relire_suite.ligne_debut` — "
+                "JAMAIS un appel par ligne (sous_index sert à cibler UNE ligne "
+                "précise, pas à parcourir le tableau). Retour borné qui dit sa "
                 "troncature. Lecture seule."
             ),
             handler=_lire_element,
