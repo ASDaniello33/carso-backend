@@ -215,6 +215,23 @@ def sans_moteurs_reels(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def aucune_requete_osm(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Overpass n'est jamais interrogé par la suite.
+
+    Un itinéraire sans identifiants ORS classe ses portions par proximité :
+    sans ce garde-fou, chaque test d'itinéraire ferait une vraie requête au
+    service public OpenStreetMap (lent, non déterministe). Les tags manquants
+    doivent donner « inconnu » — c'est précisément le comportement à tester.
+    """
+    import app.geo.overpass as overpass
+
+    monkeypatch.setattr(
+        overpass.ClientOverpass, "tags_autour", lambda self, points, rayon_m=25: []
+    )
+    monkeypatch.setattr(overpass.ClientOverpass, "tags_voies", lambda self, osm_ids: {})
+
+
+@pytest.fixture(autouse=True)
 def caches_recherche_vides() -> None:
     """Chaque test part d'un cache de recherche vide.
 

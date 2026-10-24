@@ -104,6 +104,8 @@ DEFINITION = AgentDefinition(
         "clone_document_structure",
         "propose_lot_update",
         "propose_appel_update",
+        # Placer la zone d'un lot écrit un lieu : décision humaine.
+        "situer_zone_lot",
     ),
     output_schema_name="OffreBrouillon",
     # ``generation-document`` : la méthode et les composants HTML du générateur

@@ -9,8 +9,10 @@ de son contrat — donc jamais câblé).
 - **agent_assistant_formateur** : tous les outils de manipulation de documents,
   générateur professionnel ET document libre compris (**priorité de génération
   docx/pdf : ``generer_document_professionnel``**) ;
-- **agent_statistique** : lecture documentaire seule (PDF/DOCX/XLSX) pour
-  extraire des données à représenter en dashboard — aucune capacité d'écriture.
+- **agent_statistique** : lecture documentaire (PDF/DOCX/XLSX, et une image
+  via ``lire_image``) pour extraire des données à représenter en dashboard, plus
+  un livrable de synthèse déposé en **proposition** — aucune écriture de donnée
+  métier (la génération ne vaut jamais approbation).
 """
 
 from __future__ import annotations
@@ -34,6 +36,7 @@ OUTILS_LECTURE = (
     "read_document_range",
     "chercher_dans_document",
     "lire_element_document",
+    "lire_image",
     "importer_tableau_xlsx",
 )
 
@@ -76,7 +79,7 @@ def test_assistant_formateur_expose_tous_les_outils_documents() -> None:
     assert "generer_document_html" in noms
 
 
-def test_statistique_lit_les_documents_sans_capacite_d_ecriture() -> None:
+def test_statistique_lit_les_documents_et_ne_produit_qu_un_livrable() -> None:
     factory, engine = _session_factory()
     session = factory()
     try:
@@ -102,10 +105,13 @@ def test_statistique_lit_les_documents_sans_capacite_d_ecriture() -> None:
         engine.dispose()
 
     assert set(OUTILS_LECTURE) <= noms
-    # Aucun outil de production documentaire, aucune capacité d'écriture.
-    assert not (set(OUTILS_PRODUCTION) & noms)
+    # Un seul outil de production — le générateur professionnel, déposé en
+    # proposition : ni document libre, ni correction, ni dépôt direct.
+    assert "generer_document_professionnel" in noms
+    interdits = set(OUTILS_PRODUCTION) - {"generer_document_professionnel"}
+    assert not (interdits & noms)
     assert "document_read" in STAT_DEF.capabilities
-    assert "document_propose" not in STAT_DEF.capabilities
+    assert "document_propose" in STAT_DEF.capabilities
 
 
 def test_contrats_declarent_les_outils_documents() -> None:

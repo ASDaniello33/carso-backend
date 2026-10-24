@@ -406,6 +406,9 @@ class ActionAudit(StrEnum):
     # Lieu d'exécution d'une mission (donnée distincte, règle confirmée CARSO).
     LIEU_ENREGISTRE = "lieu.enregistre"
     LIEU_MIS_A_JOUR = "lieu.mis_a_jour"
+    LIEU_POSITION_MODIFIEE = "lieu.position_modifiee"
+    ITINERAIRE_CALCULE = "itineraire.calcule"
+    PARAMETRES_VOYAGE_MODIFIES = "parametres_voyage.modifies"
     # Support de formation : relation Formateur ↔ Mission ↔ Document.
     SUPPORT_FORMATION_AJOUTE = "support_formation.ajoute"
     SUPPORT_FORMATION_RETIRE = "support_formation.retire"
@@ -464,6 +467,15 @@ class ActionAudit(StrEnum):
     # l'événement porte le compte concerné et n'affecte aucun autre graphe.
     CONFIGURATION_AGENT_PERSONNEL_MODIFIEE = "agent_personnel.configuration_modifiee"
     SKILL_AGENT_ENREGISTRE = "skill_agent.enregistre"
+    # Skill d'organisation : l'administration écrit un guide court, nommé
+    # `/nom` dans le chat et porté par le prompt de **tous** les runs. Distinct
+    # de ``SKILL_AGENT_ENREGISTRE`` (rattacher un skill du paquet à un agent) :
+    # ici, le contenu est commun et change le comportement des agents.
+    # Les événements antérieurs gardent leur valeur ``skill_personnel.*`` — un
+    # journal d'audit ne se réécrit pas.
+    SKILL_CREE = "skill.cree"
+    SKILL_MODIFIE = "skill.modifie"
+    SKILL_SUPPRIME = "skill.supprime"
     # Envoi d'email par un agent (RH, 12/10) : l'événement dit **qui** a reçu
     # quoi (destinataire résolu, sujet, taille), jamais le corps du message —
     # un email peut porter des données personnelles (AGENTS.md §9).

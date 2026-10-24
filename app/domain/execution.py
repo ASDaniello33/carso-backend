@@ -26,7 +26,7 @@ from datetime import date, time
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Date, ForeignKey, Index, String, Text, Time, UniqueConstraint
+from sqlalchemy import Date, Float, ForeignKey, Index, String, Text, Time, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.base import Base, TimestampMixin, UuidPkMixin
@@ -39,7 +39,7 @@ from app.domain.enums import (
 
 if TYPE_CHECKING:
     from app.domain.document import Document
-    from app.domain.organization import Budget, Offre, Organisation
+    from app.domain.organization import Budget, Lot, Offre, Organisation
 
 
 class Lieu(Base, UuidPkMixin, TimestampMixin):
@@ -62,8 +62,18 @@ class Lieu(Base, UuidPkMixin, TimestampMixin):
     ville: Mapped[str | None] = mapped_column(String(255))
     pays: Mapped[str | None] = mapped_column(String(100))
     zone: Mapped[str | None] = mapped_column(String(255))
+    # Coordonnées WGS84 (Photon, ou position ajustée à la main). Les deux
+    # colonnes vont ensemble : aucune position partielle n'est acceptée.
+    latitude: Mapped[float | None] = mapped_column(Float)
+    longitude: Mapped[float | None] = mapped_column(Float)
 
     missions: Mapped[list[Mission]] = relationship(back_populates="lieu")
+    #: Organisations et lots qui désignent ce lieu (le lieu reste partagé :
+    #: plusieurs lots d'un même appel peuvent se dérouler au même endroit).
+    organisations: Mapped[list["Organisation"]] = relationship(
+        back_populates="lieu", viewonly=True
+    )
+    lots: Mapped[list["Lot"]] = relationship(back_populates="lieu", viewonly=True)
 
 
 class MissionOffre(Base, UuidPkMixin, TimestampMixin):

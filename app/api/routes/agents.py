@@ -35,12 +35,15 @@ from app.api.schemas.agent_runtime import (
     HitlReponseItem,
     HitlScenarioItem,
 )
+from app.api.schemas.skill import SkillCreate, SkillRead, SkillUpdate
 from app.application.services import AgentRuntimeService
 from app.application.services.agent_personnel_service import AgentPersonnelService
 from app.application.services.parametres_service import ParametresAgentService
+from app.application.services.skills_service import SkillsService
 from app.core.chiffrement import dechiffrer
 from app.domain.agent_personnel import ConfigurationAgentPersonnel
 from app.domain.agent_runtime import ConfigurationRuntimeAgent
+from app.domain.skill import Skill
 
 router = APIRouter(
     prefix="/agents",
@@ -180,6 +183,88 @@ def reinitialiser_agent_personnel(
     service.supprimer(user.id)
     _oublier_graphes_personnels(user.id)
     return _personnel_read(service.configuration(user.id), service)
+
+
+# --- Skills de l'organisation (lecture : tout compte ; écriture : admin) -----
+#
+# Un skill entre dans le prompt de **tous** les runs : le laisser écrire depuis
+# le chat permettrait à n'importe quel compte de changer le fonctionnement des
+# agents. L'écriture est donc réservée à l'administration (Paramètres > Skills),
+# et la lecture reste ouverte — c'est ce qui alimente le menu `/` du chat.
+
+
+def _skill_read(skill: Skill) -> SkillRead:
+    """Projette un skill (aucun objet ORM dans la réponse)."""
+    return SkillRead.model_validate(skill)
+
+
+def _oublier_graphes_skills() -> None:
+    """Retire du cache **tous** les graphes : un skill est commun.
+
+    Le bloc de skills entre dans le prompt système de chaque agent : après une
+    création, une modification ou une suppression, aucun graphe mémorisé ne doit
+    continuer de servir l'ancien texte. La purge porte sur tous les comptes, un
+    skill n'appartenant à personne.
+    """
+    get_runtime_manager().oublier_graphes(None, None)
+
+
+@router.get("/skills", response_model=list[SkillRead])
+def lister_skills(user: CurrentUser, session: DbSession) -> list[SkillRead]:
+    """Skills de l'organisation, ordre alphabétique (tout compte)."""
+    return [_skill_read(skill) for skill in SkillsService(session).lister()]
+
+
+@router.post("/skills", response_model=SkillRead, status_code=201)
+def creer_skill(
+    payload: SkillCreate,
+    user: AdminUser,
+    session: DbSession,
+) -> SkillRead:
+    """Crée un skill commun et invalide les graphes mémorisés.
+
+    Le nom est normalisé (`/Facturation Client` → `/facturation-client`) ; un
+    nom déjà pris, un contenu hors bornes ou un quota atteint rend un message
+    actionnable, pas une 422 générique.
+    """
+    skill = SkillsService(session, actor_id=str(user.id)).enregistrer(
+        nom=payload.nom,
+        description=payload.description,
+        instructions=payload.instructions,
+        modifie_par=str(user.id),
+    )
+    _oublier_graphes_skills()
+    return _skill_read(skill)
+
+
+@router.patch("/skills/{skill_id}", response_model=SkillRead)
+def modifier_skill(
+    skill_id: UUID,
+    payload: SkillUpdate,
+    user: AdminUser,
+    session: DbSession,
+) -> SkillRead:
+    """Corrige un skill existant (champ absent = conservé)."""
+    skill = SkillsService(session, actor_id=str(user.id)).modifier(
+        skill_id,
+        nom=payload.nom,
+        description=payload.description,
+        instructions=payload.instructions,
+        modifie_par=str(user.id),
+    )
+    _oublier_graphes_skills()
+    return _skill_read(skill)
+
+
+@router.delete("/skills/{skill_id}", status_code=204)
+def supprimer_skill(
+    skill_id: UUID,
+    user: AdminUser,
+    session: DbSession,
+) -> None:
+    """Supprime un skill commun — inconnu ⇒ 404."""
+    SkillsService(session, actor_id=str(user.id)).supprimer(skill_id)
+    _oublier_graphes_skills()
 
 
 # --- Runtime des agents (administrateur) -------------------------------------

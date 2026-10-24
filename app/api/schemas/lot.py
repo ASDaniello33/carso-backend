@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.api.schemas.lieu import LieuRead
+
 
 class LotCreate(BaseModel):
     """Création d'un lot rattaché à un appel à proposition."""
@@ -33,6 +35,8 @@ class LotUpdate(BaseModel):
     partenariat: str | None = None
     date_fin: date | None = None
     donnees_source: dict[str, Any] | None = None
+    #: Lieu où le lot se déroule (rattachement, 22/10). ``null`` = non modifié.
+    lieu_id: UUID | None = None
 
 
 class LotRead(BaseModel):
@@ -49,3 +53,7 @@ class LotRead(BaseModel):
     partenariat: str | None = None
     date_fin: date | None = None
     donnees_source: dict[str, Any] | None = None
+    lieu_id: UUID | None = None
+    #: Lieu complet (coordonnées incluses) : la carte de l'appel dessine tous
+    #: les lieux de ses lots sans deuxième requête.
+    lieu: LieuRead | None = None

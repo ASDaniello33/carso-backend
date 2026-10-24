@@ -241,8 +241,49 @@ class Settings(BaseSettings):
     )
     # Plafond de résultats par requête : le tool serre la borne, jamais l'inverse.
     web_search_max_results: int = Field(default=5, ge=1, le=10)
+    # Nombre d'appels à ``langsearch_web_search`` autorisés **par tour** de
+    # conversation (anti-boucle). Le prompt fixe les paliers utiles (8, 15, 25) ;
+    # cette borne est le plafond exécutable, réglable sans redéploiement.
+    web_search_max_calls_per_turn: int = Field(default=25, ge=1, le=50)
+    # Nombre de requêtes distinctes acceptées par **un** appel de recherche :
+    # regrouper les mots-clés évite la rafale d'appels quasi identiques.
+    web_search_max_queries: int = Field(default=5, ge=1, le=10)
     # Mode texte officiel LangSearch (contents.text) — pas un scraping libre.
     web_search_text_max_chars: int = Field(default=3000, ge=200, le=5000)
+    # Géographie (demande du 22/10) : recherche Photon et itinéraires
+    # OpenRouteService. Aucune clé n'est exposée au frontend — la recherche et
+    # le calcul passent par des routes du backend. ``heigit_base_url`` est
+    # surchargeable : le certificat de ``api.heigit.org`` est expiré (22/10),
+    # l'API officielle ORS reste atteignable via
+    # ``https://api.openrouteservice.org`` avec la même clé et la même forme
+    # de chemins (``/v2/directions/{profil}/geojson``).
+    photon_base_url: str = Field(
+        default="https://photon.komoot.io/api",
+        description="Endpoint de recherche de lieux (API Photon, sans clé).",
+    )
+    photon_timeout_s: float = Field(default=8.0, ge=1, le=30)
+    heigit_api_key: SecretStr | None = Field(default=None)
+    heigit_base_url: str = Field(
+        default="https://api.heigit.org/openrouteservice",
+        description="Base des itinéraires OpenRouteService (chemins /v2/...).",
+    )
+    itineraires_timeout_s: float = Field(default=15.0, ge=1, le=60)
+    #: Durée de validité d'un itinéraire en cache (quotas gratuits) : un
+    #: résultat expiré est recalculé, jamais servi. Les coordonnées font partie
+    #: de la clé, donc déplacer un marqueur invalide immédiatement le trajet.
+    itineraires_cache_jours: int = Field(default=30, ge=1, le=365)
+    # Tags OSM des voies (qualité des routes) — Overpass, service public.
+    overpass_base_url: str = Field(
+        default="https://overpass-api.de/api/interpreter",
+        description="Endpoint Overpass pour les tags OSM des voies traversées.",
+    )
+    #: Overpass est un service public **saturé** (502 « at capacity », 30 s et
+    #: plus par requête mesurés) : un délai trop court classerait tout en
+    #: « qualité inconnue » alors que la réponse arrive. Un échec reste
+    #: silencieux pour l'itinéraire (estimation par extras ORS).
+    overpass_timeout_s: float = Field(default=45.0, ge=5, le=120)
+    #: Durée de validité des tags d'une voie : OSM évolue, un itinéraire non.
+    osm_tags_cache_jours: int = Field(default=30, ge=1, le=365)
     # Lecture d'une page web par un agent (tools ``fetch_url`` / ``read_urls``) :
     # bornes de service (anti-abus), pas des règles métier. Le texte rendu est un
     # **extrait** : un agent ne doit pas tirer une page entière dans le contexte.

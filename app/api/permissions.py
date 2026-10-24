@@ -135,6 +135,14 @@ async def preparer_acces_agent(
     from app.agents.contexte import depuis, poser_contexte_utilisateur
 
     poser_contexte_utilisateur(depuis(session, user, perimetre=perimetre))
+    # Budget de recherche web : un run = un tour = un budget neuf. Posé dans
+    # cette tâche, il est hérité par l'exécution des tools — la même voie que le
+    # contexte utilisateur. Le prompt fixe les paliers utiles ; celui-ci est le
+    # plafond exécutable qui empêche une boucle de recherche de tourner sans fin.
+    from app.core.config import get_settings
+    from app.tools.budget_recherche import ouvrir_budget
+
+    ouvrir_budget(get_settings().web_search_max_calls_per_turn)
 
 
 def garde_agui(agent_id: str) -> Callable[..., Awaitable[None]]:

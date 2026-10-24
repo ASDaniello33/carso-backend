@@ -21,6 +21,7 @@ from app.application.dossier import dossier_autorise
 from app.application.dto import LotInput, LotUpdateInput
 from app.application.perimetre import Perimetre, perimetre_effectif
 from app.application.trace import TraceContext
+from app.application.services.lieu_service import verifier_lieu_existant
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.domain.enums import ActionAudit, ActorType
 from app.domain.organization import Lot
@@ -38,6 +39,7 @@ _CHAMPS = (
     "objectifs",
     "resultats_attendus",
     "mission_description",
+    "lieu_id",
     "partenariat",
     "date_fin",
     "donnees_source",
@@ -108,6 +110,7 @@ class LotService:
             ConflictError: nouveau ``numero`` déjà pris par un autre lot.
         """
         lot = self._get(lot_id)
+        verifier_lieu_existant(entree.lieu_id, self._session)
         modifie = False
         for nom in _CHAMPS:
             valeur = getattr(entree, nom)

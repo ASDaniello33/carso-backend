@@ -122,6 +122,26 @@ OUTILS_FRONTEND: tuple[OutilFrontend, ...] = (
         ),
     ),
     OutilFrontend(
+        name="afficher_carte",
+        description=(
+            "Affiche une carte dans la conversation : des lieux et zones (un nom "
+            "suffit, la position est recherchée), et éventuellement un itinéraire "
+            "départ → arrivée avec distance routière, durée et carburant. "
+            "Obligatoire : titre. `points[{nom, lieu_id?, latitude?, longitude?, "
+            "nature?}]` ; `itineraire{depart, arrivee, aller_retour?, "
+            "consommation_l_100km?, prix_litre?}` pour un trajet. `nature` vaut "
+            "lieu (défaut), zone (zone d'un lot) ou depart. N'invente ni "
+            "coordonnée ni identifiant ; lecture seule."
+        ),
+        agents=TOUS_LES_AGENTS_UI,
+        usage=(
+            "Dès qu'une réponse parle de lieux, de zones de lots, de trajet ou de "
+            "déplacement : passer les noms réels (ou un lieu_id lu), et un "
+            "itineraire pour obtenir distance, durée et carburant. Ne pas "
+            "recopier une distance calculée à la main."
+        ),
+    ),
+    OutilFrontend(
         name="proposer_telechargement_document",
         description=(
             "Propose le téléchargement d'un document déjà enregistré "
@@ -735,7 +755,55 @@ class PayloadResultatsWeb(BaseModel):
     )
 
 
+class PointCarte(BaseModel):
+    """Un point de la carte — un nom suffit, la position est recherchée côté client.
+
+    Les coordonnées ne sont acceptées que si elles ont été **lues** (lieu du
+    référentiel, réponse d'une recherche) : le modèle ne les invente pas.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    nom: str = Field(min_length=1, description="Nom affiché du lieu ou de la zone.")
+    lieu_id: str | None = Field(default=None, description="UUID d'un lieu existant.")
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+    nature: Literal["lieu", "zone", "depart"] | None = Field(
+        default=None, description="lieu (défaut), zone d'un lot, ou départ du trajet."
+    )
+
+
+class ItineraireCarte(BaseModel):
+    """Trajet demandé : distance, durée et carburant sont calculés par le backend."""
+
+    model_config = ConfigDict(extra="allow")
+
+    depart: PointCarte
+    arrivee: PointCarte
+    aller_retour: bool | None = None
+    consommation_l_100km: float | None = Field(default=None, gt=0, le=60)
+    prix_litre: float | None = Field(default=None, ge=0)
+
+
+class PayloadCarte(BaseModel):
+    """Arguments de ``afficher_carte`` — même contrat que le hook client."""
+
+    model_config = ConfigDict(extra="allow")
+
+    titre: str = Field(description="Titre de la carte.")
+    description: str | None = Field(default=None, description="Ce que la carte montre.")
+    points: list[PointCarte] = Field(
+        default_factory=list,
+        max_length=30,
+        description="Points à afficher (30 au plus).",
+    )
+    itineraire: ItineraireCarte | None = Field(
+        default=None, description="Trajet à calculer et tracer."
+    )
+
+
 SCHEMAS_FRONTEND: dict[str, type[BaseModel]] = {
+    "afficher_carte": PayloadCarte,
     "naviguer_vers": PayloadNavigation,
     "page_actuelle": PayloadPageActuelle,
     "afficher_tableau_donnees": PayloadTableau,

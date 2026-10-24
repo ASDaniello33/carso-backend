@@ -22,6 +22,7 @@ from app.domain.execution import (
     SessionFormation,
     SupportFormation,
 )
+from app.domain.geo import ItineraireCache, ParametresVoyage
 from app.domain.identity import CodeReinitialisation, Utilisateur
 from app.domain.mcp import ServeurMcp
 from app.domain.organization import (
@@ -32,6 +33,7 @@ from app.domain.organization import (
     Offre,
     Organisation,
 )
+from app.domain.skill import Skill
 from app.domain.social import (
     Annonce,
     Commentaire,
@@ -61,6 +63,9 @@ __all__ = [
     "ConfigurationRuntimeAgent",
     "Document",
     "ServeurMcp",
+    "ItineraireCache",
+    "ParametresVoyage",
+    "Skill",
     "SurchargeAgent",
     "Equipe",
     "Lieu",

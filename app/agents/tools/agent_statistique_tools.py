@@ -68,6 +68,8 @@ AGENT_ID = "agent_statistique"
 TASK_TYPE = "produire_statistiques"
 
 NOMS_TOOLS: tuple[str, ...] = (
+    "rechercher_lieu",
+    "calculer_itineraire",
     "query_analytics",
     "read_document",
     "lire_document",
@@ -75,6 +77,10 @@ NOMS_TOOLS: tuple[str, ...] = (
     "read_document_range",
     "chercher_dans_document",
     "lire_element_document",
+    # Vision : un scan de tableau se lit dans l'image, pas dans un texte absent.
+    "lire_image",
+    # Rapport/synthèse : livrable déposé en proposition (aucune donnée modifiée).
+    "generer_document_professionnel",
     "importer_tableau_xlsx",
     "search_organisations",
     "search_appels_a_proposition",
@@ -227,10 +233,16 @@ def construire_tools_statistique(
     if read_document_tool is not None and read_document_tool.name not in noms:
         outils = (*outils, read_document_tool)
 
+    from app.agents.tools.agent_lieux_tools import construire_tools_lieux
     from app.tools.recherche_video import attacher_recherche_video
     from app.tools.web import attacher_outils_web
 
-    return attacher_recherche_video(definition, attacher_outils_web(definition, outils))
+    return attacher_recherche_video(
+        definition,
+        attacher_outils_web(
+            definition, outils + construire_tools_lieux(definition, session_factory)
+        ),
+    )
 
 
 # Alias stable pour les agents (chemin déterministe) : une seule porte.

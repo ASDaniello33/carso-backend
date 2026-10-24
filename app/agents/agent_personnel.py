@@ -57,9 +57,11 @@ DEFINITION = AgentDefinition(
         "choisis et ses connecteurs MCP personnels."
     ),
     policy=PermissionPolicy(
-        allowed_capabilities=frozenset({KIT_CAPABILITY, "web_search", "document_read"})
+        allowed_capabilities=frozenset(
+            {KIT_CAPABILITY, "web_search", "document_read", "document_propose"}
+        )
     ),
-    capabilities=(KIT_CAPABILITY, "web_search", "document_read"),
+    capabilities=(KIT_CAPABILITY, "web_search", "document_read", "document_propose"),
     # Surface de lecture partagée avec le généraliste : recherche métier bornée,
     # agrégations nommées, lecture documentaire, lecture de pages web. Le
     # compte peut en retirer (configuration) ; le contrat, jamais.

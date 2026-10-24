@@ -34,7 +34,9 @@ from app.agents.annuaire import bloc_annuaire
 from app.agents.base import AgentDefinition
 from app.agents.contexte import ContexteUtilisateurMiddleware, UserContext
 from app.agents.frontend_tools_catalogue import bloc_outils_frontend
+from app.agents.page_courante import BLOC_PAGE_COURANTE
 from app.agents.pieces_jointes_contexte import BLOC_PIECES_JOINTES
+from app.agents.prompt import BLOC_RECHERCHE_WEB
 from app.agents.providers import AgentConfigurationError, build_chat_model
 from app.core.config import Settings, get_settings
 from app.core.errors import ValidationError as BusinessValidationError
@@ -108,17 +110,25 @@ def build_system_prompt(definition: AgentDefinition, *, extra: str | None = None
     un agent sans collaboration. Le bloc d'affichage liste les outils
     frontend réellement enregistrés pour cet agent — jamais un nom inventé.
     Le bloc skills liste les skills déclarés (nom + description) : l'agent
-    sait quels guides il peut charger et quand.
+    sait quels guides il peut charger et quand. Le bloc de recherche web
+    n'est ajouté qu'à un agent qui possède ``langsearch_web_search``.
     """
     from app.agents.registre_skills import bloc_skills
 
     annuaire = bloc_annuaire(definition)
     affichage = bloc_outils_frontend(definition.agent_id)
     skills = bloc_skills(definition)
+    # La recherche web et les alias de page ne sont annoncés qu'à un agent qui
+    # possède réellement ces tools : un contrat sans ``langsearch_web_search``
+    # ne reçoit pas un mode d'emploi qu'il ne peut pas suivre.
+    outils = definition.allowed_tools()
+    recherche = BLOC_RECHERCHE_WEB if "langsearch_web_search" in outils else ""
     parties = [
         definition.prompt.strip() or definition.description.strip(),
         _CADRE_CARSO,
         BLOC_PIECES_JOINTES,
+        BLOC_PAGE_COURANTE,
+        recherche,
         skills,
         affichage,
         annuaire,

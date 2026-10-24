@@ -79,6 +79,9 @@ ANALYTIQUES_AUTORISEES = (
 )
 
 NOMS_TOOLS: tuple[str, ...] = (
+    # Lieux : recherche d'adresse et itinéraire, pour tous les agents.
+    "rechercher_lieu",
+    "calculer_itineraire",
     "search_organisations",
     "search_appels_a_proposition",
     "search_lots",
@@ -90,6 +93,11 @@ NOMS_TOOLS: tuple[str, ...] = (
     "search_affectations",
     "search_documents",
     READ_DOCUMENT_TOOL,
+    # Vision : une image déposée se lit en la voyant (scan, capture).
+    "lire_image",
+    # Livrable : la même génération que les autres agents, déposée en
+    # proposition. Le compte peut la retirer de son agent personnel.
+    "generer_document_professionnel",
     "query_analytics",
     "langsearch_web_search",
     # Lecture d'une page trouvée : le contexte manquant d'un résultat (bareme,
@@ -449,8 +457,15 @@ def construire_tools_generaliste(
     outils = list(kit.construire())
     if read_document_tool is not None:
         outils.append(read_document_tool)
+    # Tools de lieux partagés par tous les agents du catalogue (recherche
+    # d'adresse + itinéraire) — filtrés par le contrat de l'agent.
+    from app.agents.tools.agent_lieux_tools import construire_tools_lieux
+
     return attacher_recherche_video(
-        definition, attacher_outils_web(definition, tuple(outils))
+        definition,
+        attacher_outils_web(
+            definition, tuple(outils) + construire_tools_lieux(definition, session_factory)
+        ),
     )
 
 

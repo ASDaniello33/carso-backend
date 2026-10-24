@@ -306,6 +306,8 @@ class LieuInput:
     ville: str | None = None
     pays: str | None = None
     zone: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -317,6 +319,8 @@ class LieuUpdateInput:
     ville: str | None = None
     pays: str | None = None
     zone: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -370,6 +374,8 @@ class OrganisationUpdateInput:
     email: str | None = None
     telephone: str | None = None
     statut: str | None = None
+    #: Lieu exact de l'organisation (rattachement, 22/10) — ``None`` = non modifié.
+    lieu_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -451,6 +457,9 @@ class LotUpdateInput:
     partenariat: str | None = None
     date_fin: date | None = None
     donnees_source: dict[str, Any] | None = None
+    #: Lieu où le lot se déroule (``None`` = non modifié ; détacher passe par
+    #: une valeur ``null`` explicite via l'API, jamais par une omission).
+    lieu_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)

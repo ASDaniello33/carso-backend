@@ -100,6 +100,10 @@ def update_lot(
             partenariat=payload.partenariat,
             date_fin=payload.date_fin,
             donnees_source=payload.donnees_source,
+            # Sans ce champ, une zone géolocalisée ne pouvait pas être
+            # rattachée au lot : la carte de l'appel restait vide alors que le
+            # schéma et le service acceptaient la référence.
+            lieu_id=payload.lieu_id,
         ),
     )
 

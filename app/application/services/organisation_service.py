@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.application.dossier import dossier_autorise
 from app.application.dto import OrganisationInput, OrganisationUpdateInput
 from app.application.perimetre import Perimetre, perimetre_effectif
+from app.application.services.lieu_service import verifier_lieu_existant
 from app.application.trace import TraceContext
 from app.core.errors import NotFoundError, ValidationError
 from app.domain.enums import ActionAudit, ActorType
@@ -25,6 +26,7 @@ from app.domain.organization import Organisation
 from app.infrastructure.repositories import OrganisationRepository
 
 _ENTITY = "organisation"
+
 
 
 def _appliquer(organisation: Organisation, champs: dict[str, str | None]) -> bool:
@@ -80,6 +82,7 @@ class OrganisationService:
             ValidationError: aucune modification fournie.
         """
         organisation = self._get(organisation_id)
+        verifier_lieu_existant(entree.lieu_id, self._session)
         champs = {
             "nom": entree.nom,
             "type": entree.type,
@@ -87,6 +90,8 @@ class OrganisationService:
             "email": entree.email,
             "telephone": entree.telephone,
             "statut": entree.statut,
+            # Lieu exact : un UUID attache, ``None`` = non modifié.
+            "lieu_id": entree.lieu_id,
         }
         if not _appliquer(organisation, champs):
             raise ValidationError(

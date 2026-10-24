@@ -36,6 +36,11 @@ class TypedTool:
     handler: Callable[[dict[str, Any]], dict[str, Any]]
     input_schema: type[BaseModel] | None = None
     tags: tuple[str, ...] = field(default=())
+    #: Résultat porteur d'images : le pont LangChain renvoie alors un message
+    #: **multimodal** (blocs ``image_url``) au lieu d'un JSON. Réservé aux tools
+    #: de vision — un contenu binaire glissé dans un JSON serait illisible pour
+    #: le modèle.
+    multimodal: bool = False
 
     def invoke(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Valide l'entrée puis exécute le handler.
@@ -227,6 +232,40 @@ def formater_erreur_outil(erreur: CarsoError) -> dict[str, Any]:
     return charge
 
 
+def _contenu_multimodal(resultat: dict[str, Any]) -> list[dict[str, Any]] | None:
+    """Blocs de contenu d'un tool de vision : texte + images, ou ``None``.
+
+    Le texte (fiche du document, message) reste un bloc ``text`` : le modèle lit
+    **et** le contexte et l'image. Les images voyagent en data-URI, forme
+    acceptée par les providers compatibles OpenAI et par Google GenAI. Un
+    résultat sans image retombe sur le JSON habituel — jamais de message vide.
+    """
+    images = resultat.get("images")
+    if not isinstance(images, list) or not images:
+        return None
+    resume = {cle: valeur for cle, valeur in resultat.items() if cle != "images"}
+    blocs: list[dict[str, Any]] = [
+        {"type": "text", "text": json.dumps(resume, ensure_ascii=False, default=str)}
+    ]
+    for image in images:
+        if not isinstance(image, dict):
+            continue
+        donnees = image.get("base64")
+        mime = str(image.get("mime") or "image/png")
+        legende = str(image.get("legende") or "")
+        if not donnees:
+            continue
+        if legende:
+            blocs.append({"type": "text", "text": legende})
+        blocs.append(
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:{mime};base64,{donnees}"},
+            }
+        )
+    return blocs if len(blocs) > 1 else None
+
+
 def to_langchain_tool(tool: TypedTool) -> Any:
     """Projette un ``TypedTool`` en tool LangChain (usage : deep agents).
 
@@ -255,13 +294,17 @@ def to_langchain_tool(tool: TypedTool) -> Any:
         )
         raise BusinessValidationError(msg)
 
-    def _run(**kwargs: Any) -> str:
+    def _run(**kwargs: Any) -> str | list[dict[str, Any]]:
         # invoke() convertit déjà CarsoError → {ok: false} (Tool Message).
         # handle_tool_error ci-dessous ne rattrape QUE ToolException
         # (langchain_core.tools.base.BaseTool.run) — doc officielle.
         resultat = tool.invoke(kwargs)
         if isinstance(resultat, str):
             return resultat
+        if tool.multimodal:
+            contenu = _contenu_multimodal(resultat)
+            if contenu is not None:
+                return contenu
         return json.dumps(resultat, ensure_ascii=False, default=str)
 
     from langchain_core.tools import StructuredTool

@@ -41,7 +41,20 @@ from app.api.schemas.document import (
     VideoFluxRead,
 )
 from app.api.schemas.equipe import EquipeCreate, EquipeRead, EquipeUpdate
-from app.api.schemas.lieu import LieuCreate, LieuRead, LieuUpdate
+from app.api.schemas.lieu import (
+    LieuCreate,
+    LieuRead,
+    LieuUpdate,
+    PositionLieuUpdate,
+)
+from app.api.schemas.voyage import (
+    ItineraireCreate,
+    ItineraireRead,
+    LieuTrouveRead,
+    ParametresVoyageRead,
+    ParametresVoyageUpdate,
+    TronconItineraireRead,
+)
 from app.api.schemas.lot import LotCreate, LotRead, LotUpdate
 from app.api.schemas.mission import (
     MissionDepuisAppelCreate,
@@ -88,6 +101,7 @@ from app.api.schemas.session import (
     SessionStatutUpdate,
     SessionUpdate,
 )
+from app.api.schemas.skill import SkillCreate, SkillRead, SkillUpdate
 from app.api.schemas.support_formation import (
     SupportFormationCreate,
     SupportFormationRead,
@@ -126,9 +140,16 @@ __all__ = [
     "EquipeUpdate",
     "ExtractionProposeeCreate",
     "ExtractionRead",
+    "ItineraireCreate",
+    "ItineraireRead",
     "LieuCreate",
     "LieuRead",
+    "LieuTrouveRead",
     "LieuUpdate",
+    "ParametresVoyageRead",
+    "ParametresVoyageUpdate",
+    "PositionLieuUpdate",
+    "TronconItineraireRead",
     "LigneBudgetCreate",
     "LigneBudgetRead",
     "LotCreate",
@@ -177,4 +198,7 @@ __all__ = [
     "SupportFormationCreate",
     "SupportFormationRead",
     "SuppressionRequete",
+    "SkillCreate",
+    "SkillRead",
+    "SkillUpdate",
 ]

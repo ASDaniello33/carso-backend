@@ -28,6 +28,11 @@ from app.application.services.participation_service import ParticipationService
 from app.application.services.presence_chat_service import PresenceChatService
 from app.application.services.presence_service import PresenceService
 from app.application.services.session_service import SessionService
+from app.application.services.itineraire_service import ItineraireService
+from app.application.services.parametres_voyage_service import (
+    ParametresVoyageService,
+)
+from app.application.services.skills_service import SkillsService
 from app.application.services.support_formation_service import (
     SupportFormationService,
 )
@@ -55,6 +60,9 @@ __all__ = [
     "PresenceChatService",
     "PresenceService",
     "SessionService",
+    "ItineraireService",
+    "ParametresVoyageService",
+    "SkillsService",
     "SupportFormationService",
     "UtilisateurService",
 ]

@@ -150,20 +150,38 @@ def test_statistique_kit_strictement_readonly() -> None:
         ))
 
 
-def test_statistique_aucun_tool_de_mutation_au_contrat() -> None:
+#: Préfixes des tools qui **écrivent** une donnée métier existante. Les agents
+#: de consultation n'en ont aucun ; seul un **nouveau** livrable peut être
+#: déposé (statut ``proposed``), ce qui ne modifie rien d'existant.
+PREFIXES_ECRITURE = (
+    "create_",
+    "update_",
+    "delete_",
+    "import_",
+    "propose_",
+    "enregistrer_",
+    "supprimer_",
+    "envoyer_",
+    "submit_",
+)
+
+
+def test_statistique_aucune_ecriture_de_donnee_au_contrat() -> None:
     from app.agents.agent_statistique import DEFINITION
 
     assert DEFINITION.approval_required == ()
-    # Aucun des tools du statistique n'est une écriture : readonly total.
-    assert all(not nom.startswith(("create_", "update_", "delete_", "import_", "generer_"))
-               for nom in DEFINITION.tools)
+    assert all(not nom.startswith(PREFIXES_ECRITURE) for nom in DEFINITION.tools)
+    # La seule écriture admise : un livrable, qui ne vaut jamais approbation.
+    assert "generer_document_professionnel" in DEFINITION.tools
+    assert "document_propose" in DEFINITION.capabilities
 
 
-def test_generaliste_aucun_tool_de_mutation_au_contrat() -> None:
+def test_generaliste_aucune_ecriture_de_donnee_au_contrat() -> None:
     from app.agents.generaliste_readonly import DEFINITION
 
-    assert all(not nom.startswith(("create_", "update_", "delete_", "import_", "generer_"))
-               for nom in DEFINITION.tools)
+    assert all(not nom.startswith(PREFIXES_ECRITURE) for nom in DEFINITION.tools)
+    assert "generer_document_professionnel" in DEFINITION.tools
+    assert "document_propose" in DEFINITION.capabilities
 
 
 def test_ecritures_hitl_declarees() -> None:

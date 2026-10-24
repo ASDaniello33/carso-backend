@@ -46,6 +46,58 @@ def test_catalogue_ne_couvre_que_les_agents_ui() -> None:
     assert bloc_outils_frontend("agent_inconnu") == ""
 
 
+def test_afficher_carte_est_disponible_pour_les_six_agents_ui() -> None:
+    """Un seul outil couvre les quatre besoins exprimés : rechercher un lieu,
+    l'afficher sur une carte, tracer un trajet et en donner la distance.
+
+    Il doit être visible par **chaque** agent du catalogue UI — sans quoi le
+    modèle répond « je n'ai pas cet outil » (régression constatée après un
+    redémarrage partiel du backend). On vérifie les trois chemins qui le
+    rendent réellement disponible : le catalogue, le stub LangChain et le
+    bloc de prompt du système.
+    """
+    from app.agents.catalogue import AGENT_DEFINITIONS
+    from app.agents.frontend_tools_catalogue import bloc_outils_frontend
+    from app.agents.frontend_tools_middleware import stubs_pour_agent
+
+    assert len(AGENT_DEFINITIONS) == 6
+    for definition in AGENT_DEFINITIONS:
+        assert "afficher_carte" in noms_pour_agent(definition.agent_id), definition.agent_id
+        assert "afficher_carte" in {
+            outil.name for outil in stubs_pour_agent(definition.agent_id)
+        }, definition.agent_id
+        assert "`afficher_carte`" in bloc_outils_frontend(definition.agent_id)
+
+
+def test_payload_carte_exige_un_titre_et_borne_les_points() -> None:
+    """Le schéma partagé refuse un appel sans titre et une nature inventée."""
+    import pytest
+    from pydantic import ValidationError
+
+    from app.agents.frontend_tools_catalogue import SCHEMAS_FRONTEND
+
+    schema = SCHEMAS_FRONTEND["afficher_carte"]
+    valide = schema.model_validate(
+        {
+            "titre": "Zones des lots",
+            "points": [{"nom": "Toliara", "nature": "zone"}],
+            "itineraire": {
+                "depart": {"nom": "Toliara"},
+                "arrivee": {"nom": "Antananarivo", "nature": "lieu"},
+                "aller_retour": True,
+            },
+        }
+    )
+    assert valide.titre == "Zones des lots"
+    assert valide.points[0].nom == "Toliara"
+    with pytest.raises(ValidationError):
+        schema.model_validate({"points": []})
+    with pytest.raises(ValidationError):
+        schema.model_validate(
+            {"titre": "x", "points": [{"nom": "A", "nature": "inconnue"}]}
+        )
+
+
 def test_generateur_a_ses_outils_daffichage() -> None:
     noms = noms_pour_agent(AGENT_GENERATEUR)
     assert "naviguer_vers" in noms
@@ -352,6 +404,8 @@ def test_catalogue_aligne_sur_les_hooks_client() -> None:
     """Chaque outil du catalogue a un hook ; aucun nom inventé."""
     attendus = {
         "naviguer_vers",
+        # Carte commune aux cinq agents : lieux, zones, itinéraire et carburant.
+        "afficher_carte",
         "afficher_tableau_donnees",
         "page_actuelle",
         "proposer_telechargement_document",

@@ -33,6 +33,8 @@ AGENT_ID = "agent_assistant_formateur"
 TASK_TYPE = "preparer_documents_mission"
 
 NOMS_TOOLS: tuple[str, ...] = (
+    "rechercher_lieu",
+    "calculer_itineraire",
     "inspect_beneficiaires_xlsx",
     "preview_import_beneficiaires",
     "import_beneficiaires",
@@ -51,6 +53,8 @@ NOMS_TOOLS: tuple[str, ...] = (
     "read_document_range",
     "chercher_dans_document",
     "lire_element_document",
+    # Une fiche ou une liste photographiée se lit dans l'image.
+    "lire_image",
     "importer_tableau_xlsx",
     "analyze_document_reference",
     "generer_document",
@@ -426,8 +430,14 @@ def construire_tools_assistant_formateur(
         + tools_documents_pour(definition, session_factory)
         + tools_scripts_pour(definition)
     )
+    from app.agents.tools.agent_lieux_tools import construire_tools_lieux
+
     return attacher_recherche_video(
-        definition, attacher_outils_web(definition, tuple(kit.construire()) + extras)
+        definition,
+        attacher_outils_web(
+            definition,
+            tuple(kit.construire()) + extras + construire_tools_lieux(definition, session_factory),
+        ),
     )
 
 

@@ -104,6 +104,18 @@ class AgentTimeoutError(CarsoError):
     message = "Inter-agent task exceeded its time budget."
 
 
+class ServiceExterneError(CarsoError):
+    """Un service externe (cartographie, itinéraire) est indisponible ou refuse.
+
+    Volontairement 502 : la demande de l'utilisateur est valide, c'est la
+    dépendance distante qui échoue (réseau, quota, réponse illisible). Les
+    ``details`` portent le code HTTP du fournisseur — jamais sa clé.
+    """
+
+    status_code = 502
+    code = "service_externe"
+
+
 class InvalidAgentResponseError(CarsoError):
     """Réponse d'agent non conforme au contrat inter-agent (instruction/05 §7)."""
 

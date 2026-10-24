@@ -57,11 +57,12 @@ from typing import Any, Literal
 from urllib.parse import urljoin, urlsplit
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.core.errors import ValidationError
 from app.documents.telechargement import url_publique_verifiee
 from app.tools import moteurs_web
+from app.tools.budget_recherche import consommer_recherche
 from app.tools.cache_ttl import CacheTTL
 from app.tools.fournisseurs_recherche import (
     EN_TETES,
@@ -92,7 +93,12 @@ SOURCE_MOTEURS = "moteurs"
 CACHE_RECHERCHE_WEB: CacheTTL[dict[str, Any]] = CacheTTL()
 
 _MAX_REQUETE = 400
+#: Requêtes distinctes par appel : au-delà, l'agent regroupe encore ou étale.
+_MAX_REQUETES = 5
 _MAX_RESULTATS = 10
+#: Plafond de la liste **fusionnée** d'un appel multi-requêtes : la largeur
+#: augmente, le volume rendu au modèle reste borné.
+_MAX_RESULTATS_FUSION = 20
 #: Borne du schéma ``read_urls`` : la configuration peut serrer en dessous
 #: (``web_read_urls_max``), jamais au-delà.
 _MAX_URLS = 8
@@ -161,15 +167,32 @@ def _fraicheur_canonique(valeur: str) -> str:
 
 
 class WebSearchInput(BaseModel):
-    """Entrée typée de ``langsearch_web_search`` (recherche web fédérée)."""
+    """Entrée typée de ``langsearch_web_search`` (recherche web fédérée).
+
+    Plusieurs mots-clés se demandent en **un** appel : ``requetes`` accepte une
+    liste, exécutée requête par requête puis fusionnée. C'est le remède à la
+    rafale d'appels quasi identiques—trois variantes d'une même recherche
+    coûtaient trois tours de modèle et rendaient trois fois les mêmes liens.
+    ``requete`` reste accepté (appel simple, historique) ; les deux champs sont
+    ramenés à une liste canonique, sans doublon et sans chaîne vide.
+    """
 
     #: Un champ non prévu est refusé : l'agent corrige, il ne devine pas.
     model_config = ConfigDict(extra="forbid")
 
-    requete: str = Field(
-        min_length=1,
+    requete: str | None = Field(
+        default=None,
         max_length=_MAX_REQUETE,
-        description="Requête de recherche en langage naturel.",
+        description="Une seule requête en langage naturel (raccourci de `requetes`).",
+    )
+    requetes: list[str] | None = Field(
+        default=None,
+        max_length=_MAX_REQUETES,
+        description=(
+            "Plusieurs requêtes en un seul appel : chaque mot-clé est cherché, "
+            "les résultats sont fusionnés et dédoublonnés. À préférer aux "
+            "appels successifs pour une même question."
+        ),
     )
     max_results: int | None = Field(
         default=None,
@@ -192,6 +215,14 @@ class WebSearchInput(BaseModel):
     exclude_domains: list[str] | None = Field(
         default=None,
         description="Exclure des domaines. LangSearch seul.",
+    )
+    niveau: Literal["ordinaire", "verification", "approfondie"] | None = Field(
+        default=None,
+        description=(
+            "Profondeur annoncée pour ce tour : ordinaire (8 appels maximum), "
+            "verification (15) ou approfondie (25). À envoyer au premier appel ; "
+            "le plafond du tour s'y resserre."
+        ),
     )
     texte_complet: bool = Field(
         default=False,
@@ -219,6 +250,42 @@ class WebSearchInput(BaseModel):
         """Ramène la fraîcheur au vocabulaire canonique (refus explicite sinon)."""
         return _fraicheur_canonique(valeur)
 
+    @model_validator(mode="after")
+    def _requetes_canoniques(self) -> WebSearchInput:
+        """Liste unique des requêtes : ordre conservé, doublons et vides écartés.
+
+        Raises:
+            ValueError: aucune requête exploitable, ou une requête trop longue.
+        """
+        brutes: list[str] = []
+        if isinstance(self.requete, str):
+            brutes.append(self.requete)
+        brutes.extend(self.requetes or ())
+
+        vues: set[str] = set()
+        propres: list[str] = []
+        for brute in brutes:
+            texte = " ".join(str(brute).split())
+            if not texte:
+                continue
+            if len(texte) > _MAX_REQUETE:
+                msg = (
+                    f"requête trop longue ({len(texte)} caractères, maximum "
+                    f"{_MAX_REQUETE})"
+                )
+                raise ValueError(msg)
+            cle = texte.casefold()
+            if cle in vues:
+                continue
+            vues.add(cle)
+            propres.append(texte)
+
+        if not propres:
+            msg = "au moins une requête non vide est nécessaire (requete ou requetes)"
+            raise ValueError(msg)
+        self.requetes = propres
+        self.requete = " | ".join(propres)
+        return self
 
 def _cle_url(url: str) -> str:
     """Clé de dédoublonnage : schéma et hôte insensibles à la casse, fragment ignoré."""
@@ -333,17 +400,30 @@ def build_web_search_tool(
     base_url = settings.langsearch_base_url.rstrip("/")
     plafond = settings.web_search_max_results
     plafond_texte = int(getattr(settings, "web_search_text_max_chars", 3000))
+    #: Requêtes distinctes acceptées en un appel : la configuration peut serrer
+    #: la borne du schéma (``web_search_max_queries``), jamais l'élargir.
+    requetes_max = min(
+        int(getattr(settings, "web_search_max_queries", _MAX_REQUETES) or _MAX_REQUETES),
+        _MAX_REQUETES,
+    )
     client_fourni = client is not None
 
-    def _rechercher(cible: httpx.Client, payload: dict[str, Any]) -> dict[str, Any]:
-        policy.require(identite.agent_id, "web_search")
+    def _recherche_unique(
+        cible: httpx.Client,
+        payload: dict[str, Any],
+        *,
+        requete: str,
+        demandees: list[str],
+        nb: int,
+        fraicheur: str,
+    ) -> dict[str, Any]:
+        """Une requête fédérée (LangSearch + moteurs), mémorisée 30 minutes.
 
-        demandees = list(payload.get("sources") or (SOURCE_LANGSEARCH, SOURCE_MOTEURS))
-        demande = payload.get("max_results") or plafond
-        nb = min(int(demande), plafond)
-        fraicheur = payload["freshness"]
-        requete = payload["requete"]
-
+        Rendered for one keyword only: the caller loops over the list and merges.
+        Le cache est **par requête** : répéter un mot-clé dans un appel suivant
+        ne repart pas chez les fournisseurs, alors qu'un mot-clé nouveau, lui,
+        est réellement cherché.
+        """
         # Clé = tout ce qui peut changer la réponse. La permission vient d'être
         # vérifiée : un agent refusé ne lit jamais une entrée écrite par un autre.
         cle_cache = (
@@ -361,7 +441,6 @@ def build_web_search_tool(
             return en_cache
 
         avertissements: list[str] = []
-
         lots: list[tuple[str, list[dict[str, Any]]]] = []
         usage: dict[str, Any] = {}
         log_id: str | None = None
@@ -447,6 +526,71 @@ def build_web_search_tool(
         CACHE_RECHERCHE_WEB.memoriser(cle_cache, reponse)
         return reponse
 
+    def _rechercher(cible: httpx.Client, payload: dict[str, Any]) -> dict[str, Any]:
+        policy.require(identite.agent_id, "web_search")
+
+        demandees = list(payload.get("sources") or (SOURCE_LANGSEARCH, SOURCE_MOTEURS))
+        demande = payload.get("max_results") or plafond
+        nb = min(int(demande), plafond)
+        fraicheur = payload["freshness"]
+        requetes = list(payload.get("requetes") or (payload["requete"],))
+        if len(requetes) > requetes_max:
+            msg = (
+                f"{len(requetes)} requêtes dans un même appel, maximum {requetes_max} : "
+                "regroupe les mots-clés proches ou fais un second appel."
+            )
+            raise ValidationError(msg, details={"requetes_max": requetes_max})
+
+        # Un crédit par appel de tool, pas par mot-clé : regrouper cinq mots-clés
+        # coûte un appel, c'est le geste encouragé (budget anti-boucle). Le
+        # palier annoncé resserre le plafond du tour (8 / 15 / 25).
+        consommer_recherche(payload.get("niveau"))
+
+        blocs: list[dict[str, Any]] = []
+        for requete in requetes:
+            blocs.append(
+                _recherche_unique(
+                    cible,
+                    payload,
+                    requete=requete,
+                    demandees=demandees,
+                    nb=nb,
+                    fraicheur=fraicheur,
+                )
+            )
+
+        # Fusion **entre requêtes** : une adresse vue par deux mots-clés reste une
+        # entrée, avec ses deux provenances ; la largeur augmente, le volume non.
+        lots = [(bloc["requete"], bloc["resultats"]) for bloc in blocs]
+        resultats = _fusionner(lots, min(_MAX_RESULTATS_FUSION, nb * len(requetes)))
+
+        avertissements: list[str] = []
+        sources_utilisees: list[str] = []
+        usage: dict[str, Any] = {}
+        log_id: str | None = None
+        for bloc in blocs:
+            for avertissement in bloc["avertissements"]:
+                if avertissement not in avertissements:
+                    avertissements.append(avertissement)
+            for source in bloc["sources_utilisees"]:
+                if source not in sources_utilisees:
+                    sources_utilisees.append(source)
+            for cle_usage, valeur in (bloc.get("usage") or {}).items():
+                if isinstance(valeur, int | float) and not isinstance(valeur, bool):
+                    usage[cle_usage] = usage.get(cle_usage, 0) + valeur
+            log_id = bloc.get("log_id") or log_id
+
+        return {
+            "requete": " | ".join(requetes),
+            "requetes": blocs,
+            "nb_resultats": len(resultats),
+            "resultats": resultats,
+            "sources_utilisees": sources_utilisees,
+            "avertissements": avertissements,
+            "usage": usage,
+            "log_id": log_id,
+        }
+
     def _handler(payload: dict[str, Any]) -> dict[str, Any]:
         if client_fourni and client is not None:
             return _rechercher(client, payload)
@@ -462,12 +606,19 @@ def build_web_search_tool(
         description=(
             "Recherche web sur deux sources fusionnées : l'API LangSearch et les "
             "moteurs publics (Bing, Yahoo, Brave, Mojeek, DuckDuckGo, essayés tour "
-            "à tour). Un fournisseur en panne n'empêche pas l'autre de répondre — "
+            "à tour). Un fournisseur en panne n'empêche pas l'autre de répondre : "
             "les avertissements le disent, résultat par résultat la clé `sources` "
-            "dit d'où il vient. Titre, URL, résumé (ou texte de page via "
+            "dit d'où il vient. Plusieurs mots-clés se demandent en UN appel "
+            "(`requetes` : liste, jusqu'à cinq), les résultats sont fusionnés et "
+            "dédoublonnés : ne relance pas une recherche pour une variante proche, "
+            "regroupe-la. Titre, URL, résumé (ou texte de page via "
             "texte_complet), fraîcheur et filtres de domaines. "
+            "Budget d'appels par tour : annonce la profondeur dans `niveau` "
+            "(ordinaire = 8 appels, verification = 15, approfondie = 25) au "
+            "premier appel ; au-delà, l'outil refuse et demande de conclure avec "
+            "les sources déjà obtenues. "
             "FICHIERS : un document ou une image se cherchent ici, avec "
-            "l'opérateur dans la requête — « rapport annuel filetype:pdf », "
+            "l'opérateur dans la requête : « rapport annuel filetype:pdf », "
             "« budget filetype:xlsx », « tour Eiffel filetype:jpg » ; le lien "
             "rendu est alors celui du fichier, pas d'une page. "
             "Lecture seule : rien n'est écrit, aucun fichier n'est conservé. Pour "

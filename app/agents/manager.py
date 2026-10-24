@@ -30,7 +30,7 @@ entre deux conversations.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from threading import RLock
@@ -41,6 +41,7 @@ from sqlalchemy.orm import Session
 
 from app.agents.harness import AgentRuntimeConfig
 from app.agents.providers import build_chat_model, is_agent_configured
+from app.agents.skills_organisation import bloc_skills, signature_skills
 from app.core.config import Settings, get_settings
 from app.core.errors import ValidationError as BusinessValidationError
 
@@ -263,12 +264,14 @@ class AgentRuntimeManager:
         from app.infrastructure.database import SessionLocal
 
         compte_id = _identifiant_compte(utilisateur_id)
+        skills: list[Any] = []
         session = SessionLocal()
         try:
             from app.application.services.parametres_service import definition_du_contrat
             from app.infrastructure.repositories import (
                 ConfigurationAgentPersonnelRepository,
                 ServeurMcpRepository,
+                SkillRepository,
             )
 
             par_utilisateur = bool(
@@ -284,17 +287,29 @@ class AgentRuntimeManager:
             serveurs_effectifs = ServeurMcpRepository(session).lister_pour_agent(
                 agent_id, utilisateur_id=compte_id
             )
+            # Skills de l'organisation : communs à tous les comptes, donc leur
+            # empreinte suffit dans la clé — inutile de séparer un graphe par
+            # compte pour eux. Elle change dès qu'un skill est écrit, ce qui
+            # reconstruit le prompt de tous les agents.
+            skills = SkillRepository(session).lister()
             cle = (
                 agent_id,
                 str(compte_id) if par_utilisateur and compte_id is not None else "",
                 _signature(serveurs_effectifs),
                 signature_configuration(config) if par_utilisateur else "-",
+                signature_skills(skills),
             )
         except Exception as exc:  # noqa: BLE001 - la base decides du claquage
             _logger.warning(
                 "Configuration MCP non resolue pour %s : %s", agent_id, exc
             )
-            cle = (agent_id, str(compte_id) if compte_id is not None else "", "indisponible", "-")
+            cle = (
+                agent_id,
+                str(compte_id) if compte_id is not None else "",
+                "indisponible",
+                "-",
+                "-",
+            )
         finally:
             session.close()
 
@@ -320,7 +335,7 @@ class AgentRuntimeManager:
                 # instructions administrées — un réglage posé dans Paramètres
                 # s'applique au prochain graphe, sans redémarrage.
                 definition, outils_distants, instructions = _effectif_pour(
-                    session, agent_id, compte_id
+                    session, agent_id, compte_id, skills=skills
                 )
                 # Checkpointer **partagé** (ADR 0009) : PostgresSaver process-
                 # wide quand la persistance est établie — les threads (contexte
@@ -367,25 +382,29 @@ class AgentRuntimeManager:
                 "last_error": self._last_error,
             }
 
-    def oublier_graphes(self, agent_id: str, utilisateur_id: UUID | str) -> int:
-        """Retire du cache les graphes d'**un** compte pour un agent donné.
+    def oublier_graphes(
+        self, agent_id: str | None, utilisateur_id: UUID | str | None
+    ) -> int:
+        """Retire du cache les graphes d'**un** compte, ou de tous.
 
-        Appelé quand la configuration d'un compte change (instructions, outils
-        retirés) : l'empreinte de configuration suffirait à construire le bon
-        graphe au prochain run, mais l'ancien resterait mémorisé indéfiniment.
-        La purge est ciblée — jamais ``reload()``, qui reconstruirait les
-        graphes de tous les comptes — et **seuls** les graphes de ce compte
-        pour cet agent sont fermés.
+        Appelé quand un réglage change : l'empreinte suffirait à construire le
+        bon graphe au prochain run, mais l'ancien resterait mémorisé
+        indéfiniment. ``agent_id=None`` = tous les agents ;
+        ``utilisateur_id=None`` = tous les comptes — c'est le cas d'un skill
+        d'organisation, qui entre dans le prompt de **tous** les runs. La purge
+        reste ciblée : jamais ``reload()``, qui reconstruirait aussi les
+        graphes sans rapport avec le réglage modifié.
 
         Returns:
             Le nombre de graphes retirés du cache.
         """
-        compte = str(utilisateur_id)
+        compte = None if utilisateur_id is None else str(utilisateur_id)
         with self._lock:
             cibles = [
                 cle
                 for cle in self._graphs
-                if cle[0] == agent_id and cle[1] == compte
+                if (agent_id is None or cle[0] == agent_id)
+                and (compte is None or cle[1] == compte)
             ]
             for cle in cibles:
                 session = self._sessions.pop(cle, None)
@@ -480,7 +499,11 @@ def _instructions_effectives(admin: str | None, config: Any | None) -> str | Non
 
 
 def _effectif_pour(
-    session: Session, agent_id: str, utilisateur_id: UUID | None = None
+    session: Session,
+    agent_id: str,
+    utilisateur_id: UUID | None = None,
+    *,
+    skills: Sequence[Any] | None = None,
 ) -> tuple[Any | None, tuple[Any, ...], str | None]:
     """Contrat effectif, outils MCP et instructions (jamais bloquant).
 
@@ -528,6 +551,17 @@ def _effectif_pour(
             )
         definition = definition_avec_configuration_personnelle(definition, config)
         instructions = _instructions_effectives(instructions_admin, config)
+        # Skills de l'organisation : communs, donc chargés pour **tout** agent
+        # (pas seulement un agent par utilisateur).
+        if skills is None:
+            from app.infrastructure.repositories import SkillRepository
+
+            skills = SkillRepository(session).lister()
+        bloc = bloc_skills(skills or ())
+        if bloc:
+            instructions = "\n\n".join(
+                partie for partie in (instructions, bloc) if partie
+            )
         serveurs = ServeurMcpRepository(session).lister_pour_agent(
             agent_id, utilisateur_id=utilisateur_id
         )

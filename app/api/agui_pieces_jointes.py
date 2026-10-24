@@ -173,11 +173,16 @@ def reecrire_corps(
     if not isinstance(payload, dict):
         return corps
     normalise = normaliser_pieces_jointes(payload)
+    from app.agents.page_courante import injecter_page_dans_payload
     from app.agents.pieces_jointes_contexte import injecter_contexte_dans_payload
 
     enrichi = injecter_contexte_dans_payload(
         normalise, session_factory=session_factory
     )
+    # Alias de page (`@MissionActuel`… ) : la fiche que l'utilisateur regarde
+    # devient un identifiant réel dans son message. Aucun droit n'est accordé
+    # ici — les services revérifient le périmètre.
+    enrichi = injecter_page_dans_payload(enrichi)
     if enrichi is payload:
         return corps
     try:
@@ -284,7 +289,10 @@ class MiddlewarePiecesJointes:
             await self.app(scope, _receive_rejouee(nouveau, receive), send)
             return
 
-        _logger.debug("Pièces jointes AG-UI normalisées (%s)", scope.get("path"))
+        _logger.debug(
+            "Corps AG-UI enrichi : pièces jointes ou page courante (%s)",
+            scope.get("path"),
+        )
         scope_reecrit = dict(scope)
         scope_reecrit["headers"] = _remplacer_longueur(
             list(scope.get("headers") or []), len(nouveau)

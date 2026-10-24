@@ -2,7 +2,7 @@
 
 from sqlalchemy import func, select
 
-from app.domain.execution import Lieu
+from app.domain.execution import Lieu, Mission
 from app.infrastructure.repositories.base import BaseRepository
 
 
@@ -27,6 +27,18 @@ class LieuRepository(BaseRepository[Lieu]):
     def list_for_ville(self, ville: str) -> list[Lieu]:
         stmt = select(Lieu).where(Lieu.ville == ville)
         return list(self.session.scalars(stmt))
+
+    def list_pour_missions(self, mission_ids: set) -> list[Lieu]:
+        """Lieux référencés par les missions données (périmètre d'un compte)."""
+        if not mission_ids:
+            return []
+        stmt = (
+            select(Lieu)
+            .join(Lieu.missions)
+            .where(Lieu.missions.any(Mission.id.in_(mission_ids)))
+            .order_by(Lieu.nom)
+        )
+        return list(self.session.scalars(stmt).unique())
 
 
 __all__ = ["LieuRepository"]

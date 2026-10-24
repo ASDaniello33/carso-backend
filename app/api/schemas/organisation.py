@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.api.schemas.lieu import LieuRead
+
 
 class OrganisationCreate(BaseModel):
     """Création d'une organisation cliente."""
@@ -25,6 +27,9 @@ class OrganisationUpdate(BaseModel):
     email: str | None = Field(default=None, max_length=255)
     telephone: str | None = Field(default=None, max_length=50)
     statut: str | None = Field(default=None, max_length=50)
+    #: Lieu exact de l'organisation (rattachement, 22/10) — un ``null`` explicite
+    #: ne détache pas (voir MissionLieuUpdate pour le modèle de détachement).
+    lieu_id: UUID | None = None
 
 
 class OrganisationRead(BaseModel):
@@ -37,3 +42,7 @@ class OrganisationRead(BaseModel):
     email: str | None = None
     telephone: str | None = None
     statut: str | None = None
+    lieu_id: UUID | None = None
+    #: Lieu complet (coordonnées incluses) : la carte s'affiche sans deuxième
+    #: requête. ``None`` = l'organisation n'a pas de lieu rattaché.
+    lieu: LieuRead | None = None

@@ -72,6 +72,8 @@ MAX_DESTINATAIRES = 10
 MAX_PIECES_JOINTES = 5
 
 NOMS_TOOLS: tuple[str, ...] = (
+    "rechercher_lieu",
+    "calculer_itineraire",
     "search_equipes",
     "get_equipe",
     "list_equipe_cv",
@@ -93,6 +95,8 @@ NOMS_TOOLS: tuple[str, ...] = (
     "get_document_structure",
     "chercher_dans_document",
     "lire_element_document",
+    # Un CV ou une pièce scannée se lit en voyant l'image.
+    "lire_image",
     "generer_document",
     "generer_document_professionnel",
     "generer_document_html",
@@ -716,8 +720,16 @@ def construire_tools_rh(
     from app.tools.recherche_video import attacher_recherche_video
     from app.tools.web import attacher_outils_web
 
+    from app.agents.tools.agent_lieux_tools import construire_tools_lieux
+
     return attacher_recherche_video(
-        definition, attacher_outils_web(definition, tuple(kit.construire()) + extra_tools)
+        definition,
+        attacher_outils_web(
+            definition,
+            tuple(kit.construire())
+            + extra_tools
+            + construire_tools_lieux(definition, session_factory),
+        ),
     )
 
 

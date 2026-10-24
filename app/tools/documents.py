@@ -63,6 +63,7 @@ __all__ = [
     "ImporterTableauInput",
     "SerieGraphiqueInput",
     "LireDocumentInput",
+    "LireImageInput",
     "InspecterDocumentInput",
     "LirePlageInput",
     "PlageLueInput",
@@ -1020,6 +1021,22 @@ class ValiderDocumentInput(BaseModel):
     )
 
 
+class LireImageInput(BaseModel):
+    """Vision : ouvre une image déposée et la rend au modèle.
+
+    Aucun chemin disque : le fichier est lu par le service documentaire (même
+    contrôle d'accès que ``lire_document``).
+    """
+
+    document_id: UUID = Field(
+        description=(
+            "UUID du document **image** (PNG, JPEG, GIF, WebP) déjà déposé. "
+            "Ne jamais inventer d'identifiant : il vient de ``search_documents`` "
+            "ou d'une pièce jointe."
+        )
+    )
+
+
 class RenderDocumentInput(BaseModel):
     """Aperçu visuel : rend les pages d'un document PDF en images.
 
@@ -1831,6 +1848,59 @@ def build_document_tools(
             ),
         }
 
+    def _lire_image(payload: dict[str, Any]) -> dict[str, Any]:
+        """Rend une image **visible** au modèle (bloc ``image_url``).
+
+        Le texte ne suffit pas : un scan, une capture ou un schéma n'ont pas
+        d'extraction fiable. L'image est lue par le service documentaire (donc
+        bornée au périmètre du compte), réduite si nécessaire, puis renvoyée
+        dans le résultat du tool — le pont LangChain la transforme en contenu
+        multimodal (``app/tools/base``).
+        """
+        policy.require(identite.agent_id, "document_read")
+        from app.documents.images import preparer_image
+
+        document_id = _uuid(payload["document_id"], "document_id")
+        service = service_factory()
+        document = service.obtenir(document_id)
+        mime = (document.mime_type or "").lower()
+        if not mime.startswith("image/"):
+            raise ValidationError(
+                "Ce document n'est pas une image : utiliser lire_document "
+                "(texte) ou render_document (pages PDF en images).",
+                details={"document_id": str(document_id), "mime_type": mime},
+            )
+        _nom_fichier, chemin = service.telecharger(document_id)
+        image = preparer_image(chemin, mime_type=mime)
+        return {
+            "document_id": str(document.id),
+            "nom": document.nom,
+            "type_document": document.type_document,
+            "mime_type": image.mime_type,
+            "largeur": image.largeur,
+            "hauteur": image.hauteur,
+            "taille_octets": image.octets,
+            "reduite": image.transformee,
+            "message": (
+                "Image fournie pour observation directe : décris ce que tu "
+                "vois et lis ce qui est réellement lisible. Une valeur floue "
+                "se signale comme incertaine, elle ne se devine pas."
+                + (
+                    " L'image a été réduite : un petit texte peut avoir perdu "
+                    "en netteté."
+                    if image.transformee
+                    else ""
+                )
+            ),
+            "images": [
+                {
+                    "mime": image.mime_type,
+                    "base64": image.base64,
+                    "legende": f"Image « {document.nom} »",
+                }
+            ],
+        }
+
     def _inspecter(payload: dict[str, Any]) -> dict[str, Any]:
         policy.require(identite.agent_id, "document_read")
         from app.documents.inspection import inspecter_docx, inspecter_pdf, inspecter_xlsx
@@ -2488,6 +2558,24 @@ def build_document_tools(
             handler=_lire,
             input_schema=LireDocumentInput,
             tags=("documents", "lecture"),
+        ),
+        TypedTool(
+            name="lire_image",
+            description=(
+                "Ouvre une image déposée (PNG, JPEG, GIF, WebP) et la fait "
+                "**voir** au modèle : capture d'écran, photo d'un document, "
+                "schéma, plan, scan. À utiliser dès qu'un document à lire est "
+                "une image — ``lire_document`` ne rend qu'un texte, et une "
+                "image n'en a pas. "
+                "Le retour porte la fiche (nom, dimensions) et l'image "
+                "elle-même ; décris ce que tu observes et cite ce que tu lis "
+                "vraiment (ne devine jamais un chiffre flou : dis qu'il l'est). "
+                "Lecture seule, aucun chemin disque."
+            ),
+            handler=_lire_image,
+            input_schema=LireImageInput,
+            tags=("documents", "lecture", "vision"),
+            multimodal=True,
         ),
         TypedTool(
             name="read_document",

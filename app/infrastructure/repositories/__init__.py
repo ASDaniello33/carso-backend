@@ -35,10 +35,16 @@ from app.infrastructure.repositories.parametres import (
     ServeurMcpRepository,
     SurchargeAgentRepository,
 )
+from app.infrastructure.repositories.geo import (
+    ItineraireCacheRepository,
+    OsmVoieRepository,
+    ParametresVoyageRepository,
+)
 from app.infrastructure.repositories.reinitialisation import (
     CodeReinitialisationRepository,
 )
 from app.infrastructure.repositories.session import SessionRepository
+from app.infrastructure.repositories.skill import SkillRepository
 from app.infrastructure.repositories.support_formation import (
     SupportFormationRepository,
 )
@@ -58,17 +64,21 @@ __all__ = [
     "ConfigurationRuntimeAgentRepository",
     "DocumentRepository",
     "EquipeRepository",
+    "ItineraireCacheRepository",
     "LieuRepository",
+    "ParametresVoyageRepository",
     "LigneBudgetRepository",
     "LotRepository",
     "MissionRepository",
     "ModeleDocumentRepository",
     "OffreRepository",
     "OrganisationRepository",
+    "OsmVoieRepository",
     "ParticipationRepository",
     "PresenceRepository",
     "ServeurMcpRepository",
     "SessionRepository",
+    "SkillRepository",
     "SurchargeAgentRepository",
     "SupportFormationRepository",
     "UtilisateurRepository",

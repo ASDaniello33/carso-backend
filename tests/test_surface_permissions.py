@@ -61,6 +61,11 @@ ECRITURES_FORMAEUR: frozenset[tuple[str, str]] = frozenset(
         # efface son propre brouillon, fichier et ligne ensemble.
         ("DELETE", "/documents/{document_id}/depot"),
         ("DELETE", "/documents/{identifiant}"),
+        # Décision lieux/itinéraires (22/10) : le formateur ajuste le marqueur
+        # d'un lieu de **ses** missions, et demande un itinéraire (calcul sans
+        # écriture métier, borné au périmètre pour les lieux cités).
+        ("PATCH", "/lieux/{lieu_id}/position"),
+        ("POST", "/lieux/itineraire"),
         ("POST", "/missions/{mission_id}/supports-formation"),
         ("DELETE", "/missions/supports-formation/{support_id}"),
         ("POST", "/sessions/{session_id}/fiche-presence"),

@@ -21,6 +21,7 @@ import pytest
 
 from app.core.config import Settings
 from app.core.errors import ValidationError
+from app.tools.budget_recherche import fermer_budget, ouvrir_budget
 from app.tools.permissions import AgentIdentity, PermissionPolicy
 from app.tools.web import (
     FetchUrlInput,
@@ -880,3 +881,190 @@ def test_parametres_par_defaut_documentes() -> None:
     assert reglages.web_read_urls_max == 5
     assert reglages.web_read_urls_total_chars == 60_000
     assert reglages.shell_allowed_roots == ""  # shell désactivé par défaut
+
+
+# --- Recherche multi-requêtes et budget ---------------------------------------
+#
+# Un appel = une question. Regrouper les mots-clés évite la rafale d'appels
+# quasi identiques ; le budget d'un tour est le plafond que le prompt ne suffit
+# pas à tenir. Les deux se prouvent ici, sans réseau.
+
+
+def _par_requete(corps: dict[str, Any]) -> Any:
+    """Réponse LangSearch : deux liens par requête, un lien commun aux deux."""
+    query = corps.get("query", "")
+    if query == "alpha":
+        urls = ["https://exemple.org/commun", "https://exemple.org/a"]
+    else:
+        urls = ["https://exemple.org/commun", "https://exemple.org/b"]
+    return httpx.Response(200, text=_reponse_langsearch(*urls))
+
+
+def test_plusieurs_requetes_en_un_appel() -> None:
+    """Deux mots-clés, **un** appel de tool : deux recherches, une liste fusionnée."""
+    corps_envoyes: list[dict[str, Any]] = []
+
+    def _route(request: httpx.Request) -> httpx.Response:
+        corps = json.loads(request.content.decode("utf-8"))
+        corps_envoyes.append(corps)
+        return _par_requete(corps)
+
+    tool = build_web_search_tool(
+        identite=IDENTITE,
+        policy=POLICY_WEB,
+        settings=_settings(),
+        client=_transport(_route),
+    )
+    sortie = tool.invoke(
+        {"requetes": ["alpha", "beta"], "sources": ["langsearch"], "max_results": 5}
+    )
+
+    assert sortie["ok"] is True
+    assert [corps["query"] for corps in corps_envoyes] == ["alpha", "beta"]
+    assert len(sortie["requetes"]) == 2
+    assert [bloc["requete"] for bloc in sortie["requetes"]] == ["alpha", "beta"]
+    urls = [item["url"] for item in sortie["resultats"]]
+    assert urls.count("https://exemple.org/commun") == 1, "une adresse = une entrée"
+    assert sortie["nb_resultats"] == len(urls) == 3
+    assert sortie["requete"] == "alpha | beta"  # forme lisible, historique conservé
+
+
+def test_doublons_de_requetes_ecartes() -> None:
+    """Une variante de casse ou d'espaces n'est pas une seconde recherche."""
+    appels = {"n": 0}
+
+    def _route(request: httpx.Request) -> httpx.Response:
+        appels["n"] += 1
+        return httpx.Response(200, text=_reponse_langsearch("https://exemple.org/1"))
+
+    tool = build_web_search_tool(
+        identite=IDENTITE,
+        policy=POLICY_WEB,
+        settings=_settings(),
+        client=_transport(_route),
+    )
+    sortie = tool.invoke(
+        {"requetes": ["formation CARSO", "  Formation   CARSO  "], "sources": ["langsearch"]}
+    )
+    assert appels["n"] == 1
+    assert len(sortie["requetes"]) == 1
+
+
+def test_liste_de_requetes_vide_refusee() -> None:
+    tool = build_web_search_tool(
+        identite=IDENTITE,
+        policy=POLICY_WEB,
+        settings=_settings(),
+        client=_transport(lambda r: httpx.Response(200)),
+    )
+    assert tool.invoke({"requetes": []})["ok"] is False
+    assert tool.invoke({"requetes": ["", "   "]})["ok"] is False
+
+
+def test_trop_de_requetes_refuse_par_le_schema() -> None:
+    tool = build_web_search_tool(
+        identite=IDENTITE,
+        policy=POLICY_WEB,
+        settings=_settings(),
+        client=_transport(lambda r: httpx.Response(200)),
+    )
+    sortie = tool.invoke({"requetes": [f"mot {i}" for i in range(6)]})
+    assert sortie["ok"] is False
+
+
+def test_budget_epuise_refuse_une_recherche_de_plus() -> None:
+    """Le plafond du tour est exécuté : l'agent conclut, il ne boucle pas."""
+    ouvrir_budget(1)
+    try:
+        tool = build_web_search_tool(
+            identite=IDENTITE,
+            policy=POLICY_WEB,
+            settings=_settings(),
+            client=_transport(
+                lambda r: httpx.Response(200, text=_reponse_langsearch("https://exemple.org/1"))
+            ),
+        )
+        assert tool.invoke({"requete": "premiere", "sources": ["langsearch"]})["ok"] is True
+        refus = tool.invoke({"requete": "deuxieme", "sources": ["langsearch"]})
+        assert refus["ok"] is False
+        assert "Budget de recherche web atteint" in refus["error"]["message"]
+        assert "réponds avec les sources déjà obtenues" in refus["error"]["message"]
+    finally:
+        fermer_budget()
+
+
+def test_sans_budget_pose_aucune_borne() -> None:
+    """Hors conversation (tests, scripts), le tool n'a pas de compteur à lui."""
+    fermer_budget()
+    tool = build_web_search_tool(
+        identite=IDENTITE,
+        policy=POLICY_WEB,
+        settings=_settings(),
+        client=_transport(
+            lambda r: httpx.Response(200, text=_reponse_langsearch("https://exemple.org/1"))
+        ),
+    )
+    assert tool.invoke({"requete": "a", "sources": ["langsearch"]})["ok"] is True
+    assert tool.invoke({"requete": "b", "sources": ["langsearch"]})["ok"] is True
+
+
+def test_palier_ordinaire_resserre_le_plafond_du_tour() -> None:
+    """`niveau=ordinaire` : le 9e appel est refusé, même si la config permet 25."""
+    ouvrir_budget(25)
+    try:
+        tool = build_web_search_tool(
+            identite=IDENTITE,
+            policy=POLICY_WEB,
+            settings=_settings(),
+            client=_transport(
+                lambda r: httpx.Response(200, text=_reponse_langsearch("https://exemple.org/1"))
+            ),
+        )
+        for index in range(8):
+            sortie = tool.invoke(
+                {"requete": f"mot {index}", "niveau": "ordinaire", "sources": ["langsearch"]}
+            )
+            assert sortie["ok"] is True, sortie
+        refus = tool.invoke(
+            {"requete": "mot 9", "niveau": "ordinaire", "sources": ["langsearch"]}
+        )
+        assert refus["ok"] is False
+        assert "(8 appels" in refus["error"]["message"]
+    finally:
+        fermer_budget()
+
+
+def test_palier_approfondie_garde_le_maximum() -> None:
+    """`niveau=approfondie` ne dépasse jamais le plafond du tour."""
+    ouvrir_budget(10)
+    try:
+        from app.tools.budget_recherche import PALIERS
+
+        assert PALIERS["approfondie"] == 25
+        tool = build_web_search_tool(
+            identite=IDENTITE,
+            policy=POLICY_WEB,
+            settings=_settings(),
+            client=_transport(lambda r: httpx.Response(200, text=_reponse_langsearch("https://exemple.org/1"))),
+        )
+        for index in range(10):
+            assert tool.invoke(
+                {"requete": f"mot {index}", "niveau": "approfondie", "sources": ["langsearch"]}
+            )["ok"] is True
+        refus = tool.invoke(
+            {"requete": "mot 11", "niveau": "approfondie", "sources": ["langsearch"]}
+        )
+        assert refus["ok"] is False
+        assert "(10 appels" in refus["error"]["message"]
+    finally:
+        fermer_budget()
+
+
+def test_palier_inconnu_refuse_par_le_schema() -> None:
+    tool = build_web_search_tool(
+        identite=IDENTITE,
+        policy=POLICY_WEB,
+        settings=_settings(),
+        client=_transport(lambda r: httpx.Response(200)),
+    )
+    assert tool.invoke({"requete": "test", "niveau": "extreme"})["ok"] is False

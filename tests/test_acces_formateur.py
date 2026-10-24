@@ -245,7 +245,12 @@ def test_listes_transverses_et_dossier_lie(
     assert client_formateur.get(f"{PRÉFIXE}/offres/").status_code == 403
     assert client_formateur.get(f"{PRÉFIXE}/offres/lot/{contexte.lot.id}").status_code == 403
     assert client_formateur.get(f"{PRÉFIXE}/equipes/").status_code == 403
-    assert client_formateur.get(f"{PRÉFIXE}/lieux/").status_code == 403
+    # Les lieux ne sont plus une liste transverse fermée : la lecture est
+    # bornée au périmètre (incrément lieux/itinéraires). Aucune mission du
+    # fixture ne désigne de lieu, la liste est donc vide — jamais celle d'autrui.
+    lieux = client_formateur.get(f"{PRÉFIXE}/lieux/")
+    assert lieux.status_code == 200, lieux.text
+    assert lieux.json() == []
     # Les documents ne sont plus une liste de l'équipe interne : la page
     # Documents répond, bornée à son périmètre (correctif 03/10).
     documents = client_formateur.get(f"{PRÉFIXE}/documents/all")

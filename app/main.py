@@ -37,6 +37,7 @@ from app.api.routes import (
     social,
     social_ws,
     tableau_bord,
+    voyage,
 )
 from app.core.config import Settings, get_settings
 from app.core.errors import register_exception_handlers
@@ -190,6 +191,7 @@ def create_app() -> FastAPI:
     app.include_router(appels_a_proposition.router, prefix=settings.api_v1_prefix)
     app.include_router(offres.router, prefix=settings.api_v1_prefix)
     app.include_router(lieux.router, prefix=settings.api_v1_prefix)
+    app.include_router(voyage.router, prefix=settings.api_v1_prefix)
     app.include_router(affectations.router, prefix=settings.api_v1_prefix)
     app.include_router(documents.router, prefix=settings.api_v1_prefix)
     # Téléchargement d'un fichier vidéo relayé : **sans** la garde

@@ -12,7 +12,11 @@ Sécurité (clinrules 06 §Sécurité) :
 - ``query_analytics`` n'expose que des agrégations nommées, calculées par le
   service (instruction/10 §9)—jamais de SQL libre (clinrules 08) ;
 - ``read_document`` renvoie le texte extrait, soumis à la permission
-  ``document_read`` (traçage, type autorisé).
+  ``document_read`` (traçage, type autorisé) ; ``lire_image`` fait **voir**
+  l'image au modèle (scan, capture, schéma) ;
+- ``generer_document_professionnel`` dépose un livrable en **proposition**
+  (``proposed``) : il ne modifie aucune donnée métier, il n'approuve rien et
+  n'officialise rien — c'est la même règle que pour les autres agents.
 
 Le périmètre outils vit dans ``app/agents/tools/agent_generaliste_tools.py``
 (un lieu par agent, refactor outils)—cette classe ne porte que le contrat,
@@ -66,10 +70,15 @@ DEFINITION = AgentDefinition(
         "READ-ONLY — aucune mutation, approbation ou affectation."
     ),
     policy=PermissionPolicy(
-        allowed_capabilities=frozenset({KIT_CAPABILITY, "web_search", "document_read"})
+        allowed_capabilities=frozenset(
+            {KIT_CAPABILITY, "web_search", "document_read", "document_propose"}
+        )
     ),
-    capabilities=(KIT_CAPABILITY, "web_search", "document_read"),
+    capabilities=(KIT_CAPABILITY, "web_search", "document_read", "document_propose"),
     tools=(
+        # Lieux : chercher une adresse puis calculer un trajet (lecture seule).
+        "rechercher_lieu",
+        "calculer_itineraire",
         "search_organisations",
         "search_appels_a_proposition",
         "search_lots",
@@ -81,6 +90,11 @@ DEFINITION = AgentDefinition(
         "search_affectations",
         "search_documents",
         READ_DOCUMENT_TOOL,
+        # Une pièce jointe image (scan, capture) se lit en la **voyant** : le
+        # texte extrait d'une image n'existe pas.
+        "lire_image",
+        # Génération d'un livrable : déposé en proposition, jamais approuvé.
+        "generer_document_professionnel",
         "query_analytics",
         "langsearch_web_search",
         # Lecture d'une page trouvée (``app.tools.web``) : le contenu est lu, pas

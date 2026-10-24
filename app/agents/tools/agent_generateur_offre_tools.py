@@ -26,7 +26,7 @@ from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.agents.consultation import (
@@ -48,18 +48,21 @@ from app.agents.tools.agent_generaliste_tools import (
     rechercher_offres,
     rechercher_sessions,
 )
-from app.application.dto import AppelAPropositionInput
+from app.application.dto import AppelAPropositionInput, LieuInput, LotUpdateInput
 from app.application.services import (
     AppelAPropositionService,
     DocumentService,
+    LieuService,
     LotService,
     ModeleDocumentService,
     OffreService,
     OrganisationService,
 )
+from app.core.config import get_settings
 from app.core.errors import ValidationError
 from app.domain.document import Document
 from app.domain.enums import StatutAppelAProposition, TypeAppel, TypeDocument
+from app.domain.execution import Lieu
 from app.domain.organization import AppelAProposition, Lot
 
 AGENT_ID = "agent_generateur_offre"
@@ -67,6 +70,9 @@ TASK_TYPE = "preparer_offre"
 
 NOMS_TOOLS: tuple[str, ...] = (
     "enregistrer_appel",
+    "situer_zone_lot",
+    "rechercher_lieu",
+    "calculer_itineraire",
     "rattacher_document_appel",
     "read_appel_a_proposition",
     "read_document_text",
@@ -104,6 +110,8 @@ NOMS_TOOLS: tuple[str, ...] = (
     "read_document_range",
     "chercher_dans_document",
     "lire_element_document",
+    # Un appel scanné (photo, capture) se lit dans l'image.
+    "lire_image",
     "langsearch_web_search",
     # Lecture d'une page trouvée : le texte réel d'un appel ou d'un cahier des
     # charges est lu dans la source, borné, jamais reconstitué de mémoire.
@@ -123,6 +131,19 @@ NOMS_TOOLS: tuple[str, ...] = (
 
 class LotIdInput(BaseModel):
     lot_id: UUID
+
+
+class SituerZoneInput(BaseModel):
+    """Zone d'un lot à placer sur la carte (HITL).
+
+    ``recherche`` permet de préciser (« Toliara, Madagascar ») quand la zone du
+    document est trop vague ; à défaut, c'est la zone du lot qui est cherchée.
+    Aucune coordonnée n'est fournie par le modèle : c'est le service qui la
+    trouve, et elle est refusée si rien ne correspond.
+    """
+
+    lot_id: UUID
+    recherche: str | None = Field(default=None, max_length=255)
 
 
 class OrganisationIdInput(BaseModel):
@@ -256,6 +277,69 @@ def _get_lot(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
         "appel_a_proposition_id": str(lot.appel_a_proposition_id),
         "zone": lot.zone,
         "objectifs": lot.objectifs,
+    }
+
+
+def _situer_zone_lot(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Place la zone d'un lot sur la carte : lieu réutilisé, sinon géocodé.
+
+    La zone vient du **document** (« Zone : Atsimo-Andrefana ») ; sa position
+    vient de la recherche d'adresses, jamais d'une coordonnée inventée par le
+    modèle. Un lieu du même nom déjà connu est réutilisé, pour ne pas créer un
+    doublon à chaque appel.
+    """
+    service_lots = LotService(session, actor_id=AGENT_ID)
+    lot = service_lots.obtenir(UUID(str(payload["lot_id"])))
+    requete = (payload.get("recherche") or lot.zone or "").strip()
+    if not requete:
+        raise ValidationError(
+            "Aucune zone à situer : le lot n'a pas de zone, précisez une recherche.",
+            details={"lot_id": str(lot.id)},
+        )
+
+    lieu = session.scalar(select(Lieu).where(func.lower(Lieu.nom) == requete.lower()))
+    cree = False
+    if lieu is None:
+        from app.geo.photon import RechercheLieux
+
+        reglages = get_settings()
+        trouves = RechercheLieux(
+            reglages.photon_base_url, timeout_s=reglages.photon_timeout_s
+        ).chercher(requete, limite=1)
+        if not trouves:
+            raise ValidationError(
+                f"Aucun lieu trouvé pour « {requete} » : précisez la ville ou le pays.",
+                details={"lot_id": str(lot.id), "recherche": requete},
+            )
+        trouve = trouves[0]
+        lieu = LieuService(session, actor_id=AGENT_ID).creer(
+            LieuInput(
+                nom=requete,
+                adresse=trouve.adresse or trouve.libelle,
+                ville=trouve.ville,
+                pays=trouve.pays,
+                zone=lot.zone,
+                latitude=trouve.latitude,
+                longitude=trouve.longitude,
+            )
+        )
+        cree = True
+
+    if lot.lieu_id != lieu.id:
+        service_lots.modifier(lot.id, LotUpdateInput(lieu_id=lieu.id))
+
+    return {
+        "lot_id": str(lot.id),
+        "numero": lot.numero,
+        "lieu_id": str(lieu.id),
+        "nom": lieu.nom,
+        "latitude": lieu.latitude,
+        "longitude": lieu.longitude,
+        "cree": cree,
+        "message": (
+            f"Zone du lot {lot.numero} située sur la carte ({lieu.nom}). "
+            "Les autres données du lot sont inchangées."
+        ),
     }
 
 
@@ -662,6 +746,18 @@ def construire_tools_generateur_offre(
         run=_get_lot,
     ))
     kit.enregistrer(OperationSpec(
+        name="situer_zone_lot",
+        description=(
+            "Crée (ou réutilise) le lieu de la zone d'un lot et le rattache, "
+            "pour que la zone apparaisse sur la carte de l'appel. La position "
+            "vient de la recherche d'adresses, jamais d'une coordonnée inventée "
+            "(HITL)."
+        ),
+        input_schema=SituerZoneInput,
+        mutation=True,
+        run=_situer_zone_lot,
+    ))
+    kit.enregistrer(OperationSpec(
         name="get_organization",
         description="Lit une organisation cliente.",
         input_schema=OrganisationIdInput,
@@ -778,8 +874,16 @@ def construire_tools_generateur_offre(
     from app.tools.recherche_video import attacher_recherche_video
     from app.tools.web import attacher_outils_web
 
+    from app.agents.tools.agent_lieux_tools import construire_tools_lieux
+
     return attacher_recherche_video(
-        definition, attacher_outils_web(definition, tuple(kit.construire()) + extra_tools)
+        definition,
+        attacher_outils_web(
+            definition,
+            tuple(kit.construire())
+            + extra_tools
+            + construire_tools_lieux(definition, session_factory),
+        ),
     )
 
 
@@ -789,4 +893,5 @@ __all__ = [
     "TASK_TYPE",
     "construire_tools_generateur_offre",
     "OffreBrouillonInput",
+    "SituerZoneInput",
 ]

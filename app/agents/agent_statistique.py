@@ -6,8 +6,12 @@ outils vit dans ``app/agents/tools/agent_statistique_tools.py``.
 
 **Lecture des documents** (demande 04/10)—l'agent statistique lit aussi les
 pièces documentaires (PDF, DOCX, XLSX…) pour en extraire les données à
-tabuler—capacité ``document_read`` uniquement, aucun dépôt, aucune
-modification—ses tools documentaires sont strictement des lecteurs.
+tabuler—capacité ``document_read`` ; ``lire_image`` lui fait voir une image
+(scan de tableau, capture).
+
+**Aucune mutation des données métier** : ``generer_document_professionnel``
+produit un **nouveau** livrable en statut ``proposed`` (validation humaine),
+il ne modifie aucun enregistrement existant.
 """
 
 from __future__ import annotations
@@ -39,10 +43,15 @@ DEFINITION = AgentDefinition(
     description="KPI déterministes + synthèse. Strictement lecture.",
     prompt=PROMPT,
     policy=PermissionPolicy(
-        allowed_capabilities=frozenset({KIT_CAPABILITY, "web_search", "document_read"})
+        allowed_capabilities=frozenset(
+            {KIT_CAPABILITY, "web_search", "document_read", "document_propose"}
+        )
     ),
-    capabilities=(KIT_CAPABILITY, "web_search", "document_read"),
+    capabilities=(KIT_CAPABILITY, "web_search", "document_read", "document_propose"),
     tools=(
+        # Lieux : chercher une adresse, calculer un trajet (lecture seule).
+        "rechercher_lieu",
+        "calculer_itineraire",
         "query_analytics",
         # Lecture documentaire : fiche, structure (feuilles/pages), plage
         # (lignes/paragraphes/pages) et tableau XLSX prêt à tabuler. Tous
@@ -51,8 +60,12 @@ DEFINITION = AgentDefinition(
         "read_document",
         "get_document_structure",
         "read_document_range",
-        "chercher_dans_document",
-    "lire_element_document",
+        "chercher_dans_document",        "lire_element_document",
+        # Vision : un scan de tableau se lit dans l'image, pas dans un texte
+        # qui n'existe pas.
+        "lire_image",
+        # Livrable (rapport, synthèse) : déposé en proposition, jamais approuvé.
+        "generer_document_professionnel",
         "importer_tableau_xlsx",
         "search_organisations",
         "search_appels_a_proposition",

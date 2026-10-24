@@ -41,7 +41,7 @@ from app.domain.enums import (
 
 if TYPE_CHECKING:
     from app.domain.document import Document
-    from app.domain.execution import Mission, ModeleDocument
+    from app.domain.execution import Lieu, Mission, ModeleDocument
 
 
 class Organisation(Base, UuidPkMixin, TimestampMixin):
@@ -55,7 +55,13 @@ class Organisation(Base, UuidPkMixin, TimestampMixin):
     email: Mapped[str | None] = mapped_column(String(255))
     telephone: Mapped[str | None] = mapped_column(String(50))
     statut: Mapped[str | None] = mapped_column(String(50))
+    #: Lieu exact de l'organisation (siège, antenne) — coordonnées portées par
+    #: ``Lieu`` : une seule source de vérité, partagée avec les missions.
+    lieu_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("lieux.id", ondelete="SET NULL")
+    )
 
+    lieu: Mapped["Lieu | None"] = relationship(back_populates="organisations")
     appels_a_proposition: Mapped[list[AppelAProposition]] = relationship(
         back_populates="organisation"
     )
@@ -138,6 +144,14 @@ class Lot(Base, UuidPkMixin, TimestampMixin):
     partenariat: Mapped[str | None] = mapped_column(Text)
     date_fin: Mapped[date | None] = mapped_column(Date)
     donnees_source: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    #: Lieu où le lot se déroule (facultatif : un lot peut être un domaine ou
+    #: une zone abstraite). Il ne remplace jamais le lieu d'exécution d'une
+    #: mission, qui reste la donnée officielle du terrain.
+    lieu_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("lieux.id", ondelete="SET NULL")
+    )
+
+    lieu: Mapped["Lieu | None"] = relationship(back_populates="lots")
 
     appel_a_proposition: Mapped[AppelAProposition] = relationship(back_populates="lots")
     offres: Mapped[list[Offre]] = relationship(back_populates="lot")
