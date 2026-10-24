@@ -59,7 +59,7 @@ def list_lieux(session: DbSession, perimetre: PerimetreDep) -> list[LieuRead]:
 @router.get("/recherche", response_model=list[LieuTrouveRead])
 def rechercher_lieu(
     session: DbSession,
-    _interne: InterneUser,
+    _utilisateur: CurrentUser,
     q: str = Query(
         min_length=2,
         max_length=200,
@@ -69,8 +69,12 @@ def rechercher_lieu(
 ) -> list[LieuTrouveRead]:
     """Suggère des lieux (nom, adresse, position) pour préremplir le formulaire.
 
-    Aucune écriture : choisir un résultat ne crée rien tant que l'utilisateur
-    n'enregistre pas le lieu.
+    Aucune écriture, aucune donnée CARSO : la recherche interroge **Photon**,
+    un service public d'adresses. Elle est donc ouverte à tout compte
+    authentifié — un formateur cartographie aussi ses lieux de mission, et
+    l'outil d'affichage de l'agent a besoin de résoudre un nom de ville pour
+    dessiner une carte. La création et le renommage d'un lieu restent, eux,
+    réservés à l'interne (``InterneUser``).
     """
     cfg = get_settings()
     from app.geo.photon import RechercheLieux
@@ -136,7 +140,14 @@ def calculer_itineraire(
         prix_litre=payload.prix_litre,
         perimetre=perimetre,
     )
+    # La tâche de fond ouvre sa **propre** session : sans ce commit, elle
+    # démarre avant que la session de la requête ne valide la ligne de cache
+    # (``get_session`` ne commit qu'après la réponse) et ne trouve rien —
+    # l'affinage Overpass ne s'exécutait jamais, constaté sur une route de
+    # 928 km restée à 0 voie lue. On valide donc explicitement le trajet
+    # avant de programmer l'affinage.
     if resultat.cle_cache:
+        session.commit()
         background.add_task(ItineraireService.affiner_tache, resultat.cle_cache)
     return ItineraireRead(
         distance_m=resultat.distance_m,
@@ -157,6 +168,7 @@ def calculer_itineraire(
                 fin=troncon.fin,
                 osmid=troncon.osmid,
                 niveau=troncon.niveau,
+                type_route=troncon.type_route,
                 nature=troncon.nature,
                 raison=troncon.raison,
                 estime=troncon.estime,

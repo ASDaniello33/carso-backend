@@ -271,6 +271,38 @@ def test_listes_transverses_et_dossier_lie(
     assert client_formateur.get(f"{PRÉFIXE}/lots/{contexte.lot.id}").status_code == 200
 
 
+def test_recherche_adresse_ouverte_au_formateur(
+    client_formateur: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Un formateur peut géocoder un nom — sans quoi l'agent ne dessine rien.
+
+    La recherche interroge Photon (adresses publiques) et ne lit aucune donnée
+    CARSO : elle était pourtant réservée à l'interne, ce qui faisait échouer
+    l'outil ``afficher_carte`` (« Départ ou arrivée introuvable ») pour tout
+    formateur. La création/renommage d'un lieu reste, elle, fermée.
+    """
+    from app.geo.photon import LieuTrouve, RechercheLieux
+
+    def _chercher(self, q: str, limite: int = 5) -> list[LieuTrouve]:
+        return [
+            LieuTrouve(
+                nom="Toliara",
+                adresse=None,
+                ville="Toliara I",
+                pays="Madagascar",
+                latitude=-23.354173,
+                longitude=43.66966,
+                osm_type="relation",
+                osm_id=1,
+            )
+        ]
+
+    monkeypatch.setattr(RechercheLieux, "chercher", _chercher)
+    reponse = client_formateur.get(f"{PRÉFIXE}/lieux/recherche", params={"q": "Toliara"})
+    assert reponse.status_code == 200, reponse.text
+    assert reponse.json()[0]["latitude"] == pytest.approx(-23.354173)
+
+
 def test_personnes_visibles_limitees_aux_collegues_de_mission(
     client_formateur: TestClient, contexte: SimpleNamespace
 ) -> None:

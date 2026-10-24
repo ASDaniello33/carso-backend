@@ -20,7 +20,11 @@ from app.application.services.itineraire_service import ItineraireService
 from app.core.errors import ServiceExterneError
 from app.geo.openrouteservice import interpreter_reponse as interpreter_ors
 from app.geo.overpass import interpreter_reponse as interpreter_overpass
-from app.geo.qualite_routes import classifier_extras_ors, classifier_route
+from app.geo.qualite_routes import (
+    classifier_extras_ors,
+    classifier_route,
+    classifier_type_route,
+)
 
 # --- 1. La règle ----------------------------------------------------------------
 
@@ -100,6 +104,62 @@ def test_les_tags_affiches_sont_limites() -> None:
         {"smoothness": "bad", "surface": "gravel", "name": "Piste X", "source": "survey"}
     )
     assert set(resultat.tags) == {"smoothness", "surface"}
+
+
+def test_check_date_est_conserve_pour_la_fraicheur() -> None:
+    # La date de vérification dit si la donnée est fraîche : elle reste visible.
+    resultat = classifier_route({"smoothness": "good", "check_date": "2024-03-01"})
+    assert resultat.tags["check_date"] == "2024-03-01"
+
+
+# --- 1 bis. Type de voie -------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("highway", "type_route"),
+    [
+        ("motorway", "autoroute"),
+        ("motorway_link", "autoroute"),
+        ("primary", "route_principale"),
+        ("trunk_link", "route_principale"),
+        ("secondary", "route_secondaire"),
+        ("tertiary", "route_secondaire"),
+        ("residential", "rue"),
+        ("service", "rue"),
+        ("track", "piste"),
+        ("path", "chemin"),
+        ("cycleway", "chemin"),
+        ("steps", "chemin"),
+        ("construction", "construction"),
+    ],
+)
+def test_type_route_depuis_le_tag_highway(highway: str, type_route: str) -> None:
+    assert classifier_type_route({"highway": highway}) == type_route
+
+
+def test_type_route_bac_et_inconnu() -> None:
+    assert classifier_type_route({"route": "ferry"}) == "bac"
+    assert classifier_type_route({"highway": "valeur_inattendue"}) == "inconnu"
+    assert classifier_type_route({}) == "inconnu"
+
+
+@pytest.mark.parametrize(
+    ("waytype", "type_route"),
+    [
+        (1, "route_principale"),
+        (2, "route_secondaire"),
+        (3, "rue"),
+        (4, "chemin"),
+        (5, "piste"),
+        (9, "bac"),
+        (10, "construction"),
+        (99, "inconnu"),
+    ],
+)
+def test_type_route_depuis_waytype_ors(waytype: int, type_route: str) -> None:
+    # Le tag OSM est prioritaire ; sans tag, l'indice ORS prend le relais.
+    assert classifier_type_route({}, waytype=waytype) == type_route
+    assert classifier_type_route({"highway": "primary"}, waytype=3) == "route_principale"
 
 
 # --- 2. Réponses externes -------------------------------------------------------
@@ -211,6 +271,52 @@ def test_troncons_sont_continus_et_classes() -> None:
     for precedent, suivant in zip(troncons, troncons[1:], strict=False):
         assert suivant.debut == precedent.fin
     assert all(t.distance_m > 0 for t in troncons)
+
+
+def test_le_type_de_route_est_independant_de_la_qualite() -> None:
+    """Une qualité inconnue ne cache pas un type connu (et inversement)."""
+    service = _service(
+        {
+            101: {"highway": "primary", "surface": "asphalt"},
+            102: {"highway": "track", "tracktype": "grade3"},
+            103: {"highway": "residential", "access": "private"},
+        }
+    )
+    extras = {"osmium": [[0, 2, 101], [2, 4, 102], [4, 5, 103]]}
+    troncons = service._classer_troncons(COORDONNEES, extras)
+
+    assert [t.type_route for t in troncons] == ["route_principale", "piste", "rue"]
+    # Le premier tronçon n'a pas de smoothness : qualité inconnue, type connu.
+    assert troncons[0].niveau == "inconnu"
+
+
+def test_type_route_par_waytype_quand_osm_ne_rend_pas_de_tag() -> None:
+    service = _service({})
+    extras = {"waytype": [[0, 3, 1], [3, 6, 5]], "surface": [[0, 6, 3]]}
+    troncons = service._classer_troncons(COORDONNEES, extras)
+
+    assert [t.type_route for t in troncons] == ["route_principale", "piste"]
+
+
+def test_cache_sans_type_rederive_depuis_les_extras() -> None:
+    """Une entrée de cache antérieure à l'axe « type » reste exploitable."""
+    service = _service({})
+    bruts = [
+        {
+            "debut": 0,
+            "fin": 6,
+            "niveau": "inconnu",
+            "nature": "inconnue",
+            "raison": "",
+            "estime": True,
+            "tags": {},
+            "distance_m": 1000,
+        }
+    ]
+    troncons = service._troncons_du_cache(
+        bruts, COORDONNEES, {"waytype": [[0, 6, 3]]}
+    )
+    assert [t.type_route for t in troncons] == ["rue"]
 
 
 def test_un_trou_osm_devient_inconnu_sans_casser_la_continuite() -> None:

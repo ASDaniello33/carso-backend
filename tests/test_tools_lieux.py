@@ -21,7 +21,10 @@ from app.agents.tools.agent_generateur_offre_tools import construire_tools_gener
 from app.agents.tools.agent_lieux_tools import _calculer_itineraire, _rechercher_lieu
 from app.agents.tools.agent_rh_tools import construire_tools_rh
 from app.agents.tools.agent_statistique_tools import construire_tools_statistique
-from app.application.services.itineraire_service import ResultatItineraire
+from app.application.services.itineraire_service import (
+    ResultatItineraire,
+    TronconItineraire,
+)
 from app.geo.photon import LieuTrouve
 
 _BUILDERS = {
@@ -111,3 +114,54 @@ def test_calculer_itineraire_passe_par_le_service(monkeypatch) -> None:
     assert resultat["litres"] == 74.25
     # Un coût nul sans prix saisi n'est pas un trajet gratuit.
     assert "non chiffré" in resultat["note"].lower()
+
+
+def test_calculer_itineraire_rend_les_deux_axes(monkeypatch) -> None:
+    """L'agent reçoit la distance par état **et** par type de voie."""
+    import app.application.services.itineraire_service as module
+
+    def _portion(niveau: str, type_route: str, distance_m: int) -> TronconItineraire:
+        return TronconItineraire(
+            debut=0,
+            fin=1,
+            osmid=None,
+            niveau=niveau,
+            type_route=type_route,
+            nature="inconnue",
+            raison="",
+            estime=True,
+            tags={},
+            distance_m=distance_m,
+        )
+
+    def _faux_calculer(self, **kwargs):
+        return ResultatItineraire(
+            distance_m=10_000,
+            duree_s=900,
+            aller_retour=False,
+            distance_totale_m=10_000,
+            duree_totale_s=900,
+            litres=0.8,
+            cout=0.0,
+            devise="MGA",
+            origine_libelle="A",
+            destination_libelle="B",
+            geometrie=None,
+            depuis_cache=True,
+            troncons=[
+                _portion("inconnu", "route_principale", 6000),
+                _portion("mauvais", "piste", 4000),
+            ],
+        )
+
+    monkeypatch.setattr(module.ItineraireService, "calculer", _faux_calculer)
+    resultat = _calculer_itineraire(
+        None,  # type: ignore[arg-type]
+        {
+            "origine": {"libelle": "A", "latitude": -23.35, "longitude": 43.66},
+            "destination": {"libelle": "B", "latitude": -23.36, "longitude": 43.67},
+        },
+    )
+
+    assert resultat["qualite"] == {"inconnu": 6000, "mauvais": 4000}
+    assert resultat["types"] == {"route_principale": 6000, "piste": 4000}

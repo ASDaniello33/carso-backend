@@ -41,10 +41,13 @@ from app.domain.enums import ActionAudit, ActorType
 from app.domain.execution import Lieu
 from app.domain.geo import ItineraireCache
 from app.geo.qualite_routes import (
+    TYPES,
     NatureBlocage,
     NiveauRoute,
+    TypeRoute,
     classifier_extras_ors,
     classifier_route,
+    classifier_type_route,
 )
 from app.infrastructure.repositories.geo import (
     ItineraireCacheRepository,
@@ -143,6 +146,8 @@ class TronconItineraire:
     fin: int
     osmid: int | None
     niveau: NiveauRoute
+    #: Nature de la voie (autoroute, rue, piste…) — indépendante de la qualité.
+    type_route: TypeRoute
     nature: NatureBlocage
     raison: str
     estime: bool
@@ -280,7 +285,9 @@ class ItineraireService:
         coordonnees = [list(point) for point in donnees_geometrie.get("coordonnees", [])]
         if depuis_cache:
             troncons = self._troncons_du_cache(
-                donnees_geometrie.get("troncons"), coordonnees
+                donnees_geometrie.get("troncons"),
+                coordonnees,
+                donnees_geometrie.get("extras") or {},
             )
         else:
             troncons = troncons_calcules
@@ -523,6 +530,8 @@ class ItineraireService:
                 )
             classification = None
             tags = tags_voies.get(osmid)
+            milieu = (debut + fin) // 2
+            waytype = self._valeur_a(types, milieu)
             if tags:
                 classee = classifier_route(tags)
                 if classee.niveau != "inconnu":
@@ -531,20 +540,18 @@ class ItineraireService:
                     # Les tags existent mais ne disent rien de l'état : on
                     # garde leurs libellés pour l'infobulle, et l'estimation
                     # extras pour le niveau.
-                    milieu = (debut + fin) // 2
                     classification = replace(
                         classifier_extras_ors(
                             surface=self._valeur_a(surfaces, milieu),
-                            waytype=self._valeur_a(types, milieu),
+                            waytype=waytype,
                             waycategory=self._valeur_a(categories, milieu),
                         ),
                         tags=classee.tags,
                     )
             if classification is None:
-                milieu = (debut + fin) // 2
                 classification = classifier_extras_ors(
                     surface=self._valeur_a(surfaces, milieu),
-                    waytype=self._valeur_a(types, milieu),
+                    waytype=waytype,
                     waycategory=self._valeur_a(categories, milieu),
                 )
             troncons.append(
@@ -553,6 +560,9 @@ class ItineraireService:
                     fin=fin,
                     osmid=osmid,
                     niveau=classification.niveau,
+                    # Le type vient du tag highway quand Overpass l'a rendu,
+                    # sinon de l'indice waytype d'ORS : jamais de supposition.
+                    type_route=classifier_type_route(tags or {}, waytype=waytype),
                     nature=classification.nature,
                     raison=classification.raison,
                     estime=classification.estime,
@@ -590,12 +600,14 @@ class ItineraireService:
                 surface=surface, waytype=waytype, waycategory=waycategory
             )
             osmid = None
+            tags_voie: dict[str, str] = {}
             voie = affinage.get((debut, fin))
             if isinstance(voie, dict) and voie.get("osm_id"):
                 osmid = int(voie["osm_id"])  # type: ignore[arg-type]
-                classee = classifier_route(
-                    {str(c): str(v) for c, v in (voie.get("tags") or {}).items()}
-                )
+                tags_voie = {
+                    str(c): str(v) for c, v in (voie.get("tags") or {}).items()
+                }
+                classee = classifier_route(tags_voie)
                 if classee.niveau != "inconnu":
                     # Les tags de la voie proche disent mieux que les extras :
                     # smoothness/access explicites remplacent l'estimation.
@@ -610,6 +622,7 @@ class ItineraireService:
                     fin=fin,
                     osmid=osmid,
                     niveau=classification.niveau,
+                    type_route=classifier_type_route(tags_voie, waytype=waytype),
                     nature=classification.nature,
                     raison=classification.raison,
                     estime=classification.estime,
@@ -669,13 +682,14 @@ class ItineraireService:
 
         logger.info(
             "qualite_routes: portions=%d voies_overpass=%d smoothness=%d "
-            "tracktype=%d surface=%d distance: explicite=%d%% estime=%d%% "
-            "inconnu=%d%%",
+            "tracktype=%d surface=%d type_connu=%d%% distance: explicite=%d%% "
+            "estime=%d%% inconnu=%d%%",
             len(troncons),
             voies_trouvees,
             sum(1 for t in troncons if "smoothness" in t.tags),
             sum(1 for t in troncons if "tracktype" in t.tags),
             sum(1 for t in troncons if "surface" in t.tags),
+            part(lambda t: t.type_route != "inconnu"),
             part(lambda t: t.niveau != "inconnu" and not t.estime),
             part(lambda t: t.niveau != "inconnu" and t.estime),
             part(lambda t: t.niveau == "inconnu"),
@@ -689,6 +703,7 @@ class ItineraireService:
             "fin": troncon.fin,
             "osmid": troncon.osmid,
             "niveau": troncon.niveau,
+            "type_route": troncon.type_route,
             "nature": troncon.nature,
             "raison": troncon.raison,
             "estime": troncon.estime,
@@ -697,12 +712,18 @@ class ItineraireService:
         }
 
     def _troncons_du_cache(
-        self, bruts: Any, coordonnees: list[list[float]]
+        self,
+        bruts: Any,
+        coordonnees: list[list[float]],
+        extras: dict[str, Any],
     ) -> list[TronconItineraire]:
         """Relit les portions mises en cache, sans rappeler Overpass.
 
         Un cache antérieur à la fonctionnalité n'a pas de portions : le trajet
-        s'affiche alors en qualité inconnue, sans bloquer la carte.
+        s'affiche alors en qualité inconnue, sans bloquer la carte. Le type de
+        route manquant (entrée écrite avant cet axe) est redérivé des tags ou
+        de l'indice ``waytype`` conservé avec le tracé — aucune invalidation
+        de cache n'est nécessaire.
         """
         if not isinstance(bruts, list) or not bruts:
             if len(coordonnees) < 2:
@@ -715,21 +736,34 @@ class ItineraireService:
                     "Trajet relu d'un cache antérieur : la qualité n'a pas été évaluée.",
                 )
             ]
+        types = self._intervalles_extra(extras, "waytype")
         troncons: list[TronconItineraire] = []
         for brut in bruts:
             if not isinstance(brut, dict):
                 continue
             try:
+                debut = int(brut["debut"])
+                fin = int(brut["fin"])
+                tags = {
+                    str(c): str(v) for c, v in (brut.get("tags") or {}).items()
+                }
+                type_route = brut.get("type_route")
+                if type_route not in TYPES:
+                    type_route = classifier_type_route(
+                        tags,
+                        waytype=self._valeur_a(types, (debut + fin) // 2),
+                    )
                 troncons.append(
                     TronconItineraire(
-                        debut=int(brut["debut"]),
-                        fin=int(brut["fin"]),
+                        debut=debut,
+                        fin=fin,
                         osmid=int(brut["osmid"]) if brut.get("osmid") else None,
                         niveau=brut["niveau"],
+                        type_route=type_route,  # type: ignore[arg-type]
                         nature=brut["nature"],
                         raison=str(brut.get("raison") or ""),
                         estime=bool(brut.get("estime")),
-                        tags={str(c): str(v) for c, v in (brut.get("tags") or {}).items()},
+                        tags=tags,
                         distance_m=int(brut.get("distance_m") or 0),
                     )
                 )
@@ -809,6 +843,7 @@ class ItineraireService:
             fin=fin,
             osmid=None,
             niveau="inconnu",
+            type_route="inconnu",
             nature="inconnue",
             raison=raison,
             estime=True,

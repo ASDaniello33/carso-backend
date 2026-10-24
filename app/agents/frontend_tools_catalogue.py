@@ -130,15 +130,26 @@ OUTILS_FRONTEND: tuple[OutilFrontend, ...] = (
             "Obligatoire : titre. `points[{nom, lieu_id?, latitude?, longitude?, "
             "nature?}]` ; `itineraire{depart, arrivee, aller_retour?, "
             "consommation_l_100km?, prix_litre?}` pour un trajet. `nature` vaut "
-            "lieu (défaut), zone (zone d'un lot) ou depart. N'invente ni "
-            "coordonnée ni identifiant ; lecture seule."
+            "lieu (défaut), zone (zone d'un lot) ou depart. `mode_couleur` vaut "
+            "etat (smoothness/accès OSM) ou type (autoroute, rue, piste…), `fond` "
+            "vaut plan ou satellite ; `couleurs` surcharge la palette par catégorie "
+            "et `legende[{libelle, couleur, detail?, categorie?}]` personnalise "
+            "la légende : avec `categorie`, renomme/recolore la catégorie "
+            "correspondante et le tracé suit ; sans, c'est une annotation en "
+            "plus, jamais une couleur inventée sur le tracé. "
+            "N'invente ni coordonnée ni identifiant ; lecture seule."
         ),
         agents=TOUS_LES_AGENTS_UI,
         usage=(
             "Dès qu'une réponse parle de lieux, de zones de lots, de trajet ou de "
             "déplacement : passer les noms réels (ou un lieu_id lu), et un "
             "itineraire pour obtenir distance, durée et carburant. Ne pas "
-            "recopier une distance calculée à la main."
+            "recopier une distance calculée à la main. Pour un trajet, choisir "
+            "mode_couleur selon la question (état ou type) ; n'utiliser legende "
+            "et couleurs que pour une intention explicite. Pour renommer ou "
+            "recolorer une catégorie du tracé, passer sa `categorie` (bon, "
+            "route_principale, piste…) : le tracé et la légende resteront "
+            "accordés. Ne jamais décrire une catégorie absente du tracé."
         ),
     ),
     OutilFrontend(
@@ -785,6 +796,46 @@ class ItineraireCarte(BaseModel):
     prix_litre: float | None = Field(default=None, ge=0)
 
 
+class LegendeCarte(BaseModel):
+    """Entrée de légende : ce que l'agent affiche doit être vrai.
+
+    Avec ``categorie``, l'entrée renomme **et recolore une catégorie réellement
+    dessinée** : la même couleur part au tracé et à la légende. Sans
+    ``categorie``, c'est une annotation libre, ajoutée à la légende réelle.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    libelle: str = Field(min_length=1, max_length=60)
+    couleur: str = Field(
+        pattern=r"^#[0-9a-fA-F]{6}$",
+        description="Couleur hexadécimale #rrggbb, exactement.",
+    )
+    detail: str | None = Field(default=None, max_length=80)
+    categorie: Literal[
+        "bon",
+        "tolerable",
+        "mauvais",
+        "impraticable",
+        "inconnu",
+        "autoroute",
+        "route_principale",
+        "route_secondaire",
+        "rue",
+        "piste",
+        "chemin",
+        "bac",
+        "construction",
+    ] | None = Field(
+        default=None,
+        description=(
+            "Catégorie réelle à renommer/recolorer (bon, mauvais, piste, rue…). "
+            "La couleur s'applique aussi au tracé : la légende ne peut pas "
+            "annoncer une teinte absente de la carte."
+        ),
+    )
+
+
 class PayloadCarte(BaseModel):
     """Arguments de ``afficher_carte`` — même contrat que le hook client."""
 
@@ -799,6 +850,29 @@ class PayloadCarte(BaseModel):
     )
     itineraire: ItineraireCarte | None = Field(
         default=None, description="Trajet à calculer et tracer."
+    )
+    mode_couleur: Literal["etat", "type"] | None = Field(
+        default=None,
+        description="Axe de couleur : état de la route (défaut) ou type de voie.",
+    )
+    fond: Literal["plan", "satellite"] | None = Field(
+        default=None, description="Fond : plan OpenStreetMap (défaut) ou satellite."
+    )
+    couleurs: dict[str, str] | None = Field(
+        default=None,
+        description=(
+            "Surcharges #rrggbb par catégorie (niveaux d'état ou types de voie). "
+            "Toute clé inconnue est ignorée."
+        ),
+    )
+    legende: list[LegendeCarte] | None = Field(
+        default=None,
+        max_length=8,
+        description=(
+            "Légende personnalisée. Avec `categorie`, renomme/recolore une "
+            "catégorie réellement dessinée (le tracé suit). Sans `categorie`, "
+            "annotation libre ajoutée à la légende automatique."
+        ),
     )
 
 

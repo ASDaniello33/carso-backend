@@ -98,11 +98,13 @@ def _calculer_itineraire(session: Session, payload: dict[str, Any]) -> dict[str,
         consommation_l_100km=payload.get("consommation_l_100km"),
         prix_litre=payload.get("prix_litre"),
     )
-    # Qualité par portion : les chiffres viennent des tronçons classés, pas
-    # d'une estimation du modèle.
+    # Qualité et type par portion : les chiffres viennent des tronçons
+    # classés, pas d'une estimation du modèle.
     qualite: dict[str, int] = {}
+    types: dict[str, int] = {}
     for troncon in resultat.troncons:
         qualite[troncon.niveau] = qualite.get(troncon.niveau, 0) + troncon.distance_m
+        types[troncon.type_route] = types.get(troncon.type_route, 0) + troncon.distance_m
     return {
         "distance_m": resultat.distance_m,
         "duree_s": resultat.duree_s,
@@ -115,7 +117,9 @@ def _calculer_itineraire(session: Session, payload: dict[str, Any]) -> dict[str,
         "origine_libelle": resultat.origine_libelle,
         "destination_libelle": resultat.destination_libelle,
         "depuis_cache": resultat.depuis_cache,
+        # Deux axes distincts : état (smoothness/accès) et type de voie.
         "qualite": qualite,
+        "types": types,
         "troncons": len(resultat.troncons),
         "note": (
             "Calcul du service (cache puis OpenRouteService). Un coût à 0 avec un "
@@ -149,8 +153,9 @@ def construire_tools_lieux(definition: Any, session_factory: Any) -> tuple[Any, 
                 name="calculer_itineraire",
                 description=(
                     "Calcule la distance routière, la durée, les litres de carburant "
-                    "et le coût entre deux points (lieu_id, ou coordonnées). Un lieu "
-                    "sans position est refusé avec un message actionnable."
+                    "et le coût entre deux points (lieu_id, ou coordonnées), avec la "
+                    "distance par état de route (qualite) et par type de voie (types). "
+                    "Un lieu sans position est refusé avec un message actionnable."
                 ),
                 input_schema=ItineraireLieuInput,
                 run=_calculer_itineraire,

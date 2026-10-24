@@ -36,6 +36,21 @@ from typing import Literal
 NiveauRoute = Literal["bon", "tolerable", "mauvais", "impraticable", "inconnu"]
 NatureBlocage = Literal["physique", "reglementaire", "inconnue"]
 
+#: Nature de la voie — axe **indépendant** de la qualité. Une route dont l'état
+#: est inconnu garde un type connu : c'est précisément ce que l'utilisateur
+#: demande en choisissant l'affichage « type de route ».
+TypeRoute = Literal[
+    "autoroute",
+    "route_principale",
+    "route_secondaire",
+    "rue",
+    "piste",
+    "chemin",
+    "bac",
+    "construction",
+    "inconnu",
+]
+
 NIVEAUX: tuple[NiveauRoute, ...] = (
     "bon",
     "tolerable",
@@ -43,6 +58,31 @@ NIVEAUX: tuple[NiveauRoute, ...] = (
     "impraticable",
     "inconnu",
 )
+
+TYPES: tuple[TypeRoute, ...] = (
+    "autoroute",
+    "route_principale",
+    "route_secondaire",
+    "rue",
+    "piste",
+    "chemin",
+    "bac",
+    "construction",
+    "inconnu",
+)
+
+#: Libellés de type (la carte, la légende et le résumé emploient les mêmes mots).
+LIBELLES_TYPE: dict[str, str] = {
+    "autoroute": "Autoroute",
+    "route_principale": "Route principale",
+    "route_secondaire": "Route secondaire",
+    "rue": "Rue / voie urbaine",
+    "piste": "Piste",
+    "chemin": "Chemin piéton ou cyclable",
+    "bac": "Bac / ferry",
+    "construction": "En construction",
+    "inconnu": "Type inconnu",
+}
 
 #: Libellés affichés (la carte et le résumé emploient les mêmes mots).
 LIBELLES_NIVEAU: dict[str, str] = {
@@ -80,18 +120,73 @@ _ACCES_REFUSES = frozenset(
 #: Valeurs qui ouvrent explicitement (une construction peut être praticable).
 _ACCES_OUVERTS = frozenset({"yes", "permissive", "designated"})
 
-#: Tags retenus pour l'infobulle — jamais recopiés en masse.
+#: Tags retenus pour l'infobulle — jamais recopiés en masse. ``check_date`` et
+#: ``survey:date`` disent **quand** l'état a été vérifié : une donnée peut être
+#: exacte mais ancienne, et l'interface doit pouvoir le montrer.
 TAGS_AFFICHES = (
     "highway",
     "construction",
     "smoothness",
     "tracktype",
     "surface",
+    "check_date",
+    "survey:date",
     "access",
     "vehicle",
     "motor_vehicle",
     "motorcar",
 )
+
+# --- Type de voie ---------------------------------------------------------------
+#
+# Deux sources, dans cet ordre : le tag ``highway`` d'OpenStreetMap (le plus
+# précis) puis l'indice ``waytype`` d'OpenRouteService, qui dérive du même tag
+# au moment du calcul. Aucune des deux ne renseigne la qualité : le type et
+# l'état restent deux axes séparés.
+
+_HIGHWAY_VERS_TYPE: dict[str, TypeRoute] = {
+    "motorway": "autoroute",
+    "motorway_link": "autoroute",
+    "trunk": "route_principale",
+    "trunk_link": "route_principale",
+    "primary": "route_principale",
+    "primary_link": "route_principale",
+    "secondary": "route_secondaire",
+    "secondary_link": "route_secondaire",
+    "tertiary": "route_secondaire",
+    "tertiary_link": "route_secondaire",
+    "unclassified": "rue",
+    "residential": "rue",
+    "service": "rue",
+    "living_street": "rue",
+    "road": "rue",
+    "track": "piste",
+    "path": "chemin",
+    "footway": "chemin",
+    "pedestrian": "chemin",
+    "cycleway": "chemin",
+    "bridleway": "chemin",
+    "steps": "chemin",
+    "crossing": "chemin",
+    "ferry": "bac",
+    "construction": "construction",
+}
+
+#: ``extras.waytype.values`` d'ORS — table officielle (vérifiée le 24/10/2026) :
+#: 1 State Road, 2 Road, 3 Street, 4 Path, 5 Track, 6 Cycleway, 7 Footway,
+#: 8 Steps, 9 Ferry, 10 Construction.
+_WAYTYPE_VERS_TYPE: dict[int, TypeRoute] = {
+    1: "route_principale",
+    2: "route_secondaire",
+    3: "rue",
+    4: "chemin",
+    5: "piste",
+    6: "chemin",
+    7: "chemin",
+    8: "chemin",
+    9: "bac",
+    10: "construction",
+}
 
 # --- Décodage des extras OpenRouteService -------------------------------------
 #
@@ -177,6 +272,30 @@ class Classification:
     @property
     def libelle(self) -> str:
         return LIBELLES_NIVEAU[self.niveau]
+
+
+def classifier_type_route(
+    tags: Mapping[str, str], *, waytype: int | None = None
+) -> TypeRoute:
+    """Type de voie d'après les tags OSM, à défaut l'indice ``waytype`` ORS.
+
+    Args:
+        tags: tags OSM de la voie (``highway``, ``route=ferry``…).
+        waytype: indice de ``extras.waytype`` ORS, utilisé seulement quand les
+            tags ne disent rien. Un indice hors table reste ``inconnu``.
+
+    Returns:
+        Un type de voie. L'absence d'information n'est jamais comblée par une
+        supposition : ce sera ``inconnu``.
+    """
+    highway = (tags.get("highway") or "").strip().lower()
+    if highway in _HIGHWAY_VERS_TYPE:
+        return _HIGHWAY_VERS_TYPE[highway]
+    if (tags.get("route") or "").strip().lower() == "ferry":
+        return "bac"
+    if isinstance(waytype, int):
+        return _WAYTYPE_VERS_TYPE.get(waytype, "inconnu")
+    return "inconnu"
 
 
 def _tags_retenus(tags: Mapping[str, str]) -> dict[str, str]:
@@ -378,11 +497,15 @@ def classifier_extras_ors(
 
 __all__ = [
     "LIBELLES_NIVEAU",
+    "LIBELLES_TYPE",
     "NIVEAUX",
     "TAGS_AFFICHES",
+    "TYPES",
     "Classification",
     "NatureBlocage",
     "NiveauRoute",
+    "TypeRoute",
     "classifier_extras_ors",
     "classifier_route",
+    "classifier_type_route",
 ]

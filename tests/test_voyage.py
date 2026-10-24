@@ -689,6 +689,8 @@ def test_itineraire_expose_les_troncons_classes(
     assert troncons[0]["nature"] == "physique"
     assert troncons[1]["estime"] is True  # tracktype = indicateur secondaire
     assert troncons[0]["osmid"] == 101
+    # Le type de voie est un axe distinct, rendu même quand l'état est estimé.
+    assert [troncon["type_route"] for troncon in troncons] == ["route_principale", "piste"]
     # Couverture continue de la géométrie : aucun trou à la jointure.
     assert troncons[0]["debut"] == 0
     assert troncons[-1]["fin"] == 3

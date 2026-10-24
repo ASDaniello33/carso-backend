@@ -90,8 +90,32 @@ def test_payload_carte_exige_un_titre_et_borne_les_points() -> None:
     )
     assert valide.titre == "Zones des lots"
     assert valide.points[0].nom == "Toliara"
+    # Une entrée catégorielle recolorée : le tracé et la légende partagent la
+    # même table, donc le modèle doit pouvoir nommer la catégorie réelle.
+    recolorée = schema.model_validate(
+        {
+            "titre": "Étapes",
+            "legende": [
+                {
+                    "categorie": "route_principale",
+                    "libelle": "RN bitumée",
+                    "couleur": "#f97316",
+                }
+            ],
+        }
+    )
+    assert recolorée.legende[0].categorie == "route_principale"
     with pytest.raises(ValidationError):
         schema.model_validate({"points": []})
+    with pytest.raises(ValidationError):
+        schema.model_validate(
+            {
+                "titre": "x",
+                "legende": [
+                    {"categorie": "inventee", "libelle": "X", "couleur": "#123456"}
+                ],
+            }
+        )
     with pytest.raises(ValidationError):
         schema.model_validate(
             {"titre": "x", "points": [{"nom": "A", "nature": "inconnue"}]}

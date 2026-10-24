@@ -9,7 +9,9 @@ réservée (interne/admin/audit) ou filtrée par le périmètre.
 C'est la barrière contre la dérive : ajouter une route sans se poser la
 question de son classement fait échouer ce test avec le chemin fautif. Le
 classement des écritures ouvertes est une **décision validée** (opérations de
-session et documents), pas un oubli.
+session et documents), pas un oubli. Une lecture peut aussi être ouverte si
+elle ne touche **aucune donnée CARSO** : c'est le cas de la recherche
+d'adresses Photon, explicitement classée.
 """
 
 import importlib
@@ -76,6 +78,16 @@ ECRITURES_FORMAEUR: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/participations/{participation_id}/presence"),
         ("PATCH", "/participations/{participation_id}"),
     }
+)
+
+#: Lectures **sans donnée CARSO**, ouvertes à tout compte authentifié.
+#: Décision validée : `/lieux/recherche` interroge Photon (service public
+#: d'adresses), n'écrit rien et ne lit aucun enregistrement métier. Elle sert
+#: les formulaires de lieu et la résolution de noms des cartes d'agents, y
+#: compris pour un formateur ; la création et le renommage d'un lieu restent,
+#: eux, réservés à l'interne.
+LECTURES_OUVERTES: frozenset[tuple[str, str]] = frozenset(
+    {("GET", "/lieux/recherche")}
 )
 
 #: Méthodes qui modifient l'état (le reste est lu).
@@ -149,7 +161,12 @@ def test_ecritures_classees_et_lectures_bornees() -> None:
                     f"{module}: {methode} {route.path} n'est ni réservée à l'équipe "
                     "interne ni classée « écriture formateur »"
                 )
-        if not ecritures and not reservee and not filtree:
+        if (
+            not ecritures
+            and not reservee
+            and not filtree
+            and ("GET", route.path) not in LECTURES_OUVERTES
+        ):
             ecarts.append(
                 f"{module}: GET {route.path} n'est ni réservé ni filtré par le périmètre"
             )

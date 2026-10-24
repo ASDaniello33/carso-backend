@@ -57,6 +57,18 @@ class TronconItineraireRead(BaseModel):
     fin: int
     osmid: int | None = None
     niveau: Literal["bon", "tolerable", "mauvais", "impraticable", "inconnu"]
+    #: Nature de la voie — axe indépendant de la qualité (affichage « type »).
+    type_route: Literal[
+        "autoroute",
+        "route_principale",
+        "route_secondaire",
+        "rue",
+        "piste",
+        "chemin",
+        "bac",
+        "construction",
+        "inconnu",
+    ] = "inconnu"
     nature: Literal["physique", "reglementaire", "inconnue"]
     raison: str
     #: Vrai quand le niveau vient d'un indicateur secondaire (``tracktype``).
