@@ -1,4 +1,4 @@
-"""Modèles de la chaîne commerciale : Organisation → AppelAProposition → Lot → Offre.
+"""Modèles de la chaîne commerciale : Organisation → Appel → Lot → Offre.
 
 Entities [C] from Phase 2 §1 / instruction/04 §2. Pending items ([P]) are
 deliberately absent: no legal-id column, no NOT NULL beyond what the workflow
@@ -33,7 +33,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.base import Base, TimestampMixin, UuidPkMixin
 from app.domain.enums import (
-    StatutAppelAProposition,
+    StatutAppel,
     StatutBudget,
     StatutOffre,
     TypeAppel,
@@ -45,7 +45,7 @@ if TYPE_CHECKING:
 
 
 class Organisation(Base, UuidPkMixin, TimestampMixin):
-    """Entreprise/organisation cliente à l'origine d'un appel à proposition."""
+    """Entreprise/organisation cliente à l'origine d'un appel."""
 
     __tablename__ = "organisations"
 
@@ -62,24 +62,24 @@ class Organisation(Base, UuidPkMixin, TimestampMixin):
     )
 
     lieu: Mapped["Lieu | None"] = relationship(back_populates="organisations")
-    appels_a_proposition: Mapped[list[AppelAProposition]] = relationship(
+    appels: Mapped[list[Appel]] = relationship(
         back_populates="organisation"
     )
     modeles_documents: Mapped[list[ModeleDocument]] = relationship(back_populates="organisation")
 
 
-class AppelAProposition(Base, UuidPkMixin, TimestampMixin):
-    """Appel à proposition reçu par CARSO.
+class Appel(Base, UuidPkMixin, TimestampMixin):
+    """Appel reçu par CARSO — à proposition ou à manifestation d'intérêt.
 
     ``donnees_extraites`` vit dans la zone *proposal* (Phase 2 §6) : la
     proposition IA n'est jamais la donnée officielle avant Approbation.
     """
 
-    __tablename__ = "appels_a_proposition"
+    __tablename__ = "appels"
     __table_args__ = (
-        UniqueConstraint("reference", name="uq_appels_a_proposition_reference"),
-        Index("ix_appels_a_proposition_statut", "statut"),
-        Index("ix_appels_a_proposition_organisation_id", "organisation_id"),
+        UniqueConstraint("reference", name="uq_appels_reference"),
+        Index("ix_appels_statut", "statut"),
+        Index("ix_appels_organisation_id", "organisation_id"),
     )
 
     organisation_id: Mapped[UUID] = mapped_column(
@@ -100,17 +100,17 @@ class AppelAProposition(Base, UuidPkMixin, TimestampMixin):
     date_reception: Mapped[date | None] = mapped_column(Date)
     date_limite: Mapped[date | None] = mapped_column(Date)
     statut: Mapped[str] = mapped_column(
-        String(50), nullable=False, default=StatutAppelAProposition.RECU.value,
-        server_default=StatutAppelAProposition.RECU.value,
+        String(50), nullable=False, default=StatutAppel.RECU.value,
+        server_default=StatutAppel.RECU.value,
     )
     # Zone "proposal" — sortie d'extraction IA, jamais écrasée par une autre sortie.
     donnees_extraites: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
-    organisation: Mapped[Organisation] = relationship(back_populates="appels_a_proposition")
+    organisation: Mapped[Organisation] = relationship(back_populates="appels")
     lots: Mapped[list[Lot]] = relationship(
-        back_populates="appel_a_proposition", cascade="all, delete-orphan"
+        back_populates="appel", cascade="all, delete-orphan"
     )
-    documents: Mapped[list[Document]] = relationship(back_populates="appel_a_proposition")
+    documents: Mapped[list[Document]] = relationship(back_populates="appel")
 
 
 class Lot(Base, UuidPkMixin, TimestampMixin):
@@ -125,15 +125,15 @@ class Lot(Base, UuidPkMixin, TimestampMixin):
     __tablename__ = "lots"
     __table_args__ = (
         UniqueConstraint(
-            "appel_a_proposition_id",
+            "appel_id",
             "numero",
-            name="uq_lots_appel_a_proposition_id_numero",
+            name="uq_lots_appel_id_numero",
         ),
-        Index("ix_lots_appel_a_proposition_id", "appel_a_proposition_id"),
+        Index("ix_lots_appel_id", "appel_id"),
     )
 
-    appel_a_proposition_id: Mapped[UUID] = mapped_column(
-        ForeignKey("appels_a_proposition.id", ondelete="CASCADE"), nullable=False
+    appel_id: Mapped[UUID] = mapped_column(
+        ForeignKey("appels.id", ondelete="CASCADE"), nullable=False
     )
     numero: Mapped[str] = mapped_column(String(50), nullable=False)
     titre: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -153,7 +153,7 @@ class Lot(Base, UuidPkMixin, TimestampMixin):
 
     lieu: Mapped["Lieu | None"] = relationship(back_populates="lots")
 
-    appel_a_proposition: Mapped[AppelAProposition] = relationship(back_populates="lots")
+    appel: Mapped[Appel] = relationship(back_populates="lots")
     offres: Mapped[list[Offre]] = relationship(back_populates="lot")
 
 
@@ -179,7 +179,7 @@ class Offre(Base, UuidPkMixin, TimestampMixin):
         Index("ix_offres_type", "type"),
         Index("ix_offres_lot_id", "lot_id"),
         Index("ix_offres_organisation_id", "organisation_id"),
-        Index("ix_offres_appel_a_proposition_id", "appel_a_proposition_id"),
+        Index("ix_offres_appel_id", "appel_id"),
     )
 
     organisation_id: Mapped[UUID] = mapped_column(
@@ -187,8 +187,8 @@ class Offre(Base, UuidPkMixin, TimestampMixin):
     )
     #: Lien explicite vers l'appel (règle : une offre répond à ``Appel + Lot``).
     #: Le service vérifie la cohérence : l'appel doit être celui du lot.
-    appel_a_proposition_id: Mapped[UUID] = mapped_column(
-        ForeignKey("appels_a_proposition.id", ondelete="RESTRICT"), nullable=False
+    appel_id: Mapped[UUID] = mapped_column(
+        ForeignKey("appels.id", ondelete="RESTRICT"), nullable=False
     )
     lot_id: Mapped[UUID] = mapped_column(
         ForeignKey("lots.id", ondelete="RESTRICT"), nullable=False
@@ -209,7 +209,7 @@ class Offre(Base, UuidPkMixin, TimestampMixin):
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     organisation: Mapped[Organisation] = relationship()
-    appel_a_proposition: Mapped[AppelAProposition] = relationship()
+    appel: Mapped[Appel] = relationship()
     lot: Mapped[Lot] = relationship(back_populates="offres")
     # Deux FK relient déjà Offre et Document : condition de jointure explicite.
     modele_document: Mapped[Document | None] = relationship(

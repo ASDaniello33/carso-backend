@@ -33,13 +33,13 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.agents.generateur_offre import DEFINITION, AgentGenerateurOffre, build_generateur
 from app.application.dto import (
-    AppelAPropositionInput,
+    AppelInput,
     DocumentUploadInput,
     LieuInput,
     MissionDepuisOffresInput,
 )
 from app.application.services import (
-    AppelAPropositionService,
+    AppelService,
     DocumentService,
     LieuService,
     MissionService,
@@ -50,14 +50,14 @@ from app.core.config import get_settings
 from app.core.errors import ConflictError
 from app.domain.document import Document
 from app.domain.enums import (
-    StatutAppelAProposition,
+    StatutAppel,
     StatutDocument,
     StatutOffre,
     TypeAppel,
     TypeDocument,
     TypeOffre,
 )
-from app.domain.organization import AppelAProposition, Lot, Offre, Organisation
+from app.domain.organization import Appel, Lot, Offre, Organisation
 from app.tools.base import TypedTool
 
 # --- Fixtures -------------------------------------------------------------------
@@ -107,9 +107,9 @@ def organisation(factory: sessionmaker[Session]) -> Organisation:
 
 
 @pytest.fixture
-def appel_recu(factory: sessionmaker[Session], organisation: Organisation) -> AppelAProposition:
+def appel_recu(factory: sessionmaker[Session], organisation: Organisation) -> Appel:
     with factory() as session:
-        appel = AppelAPropositionService(session).enregistrer(_entree_appel(organisation))
+        appel = AppelService(session).enregistrer(_entree_appel(organisation))
         session.commit()
         session.refresh(appel)
     return appel
@@ -117,11 +117,11 @@ def appel_recu(factory: sessionmaker[Session], organisation: Organisation) -> Ap
 
 @pytest.fixture
 def appel_valide(
-    factory: sessionmaker[Session], appel_recu: AppelAProposition
-) -> AppelAProposition:
+    factory: sessionmaker[Session], appel_recu: Appel
+) -> Appel:
     """Appel validé : la proposition extraite devient la donnée officielle."""
     with factory() as session:
-        service = AppelAPropositionService(session)
+        service = AppelService(session)
         service.enregistrer_extraction(
             appel_recu.id,
             dict(PROPOSITION),
@@ -129,25 +129,25 @@ def appel_valide(
         )
         service.approuver_extraction(appel_recu.id, Decision(decided_by="carso"))
         session.commit()
-        appel = session.get(AppelAProposition, appel_recu.id)
+        appel = session.get(Appel, appel_recu.id)
         assert appel is not None
         session.refresh(appel)
         return appel
 
 
 @pytest.fixture
-def lot_officiel(factory: sessionmaker[Session], appel_valide: AppelAProposition) -> Lot:
+def lot_officiel(factory: sessionmaker[Session], appel_valide: Appel) -> Lot:
     """Le lot officiel créé par la validation de l'extraction."""
     with factory() as session:
         lot = session.scalars(
-            select(Lot).where(Lot.appel_a_proposition_id == appel_valide.id)
+            select(Lot).where(Lot.appel_id == appel_valide.id)
         ).one()
         session.refresh(lot)
         return lot
 
 
-def _entree_appel(organisation: Organisation) -> AppelAPropositionInput:
-    return AppelAPropositionInput(
+def _entree_appel(organisation: Organisation) -> AppelInput:
+    return AppelInput(
         organisation_id=organisation.id,
         reference="AO-2026-42",
         titre="Appel à proposition — éducation",
@@ -201,7 +201,7 @@ class TestPerimetreOutils:
     def test_responsabilites_de_l_analyseur_reprises(self, outils: dict[str, TypedTool]) -> None:
         """Lecture, extraction et lots sont les tools du générateur."""
         attends = {
-            "read_appel_a_proposition",
+            "read_appel",
             "list_appel_documents",
             "read_document_text",
             "submit_rfp_extraction",
@@ -242,7 +242,7 @@ class TestReceptionAppel:
     ) -> None:
         document_id = _deposer_non_classe(factory)
         avant = _document(factory, document_id)
-        assert avant.appel_a_proposition_id is None
+        assert avant.appel_id is None
         assert avant.storage_path.startswith("generated/")
 
         sortie = outils["enregistrer_appel"].invoke(
@@ -256,21 +256,21 @@ class TestReceptionAppel:
         )
 
         assert sortie["ok"] is True, sortie
-        assert sortie["statut"] == StatutAppelAProposition.RECU.value
+        assert sortie["statut"] == StatutAppel.RECU.value
         assert sortie["type"] == TypeAppel.APPEL_A_MANIFESTATION_INTERET.value
         assert sortie["requires_approval"] is True
-        appel_id = UUID(sortie["appel_a_proposition_id"])
+        appel_id = UUID(sortie["appel_id"])
 
         # L'appel existe, avec sa nature explicite (jamais déduite).
         with factory() as session:
-            appel = session.get(AppelAProposition, appel_id)
+            appel = session.get(Appel, appel_id)
             assert appel is not None
             assert appel.type == TypeAppel.APPEL_A_MANIFESTATION_INTERET.value
-            assert appel.statut == StatutAppelAProposition.RECU.value
+            assert appel.statut == StatutAppel.RECU.value
 
         # Le document source a rejoint le dossier de l'appel, octets identiques.
         apres = _document(factory, document_id)
-        assert apres.appel_a_proposition_id == appel_id
+        assert apres.appel_id == appel_id
         assert apres.storage_path == f"appel_proposition/{appel_id}/{apres.nom}"
         assert apres.checksum_sha256 == avant.checksum_sha256
 
@@ -306,7 +306,7 @@ class TestReceptionAppel:
         assert sortie["ok"] is False
         assert "Type d'appel inconnu" in sortie["error"]["message"]
         with factory() as session:
-            assert session.scalars(select(AppelAProposition)).all() == []
+            assert session.scalars(select(Appel)).all() == []
 
     def test_organisation_inconnue_refusee(
         self, factory: sessionmaker[Session], outils: dict[str, TypedTool]
@@ -324,13 +324,13 @@ class TestReceptionAppel:
         assert sortie["ok"] is False
         assert sortie["error"]["code"] == "not_found"
         with factory() as session:
-            assert session.scalars(select(AppelAProposition)).all() == []
+            assert session.scalars(select(Appel)).all() == []
 
     def test_echec_du_rattachement_annule_l_appel(
         self,
         factory: sessionmaker[Session],
         organisation: Organisation,
-        appel_recu: AppelAProposition,
+        appel_recu: Appel,
         outils: dict[str, TypedTool],
     ) -> None:
         """Une seule transaction : un rattachement impossible ne laisse pas d'appel."""
@@ -343,7 +343,7 @@ class TestReceptionAppel:
                     nom="Deja rattache.pdf",
                     stream=io.BytesIO(build_pdf("DEJA RATTACHE")),
                     created_by="carso",
-                    appel_a_proposition_id=appel_recu.id,
+                    appel_id=appel_recu.id,
                 )
             )
             session.commit()
@@ -364,8 +364,8 @@ class TestReceptionAppel:
         with factory() as session:
             assert (
                 session.scalars(
-                    select(AppelAProposition).where(
-                        AppelAProposition.reference == "AO-ROLLBACK"
+                    select(Appel).where(
+                        Appel.reference == "AO-ROLLBACK"
                     )
                 ).all()
                 == []
@@ -376,7 +376,7 @@ class TestRattachementDocument:
     def test_rattachement_direct_et_refus_du_doublon(
         self,
         factory: sessionmaker[Session],
-        appel_recu: AppelAProposition,
+        appel_recu: Appel,
         outils: dict[str, TypedTool],
     ) -> None:
         document_id = _deposer_non_classe(factory, nom="Source.pdf")
@@ -384,31 +384,31 @@ class TestRattachementDocument:
         sortie = outils["rattacher_document_appel"].invoke(
             {
                 "document_id": str(document_id),
-                "appel_a_proposition_id": str(appel_recu.id),
+                "appel_id": str(appel_recu.id),
             }
         )
         assert sortie["ok"] is True, sortie
-        assert sortie["appel_a_proposition_id"] == str(appel_recu.id)
+        assert sortie["appel_id"] == str(appel_recu.id)
 
         # Un document déjà ancré n'est jamais reclassé silencieusement.
         encore = outils["rattacher_document_appel"].invoke(
             {
                 "document_id": str(document_id),
-                "appel_a_proposition_id": str(appel_recu.id),
+                "appel_id": str(appel_recu.id),
             }
         )
         assert encore["ok"] is False
         assert encore["error"]["code"] == "conflict"
 
     def test_document_inconnu_refuse(
-        self, appel_recu: AppelAProposition, outils: dict[str, TypedTool]
+        self, appel_recu: Appel, outils: dict[str, TypedTool]
     ) -> None:
         from uuid import uuid4
 
         sortie = outils["rattacher_document_appel"].invoke(
             {
                 "document_id": str(uuid4()),
-                "appel_a_proposition_id": str(appel_recu.id),
+                "appel_id": str(appel_recu.id),
             }
         )
         assert sortie["ok"] is False
@@ -422,25 +422,25 @@ class TestExtractionEtLots:
     def test_proposition_puis_lots_officiels_apres_validation(
         self,
         factory: sessionmaker[Session],
-        appel_recu: AppelAProposition,
+        appel_recu: Appel,
         outils: dict[str, TypedTool],
     ) -> None:
         sortie = outils["submit_rfp_extraction"].invoke(
             {
-                "appel_a_proposition_id": str(appel_recu.id),
+                "appel_id": str(appel_recu.id),
                 "extraction": dict(PROPOSITION),
             }
         )
         assert sortie["ok"] is True, sortie
-        assert sortie["statut"] == StatutAppelAProposition.PROPOSE.value
+        assert sortie["statut"] == StatutAppel.PROPOSE.value
         assert sortie["nb_lots"] == 1
         assert sortie["requires_approval"] is True
 
         # Proposition : aucune donnée officielle, aucun lot créé.
         with factory() as session:
-            appel = session.get(AppelAProposition, appel_recu.id)
+            appel = session.get(Appel, appel_recu.id)
             assert appel is not None
-            assert appel.statut == StatutAppelAProposition.PROPOSE.value
+            assert appel.statut == StatutAppel.PROPOSE.value
             assert appel.donnees_extraites["_meta"]["proposed_by_agent"] == (
                 DEFINITION.agent_id
             )
@@ -448,21 +448,21 @@ class TestExtractionEtLots:
 
         # La validation humaine (hors agent) matérialise les lots officiels.
         with factory() as session:
-            AppelAPropositionService(session).approuver_extraction(
+            AppelService(session).approuver_extraction(
                 appel_recu.id, Decision(decided_by="carso")
             )
             session.commit()
 
-        lots = outils["list_lots"].invoke({"appel_a_proposition_id": str(appel_recu.id)})
+        lots = outils["list_lots"].invoke({"appel_id": str(appel_recu.id)})
         assert [lot["numero"] for lot in lots["lots"]] == ["1"]
         assert lots["lots"][0]["titre"] == "Gestion financière"
 
     def test_extraction_invalide_refusee(
-        self, appel_recu: AppelAProposition, outils: dict[str, TypedTool]
+        self, appel_recu: Appel, outils: dict[str, TypedTool]
     ) -> None:
         sortie = outils["submit_rfp_extraction"].invoke(
             {
-                "appel_a_proposition_id": str(appel_recu.id),
+                "appel_id": str(appel_recu.id),
                 "extraction": {"resume": "sans organisation ni lots"},
             }
         )
@@ -471,7 +471,7 @@ class TestExtractionEtLots:
     def test_appel_valide_sans_lot_reparable_par_l_agent(
         self,
         factory: sessionmaker[Session],
-        appel_recu: AppelAProposition,
+        appel_recu: Appel,
         outils: dict[str, TypedTool],
     ) -> None:
         """Régression : un appel figé « validé » sans lot redevient réparable.
@@ -481,19 +481,19 @@ class TestExtractionEtLots:
         interdite ``valide → propose`` et aucun lot ne pouvait naître.
         """
         with factory() as session:
-            service = AppelAPropositionService(session)
+            service = AppelService(session)
             service.enregistrer_extraction(
                 appel_recu.id, {"lots": []}, proposed_by_agent=DEFINITION.agent_id
             )
             # État forgé : la garde de validation n'existait pas encore.
-            appel = session.get(AppelAProposition, appel_recu.id)
+            appel = session.get(Appel, appel_recu.id)
             assert appel is not None
-            appel.statut = StatutAppelAProposition.VALIDE
+            appel.statut = StatutAppel.VALIDE
             session.commit()
 
         # L'agent voit ce qui manque au lieu d'affirmer qu'un lot existe.
-        lu = outils["read_appel_a_proposition"].invoke(
-            {"appel_a_proposition_id": str(appel_recu.id)}
+        lu = outils["read_appel"].invoke(
+            {"appel_id": str(appel_recu.id)}
         )
         assert lu["proposition_sans_lot"] is True
         assert lu["nb_lots_officiels"] == 0
@@ -501,36 +501,37 @@ class TestExtractionEtLots:
         # La re-soumission remet l'appel en proposition au lieu d'échouer.
         sortie = outils["submit_rfp_extraction"].invoke(
             {
-                "appel_a_proposition_id": str(appel_recu.id),
+                "appel_id": str(appel_recu.id),
                 "extraction": dict(PROPOSITION),
             }
         )
         assert sortie["ok"] is True, sortie
-        assert sortie["statut"] == StatutAppelAProposition.PROPOSE.value
+        assert sortie["statut"] == StatutAppel.PROPOSE.value
         assert sortie["nb_lots"] == 1
 
         # L'approbation humaine matérialise enfin les lots officiels.
         with factory() as session:
-            AppelAPropositionService(session).approuver_extraction(
+            AppelService(session).approuver_extraction(
                 appel_recu.id, Decision(decided_by="carso")
             )
             session.commit()
 
         lots = outils["list_lots"].invoke(
-            {"appel_a_proposition_id": str(appel_recu.id)}
+            {"appel_id": str(appel_recu.id)}
         )
         assert [lot["numero"] for lot in lots["lots"]] == ["1"]
 
-    def test_validation_sans_lot_refusee_par_le_flux(
+    def test_validation_sans_lot_cree_le_lot_unique_par_le_flux(
         self,
         factory: sessionmaker[Session],
-        appel_recu: AppelAProposition,
+        appel_recu: Appel,
         outils: dict[str, TypedTool],
     ) -> None:
-        """Le défaut d'origine ne peut plus se produire : refus explicite."""
+        """ADR 0012 (règle 26/10) : un appel sans lot reçoit un lot unique « 1 »
+        portant le titre de l'appel — les offres y sont rattachées."""
         outils["submit_rfp_extraction"].invoke(
             {
-                "appel_a_proposition_id": str(appel_recu.id),
+                "appel_id": str(appel_recu.id),
                 "extraction": {
                     "organisation": {"nom": "Organisation émettrice"},
                     "lots": [],
@@ -538,43 +539,45 @@ class TestExtractionEtLots:
             }
         )
         with factory() as session:
-            with pytest.raises(ConflictError):
-                AppelAPropositionService(session).approuver_extraction(
-                    appel_recu.id, Decision(decided_by="carso")
-                )
-            session.rollback()
-            appel = session.get(AppelAProposition, appel_recu.id)
+            AppelService(session).approuver_extraction(
+                appel_recu.id, Decision(decided_by="carso")
+            )
+            session.flush()
+            appel = session.get(Appel, appel_recu.id)
             assert appel is not None
-            assert appel.statut == StatutAppelAProposition.PROPOSE.value
-            assert session.scalars(select(Lot)).all() == []
+            assert appel.statut == StatutAppel.VALIDE.value
+            lots = session.scalars(select(Lot)).all()
+            assert len(lots) == 1
+            assert lots[0].numero == "1"
+            assert lots[0].titre == appel.titre
 
     def test_extraction_json_serialisee_acceptee(
         self,
         factory: sessionmaker[Session],
-        appel_recu: AppelAProposition,
+        appel_recu: Appel,
         outils: dict[str, TypedTool],
     ) -> None:
         """Le LLM sérialise parfois la proposition : la chaîne JSON est parsée."""
         sortie = outils["submit_rfp_extraction"].invoke(
             {
-                "appel_a_proposition_id": str(appel_recu.id),
+                "appel_id": str(appel_recu.id),
                 "extraction": json.dumps(dict(PROPOSITION), ensure_ascii=False),
             }
         )
         assert sortie["ok"] is True, sortie
         assert sortie["nb_lots"] == 1
         with factory() as session:
-            appel = session.get(AppelAProposition, appel_recu.id)
+            appel = session.get(Appel, appel_recu.id)
             assert appel is not None
-            assert appel.statut == StatutAppelAProposition.PROPOSE.value
+            assert appel.statut == StatutAppel.PROPOSE.value
 
     def test_extraction_texte_non_json_refusee_avec_erreur_actionnable(
-        self, appel_recu: AppelAProposition, outils: dict[str, TypedTool]
+        self, appel_recu: Appel, outils: dict[str, TypedTool]
     ) -> None:
         """Un texte libre n'est pas une proposition : refus lisible, jamais (racine)."""
         sortie = outils["submit_rfp_extraction"].invoke(
             {
-                "appel_a_proposition_id": str(appel_recu.id),
+                "appel_id": str(appel_recu.id),
                 "extraction": "Proposition résumée en une phrase, sans structure.",
             }
         )
@@ -583,11 +586,11 @@ class TestExtractionEtLots:
         assert "objet" in sortie["error"]["message"]
 
     def test_extraction_liste_refusee_avec_type_recu(
-        self, appel_recu: AppelAProposition, outils: dict[str, TypedTool]
+        self, appel_recu: Appel, outils: dict[str, TypedTool]
     ) -> None:
         """Un type non objet est refusé à la frontière avec son type annoncé."""
         sortie = outils["submit_rfp_extraction"].invoke(
-            {"appel_a_proposition_id": str(appel_recu.id), "extraction": [PROPOSITION]}
+            {"appel_id": str(appel_recu.id), "extraction": [PROPOSITION]}
         )
         assert sortie["ok"] is False
         erreurs = sortie["error"]["details"]["erreurs"]
@@ -596,25 +599,25 @@ class TestExtractionEtLots:
     def test_lecture_de_l_appel_et_des_documents(
         self,
         factory: sessionmaker[Session],
-        appel_recu: AppelAProposition,
+        appel_recu: Appel,
         outils: dict[str, TypedTool],
     ) -> None:
         document_id = _deposer_non_classe(factory, nom="Appel source.pdf")
         outils["rattacher_document_appel"].invoke(
             {
                 "document_id": str(document_id),
-                "appel_a_proposition_id": str(appel_recu.id),
+                "appel_id": str(appel_recu.id),
             }
         )
 
-        fiche = outils["read_appel_a_proposition"].invoke(
-            {"appel_a_proposition_id": str(appel_recu.id)}
+        fiche = outils["read_appel"].invoke(
+            {"appel_id": str(appel_recu.id)}
         )
         assert fiche["reference"] == "AO-2026-42"
         assert fiche["a_une_proposition"] is False
 
         documents = outils["list_appel_documents"].invoke(
-            {"appel_a_proposition_id": str(appel_recu.id)}
+            {"appel_id": str(appel_recu.id)}
         )
         assert [d["document_id"] for d in documents["documents"]] == [str(document_id)]
 
@@ -629,7 +632,7 @@ class TestOffresEtDocuments:
     def test_chain_complete_appel_lot_offres_documents(
         self,
         factory: sessionmaker[Session],
-        appel_valide: AppelAProposition,
+        appel_valide: Appel,
         lot_officiel: Lot,
         outils: dict[str, TypedTool],
     ) -> None:
@@ -658,7 +661,7 @@ class TestOffresEtDocuments:
         with factory() as session:
             offre = session.get(Offre, UUID(financiere["offre_id"]))
             assert offre is not None
-            assert offre.appel_a_proposition_id == appel_valide.id
+            assert offre.appel_id == appel_valide.id
             assert offre.lot_id == lot_officiel.id
 
         # Un document par offre, ancré à l'offre (visible dans l'espace documents).
@@ -747,8 +750,8 @@ class TestOffresEtDocuments:
     ) -> None:
         """Un appel à manifestation d'intérêt se répond par une offre ``autre``."""
         with factory() as session:
-            appel = AppelAPropositionService(session).enregistrer(
-                AppelAPropositionInput(
+            appel = AppelService(session).enregistrer(
+                AppelInput(
                     organisation_id=organisation.id,
                     reference="AMI-2026-1",
                     titre="Manifestation d'intérêt",
@@ -759,14 +762,14 @@ class TestOffresEtDocuments:
             appel_id = appel.id
 
         with factory() as session:
-            service = AppelAPropositionService(session)
+            service = AppelService(session)
             service.enregistrer_extraction(
                 appel_id, dict(PROPOSITION), proposed_by_agent=DEFINITION.agent_id
             )
             service.approuver_extraction(appel_id, Decision(decided_by="carso"))
             session.commit()
             lot = session.scalars(
-                select(Lot).where(Lot.appel_a_proposition_id == appel_id)
+                select(Lot).where(Lot.appel_id == appel_id)
             ).one()
             lot_id = lot.id
 
@@ -784,21 +787,21 @@ class TestOffresEtDocuments:
     def test_lot_manuel_sur_appel_recu_autorise_la_creation_d_offre(
         self,
         factory: sessionmaker[Session],
-        appel_recu: AppelAProposition,
+        appel_recu: Appel,
         outils: dict[str, TypedTool],
     ) -> None:
         """Un lot saisi à la main est officiel : l'extraction n'est pas requise."""
         with factory() as session:
             session.add(
                 Lot(
-                    appel_a_proposition_id=appel_recu.id,
+                    appel_id=appel_recu.id,
                     numero="9",
                     titre="Lot saisi manuellement",
                 )
             )
             session.commit()
             lot = session.scalars(
-                select(Lot).where(Lot.appel_a_proposition_id == appel_recu.id)
+                select(Lot).where(Lot.appel_id == appel_recu.id)
             ).one()
             lot_id = lot.id
 
@@ -816,24 +819,24 @@ class TestOffresEtDocuments:
     def test_appel_rejete_refuse_la_creation_d_offre(
         self,
         factory: sessionmaker[Session],
-        appel_recu: AppelAProposition,
+        appel_recu: Appel,
         outils: dict[str, TypedTool],
     ) -> None:
         """Un appel rejeté ne reçoit plus d'offre, même si un lot existe."""
         with factory() as session:
             session.add(
                 Lot(
-                    appel_a_proposition_id=appel_recu.id,
+                    appel_id=appel_recu.id,
                     numero="9",
                     titre="Lot sur appel rejeté",
                 )
             )
-            AppelAPropositionService(session).rejeter_appel(
+            AppelService(session).rejeter_appel(
                 appel_recu.id, Decision(decided_by="carso")
             )
             session.commit()
             lot = session.scalars(
-                select(Lot).where(Lot.appel_a_proposition_id == appel_recu.id)
+                select(Lot).where(Lot.appel_id == appel_recu.id)
             ).one()
             lot_id = lot.id
 

@@ -1,7 +1,7 @@
 """AgentGenerateurOffre (clinrules 02)—**agent unique de la chaîne de l'appel**.
 
 Il porte désormais toute la chaîne, sans sous-agent (l'ancien
-``AgentAnalyseurAppelAProposition`` a été supprimé et ses responsabilités
+``AgentAnalyseurAppel`` a été supprimé et ses responsabilités
 fusionnées ici) :
 
 ```text
@@ -20,7 +20,7 @@ Il n'officialise rien—aucune donnée extraite, aucune offre, aucun document
 ne devient officiel sans décision humaine.
 
 Matrice d'accès (validée)—Read/Write sous HITL sur ``Document``,
-``AppelAProposition``, ``Lot``, ``Offre`` ; autres tables lecture seule.
+``Appel``, ``Lot``, ``Offre`` ; autres tables lecture seule.
 Périmètre outils—``app/agents/tools/agent_generateur_offre_tools.py``.
 """
 
@@ -320,7 +320,7 @@ class AgentGenerateurOffre:
 
     def run(
         self,
-        appel_a_proposition_id: UUID | None = None,
+        appel_id: UUID | None = None,
         *,
         instruction: str | None = None,
         correlation_id: str | None = None,
@@ -334,7 +334,7 @@ class AgentGenerateurOffre:
         n'expose que les tools du contrat, et chaque écriture reste HITL.
 
         Args:
-            appel_a_proposition_id: appel en cours de traitement (facultatif :
+            appel_id: appel en cours de traitement (facultatif :
                 le message de l'utilisateur peut porter le contexte).
             instruction: consigne complémentaire de l'utilisateur.
             correlation_id: corrélation inter-agent éventuelle.
@@ -351,8 +351,8 @@ class AgentGenerateurOffre:
         # commitée immédiatement (elle survit à un échec du run).
         task_id = self._ouvrir_trace(
             {
-                "appel_a_proposition_id": (
-                    str(appel_a_proposition_id) if appel_a_proposition_id else None
+                "appel_id": (
+                    str(appel_id) if appel_id else None
                 ),
                 "mode": "deep_agent",
                 "instruction": instruction,
@@ -366,7 +366,7 @@ class AgentGenerateurOffre:
                     "messages": [
                         {
                             "role": "user",
-                            "content": self._instruction(appel_a_proposition_id, instruction),
+                            "content": self._instruction(appel_id, instruction),
                         }
                     ]
                 },
@@ -464,11 +464,11 @@ class AgentGenerateurOffre:
             reponse = tasks.as_response(task)
         return reponse
 
-    def _instruction(self, appel_a_proposition_id: UUID | None, instruction: str | None) -> str:
+    def _instruction(self, appel_id: UUID | None, instruction: str | None) -> str:
         """Message initial du run : l'appel est un contexte, jamais un scénario figé."""
-        if appel_a_proposition_id is not None:
+        if appel_id is not None:
             base = (
-                f"Conduis la chaîne de l'appel {appel_a_proposition_id} : "
+                f"Conduis la chaîne de l'appel {appel_id} : "
                 "lis son document source, propose l'extraction structurée, puis "
                 "attends mes décisions à chaque étape."
             )

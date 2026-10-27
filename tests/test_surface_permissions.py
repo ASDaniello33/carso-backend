@@ -28,7 +28,7 @@ from app.api.permissions import exiger_audit, exiger_interne
 MODULES_METIER = frozenset(
     {
         "affectations",
-        "appels_a_proposition",
+        "appels",
         "audit",
         "beneficiaires",
         "documents",
@@ -59,6 +59,10 @@ ECRITURES_FORMAEUR: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/documents/{document_id}/soumission"),
         # Décision 03/10 : ses documents, ou ceux de ses missions/sessions.
         ("PATCH", "/documents/{document_id}"),
+        # ADR 0013 : la bascule privé ↔ public d'un document **sans objet
+        # métier** appartient à son propriétaire — un formateur peut publier
+        # le sien (le service refuse un document ancré).
+        ("PATCH", "/documents/{document_id}/visibilite"),
         # Annulation d'un dépôt (pièce jointe retirée avant envoi) : le déposant
         # efface son propre brouillon, fichier et ligne ensemble.
         ("DELETE", "/documents/{document_id}/depot"),

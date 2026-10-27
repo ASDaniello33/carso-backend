@@ -56,7 +56,7 @@ from app.domain.execution import (
     SupportFormation,
 )
 from app.domain.organization import (
-    AppelAProposition,
+    Appel,
     Budget,
     LigneBudget,
     Lot,
@@ -102,7 +102,7 @@ TYPES_SUPPRIMABLES: frozenset[str] = frozenset(
 #: Modèle ORM de chaque racine + libellé singulier (messages et audit).
 _RACINES: dict[str, tuple[Any, str]] = {
     ORGANISATIONS: (Organisation, "organisation"),
-    APPELS: (AppelAProposition, "appel à proposition"),
+    APPELS: (Appel, "appel"),
     LOTS: (Lot, "lot"),
     OFFRES: (Offre, "offre"),
     MISSIONS: (Mission, "mission"),
@@ -115,7 +115,7 @@ _RACINES: dict[str, tuple[Any, str]] = {
 #: Colonne d'ancrage d'un ``Document`` par type d'entité.
 _ANCRAGES: dict[str, Any] = {
     ORGANISATIONS: Document.organisation_id,
-    APPELS: Document.appel_a_proposition_id,
+    APPELS: Document.appel_id,
     OFFRES: Document.offre_id,
     MISSIONS: Document.mission_id,
     EQUIPES: Document.equipe_id,
@@ -154,7 +154,7 @@ _TABLES: dict[str, Any] = {
     MISSIONS: Mission,
     OFFRES: Offre,
     LOTS: Lot,
-    APPELS: AppelAProposition,
+    APPELS: Appel,
     ORGANISATIONS: Organisation,
     BENEFICIAIRES: Beneficiaire,
     EQUIPES: Equipe,
@@ -361,7 +361,7 @@ class ServiceSuppression:
         if parent == ORGANISATIONS:
             return {
                 APPELS: self._colonnes(
-                    AppelAProposition.id, AppelAProposition.organisation_id, identifiants
+                    Appel.id, Appel.organisation_id, identifiants
                 ),
                 MISSIONS: self._colonnes(Mission.id, Mission.organisation_id, identifiants),
                 MODELES: self._colonnes(
@@ -370,7 +370,7 @@ class ServiceSuppression:
             }
         if parent == APPELS:
             return {
-                LOTS: self._colonnes(Lot.id, Lot.appel_a_proposition_id, identifiants),
+                LOTS: self._colonnes(Lot.id, Lot.appel_id, identifiants),
             }
         if parent == LOTS:
             return {

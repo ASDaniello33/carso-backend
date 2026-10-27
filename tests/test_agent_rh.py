@@ -88,7 +88,7 @@ def _semis_mission(factory: sessionmaker[Session]) -> tuple[Mission, Lieu, Lieu]
             organisation_id=org.id,
             reference="M-RH-LIEU",
             titre="Mission sans lieu",
-            statut=StatutMission.PLANIFIEE.value,
+            statut=StatutMission.PLANIFIE.value,
         )
         lyon = Lieu(nom="Lyon — centre", ville="Lyon")
         paris = Lieu(nom="Paris — site client", ville="Paris")
@@ -114,7 +114,7 @@ def test_proposer_affectation(session: Session) -> None:
         organisation_id=org.id,
         reference="M-RH-1",
         titre="Mission RH",
-        statut=StatutMission.PLANIFIEE.value,
+        statut=StatutMission.PLANIFIE.value,
     )
     equipe = Equipe(nom="Ben", prenom="Ali", profil="formateur senior")
     session.add_all([mission, equipe])

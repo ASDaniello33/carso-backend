@@ -117,6 +117,9 @@ class Mission(Base, UuidPkMixin, TimestampMixin):
     __tablename__ = "missions"
     __table_args__ = (
         UniqueConstraint("reference", name="uq_missions_reference"),
+        # 1 lot → 1 mission (règle CARSO, ADR 0012). PostgreSQL autorise
+        # plusieurs NULL : une prestation directe ne consomme aucun lot.
+        UniqueConstraint("lot_id", name="uq_missions_lot_id"),
         Index("ix_missions_statut", "statut"),
         Index("ix_missions_organisation_id", "organisation_id"),
         Index("ix_missions_lieu_id", "lieu_id"),
@@ -126,6 +129,11 @@ class Mission(Base, UuidPkMixin, TimestampMixin):
     organisation_id: Mapped[UUID] = mapped_column(
         ForeignKey("organisations.id", ondelete="RESTRICT"), nullable=False
     )
+    #: Lot d'appel dont la mission est la réponse. ``NULL`` = prestation
+    #: directe (sans appel ni lot), identifiée comme telle.
+    lot_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("lots.id", ondelete="RESTRICT")
+    )
     lieu_id: Mapped[UUID | None] = mapped_column(ForeignKey("lieux.id", ondelete="SET NULL"))
     reference: Mapped[str] = mapped_column(String(100), nullable=False)
     titre: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -133,8 +141,8 @@ class Mission(Base, UuidPkMixin, TimestampMixin):
     date_debut: Mapped[date | None] = mapped_column(Date)
     date_fin: Mapped[date | None] = mapped_column(Date)
     statut: Mapped[str] = mapped_column(
-        String(50), nullable=False, default=StatutMission.PLANIFIEE.value,
-        server_default=StatutMission.PLANIFIEE.value,
+        String(50), nullable=False, default=StatutMission.EN_PLANIFICATION.value,
+        server_default=StatutMission.EN_PLANIFICATION.value,
     )
 
     #: Offres alimentant la mission (N-N : technique + financière). Vide pour
@@ -142,12 +150,14 @@ class Mission(Base, UuidPkMixin, TimestampMixin):
     offres: Mapped[list[Offre]] = relationship(
         "Offre", secondary="mission_offres", back_populates="missions"
     )
+    lot: Mapped[Lot | None] = relationship()
     lieu: Mapped[Lieu | None] = relationship(back_populates="missions")
     affectations: Mapped[list[AffectationEquipe]] = relationship(
         back_populates="mission", cascade="all, delete-orphan"
     )
-    sessions: Mapped[list[SessionFormation]] = relationship(
-        back_populates="mission", cascade="all, delete-orphan"
+    #: **Une seule** session par mission (ADR 0012) : la planification la crée.
+    session: Mapped[SessionFormation | None] = relationship(
+        back_populates="mission", cascade="all, delete-orphan", uselist=False
     )
     documents: Mapped[list[Document]] = relationship("Document", back_populates="mission")
     budgets: Mapped[list[Budget]] = relationship("Budget", back_populates="mission")
@@ -208,6 +218,10 @@ class Equipe(Base, UuidPkMixin, TimestampMixin):
     __tablename__ = "equipes"
 
     nom: Mapped[str] = mapped_column(String(100), nullable=False)
+    #: Fonction de travail **libre** (secrétaire, responsable RH, chargé de
+    #: programme…). Distincte du rôle de compte et du rôle de mission : elle
+    #: décrit le métier, pas un droit ni une affectation.
+    fonction: Mapped[str | None] = mapped_column(String(150))
     prenom: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str | None] = mapped_column(String(255))
     telephone: Mapped[str | None] = mapped_column(String(50))
@@ -266,7 +280,9 @@ class SessionFormation(Base, UuidPkMixin, TimestampMixin):
 
     __tablename__ = "sessions"
     __table_args__ = (
-        Index("ix_sessions_mission_id", "mission_id"),
+        # 1 mission → 1 session (ADR 0012). Une session annulée reste celle de
+        # la mission : il n'y a pas de seconde tentative parallèle.
+        UniqueConstraint("mission_id", name="uq_sessions_mission_id"),
         Index("ix_sessions_dates", "date_debut", "date_fin"),
     )
 
@@ -278,11 +294,13 @@ class SessionFormation(Base, UuidPkMixin, TimestampMixin):
     lieu: Mapped[str | None] = mapped_column(String(255))
     theme: Mapped[str | None] = mapped_column(String(255))
     statut: Mapped[str] = mapped_column(
-        String(50), nullable=False, default=StatutSessionFormation.PLANIFIEE.value,
-        server_default=StatutSessionFormation.PLANIFIEE.value,
+        String(50), nullable=False, default=StatutSessionFormation.PLANIFIE.value,
+        server_default=StatutSessionFormation.PLANIFIE.value,
     )
+    #: Mission **mère** — 1 mission → 1 session (ADR 0012) : la planification
+    #: de la mission crée cette session.
+    mission: Mapped[Mission] = relationship(back_populates="session")
 
-    mission: Mapped[Mission] = relationship(back_populates="sessions")
     participations: Mapped[list[Participation]] = relationship(
         back_populates="session", cascade="all, delete-orphan"
     )

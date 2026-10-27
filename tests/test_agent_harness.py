@@ -44,8 +44,8 @@ from app.application.services import DocumentService
 from app.core.config import Settings, get_settings
 from app.core.errors import ValidationError
 from app.domain.document import AgentTask
-from app.domain.enums import StatutAgentTask, StatutAppelAProposition, TypeDocument
-from app.domain.organization import AppelAProposition, Lot, Organisation
+from app.domain.enums import StatutAgentTask, StatutAppel, TypeDocument
+from app.domain.organization import Appel, Lot, Organisation
 from app.tools.base import TypedTool, to_langchain_tool
 from app.tools.permissions import PermissionPolicy
 from tests.agent_fixtures import ScriptedChatModel, final_message, tool_call
@@ -101,14 +101,14 @@ def caller_session(api_session_factory: sessionmaker[Session]) -> Iterator[Sessi
 
 
 @pytest.fixture
-def appel(api_session_factory: sessionmaker[Session]) -> AppelAProposition:
+def appel(api_session_factory: sessionmaker[Session]) -> Appel:
     organisation = Organisation(nom="Ministère de la Formation")
     seed(api_session_factory, organisation)
-    appel = AppelAProposition(
+    appel = Appel(
         organisation_id=organisation.id,
         reference="AO-HARNESS-01",
         titre="Formation en gestion",
-        statut=StatutAppelAProposition.RECU.value,
+        statut=StatutAppel.RECU.value,
     )
     seed(api_session_factory, appel)
     return appel
@@ -116,10 +116,10 @@ def appel(api_session_factory: sessionmaker[Session]) -> AppelAProposition:
 
 @pytest.fixture
 def appel_avec_document(
-    appel: AppelAProposition,
+    appel: Appel,
     api_session_factory: sessionmaker[Session],
     storage_root: Path,
-) -> tuple[AppelAProposition, UUID]:
+) -> tuple[Appel, UUID]:
     """Appel à proposition + document PDF réel déposé par le service documentaire."""
     del storage_root
     with api_session_factory() as session:
@@ -129,7 +129,7 @@ def appel_avec_document(
                 nom="Appel à proposition.pdf",
                 stream=io.BytesIO(build_pdf(MISSION_TEXTE)),
                 created_by="carso",
-                appel_a_proposition_id=appel.id,
+                appel_id=appel.id,
             )
         )
         session.commit()
@@ -149,10 +149,10 @@ def _modele(*messages: object) -> ScriptedChatModel:
     return ScriptedChatModel(responses=list(messages))  # type: ignore[arg-type]
 
 
-def _appel_relu(factory: sessionmaker[Session], appel_id: UUID) -> AppelAProposition:
+def _appel_relu(factory: sessionmaker[Session], appel_id: UUID) -> Appel:
     """Relit l'appel dans une **nouvelle** session (comme le ferait l'API)."""
     with factory() as session:
-        appel = session.get(AppelAProposition, appel_id)
+        appel = session.get(Appel, appel_id)
         assert appel is not None
         return appel
 
@@ -280,7 +280,7 @@ class TestAgentFactory:
         assert "schéma" in str(erreur.value)
 
     def test_tools_fichiers_n_ecrivent_pas_sur_l_hote(
-        self, generateur: AgentGenerateurOffre, appel: AppelAProposition, tmp_path: Path
+        self, generateur: AgentGenerateurOffre, appel: Appel, tmp_path: Path
     ) -> None:
         """Le backend par défaut est virtuel : aucun accès au disque hôte."""
         cible = tmp_path / "fuite.txt"
@@ -336,12 +336,12 @@ class TestBoucleAgent:
         self,
         generateur: AgentGenerateurOffre,
         factory: sessionmaker[Session],
-        appel: AppelAProposition,
+        appel: Appel,
     ) -> None:
         modele = _modele(
             tool_call(
                 "submit_rfp_extraction",
-                {"appel_a_proposition_id": str(appel.id), "extraction": EXTRACTION},
+                {"appel_id": str(appel.id), "extraction": EXTRACTION},
             ),
             final_message("Proposition transmise pour validation."),
         )
@@ -354,7 +354,7 @@ class TestBoucleAgent:
 
         # Le tool a commité sa propre transaction : visible depuis une autre session.
         relu = _appel_relu(factory, appel.id)
-        assert relu.statut == StatutAppelAProposition.PROPOSE.value
+        assert relu.statut == StatutAppel.PROPOSE.value
         assert relu.donnees_extraites["_meta"]["proposed_by_agent"] == (
             "agent_generateur_offre"
         )
@@ -376,14 +376,14 @@ class TestBoucleAgent:
     def test_l_agent_lit_le_document_source(
         self,
         generateur: AgentGenerateurOffre,
-        appel_avec_document: tuple[AppelAProposition, UUID],
+        appel_avec_document: tuple[Appel, UUID],
     ) -> None:
         """Le texte extrait (Phase 4) parvient réellement au modèle."""
         appel, document_id = appel_avec_document
         modele = _modele(
             tool_call(
                 "list_appel_documents",
-                {"appel_a_proposition_id": str(appel.id)},
+                {"appel_id": str(appel.id)},
             ),
             tool_call("read_document_text", {"document_id": str(document_id)}),
             final_message("Document lu, données extraites."),
@@ -400,7 +400,7 @@ class TestBoucleAgent:
         self,
         generateur: AgentGenerateurOffre,
         factory: sessionmaker[Session],
-        appel: AppelAProposition,
+        appel: Appel,
     ) -> None:
         modele = _modele(final_message("Aucun document : je ne peux rien extraire."))
 
@@ -415,19 +415,19 @@ class TestBoucleAgent:
             tache = session.scalars(select(AgentTask)).one()
             assert tache.correlation_id == "corr-harness"
             assert tache.payload["mode"] == "deep_agent"
-            assert tache.payload["appel_a_proposition_id"] == str(appel.id)
+            assert tache.payload["appel_id"] == str(appel.id)
 
     def test_outil_de_lecture_expose_les_metadonnees(
-        self, generateur: AgentGenerateurOffre, appel: AppelAProposition
+        self, generateur: AgentGenerateurOffre, appel: Appel
     ) -> None:
         outils = {tool.name: tool for tool in generateur.deep_tools()}
 
-        resultat = outils["read_appel_a_proposition"].invoke(
-            {"appel_a_proposition_id": str(appel.id)}
+        resultat = outils["read_appel"].invoke(
+            {"appel_id": str(appel.id)}
         )
 
         assert resultat["reference"] == "AO-HARNESS-01"
-        assert resultat["statut"] == StatutAppelAProposition.RECU.value
+        assert resultat["statut"] == StatutAppel.RECU.value
         assert resultat["a_une_proposition"] is False
 
 
@@ -444,13 +444,13 @@ class TestInterruptionHumaine:
         self,
         generateur: AgentGenerateurOffre,
         factory: sessionmaker[Session],
-        appel: AppelAProposition,
+        appel: Appel,
     ) -> None:
         checkpointer = MemorySaver()
         modele = _modele(
             tool_call(
                 "submit_rfp_extraction",
-                {"appel_a_proposition_id": str(appel.id), "extraction": EXTRACTION},
+                {"appel_id": str(appel.id), "extraction": EXTRACTION},
             ),
             final_message("Proposition prête."),
         )
@@ -461,7 +461,7 @@ class TestInterruptionHumaine:
 
         assert reponse["warnings"], "une action en attente doit être signalée"
         avant = _appel_relu(factory, appel.id)
-        assert avant.statut == StatutAppelAProposition.RECU.value
+        assert avant.statut == StatutAppel.RECU.value
         assert avant.donnees_extraites is None, "rien n'est écrit avant approbation"
 
         resultat = generateur.resume(
@@ -472,19 +472,19 @@ class TestInterruptionHumaine:
 
         assert resultat["interrompu"] is False
         apres = _appel_relu(factory, appel.id)
-        assert apres.statut == StatutAppelAProposition.PROPOSE.value
+        assert apres.statut == StatutAppel.PROPOSE.value
 
     def test_rejet_humain_n_execute_pas_l_action(
         self,
         generateur: AgentGenerateurOffre,
         factory: sessionmaker[Session],
-        appel: AppelAProposition,
+        appel: Appel,
     ) -> None:
         checkpointer = MemorySaver()
         modele = _modele(
             tool_call(
                 "submit_rfp_extraction",
-                {"appel_a_proposition_id": str(appel.id), "extraction": EXTRACTION},
+                {"appel_id": str(appel.id), "extraction": EXTRACTION},
             ),
             final_message("Proposition prête."),
         )
@@ -500,7 +500,7 @@ class TestInterruptionHumaine:
         )
 
         relu = _appel_relu(factory, appel.id)
-        assert relu.statut == StatutAppelAProposition.RECU.value
+        assert relu.statut == StatutAppel.RECU.value
         assert relu.donnees_extraites is None
 
 

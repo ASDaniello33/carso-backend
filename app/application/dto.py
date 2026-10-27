@@ -59,7 +59,7 @@ class DocumentUploadInput:
     #: métadonnée fournie n'écrase jamais la trace de l'agent proposant.
     doc_metadata: Mapping[str, Any] | None = None
     organisation_id: UUID | None = None
-    appel_a_proposition_id: UUID | None = None
+    appel_id: UUID | None = None
     offre_id: UUID | None = None
     mission_id: UUID | None = None
     equipe_id: UUID | None = None
@@ -88,7 +88,7 @@ class ImportMediaInput:
     url: str
     nom: str | None = None
     organisation_id: UUID | None = None
-    appel_a_proposition_id: UUID | None = None
+    appel_id: UUID | None = None
     offre_id: UUID | None = None
     mission_id: UUID | None = None
     equipe_id: UUID | None = None
@@ -136,7 +136,7 @@ class FicheCorbeille:
     #: Ancres métier conservées : la corbeille se filtre par fiche métier (les
     #: documents supprimés d'une offre) sans rejoindre une seconde source.
     organisation_id: UUID | None = None
-    appel_a_proposition_id: UUID | None = None
+    appel_id: UUID | None = None
     offre_id: UUID | None = None
     mission_id: UUID | None = None
     equipe_id: UUID | None = None
@@ -274,7 +274,7 @@ class MissionDepuisAppelInput:
     l'organisation — on ne lui redemande pas ce que le système sait déjà.
     """
 
-    appel_a_proposition_id: UUID
+    appel_id: UUID
     lot_id: UUID
     reference: str
     titre: str
@@ -295,6 +295,18 @@ class MissionDirecteInput:
     date_debut: date | None = None
     date_fin: date | None = None
     lieu_id: UUID | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class MissionOffresRattachementInput:
+    """Rattachement d'offres approuvées à une mission déjà créée (ADR 0012).
+
+    Une mission peut naître avant que toutes les offres de son lot soient
+    approuvées ; les offres approuvées sont rattachées ensuite, et **seulement**
+    celles du même lot.
+    """
+
+    offre_ids: tuple[UUID, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -391,6 +403,9 @@ class EquipeInput:
     profil: str | None = None
     statut: str | None = None
     role_compte: str | None = None
+    #: Fonction de travail **libre** (secrétaire, responsable RH…) : le
+    #: métier de la personne, ni un droit ni un rôle de mission (ADR 0012).
+    fonction: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -404,15 +419,16 @@ class EquipeUpdateInput:
     profil: str | None = None
     statut: str | None = None
     role_compte: str | None = None
+    fonction: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
-class AppelAPropositionInput:
+class AppelInput:
     """Enregistrement humain d'un appel reçu (instruction/02 §B).
 
     Aucun champ extrait par IA : la référence, le titre et l'organisation
     cliente sont saisis. Le document source se rattache ensuite via
-    ``DocumentService`` (ancre ``appel_a_proposition_id``).
+    ``DocumentService`` (ancre ``appel_id``).
 
     ``type`` : nature de l'appel (appel à proposition ou appel à manifestation
     d'intérêt). ``None`` retombe sur ``APPEL_A_PROPOSITION`` — jamais deviné
@@ -432,7 +448,7 @@ class AppelAPropositionInput:
 class LotInput:
     """Création d'un lot rattaché à un appel à proposition existant (instruction/02 §B)."""
 
-    appel_a_proposition_id: UUID
+    appel_id: UUID
     numero: str
     titre: str
     zone: str | None = None
@@ -446,7 +462,7 @@ class LotInput:
 
 @dataclass(frozen=True, slots=True)
 class LotUpdateInput:
-    """Modification partielle d'un lot (``appel_a_proposition_id`` jamais modifiable)."""
+    """Modification partielle d'un lot (``appel_id`` jamais modifiable)."""
 
     numero: str | None = None
     titre: str | None = None

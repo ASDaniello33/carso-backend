@@ -151,7 +151,7 @@ def test_gestes_http_portent_toujours_un_acteur(
     organisation_id = organisation.json()["id"]
 
     appel = api_client.post(
-        f"{PRÉFIXE}/appels-a-proposition/",
+        f"{PRÉFIXE}/appels/",
         json={
             "organisation_id": organisation_id,
             "type": "appel_a_proposition",
@@ -161,7 +161,7 @@ def test_gestes_http_portent_toujours_un_acteur(
     )
     assert appel.status_code == 201, appel.text
     extraction = api_client.post(
-        f"{PRÉFIXE}/appels-a-proposition/{appel.json()['id']}/extraction",
+        f"{PRÉFIXE}/appels/{appel.json()['id']}/extraction",
         json={
             "donnees_extraites": {"titre": "Extrait"},
             "proposed_by_agent": "agent_generateur_offre",
@@ -258,7 +258,7 @@ def test_le_demandeur_est_le_compte_authentifie_pas_un_identifiant_de_corps(
         f"{PRÉFIXE}/organisations/", json={"nom": "Client Y"}
     ).json()
     appel = api_client.post(
-        f"{PRÉFIXE}/appels-a-proposition/",
+        f"{PRÉFIXE}/appels/",
         json={
             "organisation_id": organisation["id"],
             "type": "appel_a_proposition",
@@ -267,7 +267,7 @@ def test_le_demandeur_est_le_compte_authentifie_pas_un_identifiant_de_corps(
         },
     ).json()
     api_client.post(
-        f"{PRÉFIXE}/appels-a-proposition/{appel['id']}/extraction",
+        f"{PRÉFIXE}/appels/{appel['id']}/extraction",
         json={
             "donnees_extraites": {"titre": "Extrait"},
             "proposed_by_agent": "agent_generateur_offre",

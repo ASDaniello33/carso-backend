@@ -34,7 +34,16 @@ from app.infrastructure.repositories import EquipeRepository
 
 _ENTITY = "equipe"
 
-_CHAMPS = ("nom", "prenom", "email", "telephone", "profil", "statut", "role_compte")
+_CHAMPS = (
+    "nom",
+    "prenom",
+    "email",
+    "telephone",
+    "profil",
+    "statut",
+    "role_compte",
+    "fonction",
+)
 
 
 class EquipeService:
@@ -77,6 +86,7 @@ class EquipeService:
             profil=entree.profil,
             statut=entree.statut or StatutEquipe.ACTIF.value,
             role_compte=entree.role_compte,
+            fonction=entree.fonction,
         )
         self.equipes.add(equipe)
         self._session.flush()

@@ -28,7 +28,7 @@ from app.domain.enums import (
     TypeOffre,
 )
 from app.domain.execution import Mission
-from app.domain.organization import AppelAProposition, Lot, Offre, Organisation
+from app.domain.organization import Appel, Lot, Offre, Organisation
 from tests.conftest import seed
 from tests.document_fixtures import build_docx, build_pdf
 
@@ -58,7 +58,7 @@ class Donnees:
     """Ancres métier disponibles pour les dépôts documentaires."""
 
     organisation: Organisation
-    appel: AppelAProposition
+    appel: Appel
     mission: Mission
 
 
@@ -66,14 +66,14 @@ class Donnees:
 def donnees(api_session_factory: sessionmaker[Session]) -> Donnees:
     organisation = Organisation(nom="Client Documents")
     seed(api_session_factory, organisation)
-    appel = AppelAProposition(
+    appel = Appel(
         organisation_id=organisation.id, reference="AO-DOC-01", titre="Formation"
     )
     mission = Mission(
         organisation_id=organisation.id,
         reference="M-DOC-01",
         titre="Mission documents",
-        statut=StatutMission.PLANIFIEE.value,
+        statut=StatutMission.PLANIFIE.value,
     )
     seed(api_session_factory, appel, mission)
     return Donnees(organisation=organisation, appel=appel, mission=mission)
@@ -125,11 +125,11 @@ def test_import_manuel_du_document_d_offre(
     approbation) puis suit la règle de suppression logique : disparu de la fiche
     offre, conservé dans le référentiel documentaire.
     """
-    lot = Lot(appel_a_proposition_id=donnees.appel.id, numero="1", titre="Lot 1")
+    lot = Lot(appel_id=donnees.appel.id, numero="1", titre="Lot 1")
     seed(api_session_factory, lot)
     offre = Offre(
         organisation_id=donnees.organisation.id,
-        appel_a_proposition_id=donnees.appel.id,
+        appel_id=donnees.appel.id,
         lot_id=lot.id,
         type=TypeOffre.OFFRE_TECHNIQUE.value,
         reference="O-DOC-01",

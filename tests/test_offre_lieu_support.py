@@ -24,13 +24,13 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql.ddl import CreateColumn
 
 from app.application.dto import (
-    AppelAPropositionInput,
+    AppelInput,
     LieuInput,
     MissionDepuisOffresInput,
     SupportFormationInput,
 )
 from app.application.services import (
-    AppelAPropositionService,
+    AppelService,
     LieuService,
     MissionService,
     OffreService,
@@ -48,7 +48,7 @@ from app.domain.enums import (
     est_formateur,
 )
 from app.domain.execution import AffectationEquipe, Equipe, Mission
-from app.domain.organization import AppelAProposition, Lot, Offre, Organisation
+from app.domain.organization import Appel, Lot, Offre, Organisation
 
 
 @compiles(JSONB, "sqlite")
@@ -77,12 +77,12 @@ def session() -> Iterator[Session]:
 
 def _appel_valide(
     session: Session, *, type_appel: str = TypeAppel.APPEL_A_PROPOSITION.value
-) -> AppelAProposition:
+) -> Appel:
     org = Organisation(nom="Client")
     session.add(org)
     session.flush()
-    appel = AppelAPropositionService(session).enregistrer(
-        AppelAPropositionInput(
+    appel = AppelService(session).enregistrer(
+        AppelInput(
             organisation_id=org.id,
             reference="AO-2026-01",
             titre="Appel test",
@@ -93,8 +93,8 @@ def _appel_valide(
     return appel
 
 
-def _lot(session: Session, appel: AppelAProposition, numero: str = "1") -> Lot:
-    lot = Lot(appel_a_proposition_id=appel.id, numero=numero, titre=f"Lot {numero}")
+def _lot(session: Session, appel: Appel, numero: str = "1") -> Lot:
+    lot = Lot(appel_id=appel.id, numero=numero, titre=f"Lot {numero}")
     session.add(lot)
     session.flush()
     return lot
@@ -141,7 +141,7 @@ class TestOffreType:
         offre = _offre(session, lot, offre_type=TypeOffre.OFFRE_FINANCIERE.value)
 
         assert offre.type == TypeOffre.OFFRE_FINANCIERE.value
-        assert offre.appel_a_proposition_id == appel.id
+        assert offre.appel_id == appel.id
         assert offre.lot_id == lot.id
 
     def test_un_lot_porte_technique_et_financiere(self, session: Session) -> None:
@@ -180,8 +180,8 @@ class TestOffreType:
 
     def test_appel_incoherent_refuse(self, session: Session) -> None:
         appel = _appel_valide(session)
-        autre = AppelAPropositionService(session).enregistrer(
-            AppelAPropositionInput(
+        autre = AppelService(session).enregistrer(
+            AppelInput(
                 organisation_id=appel.organisation_id,
                 reference="AO-2",
                 titre="Autre appel",
@@ -194,7 +194,7 @@ class TestOffreType:
                 "OF-X",
                 "Offre",
                 type=TypeOffre.OFFRE_TECHNIQUE.value,
-                appel_a_proposition_id=autre.id,
+                appel_id=autre.id,
             )
 
     def test_lot_manuel_sur_appel_recu_autorise(self, session: Session) -> None:
@@ -203,13 +203,13 @@ class TestOffreType:
         lot = _lot(session, appel)
         offre = _offre(session, lot)
         assert offre.lot_id == lot.id
-        assert offre.appel_a_proposition_id == appel.id
+        assert offre.appel_id == appel.id
 
     def test_appel_rejete_refuse_le_brouillon(self, session: Session) -> None:
         """Un appel rejeté ne reçoit plus d'offre, même si un lot existe."""
         appel = _appel_valide(session)
         lot = _lot(session, appel)
-        AppelAPropositionService(session).rejeter_appel(appel.id, _decision())
+        AppelService(session).rejeter_appel(appel.id, _decision())
         with pytest.raises(ValidationError, match="appel rejeté"):
             _offre(session, lot)
 
@@ -238,8 +238,8 @@ class TestTypeAppel:
         session.add(org)
         session.flush()
         with pytest.raises(ValidationError, match="Type d'appel inconnu"):
-            AppelAPropositionService(session).enregistrer(
-                AppelAPropositionInput(
+            AppelService(session).enregistrer(
+                AppelInput(
                     organisation_id=org.id,
                     reference="AO-X",
                     titre="Appel",

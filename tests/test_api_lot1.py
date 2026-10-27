@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.domain.enums import StatutMission
 from app.domain.execution import Mission
-from app.domain.organization import AppelAProposition, Organisation
+from app.domain.organization import Appel, Organisation
 from tests.conftest import seed
 
 
@@ -61,10 +61,10 @@ def test_equipe_crud(api_client: TestClient, api_session_factory) -> None:
     assert api_client.get(f"/api/v1/equipes/{uuid4()}").status_code == 404
 
 
-def _seed_appel(factory: sessionmaker[Session]) -> AppelAProposition:
+def _seed_appel(factory: sessionmaker[Session]) -> Appel:
     org = Organisation(nom="Client Lots")
     seed(factory, org)
-    appel = AppelAProposition(organisation_id=org.id, reference="AO-LOT1-API", titre="Appel lots")
+    appel = Appel(organisation_id=org.id, reference="AO-LOT1-API", titre="Appel lots")
     seed(factory, appel)
     return appel
 
@@ -73,31 +73,31 @@ def test_lots_crud(api_client: TestClient, api_session_factory) -> None:
     appel = _seed_appel(api_session_factory)
 
     cree = api_client.post(
-        f"/api/v1/appels-a-proposition/{appel.id}/lots/",
+        f"/api/v1/appels/{appel.id}/lots/",
         json={"numero": "1", "titre": "Lot 1"},
     )
     assert cree.status_code == 201, cree.text
     lot_id = cree.json()["id"]
 
     doublon = api_client.post(
-        f"/api/v1/appels-a-proposition/{appel.id}/lots/",
+        f"/api/v1/appels/{appel.id}/lots/",
         json={"numero": "1", "titre": "Doublon"},
     )
     assert doublon.status_code == 409
 
-    liste = api_client.get(f"/api/v1/appels-a-proposition/{appel.id}/lots/")
+    liste = api_client.get(f"/api/v1/appels/{appel.id}/lots/")
     assert liste.status_code == 200
     assert len(liste.json()) == 1
 
     modifie = api_client.patch(
-        f"/api/v1/appels-a-proposition/{appel.id}/lots/{lot_id}",
+        f"/api/v1/appels/{appel.id}/lots/{lot_id}",
         json={"titre": "Lot 1 bis"},
     )
     assert modifie.status_code == 200
     assert modifie.json()["titre"] == "Lot 1 bis"
 
-    lot_absent = api_client.get(f"/api/v1/appels-a-proposition/{appel.id}/lots/{uuid4()}")
-    appel_absent = api_client.get(f"/api/v1/appels-a-proposition/{uuid4()}/lots/")
+    lot_absent = api_client.get(f"/api/v1/appels/{appel.id}/lots/{uuid4()}")
+    appel_absent = api_client.get(f"/api/v1/appels/{uuid4()}/lots/")
     assert lot_absent.status_code == 404
     assert appel_absent.status_code == 404
 
@@ -128,7 +128,7 @@ def _seed_mission(factory: sessionmaker[Session]) -> Mission:
         titre="Mission",
         date_debut=date(2026, 9, 1),
         date_fin=date(2026, 9, 5),
-        statut=StatutMission.PLANIFIEE.value,
+        statut=StatutMission.PLANIFIE.value,
     )
     seed(factory, mission)
     return mission
@@ -137,25 +137,40 @@ def _seed_mission(factory: sessionmaker[Session]) -> Mission:
 def test_sessions_et_participations(api_client: TestClient, api_session_factory) -> None:
     mission = _seed_mission(api_session_factory)
 
+    # Création manuelle (chemin exceptionnel, ADR 0012) : session « en
+    # planification », à confirmer ensuite.
     cree = api_client.post(
         f"/api/v1/missions/{mission.id}/sessions",
         json={"theme": "Atelier", "date_debut": "2026-09-01", "date_fin": "2026-09-05"},
     )
     assert cree.status_code == 201, cree.text
     session_id = cree.json()["id"]
-    assert cree.json()["statut"] == "planifiee"
+    assert cree.json()["statut"] == "en_planification"
 
     liste = api_client.get(f"/api/v1/missions/{mission.id}/sessions")
     assert len(liste.json()) == 1
 
     confirme = api_client.post(
-        f"/api/v1/sessions/{session_id}/statut", json={"statut": "confirmee"}
+        f"/api/v1/sessions/{session_id}/statut", json={"statut": "planifie"}
     )
     assert confirme.status_code == 200
-    assert confirme.json()["statut"] == "confirmee"
+    assert confirme.json()["statut"] == "planifie"
 
-    illegal = api_client.post(f"/api/v1/sessions/{session_id}/statut", json={"statut": "planifiee"})
+    # 1 mission → 1 session : une seconde création est refusée.
+    seconde = api_client.post(
+        f"/api/v1/missions/{mission.id}/sessions", json={"theme": "Bis"}
+    )
+    assert seconde.status_code == 409
+
+    # Re-confirmer une session déjà planifiée : interdit par la machine.
+    illegal = api_client.post(f"/api/v1/sessions/{session_id}/statut", json={"statut": "planifie"})
     assert illegal.status_code == 409
+
+    # Les statuts automatiques ne se saisissent pas (ADR 0012).
+    automatique = api_client.post(
+        f"/api/v1/sessions/{session_id}/statut", json={"statut": "en_cours"}
+    )
+    assert automatique.status_code == 422
 
     ben = api_client.post("/api/v1/beneficiaires/", json={"nom": "Tazi", "prenom": "Sara"}).json()
     inscrite = api_client.post(
@@ -210,14 +225,23 @@ def test_missions_routes(api_client: TestClient, api_session_factory) -> None:
     mission_id = cree.json()["id"]
 
     assert api_client.get(f"/api/v1/missions/{mission_id}").status_code == 200
+    assert cree.json()["lot_id"] is None  # prestation directe, identifiée comme telle
 
-    change = api_client.post(
-        f"/api/v1/missions/{mission_id}/statut", json={"statut": "en_preparation"}
+    # « En cours » et « Clôturé » sont automatiques : les saisir est refusé.
+    automatique = api_client.post(
+        f"/api/v1/missions/{mission_id}/statut", json={"statut": "en_cours"}
     )
-    assert change.status_code == 200
-    assert change.json()["statut"] == "en_preparation"
+    assert automatique.status_code == 422
 
-    liste = api_client.get("/api/v1/missions/", params={"statut": "en_preparation"})
-    assert len(liste.json()) == 1
+    # La planification exige des dates (ADR 0012) : sans elles, 422.
+    sans_dates = api_client.post(f"/api/v1/missions/{mission_id}/planification")
+    assert sans_dates.status_code == 422
+
+    # Annulation manuelle : la mission passe à « annulé ».
+    annule = api_client.post(
+        f"/api/v1/missions/{mission_id}/annulation", json={"motif": "Annulé test"}
+    )
+    assert annule.status_code == 200
+    assert annule.json()["statut"] == "annule"
 
     assert api_client.get(f"/api/v1/missions/{uuid4()}").status_code == 404

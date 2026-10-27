@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.application.services.tableau_bord_service import TableauBordService
 from app.domain.enums import (
-    StatutAppelAProposition,
+    StatutAppel,
     StatutMission,
     StatutOffre,
     StatutSessionFormation,
@@ -28,7 +28,7 @@ from app.domain.enums import (
 )
 from app.domain.execution import Mission, SessionFormation
 from app.domain.identity import Utilisateur
-from app.domain.organization import AppelAProposition, Lot, Offre, Organisation
+from app.domain.organization import Appel, Lot, Offre, Organisation
 from tests.conftest import seed
 
 
@@ -38,8 +38,8 @@ def _organisation(**surcharge: object) -> Organisation:
     return Organisation(**champs)
 
 
-def _appel(organisation_id: UUID, statut: str) -> AppelAProposition:
-    return AppelAProposition(
+def _appel(organisation_id: UUID, statut: str) -> Appel:
+    return Appel(
         organisation_id=organisation_id,
         reference=f"AP-{uuid4().hex[:6].upper()}",
         titre="Appel de test",
@@ -48,7 +48,7 @@ def _appel(organisation_id: UUID, statut: str) -> AppelAProposition:
 
 
 def _lot(appel_id: UUID) -> Lot:
-    return Lot(appel_a_proposition_id=appel_id, numero="1", titre="Lot 1")
+    return Lot(appel_id=appel_id, numero="1", titre="Lot 1")
 
 
 def _offre(
@@ -56,7 +56,7 @@ def _offre(
 ) -> Offre:
     return Offre(
         organisation_id=organisation_id,
-        appel_a_proposition_id=appel_id,
+        appel_id=appel_id,
         lot_id=lot_id,
         type="offre_technique",
         reference=f"OFF-{uuid4().hex[:6].upper()}",
@@ -94,9 +94,9 @@ def test_base_vide_renvoie_des_zeros(api_session_factory) -> None:
     finally:
         session.close()
 
-    assert apercu["compteurs"]["appels"] == {s.value: 0 for s in StatutAppelAProposition}
+    assert apercu["compteurs"]["appels"] == {s.value: 0 for s in StatutAppel}
     assert apercu["compteurs"]["offres"]["brouillon"] == 0
-    assert apercu["compteurs"]["missions"]["planifiee"] == 0
+    assert apercu["compteurs"]["missions"]["en_planification"] == 0
     assert apercu["compteurs"]["organisations"] == {"total": 0}
     assert apercu["alertes"] == []
     assert apercu["activite_recente"] == []
@@ -106,15 +106,15 @@ def test_compteurs_refletent_les_donnees(api_session_factory) -> None:
     orga = _organisation()
     seed(api_session_factory, orga)
 
-    appel_recu = _appel(orga.id, StatutAppelAProposition.RECU.value)
-    appel_valide = _appel(orga.id, StatutAppelAProposition.VALIDE.value)
+    appel_recu = _appel(orga.id, StatutAppel.RECU.value)
+    appel_valide = _appel(orga.id, StatutAppel.VALIDE.value)
     seed(api_session_factory, appel_recu, appel_valide)
 
     mission = _mission(orga.id, StatutMission.EN_COURS.value)
     seed(api_session_factory, mission)
 
     session_formation = _session_formation(
-        mission.id, 3, StatutSessionFormation.CONFIRMEE.value
+        mission.id, 3, StatutSessionFormation.PLANIFIE.value
     )
     seed(api_session_factory, session_formation)
 
@@ -127,14 +127,14 @@ def test_compteurs_refletent_les_donnees(api_session_factory) -> None:
     assert apercu["compteurs"]["appels"]["recu"] == 1
     assert apercu["compteurs"]["appels"]["valide"] == 1
     assert apercu["compteurs"]["missions"]["en_cours"] == 1
-    assert apercu["compteurs"]["sessions"]["confirmee"] == 1
+    assert apercu["compteurs"]["sessions"]["planifie"] == 1
     assert apercu["compteurs"]["organisations"] == {"total": 1}
 
 
 def test_alertes_offres_et_inscriptions(api_session_factory) -> None:
     orga = _organisation()
     seed(api_session_factory, orga)
-    appel = _appel(orga.id, StatutAppelAProposition.RECU.value)
+    appel = _appel(orga.id, StatutAppel.RECU.value)
     seed(api_session_factory, appel)
     lot = _lot(appel.id)
     seed(api_session_factory, lot)
@@ -168,7 +168,7 @@ def test_alerte_session_a_venir_dans_7_jours(api_session_factory) -> None:
     mission = _mission(orga.id, StatutMission.EN_COURS.value)
     seed(api_session_factory, mission)
     session_formation = _session_formation(
-        mission.id, 3, StatutSessionFormation.PLANIFIEE.value
+        mission.id, 3, StatutSessionFormation.PLANIFIE.value
     )
     seed(api_session_factory, session_formation)
 
@@ -188,7 +188,7 @@ def test_session_loin_na_pas_dalerte(api_session_factory) -> None:
     seed(api_session_factory, orga)
     mission = _mission(orga.id, StatutMission.EN_COURS.value)
     seed(api_session_factory, mission)
-    loin = _session_formation(mission.id, 30, StatutSessionFormation.PLANIFIEE.value)
+    loin = _session_formation(mission.id, 30, StatutSessionFormation.PLANIFIE.value)
     seed(api_session_factory, loin)
 
     session = api_session_factory()
@@ -203,7 +203,7 @@ def test_session_loin_na_pas_dalerte(api_session_factory) -> None:
 def test_activite_recente_triee_et_plafonnee(api_session_factory) -> None:
     orga = _organisation()
     seed(api_session_factory, orga)
-    missions = [_mission(orga.id, StatutMission.PLANIFIEE.value) for _ in range(8)]
+    missions = [_mission(orga.id, StatutMission.PLANIFIE.value) for _ in range(8)]
     seed(api_session_factory, *missions)
 
     session = api_session_factory()

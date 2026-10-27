@@ -80,7 +80,7 @@ DEFINITION = AgentDefinition(
         "rechercher_lieu",
         "calculer_itineraire",
         "search_organisations",
-        "search_appels_a_proposition",
+        "search_appels",
         "search_lots",
         "search_offres",
         "search_missions",
@@ -169,7 +169,7 @@ class AgentGeneralisteReadOnly:
         )
         try:
             from app.agents.consultation import (
-                rechercher_appels_a_proposition,
+                rechercher_appels,
                 rechercher_documents,
                 rechercher_equipes,
                 rechercher_missions,
@@ -184,7 +184,7 @@ class AgentGeneralisteReadOnly:
             resultat = {
                 "question": entree.question,
                 **rechercher_organisations(session, dict(bornes)),
-                **rechercher_appels_a_proposition(session, dict(bornes)),
+                **rechercher_appels(session, dict(bornes)),
                 **rechercher_missions(session, dict(bornes)),
                 **rechercher_equipes(session, dict(bornes)),
                 **rechercher_documents(session, dict(bornes)),

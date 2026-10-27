@@ -105,7 +105,7 @@ def _session_formation(
         theme="Atelier",
         date_debut=debut,
         date_fin=fin,
-        statut=StatutSessionFormation.PLANIFIEE.value,
+        statut=StatutSessionFormation.PLANIFIE.value,
     )
     session.add(formation)
     session.flush()

@@ -25,7 +25,7 @@ def _seed_mission(factory: sessionmaker[Session], reference: str = "M-RH-API-1")
         organisation_id=org.id,
         reference=reference,
         titre="Mission RH API",
-        statut=StatutMission.PLANIFIEE.value,
+        statut=StatutMission.PLANIFIE.value,
     )
     seed(factory, mission)
     return mission
@@ -120,7 +120,7 @@ def test_proposition_agent_rh_mission_cloturee_409(
         organisation_id=org.id,
         reference="M-RH-API-2",
         titre="Mission close",
-        statut=StatutMission.CLOTUREE.value,
+        statut=StatutMission.CLOTURE.value,
     )
     seed(api_session_factory, mission)
     seed(api_session_factory, Equipe(nom="Diallo", prenom="Ali", profil="formateur"))

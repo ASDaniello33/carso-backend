@@ -24,7 +24,7 @@ class TypeAppel(StrEnum):
     AUTRE = "autre"
 
 
-class StatutAppelAProposition(StrEnum):
+class StatutAppel(StrEnum):
     """Phase 2 §3 : recu → en_analyse → propose → corrige → valide (→ rejete)."""
 
     RECU = "recu"
@@ -118,21 +118,36 @@ def est_role_mission_valide(role: str | None) -> bool:
 
 
 class StatutMission(StrEnum):
-    """Phase 2 §3 : planifiee → en_preparation → en_cours → cloturee."""
+    """Cycle de vie d'une mission (ADR 0012, validé avec CARSO le 26/10).
 
-    PLANIFIEE = "planifiee"
-    EN_PREPARATION = "en_preparation"
+    ``en_planification`` → ``planifie`` : action humaine « Planifier », qui
+    **crée la session** de la mission. ``en_cours`` et ``cloture`` sont
+    appliqués automatiquement par le balayage de cycle de vie, jamais saisis.
+    ``annule`` est une décision humaine de l'équipe interne ; elle annule aussi
+    la session.
+    """
+
+    EN_PLANIFICATION = "en_planification"
+    PLANIFIE = "planifie"
     EN_COURS = "en_cours"
-    CLOTUREE = "cloturee"
+    CLOTURE = "cloture"
+    ANNULE = "annule"
 
 
 class StatutSessionFormation(StrEnum):
-    """Phase 2 §3 : planifiee → confirmee → realisee → annulee."""
+    """Cycle de vie d'une session (ADR 0012).
 
-    PLANIFIEE = "planifiee"
-    CONFIRMEE = "confirmee"
-    REALISEE = "realisee"
-    ANNULEE = "annulee"
+    La session naît ``planifie`` quand c'est la planification de la mission qui
+    la crée. ``en_planification`` ne sert qu'à une session créée à la main, que
+    l'équipe interne confirme ensuite. ``en_cours`` (jour J) et ``cloture``
+    (fin dépassée) sont automatiques ; ``annule`` annule aussi la mission.
+    """
+
+    EN_PLANIFICATION = "en_planification"
+    PLANIFIE = "planifie"
+    EN_COURS = "en_cours"
+    CLOTURE = "cloture"
+    ANNULE = "annule"
 
 
 class StatutEquipe(StrEnum):
@@ -192,6 +207,12 @@ class StatutDocument(StrEnum):
     # soit **généré** (par l'assistant formateur ou l'outil de génération),
     # soit **importé** (déposé manuellement par le formateur). Les deux
     # restent supprimables/archivables et peuvent être approuvés.
+    #
+    # **CV et documents d'appel** (règle CARSO 26/10) : pas non plus de cycle
+    # de décision — un CV ou une pièce d'appel déposée par un humain naît
+    # ``importe``, puis devient ``archived`` ou ``supprime`` selon son cycle
+    # de vie, jamais ``draft``. Le dépôt d'un **agent** reste ``proposed`` :
+    # la règle 6 [C] n'est pas contournée.
     GENERE = "genere"
     IMPORTE = "importe"
 
@@ -368,8 +389,16 @@ class ActionAudit(StrEnum):
     MISSION_CREEE = "mission.creee"
     MISSION_MODIFIEE = "mission.modifiee"
     MISSION_STATUT_CHANGE = "mission.statut_change"
+    #: Passage explicite à « Planifié » : crée la session dans la même
+    #: transaction (ADR 0012). Distinct d'un simple changement de statut.
+    MISSION_PLANIFIEE = "mission.planifiee"
+    #: Rattachement / retrait d'offres approuvées du même lot (mission née
+    #: avant l'approbation de toutes ses offres).
+    MISSION_OFFRES_RATTACHEES = "mission.offres_rattachees"
     SESSION_PLANIFIEE = "session.planifiee"
     SESSION_STATUT_CHANGE = "session.statut_change"
+    #: Session créée automatiquement par la planification d'une mission.
+    SESSION_CREEE = "session.creee"
     # Archivage : décision humaine tracée sans Approbation (ce n'est pas une
     # approbation de proposition) et sans destruction de fichier.
     DOCUMENT_ARCHIVE = "document.archive"
@@ -459,6 +488,9 @@ class ActionAudit(StrEnum):
     SESSION_MODIFIEE = "session.modifiee"
     PARTICIPATION_RETIREE = "participation.retiree"
     DOCUMENT_METADONNEES_MODIFIEES = "document.metadonnees_modifiees"
+    #: Bascule privé ↔ public d'un document personnel (ADR 0013). Réservée au
+    #: propriétaire et à l'administration ; n'a de sens que sans ancre métier.
+    DOCUMENT_VISIBILITE_MODIFIEE = "document.visibilite_modifiee"
     SUPPRESSION_EFFECTUEE = "suppression.effectuee"
     SURCHARGE_AGENT_MODIFIEE = "surcharge_agent.modifiee"
     # Agent personnel (10/10) : un compte règle **son** agent — instructions

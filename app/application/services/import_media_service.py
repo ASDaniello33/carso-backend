@@ -131,7 +131,7 @@ class ImportMediaService:
                 # comptes restreints de son périmètre. Sans elle, le service
                 # documentaire impose ``non_classe`` sous ``generated/{id}/``.
                 organisation_id=entree.organisation_id,
-                appel_a_proposition_id=entree.appel_a_proposition_id,
+                appel_id=entree.appel_id,
                 offre_id=entree.offre_id,
                 mission_id=entree.mission_id,
                 equipe_id=entree.equipe_id,

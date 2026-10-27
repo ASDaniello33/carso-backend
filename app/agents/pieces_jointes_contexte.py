@@ -36,7 +36,7 @@ _RE_DOCUMENT_ID = re.compile(
 )
 
 _ANCRES: tuple[tuple[str, str], ...] = (
-    ("appel_a_proposition_id", "appel à proposition"),
+    ("appel_id", "appel"),
     ("offre_id", "offre"),
     ("mission_id", "mission"),
     ("equipe_id", "équipe"),

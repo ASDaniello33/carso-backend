@@ -14,6 +14,8 @@ Règles appliquées :
 
 from uuid import UUID
 
+from sqlalchemy import select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.application.dto import AffectationProposee
@@ -39,7 +41,7 @@ from app.infrastructure.repositories import (
 )
 
 _ENTITY = "affectation_equipe"
-_MISSIONS_STAFFABLES = {StatutMission.PLANIFIEE, StatutMission.EN_PREPARATION}
+_MISSIONS_STAFFABLES = {StatutMission.EN_PLANIFICATION, StatutMission.PLANIFIE}
 
 
 class AffectationService:
@@ -66,6 +68,12 @@ class AffectationService:
 
         if self.equipes.get(proposal.equipe_id) is None:
             raise NotFoundError(f"Membre d'équipe {proposal.equipe_id} introuvable")
+
+        # Disponibilité **calculée** (ADR 0012) : une personne approuvée sur une
+        # mission dont les dates chevauchent celles-ci est indisponible. Une
+        # mission sans dates n'est pas évaluable — le contrôle ne s'applique
+        # pas (documenté), jamais de blocage inventé.
+        self._verifier_disponibilite(mission, proposal.equipe_id)
 
         source = proposal.source
         if source not in {SourceAffectation.MANUAL.value, SourceAffectation.AI_PROPOSAL.value}:
@@ -114,8 +122,11 @@ class AffectationService:
         affectation = self._get(affectation_id)
         current = self._current_statut(affectation)
         validate_transition(_ENTITY, current, StatutAffectation.APPROUVEE.value)
+        # Re-contrôle à l'approbation : entre la proposition et la décision,
+        # une autre affectation a pu être approuvée sur les mêmes dates.
+        self._verifier_disponibilite(affectation.mission, affectation.equipe_id)
 
-        affectation.statut = StatutAffectation.APPROUVEE
+        affectation.statut = StatutAffectation.APPROUVEE.value
         affectation.approved_by = decision.decided_by
         self._trace.record_decision(
             entity_type=_ENTITY,
@@ -142,7 +153,7 @@ class AffectationService:
         current = self._current_statut(affectation)
         validate_transition(_ENTITY, current, StatutAffectation.REFUSEE.value)
 
-        affectation.statut = StatutAffectation.REFUSEE
+        affectation.statut = StatutAffectation.REFUSEE.value
         self._trace.record_decision(
             entity_type=_ENTITY,
             entity_id=affectation.id,
@@ -328,6 +339,68 @@ class AffectationService:
         return affectation
 
     # --- internes ---------------------------------------------------------
+
+    def _verifier_disponibilite(
+        self, mission: Mission, equipe_id: UUID, *, sauf_affectation_id: UUID | None = None
+    ) -> None:
+        """Refuse l'affectation si la personne est déjà en mission aux mêmes dates.
+
+        Règle validée (ADR 0012) : la disponibilité est **calculée**, jamais
+        stockée. Source unique : les affectations **approuvées** de la même
+        personne, sur des missions **non annulées**, dont les **dates de
+        mission** se chevauchent — ``début ≤ autre.fin`` et ``fin ≥ autre
+        début`` (bornes incluses : deux missions qui se touchent le même jour
+        se chevauchent).
+
+        Une mission sans dates n'est pas évaluable : le contrôle ne
+        s'applique pas, et ce cas est documenté — aucun droit n'est inventé.
+
+        Raises:
+            ConflictError: conflit de disponibilité, avec les missions en
+                cause (référence et dates) pour un message actionnable.
+        """
+        if mission.date_debut is None or mission.date_fin is None:
+            return
+        criteres = [
+            AffectationEquipe.equipe_id == equipe_id,
+            AffectationEquipe.statut == StatutAffectation.APPROUVEE.value,
+            AffectationEquipe.mission_id != mission.id,
+            Mission.statut != StatutMission.ANNULE.value,
+            Mission.date_debut.is_not(None),
+            Mission.date_fin.is_not(None),
+            Mission.date_debut <= mission.date_fin,
+            Mission.date_fin >= mission.date_debut,
+        ]
+        if sauf_affectation_id is not None:
+            criteres.append(AffectationEquipe.id != sauf_affectation_id)
+        occupees = self._session.execute(
+            select(AffectationEquipe, Mission)
+            .join(Mission, AffectationEquipe.mission_id == Mission.id)
+            .where(*criteres)
+        ).all()
+        if not occupees:
+            return
+        raise ConflictError(
+            "Cette personne n'est pas disponible : elle est déjà affectée "
+            "(approuvée) à une mission dont les dates chevauchent celle-ci.",
+            details={
+                "equipe_id": str(equipe_id),
+                "mission": str(mission.id),
+                "periode": {
+                    "date_debut": str(mission.date_debut),
+                    "date_fin": str(mission.date_fin),
+                },
+                "missions_en_conflit": [
+                    {
+                        "reference": m.reference,
+                        "titre": m.titre,
+                        "date_debut": str(m.date_debut),
+                        "date_fin": str(m.date_fin),
+                    }
+                    for _, m in occupees
+                ],
+            },
+        )
 
     def _get_mission(self, mission_id: UUID) -> Mission:
         mission = self.missions.get(mission_id)

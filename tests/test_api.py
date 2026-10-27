@@ -19,11 +19,11 @@ from app.domain.document import Approbation, AuditEvent
 from app.domain.enums import (
     ActionAudit,
     StatutAffectation,
-    StatutAppelAProposition,
+    StatutAppel,
     StatutMission,
 )
 from app.domain.execution import Equipe, Mission
-from app.domain.organization import AppelAProposition, Budget, Lot, Organisation
+from app.domain.organization import Appel, Budget, Lot, Organisation
 from tests.conftest import seed
 
 
@@ -40,17 +40,17 @@ def _seed_org(factory: sessionmaker[Session]) -> Organisation:
     return org
 
 
-def _seed_appel(factory: sessionmaker[Session]) -> AppelAProposition:
+def _seed_appel(factory: sessionmaker[Session]) -> Appel:
     org = _seed_org(factory)
-    appel = AppelAProposition(
+    appel = Appel(
         organisation_id=org.id, reference=f"AO-API-{uuid4().hex[:8]}", titre="Formation API"
     )
     seed(factory, appel)
     return appel
 
 
-def _seed_lot(factory: sessionmaker[Session], appel: AppelAProposition) -> Lot:
-    lot = Lot(appel_a_proposition_id=appel.id, numero="1", titre="Lot 1")
+def _seed_lot(factory: sessionmaker[Session], appel: Appel) -> Lot:
+    lot = Lot(appel_id=appel.id, numero="1", titre="Lot 1")
     seed(factory, lot)
     return lot
 
@@ -80,7 +80,7 @@ def _seed_mission(factory: sessionmaker[Session]) -> Mission:
         organisation_id=org.id,
         reference="M-API-01",
         titre="Mission API",
-        statut=StatutMission.PLANIFIEE.value,
+        statut=StatutMission.PLANIFIE.value,
     )
     seed(factory, mission)
     return mission
@@ -105,7 +105,7 @@ def test_health_ok(client: TestClient) -> None:
 
 
 def test_get_appel_inexistant_404(api_client: TestClient) -> None:
-    resp = api_client.get(f"/api/v1/appels-a-proposition/{uuid4()}")
+    resp = api_client.get(f"/api/v1/appels/{uuid4()}")
     assert resp.status_code == 404
     assert resp.json()["error"]["code"] == "not_found"
 
@@ -113,12 +113,12 @@ def test_get_appel_inexistant_404(api_client: TestClient) -> None:
 def test_get_appel_existant(api_client: TestClient, session_factory) -> None:
     appel = _seed_appel(session_factory)
 
-    resp = api_client.get(f"/api/v1/appels-a-proposition/{appel.id}")
+    resp = api_client.get(f"/api/v1/appels/{appel.id}")
 
     assert resp.status_code == 200
     body = resp.json()
     assert body["reference"] == appel.reference
-    assert body["statut"] == StatutAppelAProposition.RECU.value
+    assert body["statut"] == StatutAppel.RECU.value
 
 
 def test_flux_extraction_et_validation(api_client: TestClient, session_factory) -> None:
@@ -126,36 +126,36 @@ def test_flux_extraction_et_validation(api_client: TestClient, session_factory) 
     appel = _seed_appel(session_factory)
 
     propose = api_client.post(
-        f"/api/v1/appels-a-proposition/{appel.id}/extraction",
+        f"/api/v1/appels/{appel.id}/extraction",
         json={
             # Un lot exploitable demande numéro **et** titre : sans titre, la
             # validation n'officialiserait rien (elle est refusée, 409).
             "donnees_extraites": {"lots": [{"numero": "1", "titre": "Lot 1"}]},
-            "proposed_by_agent": "AgentAnalyseurAppelAProposition",
+            "proposed_by_agent": "AgentAnalyseurAppel",
         },
     )
     assert propose.status_code == 202
-    assert propose.json()["statut"] == StatutAppelAProposition.PROPOSE.value
+    assert propose.json()["statut"] == StatutAppel.PROPOSE.value
 
     validation = api_client.post(
-        f"/api/v1/appels-a-proposition/{appel.id}/validation",
+        f"/api/v1/appels/{appel.id}/validation",
         json={"decision": "approuve", "reason": "ok"},
     )
     assert validation.status_code == 200
-    assert validation.json()["statut"] == StatutAppelAProposition.VALIDE.value
+    assert validation.json()["statut"] == StatutAppel.VALIDE.value
 
     with session_factory() as s:
         approbations = s.scalars(select(Approbation)).all()
         events = s.scalars(select(AuditEvent)).all()
     assert len(approbations) == 1
     assert approbations[0].decided_by  # identifiant utilisateur (lab ou JWT)
-    assert approbations[0].proposed_by_agent == "AgentAnalyseurAppelAProposition"
+    assert approbations[0].proposed_by_agent == "AgentAnalyseurAppel"
     assert len(events) >= 2  # proposition (agent) + décision (humain)
 
 
 def test_extraction_sur_appel_inexistant_404(api_client: TestClient) -> None:
     resp = api_client.post(
-        f"/api/v1/appels-a-proposition/{uuid4()}/extraction",
+        f"/api/v1/appels/{uuid4()}/extraction",
         json={"donnees_extraites": {}, "proposed_by_agent": "agent"},
     )
     assert resp.status_code == 404
@@ -164,16 +164,16 @@ def test_extraction_sur_appel_inexistant_404(api_client: TestClient) -> None:
 def test_extraction_payload_invalide_422(api_client: TestClient, session_factory) -> None:
     appel = _seed_appel(session_factory)
     resp = api_client.post(
-        f"/api/v1/appels-a-proposition/{appel.id}/extraction",
+        f"/api/v1/appels/{appel.id}/extraction",
         json={"donnees_extraites": {}},  # proposed_by_agent manquant
     )
     assert resp.status_code == 422
 
 
-def test_creer_appel_a_proposition(api_client: TestClient, session_factory) -> None:
+def test_creer_appel(api_client: TestClient, session_factory) -> None:
     org = _seed_org(session_factory)
     cree = api_client.post(
-        "/api/v1/appels-a-proposition/",
+        "/api/v1/appels/",
         json={
             "organisation_id": str(org.id),
             "reference": "ULA-097",
@@ -181,17 +181,17 @@ def test_creer_appel_a_proposition(api_client: TestClient, session_factory) -> N
         },
     )
     assert cree.status_code == 201, cree.text
-    assert cree.json()["statut"] == StatutAppelAProposition.RECU.value
+    assert cree.json()["statut"] == StatutAppel.RECU.value
     assert cree.json()["reference"] == "ULA-097"
 
-    liste = api_client.get("/api/v1/appels-a-proposition/")
+    liste = api_client.get("/api/v1/appels/")
     assert liste.status_code == 200
     assert any(item["reference"] == "ULA-097" for item in liste.json())
 
 
 def test_creer_appel_organisation_absente_404(api_client: TestClient) -> None:
     resp = api_client.post(
-        "/api/v1/appels-a-proposition/",
+        "/api/v1/appels/",
         json={
             "organisation_id": str(uuid4()),
             "reference": "AO-X",
@@ -201,11 +201,12 @@ def test_creer_appel_organisation_absente_404(api_client: TestClient) -> None:
     assert resp.status_code == 404
 
 
-def test_validation_refusee_sans_lot_exploitable(api_client: TestClient, session_factory) -> None:
-    """Le défaut d'origine ne se reproduit plus : 409, appel intact, zéro lot."""
+def test_validation_sans_lot_cree_le_lot_unique(api_client: TestClient, session_factory) -> None:
+    """ADR 0012 (règle 26/10) : un appel sans lot reçoit, à sa validation, un
+    lot unique « 1 » portant le titre de l'appel."""
     appel = _seed_appel(session_factory)
     api_client.post(
-        f"/api/v1/appels-a-proposition/{appel.id}/extraction",
+        f"/api/v1/appels/{appel.id}/extraction",
         json={
             "donnees_extraites": {"lots": []},
             "proposed_by_agent": "agent_generateur_offre",
@@ -213,16 +214,15 @@ def test_validation_refusee_sans_lot_exploitable(api_client: TestClient, session
     )
 
     validation = api_client.post(
-        f"/api/v1/appels-a-proposition/{appel.id}/validation",
+        f"/api/v1/appels/{appel.id}/validation",
         json={"decision": "approuve"},
     )
 
-    assert validation.status_code == 409, validation.text
-    assert validation.json()["error"]["code"] == "conflict"
-    assert api_client.get(f"/api/v1/appels-a-proposition/{appel.id}").json()["statut"] == (
-        StatutAppelAProposition.PROPOSE.value
-    )
-    assert api_client.get(f"/api/v1/appels-a-proposition/{appel.id}/lots/").json() == []
+    assert validation.status_code == 200, validation.text
+    lots = api_client.get(f"/api/v1/appels/{appel.id}/lots/").json()
+    assert len(lots) == 1
+    assert lots[0]["numero"] == "1"
+    assert lots[0]["titre"] == appel.titre
 
 
 def test_remise_en_proposition_repare_appel_valide_sans_lot(
@@ -231,7 +231,7 @@ def test_remise_en_proposition_repare_appel_valide_sans_lot(
     """Réparation HTTP : une nouvelle proposition débloque l'appel figé."""
     appel = _seed_appel(session_factory)
     api_client.post(
-        f"/api/v1/appels-a-proposition/{appel.id}/extraction",
+        f"/api/v1/appels/{appel.id}/extraction",
         json={
             "donnees_extraites": {"lots": []},
             "proposed_by_agent": "agent_generateur_offre",
@@ -239,12 +239,12 @@ def test_remise_en_proposition_repare_appel_valide_sans_lot(
     )
     # État figé hérité de l'ancien comportement (validation forcée en base).
     with session_factory() as s:
-        entite = s.get(AppelAProposition, appel.id)
-        entite.statut = StatutAppelAProposition.VALIDE
+        entite = s.get(Appel, appel.id)
+        entite.statut = StatutAppel.VALIDE
         s.commit()
 
     reprise = api_client.post(
-        f"/api/v1/appels-a-proposition/{appel.id}/proposition",
+        f"/api/v1/appels/{appel.id}/proposition",
         json={
             "donnees_extraites": {"lots": [{"numero": "1", "titre": "Lot 1"}]},
             "proposed_by_agent": "agent_generateur_offre",
@@ -252,14 +252,14 @@ def test_remise_en_proposition_repare_appel_valide_sans_lot(
     )
 
     assert reprise.status_code == 200, reprise.text
-    assert reprise.json()["statut"] == StatutAppelAProposition.PROPOSE.value
+    assert reprise.json()["statut"] == StatutAppel.PROPOSE.value
 
     validation = api_client.post(
-        f"/api/v1/appels-a-proposition/{appel.id}/validation",
+        f"/api/v1/appels/{appel.id}/validation",
         json={"decision": "approuve"},
     )
     assert validation.status_code == 200, validation.text
-    lots = api_client.get(f"/api/v1/appels-a-proposition/{appel.id}/lots/").json()
+    lots = api_client.get(f"/api/v1/appels/{appel.id}/lots/").json()
     assert [lot["numero"] for lot in lots] == ["1"]
 
 
@@ -275,11 +275,18 @@ def test_creation_offre_sans_reference_attribuee_et_unique(
 
     def _appel_et_lot(reference: str):
         appel = api_client.post(
-            "/api/v1/appels-a-proposition/",
-            json={"organisation_id": str(org.id), "reference": reference, "titre": "Appel"},
+            "/api/v1/appels/",
+            json={
+                "organisation_id": str(org.id),
+                "reference": reference,
+                "titre": "Appel",
+                # Une offre « autre » répond à une manifestation d'intérêt,
+                # pas à un appel à proposition (règle 26/10).
+                "type": "appel_a_manifestation_interet",
+            },
         ).json()
         lot = api_client.post(
-            f"/api/v1/appels-a-proposition/{appel['id']}/lots/",
+            f"/api/v1/appels/{appel['id']}/lots/",
             json={"numero": "1", "titre": "Lot 1"},
         ).json()
         return lot
@@ -316,7 +323,7 @@ def test_validation_materialise_lots(api_client: TestClient, session_factory) ->
     """P1 bout en bout : créer → extraire 2 lots → valider → lots officiels."""
     org = _seed_org(session_factory)
     cree = api_client.post(
-        "/api/v1/appels-a-proposition/",
+        "/api/v1/appels/",
         json={
             "organisation_id": str(org.id),
             "reference": "ULA-097-B",
@@ -326,7 +333,7 @@ def test_validation_materialise_lots(api_client: TestClient, session_factory) ->
     appel_id = cree.json()["id"]
 
     api_client.post(
-        f"/api/v1/appels-a-proposition/{appel_id}/extraction",
+        f"/api/v1/appels/{appel_id}/extraction",
         json={
             "donnees_extraites": {
                 "lots": [
@@ -340,13 +347,13 @@ def test_validation_materialise_lots(api_client: TestClient, session_factory) ->
         },
     )
     validation = api_client.post(
-        f"/api/v1/appels-a-proposition/{appel_id}/validation",
+        f"/api/v1/appels/{appel_id}/validation",
         json={"decision": "approuve", "reason": "lots distincts"},
     )
     assert validation.status_code == 200
-    assert validation.json()["statut"] == StatutAppelAProposition.VALIDE.value
+    assert validation.json()["statut"] == StatutAppel.VALIDE.value
 
-    lots = api_client.get(f"/api/v1/appels-a-proposition/{appel_id}/lots/")
+    lots = api_client.get(f"/api/v1/appels/{appel_id}/lots/")
     assert lots.status_code == 200
     numeros = sorted(item["numero"] for item in lots.json())
     assert numeros == ["1", "2", "3", "4"]
@@ -706,7 +713,7 @@ def test_mission_depuis_appel_201(api_client: TestClient, session_factory) -> No
     creee = api_client.post(
         "/api/v1/missions/depuis-appel",
         json={
-            "appel_a_proposition_id": str(appel.id),
+            "appel_id": str(appel.id),
             "lot_id": str(lot.id),
             "reference": "M-API-DT-01",
             "titre": "Formation depuis l'appel",
@@ -729,7 +736,7 @@ def test_mission_depuis_appel_lot_hors_appel_422(
     creee = api_client.post(
         "/api/v1/missions/depuis-appel",
         json={
-            "appel_a_proposition_id": str(appel.id),
+            "appel_id": str(appel.id),
             "lot_id": str(lot.id),
             "reference": "M-API-DT-02",
             "titre": "Mission",
@@ -759,7 +766,7 @@ def test_affectation_mission_incoherente_409(
 
 def test_affectation_mission_cloturee_409(api_client: TestClient, session_factory) -> None:
     mission = _seed_mission(session_factory)
-    mission.statut = StatutMission.CLOTUREE.value
+    mission.statut = StatutMission.CLOTURE.value
     seed(session_factory, mission)
     membre = _seed_equipe(session_factory)
 

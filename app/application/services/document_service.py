@@ -82,13 +82,14 @@ from app.domain.enums import (
     ActionAudit,
     ActorType,
     DecisionApprobation,
+    RoleUtilisateur,
     StatutDocument,
     TypeDocument,
     TypeProposition,
 )
 from app.domain.state_machines import validate_transition
 from app.infrastructure.repositories import (
-    AppelAPropositionRepository,
+    AppelRepository,
     DocumentRepository,
     EquipeRepository,
     MissionRepository,
@@ -107,12 +108,17 @@ _SCOPE_GENERE = "generated"
 #: Champ fictif : aucune colonne FK n'est écrite pour ce repli.
 _CHAMP_GENERE = ""
 
+#: Visibilité d'un document **sans ancre** (ADR 0013) : ``prive`` (défaut) ou
+#: ``public``. Seul le propriétaire (ou l'administration) peut la changer.
+_VISIBILITE_PRIVEE = "prive"
+_VISIBILITE_PUBLIQUE = "public"
+
 #: Ancres métier acceptées → dossier de stockage (instruction/06 §3).
 #: ``organisations`` et ``sessions`` sont des scopes ajoutés depuis la cible
 #: (voir ``app.documents.paths`` et l'ADR 0003).
 _ANCHORS: dict[str, str] = {
     "organisation_id": "organisations",
-    "appel_a_proposition_id": "appel_proposition",
+    "appel_id": "appel_proposition",
     "offre_id": "offres",
     "mission_id": "missions",
     "equipe_id": "equipes",
@@ -139,7 +145,7 @@ _META_RESTAURATIONS = "restaurations"
 #: Filtres de listing exposés par l'API → méthode du repository.
 _LISTERS: dict[str, str] = {
     "organisation_id": "list_for_organisation",
-    "appel_a_proposition_id": "list_for_appel_a_proposition",
+    "appel_id": "list_for_appel",
     "offre_id": "list_for_offre",
     "mission_id": "list_for_mission",
     "equipe_id": "list_for_equipe",
@@ -152,39 +158,74 @@ logger = logging.getLogger(__name__)
 def document_dans_perimetre(
     document: Document, perimetre: Perimetre, session: Session
 ) -> bool:
-    """Vrai si le document appartient au périmètre du compte (complet ⇒ toujours).
+    """Vrai si le document est accessible au compte — règle unique (ADR 0013).
 
-    Un document est visible par le périmètre de **son ancre** : la mission, la
-    session de cette mission, ou la personne du vivier (sa propre fiche et les
-    collègues de la mission). Un document sans ancre métier (``non_classe``)
-    n'est jamais visible d'un compte restreint.
+    1. **L'ancre prime** : un document rattaché à un objet métier suit le
+       périmètre de cet objet — accès complet pour l'administration et
+       l'équipe interne ; pour un compte restreint, la mission (ou la session
+       de cette mission, ou la personne du vivier) doit appartenir à son
+       périmètre.
+    2. **Sans ancre**, le document est **propre à son propriétaire** : seul le
+       propriétaire, un **administrateur**, ou — si le propriétaire l'a
+       déclaré **public** — tout compte actif y accède. Le court-circuit
+       « accès complet ⇒ tout » ne s'applique plus ici : un collaborateur ne
+       voit pas le document personnel d'un autre collaborateur.
 
     Règle unique : ``DocumentService`` l'applique à ses lectures, et les agents
     de consultation (généraliste, statistique) l'appellent pour leurs propres
     lectures — une seule définition, jamais deux lectures divergentes.
     """
-    if perimetre.est_complet:
-        return True
     if document.mission_id is not None:
-        return perimetre.mission_autorisee(document.mission_id)
+        return perimetre.mission_autorisee(document.mission_id) or _est_administrateur(
+            perimetre
+        )
     if document.session_id is not None:
         session_formation = SessionRepository(session).get(document.session_id)
-        return session_formation is not None and perimetre.mission_autorisee(
-            session_formation.mission_id
+        return session_formation is not None and (
+            perimetre.mission_autorisee(session_formation.mission_id)
+            or _est_administrateur(perimetre)
         )
     if document.equipe_id is not None:
-        return perimetre.equipe_autorisee(document.equipe_id)
-    # Sans ancre métier : visible du compte qui l'a créée ou fait produire
-    # par l'agent — jamais du reste d'un compte restreint (incrément 74).
-    # L'ancre prime : un document rattaché à une autre mission reste caché,
-    # même s'il a été créé par ce compte.
-    if perimetre.utilisateur_id is not None:
+        return perimetre.equipe_autorisee(document.equipe_id) or _est_administrateur(
+            perimetre
+        )
+    if document.organisation_id is not None or document.appel_id is not None:
+        # Ancres de l'équipe interne : le référentiel commercial n'est pas du
+        # périmètre d'un formateur, l'administration le couvre toujours.
+        return perimetre.est_complet
+    if document.offre_id is not None:
+        return perimetre.est_complet
+    # --- Sans ancre métier : propriété documentaire (ADR 0013) -------------
+    # Appel **sans compte** (scripts, balayage, mode lab) : accès complet
+    # implicite, même convention que ``perimetre_effectif`` — aucune requête
+    # utilisateur ne se présente sans ``utilisateur_id``.
+    if perimetre.est_complet and perimetre.utilisateur_id is None:
+        return True
+    if _est_administrateur(perimetre):
+        return True
+    if perimetre.utilisateur_id is not None and document.proprietaire_id == perimetre.utilisateur_id:
+        return True
+    if document.visibilite == _VISIBILITE_PUBLIQUE:
+        return perimetre.utilisateur_id is not None
+    # Compatibilité des fiches créées avant la colonne ``proprietaire_id`` :
+    # ``created_by`` reste honoré pour le compte qui a déposé (incrément 74).
+    if perimetre.utilisateur_id is not None and document.proprietaire_id is None:
         pour = str(perimetre.utilisateur_id)
         if document.created_by == pour:
             return True
         meta = document.doc_metadata or {}
         return meta.get(_META_GENERE_POUR) == pour
     return False
+
+
+def _est_administrateur(perimetre: Perimetre) -> bool:
+    """Vrai si le compte est un administrateur (rôle, pas périmètre complet).
+
+    Un collaborateur a un accès complet au métier **ancré** ; seul
+    l'administrateur couvre en plus les documents sans ancre d'un autre
+    compte (règle validée avec CARSO, 26/10).
+    """
+    return perimetre.role == RoleUtilisateur.ADMINISTRATEUR.value
 
 
 class DocumentService:
@@ -210,7 +251,7 @@ class DocumentService:
         self.documents = DocumentRepository(session)
         self.modeles = ModeleDocumentRepository(session)
         self._organisations = OrganisationRepository(session)
-        self._appels = AppelAPropositionRepository(session)
+        self._appels = AppelRepository(session)
         self._offres = OffreRepository(session)
         self._missions = MissionRepository(session)
         self._equipes = EquipeRepository(session)
@@ -255,6 +296,10 @@ class DocumentService:
             version=1,
             statut=self._statut_depot(entree),
             created_by=entree.created_by or entree.proposed_by_agent,
+            #: Propriétaire (ADR 0013) : le compte authentifié qui dépose (ou
+            #: fait générer par un agent). C'est lui qui décidera de la
+            #: visibilité d'un document sans ancre.
+            proprietaire_id=self._perimetre.utilisateur_id,
             doc_metadata=self._metadonnees(entree),
             **kwargs_ancre,
         )
@@ -304,6 +349,9 @@ class DocumentService:
             version=nouvelle_version,
             statut=self._statut_depot(entree),
             created_by=entree.created_by or entree.proposed_by_agent,
+            #: La nouvelle version reste la propriété du compte qui la dépose,
+            #: même si la précédente appartenait à un autre compte.
+            proprietaire_id=self._perimetre.utilisateur_id,
             doc_metadata=self._metadonnees(entree),
             **({ancre.champ: ancre.entity_id} if ancre.champ else {}),
         )
@@ -326,7 +374,7 @@ class DocumentService:
         self,
         document_id: UUID,
         *,
-        appel_a_proposition_id: UUID | None = None,
+        appel_id: UUID | None = None,
         offre_id: UUID | None = None,
         mission_id: UUID | None = None,
         equipe_id: UUID | None = None,
@@ -354,7 +402,7 @@ class DocumentService:
         courant = self._get_modifiable(document_id)
         champ, entity_id, scope = self._cible_rattachement(
             courant,
-            appel_a_proposition_id=appel_a_proposition_id,
+            appel_id=appel_id,
             offre_id=offre_id,
             mission_id=mission_id,
             equipe_id=equipe_id,
@@ -889,12 +937,11 @@ class DocumentService:
     def lister_tous(self, statut: str | None = None) -> list[Document]:
         """Tous les documents (gestion générale), filtrables par statut.
 
-        Sous périmètre restreint : uniquement les documents accessibles (missions
-        et sessions affectées, sa propre fiche) — jamais la collection complète.
+        Le filtre d'accessibilité s'applique à **tous** les comptes (ADR 0013) :
+        un collaborateur ne voit pas les documents personnels d'un autre
+        compte — seuls le propriétaire et l'administration les couvrent.
         """
         documents = self.documents.list_all(statut=statut)
-        if self._perimetre.est_complet:
-            return documents
         return [document for document in documents if self._est_accessible(document)]
 
     def generer_document_offre(self, offre_id: UUID) -> Document:
@@ -943,7 +990,7 @@ class DocumentService:
             ["Offre", offre.titre],
             ["Statut offre", offre.statut],
             ["Version offre", str(offre.version)],
-            ["Appel à proposition", lot.appel_a_proposition.reference],
+            ["Appel", lot.appel.reference],
         ]
         octets = generateur.docx(titre=offre.titre, paragraphes=paragraphes, tableau=tableau)
 
@@ -1136,6 +1183,71 @@ class DocumentService:
         )
         return document
 
+    def changer_visibilite(self, document_id: UUID, visibilite: str) -> Document:
+        """Bascule un document sans ancre entre ``prive`` et ``public`` (ADR 0013).
+
+        Réservé au **propriétaire** du document et à l'**administration** : la
+        visibilité d'un document personnel n'est la décision de personne
+        d'autre. Sur un document **ancré**, l'indicateur n'a aucun effet — le
+        document suit le périmètre de son ancre — l'opération est donc refusée
+        plutôt que d'écrire une donnée qui ne ferait rien.
+
+        Raises:
+            NotFoundError: document inexistant ou hors périmètre.
+            PermissionDeniedError: compte ni propriétaire ni administrateur.
+            ValidationError: valeur hors vocabulaire, ou document ancré.
+        """
+        from app.core.errors import PermissionDeniedError
+
+        if visibilite not in {_VISIBILITE_PRIVEE, _VISIBILITE_PUBLIQUE}:
+            raise ValidationError(
+                f"Visibilité inconnue : {visibilite!r}",
+                details={
+                    "visibilites_valides": sorted(
+                        {_VISIBILITE_PRIVEE, _VISIBILITE_PUBLIQUE}
+                    )
+                },
+            )
+        document = self._get_modifiable(document_id)
+        if document.mission_id is not None or document.session_id is not None or (
+            document.equipe_id is not None
+        ) or document.organisation_id is not None or (
+            document.appel_id is not None
+        ) or document.offre_id is not None:
+            raise ValidationError(
+                "Ce document est rattaché à un objet métier : sa visibilité "
+                "suit le périmètre de cet objet, elle ne se règle pas ici.",
+                details={"document_id": str(document_id)},
+            )
+        est_proprietaire = (
+            self._perimetre.utilisateur_id is not None
+            and document.proprietaire_id == self._perimetre.utilisateur_id
+        )
+        if not est_proprietaire and not _est_administrateur(self._perimetre):
+            raise PermissionDeniedError(
+                "Seuls le propriétaire du document et les administrateurs "
+                "peuvent changer sa visibilité.",
+                details={
+                    "document_id": str(document_id),
+                    "role": self._perimetre.role,
+                },
+            )
+        if document.visibilite == visibilite:
+            return document  # rien à changer : ni écriture, ni trace
+
+        avant = document.visibilite
+        document.visibilite = visibilite
+        self._session.flush()
+        self._trace.record_event(
+            actor_type=ActorType.HUMAIN.value,
+            action=ActionAudit.DOCUMENT_VISIBILITE_MODIFIEE.value,
+            entity_type=_ENTITY,
+            entity_id=document.id,
+            before={"visibilite": avant},
+            after={"visibilite": visibilite},
+        )
+        return document
+
     def lire_plage(
         self,
         document_id: UUID,
@@ -1149,7 +1261,7 @@ class DocumentService:
         """Lit une **plage** de document (pages PDF, éléments DOCX, lignes XLSX).
 
         Lecture seule, bornée : c'est le chemin attendu pour un document volumineux
-        (un appel à proposition de 80 pages ne se lit pas d'un bloc). ``unite``
+        (un appel de 80 pages ne se lit pas d'un bloc). ``unite``
         n'est jamais devinée — c'est le format qui décide, et la réponse le dit.
 
         Args:
@@ -1213,7 +1325,7 @@ class DocumentService:
     ) -> ExtractedDocument:
         """Extrait le texte d'un document (**lecture seule**, rien n'est persisté).
 
-        C'est le point d'entrée que consommera ``AgentAnalyseurAppelAProposition`` : il
+        C'est le point d'entrée que consommera ``AgentAnalyseurAppel`` : il
         obtient du texte, jamais un chemin de fichier ni un accès disque.
 
         ``max_chars`` (incrément 53) borne le travail pour un **aperçu** :
@@ -1343,7 +1455,7 @@ class DocumentService:
             restaurable=blocage is None,
             blocage=blocage,
             organisation_id=document.organisation_id,
-            appel_a_proposition_id=document.appel_a_proposition_id,
+            appel_id=document.appel_id,
             offre_id=document.offre_id,
             mission_id=document.mission_id,
             equipe_id=document.equipe_id,
@@ -1504,7 +1616,7 @@ class DocumentService:
         if len(fournies) > 1:
             msg = (
                 "Un document ne peut être rattaché qu'à une seule ancre métier "
-                "(organisation, appel à proposition, offre, mission, équipe ou session)"
+                "(organisation, appel, offre, mission, équipe ou session)"
             )
             raise ValidationError(msg, details={"ancres_fournies": [c for c, _ in fournies]})
 
@@ -1519,7 +1631,7 @@ class DocumentService:
     def _ancre_existe(self, champ: str, entity_id: UUID) -> bool:
         depots: dict[str, BaseRepository] = {
             "organisation_id": self._organisations,
-            "appel_a_proposition_id": self._appels,
+            "appel_id": self._appels,
             "offre_id": self._offres,
             "mission_id": self._missions,
             "equipe_id": self._equipes,
@@ -1531,7 +1643,7 @@ class DocumentService:
         self,
         courant: Document,
         *,
-        appel_a_proposition_id: UUID | None = None,
+        appel_id: UUID | None = None,
         offre_id: UUID | None = None,
         mission_id: UUID | None = None,
         equipe_id: UUID | None = None,
@@ -1546,7 +1658,7 @@ class DocumentService:
         fournies = [
             (champ, valeur)
             for champ, valeur in (
-                ("appel_a_proposition_id", appel_a_proposition_id),
+                ("appel_id", appel_id),
                 ("offre_id", offre_id),
                 ("mission_id", mission_id),
                 ("equipe_id", equipe_id),
@@ -1658,12 +1770,25 @@ class DocumentService:
         - document de **session** ancré (demande 30/09) : pas un cycle d'offre —
           il naît ``genere`` quand l'assistant formateur (ou l'outil de
           génération) le produit, ``importe`` quand un humain le dépose ;
+        - **CV et documents d'appel** (règle CARSO 26/10) : pas non plus de
+          cycle de décision — un CV ou une pièce d'appel déposée par un
+          humain naît ``importe``, puis devient ``archived`` ou ``supprime``
+          selon son cycle de vie, jamais ``draft`` ;
         - tout autre document agent naît ``proposed`` (règle 6 [C]) ;
         - un dépôt humain hors session naît ``draft``.
+
+        Le dépôt d'agent d'un CV ou d'une pièce d'appel reste ``proposed`` :
+        la règle 6 [C] n'est pas contournée — seule la décision humaine
+        officialise un dépôt d'agent.
         """
         if entree.session_id is not None:
             if entree.proposed_by_agent:
                 return StatutDocument.GENERE.value
+            return StatutDocument.IMPORTE.value
+        if not entree.proposed_by_agent and (
+            entree.type_document == TypeDocument.CV.value
+            or entree.appel_id is not None
+        ):
             return StatutDocument.IMPORTE.value
         if entree.proposed_by_agent:
             return StatutDocument.PROPOSED.value

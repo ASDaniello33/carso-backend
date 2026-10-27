@@ -30,7 +30,7 @@ from app.domain.enums import StatutAgentTask, StatutDocument
 
 if TYPE_CHECKING:
     from app.domain.execution import Equipe, Mission, SessionFormation
-    from app.domain.organization import AppelAProposition, Offre, Organisation
+    from app.domain.organization import Appel, Offre, Organisation
 
 
 class Document(Base, UuidPkMixin, TimestampMixin):
@@ -47,11 +47,12 @@ class Document(Base, UuidPkMixin, TimestampMixin):
         Index("ix_documents_type_document", "type_document"),
         Index("ix_documents_statut", "statut"),
         Index("ix_documents_organisation_id", "organisation_id"),
-        Index("ix_documents_appel_a_proposition_id", "appel_a_proposition_id"),
+        Index("ix_documents_appel_id", "appel_id"),
         Index("ix_documents_offre_id", "offre_id"),
         Index("ix_documents_mission_id", "mission_id"),
         Index("ix_documents_equipe_id", "equipe_id"),
         Index("ix_documents_session_id", "session_id"),
+        Index("ix_documents_proprietaire_id", "proprietaire_id"),
         Index("ix_documents_checksum", "checksum_sha256"),
     )
 
@@ -72,8 +73,8 @@ class Document(Base, UuidPkMixin, TimestampMixin):
     organisation_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("organisations.id", ondelete="SET NULL")
     )
-    appel_a_proposition_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("appels_a_proposition.id", ondelete="CASCADE")
+    appel_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("appels.id", ondelete="CASCADE")
     )
     offre_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("offres.id", ondelete="CASCADE")
@@ -91,11 +92,23 @@ class Document(Base, UuidPkMixin, TimestampMixin):
     doc_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     created_by: Mapped[str | None] = mapped_column(String(255))
 
+    #: Propriétaire du document (ADR 0013). Renseigné à la création depuis
+    #: l'acteur authentifié. C'est lui, et l'administration, qui décident de la
+    #: visibilité d'un document **sans ancre métier**.
+    proprietaire_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("utilisateurs.id", ondelete="SET NULL")
+    )
+    #: ``prive`` (défaut) | ``public``. N'a d'effet que sans ancre métier : un
+    #: document ancré suit le périmètre de son objet.
+    visibilite: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="prive", server_default="prive"
+    )
+
     # Côtés "many" des relations métier (les listes correspondantes sont
-    # définies sur Organisation/AppelAProposition/Mission/Equipe).
+    # définies sur Organisation/Appel/Mission/Equipe).
     organisation: Mapped[Organisation | None] = relationship("Organisation")
-    appel_a_proposition: Mapped[AppelAProposition | None] = relationship(
-        "AppelAProposition", back_populates="documents"
+    appel: Mapped[Appel | None] = relationship(
+        "Appel", back_populates="documents"
     )
     # Deux FK relient Document et Offre : condition de jointure explicite.
     offre: Mapped[Offre | None] = relationship("Offre", foreign_keys=[offre_id])

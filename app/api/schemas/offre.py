@@ -24,7 +24,7 @@ class OffreCreate(BaseModel):
     # (OFFRE-{TYPE}-L{numero}, puis -2, -3…). Fournie, elle doit être libre.
     reference: str | None = Field(default=None, min_length=1, max_length=100)
     titre: str = Field(min_length=1, max_length=255)
-    appel_a_proposition_id: UUID | None = None
+    appel_id: UUID | None = None
     modele_document_id: UUID | None = None
 
 
@@ -42,7 +42,7 @@ class OffreRead(BaseModel):
 
     id: UUID
     organisation_id: UUID
-    appel_a_proposition_id: UUID
+    appel_id: UUID
     lot_id: UUID
     type: str
     reference: str

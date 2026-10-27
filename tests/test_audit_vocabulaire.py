@@ -54,7 +54,7 @@ def test_suppression_dit_l_entite_touchee() -> None:
     action = ActionAudit.SUPPRESSION_EFFECTUEE.value
     assert action in ACTIONS_PAR_ENTITE
     assert libelle_action(action, "offres") == "Suppression d'une offre de formation"
-    assert libelle_action(action, "appels") == "Suppression d'un appel à proposition"
+    assert libelle_action(action, "appels") == "Suppression d'un appel"
     assert libelle_action(action, "missions") == "Suppression d'une mission"
 
 

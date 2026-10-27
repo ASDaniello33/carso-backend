@@ -14,10 +14,13 @@ from app.api.deps import CurrentUser, DbSession, get_current_user
 from app.api.permissions import InterneUser, PerimetreDep, exiger_interne
 from app.api.routes.suppression import enregistrer_suppression
 from app.api.schemas import (
+    MissionAnnulation,
     MissionDepuisAppelCreate,
     MissionDepuisOffresCreate,
     MissionDirecteCreate,
     MissionLieuUpdate,
+    MissionOffresRattachement,
+    MissionPlanificationRead,
     MissionRead,
     MissionStatutUpdate,
     MissionUpdate,
@@ -28,6 +31,7 @@ from app.application.dto import (
     MissionDepuisAppelInput,
     MissionDepuisOffresInput,
     MissionDirecteInput,
+    MissionOffresRattachementInput,
     SupportFormationInput,
 )
 from app.application.services import MissionService, SupportFormationService
@@ -83,14 +87,15 @@ def create_mission_depuis_appel(
 ) -> Mission:
     """Crée une mission depuis **un appel et son lot** (chemin UI unique).
 
-    L'appel porte l'organisation (déduite, jamais fournie) et ses lots portent
-    les offres : la mission référence les offres approuvées du lot. Le lot doit
-    appartenir à l'appel fourni ; sans offre approuvée sur le lot, la création
-    est refusée (422) — l'utilisateur termine d'abord le cycle des offres.
+    L'appel porte l'organisation (déduite, jamais fournie) et son lot porte
+    les offres : la mission rattache les offres **approuvées** du lot s'il en
+    existe, mais peut naître **avant** leur approbation — elles se rattacheront
+    ensuite par ``PATCH /missions/{id}/offres`` (ADR 0012). Un lot ne porte
+    qu'une mission (409 sinon).
     """
     return MissionService(session, actor_id=str(utilisateur.id)).creer_depuis_appel(
         MissionDepuisAppelInput(
-            appel_a_proposition_id=payload.appel_a_proposition_id,
+            appel_id=payload.appel_id,
             lot_id=payload.lot_id,
             reference=payload.reference,
             titre=payload.titre,
@@ -159,9 +164,87 @@ def change_mission_statut(
     session: DbSession,
     utilisateur: InterneUser,
 ) -> Mission:
-    """Transition planifiee → en_preparation → en_cours → cloturee."""
+    """Transition **manuelle** autorisée : ``annule`` uniquement.
+
+    La planification crée la session (``POST /{mission_id}/planification``) ;
+    « En cours » et « Clôturé » sont appliqués automatiquement par le
+    balayage de cycle de vie (ADR 0012).
+    """
     return MissionService(session, actor_id=str(utilisateur.id)).changer_statut(
         mission_id, payload.statut
+    )
+
+
+@router.post(
+    "/{mission_id}/planification",
+    response_model=MissionPlanificationRead,
+    dependencies=[Depends(exiger_interne)],
+)
+def planifier_mission(
+    mission_id: UUID,
+    session: DbSession,
+    utilisateur: InterneUser,
+) -> MissionPlanificationRead:
+    """Planifie la mission : elle passe à ``planifie`` et **sa session est créée**.
+
+    Exige des dates de début et de fin (422 sinon) : sans elles, la session ne
+    pourrait ni démarrer ni se clôturer automatiquement. Une mission sans
+    équipe approuvée reste planifiable — l'avertissement est retourné dans
+    ``avertissements``, jamais en blocage. Idempotent : replanifier ne crée
+    pas de seconde session.
+    """
+    service = MissionService(session, actor_id=str(utilisateur.id))
+    mission = service.planifier(mission_id)
+    avertissement = (
+        service.avertissement_equipe(mission_id)
+        if mission.statut == "planifie"
+        else None
+    )
+    return MissionPlanificationRead(
+        mission=MissionRead.model_validate(mission),
+        avertissements=[avertissement] if avertissement else [],
+    )
+
+
+@router.post(
+    "/{mission_id}/annulation",
+    response_model=MissionRead,
+    dependencies=[Depends(exiger_interne)],
+)
+def annuler_mission(
+    mission_id: UUID,
+    payload: MissionAnnulation,
+    session: DbSession,
+    utilisateur: InterneUser,
+) -> Mission:
+    """Annule la mission **et sa session** (décision humaine, motif tracé).
+
+    Une mission annulée ne bloque plus la disponibilité de son équipe.
+    """
+    return MissionService(session, actor_id=str(utilisateur.id)).annuler(
+        mission_id, motif=payload.motif
+    )
+
+
+@router.patch(
+    "/{mission_id}/offres",
+    response_model=MissionRead,
+    dependencies=[Depends(exiger_interne)],
+)
+def rattacher_offres_mission(
+    mission_id: UUID,
+    payload: MissionOffresRattachement,
+    session: DbSession,
+    utilisateur: InterneUser,
+) -> Mission:
+    """Rattache des offres **approuvées du même lot** à la mission.
+
+    La mission a pu naître avant l'approbation de toutes les offres de son
+    lot (ADR 0012) ; une offre d'un autre lot, non approuvée, ou déjà
+    rattachée à une autre mission est refusée.
+    """
+    return MissionService(session, actor_id=str(utilisateur.id)).rattacher_offres(
+        mission_id, MissionOffresRattachementInput(offre_ids=tuple(payload.offre_ids))
     )
 
 
@@ -194,17 +277,21 @@ def update_mission(
     session: DbSession,
     utilisateur: InterneUser,
 ) -> Mission:
-    """Modification partielle d'une mission : titre, description, lieu.
+    """Modification partielle d'une mission : titre, description, lieu, dates.
 
     Les offres rattachées ne bougent jamais : elles sont la réponse à un
-    ``Appel + Lot``, une autre mission est une autre mission. L'audit est
-    attribué à l'humain — le tool d'agent, lui, trace ``AGENT``.
+    ``Appel + Lot``, une autre mission est une autre mission. Les dates ne
+    se changent qu'en ``en_planification`` (contrôle du service) — la
+    planification les exige, une mission née sans elles doit les recevoir.
+    L'audit est attribué à l'humain — le tool d'agent, lui, trace ``AGENT``.
     """
     return MissionService(session, actor_id=str(utilisateur.id)).modifier(
         mission_id,
         titre=payload.titre,
         lieu_id=payload.lieu_id,
         description=payload.description,
+        date_debut=payload.date_debut,
+        date_fin=payload.date_fin,
         acteur=ActorType.HUMAIN.value,
     )
 

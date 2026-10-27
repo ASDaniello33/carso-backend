@@ -63,6 +63,9 @@ class MessageRead(BaseModel):
     piece_chemin: str | None
     piece_mime: str | None
     piece_taille: int | None
+    #: Fiche documentaire référencée par le partage (ADR 0013) — ``None``
+    #: pour une pièce téléversée dans le fil.
+    document_id: UUID | None = None
     reponse_a_id: UUID | None = None
     created_at: object
 
@@ -101,6 +104,10 @@ class AnnonceCreate(BaseModel):
     piece_taille: int | None = Field(default=None, ge=0)
     # Pièces multiples (incrément 33) : chaque chemin vient de l'upload.
     pieces: list[PieceAnnonceEntree] = Field(default_factory=list, max_length=10)
+    # Documents **existants** du référentiel, joints **par référence** (ADR 0013) :
+    # aucun octet n'est copié, la visibilité dans la liste Documents n'est pas
+    # élargie — l'accès est ouvert par le canal de l'annonce.
+    document_ids: list[UUID] = Field(default_factory=list, max_length=10)
 
 
 class PieceAnnonceRead(BaseModel):
@@ -110,6 +117,8 @@ class PieceAnnonceRead(BaseModel):
     nom: str
     mime: str | None
     taille: int | None
+    #: Fiche documentaire référencée (ADR 0013) — ``None`` pour un téléversement.
+    document_id: UUID | None = None
     position: int
 
 

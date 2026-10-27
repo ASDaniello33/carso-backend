@@ -8,7 +8,7 @@ fournie en schéma validé, sinon il lève.
 
 from typing import Any, Protocol, runtime_checkable
 
-from app.agents.extraction.schemas import ExtractionAppelAProposition
+from app.agents.extraction.schemas import ExtractionAppel
 from app.core.errors import ValidationError as BusinessValidationError
 
 
@@ -18,7 +18,7 @@ class ExtractionEngine(Protocol):
 
     name: str
 
-    def extract(self, payload: dict[str, Any]) -> ExtractionAppelAProposition:
+    def extract(self, payload: dict[str, Any]) -> ExtractionAppel:
         """Produit une proposition d'extraction validée, ou lève."""
         ...
 
@@ -34,7 +34,7 @@ class ManualExtractionEngine:
 
     name = "manual"
 
-    def extract(self, payload: dict[str, Any]) -> ExtractionAppelAProposition:
+    def extract(self, payload: dict[str, Any]) -> ExtractionAppel:
         data = payload.get("extraction")
         if not isinstance(data, dict):
             msg = (
@@ -43,7 +43,7 @@ class ManualExtractionEngine:
             )
             raise BusinessValidationError(msg)
         try:
-            return ExtractionAppelAProposition.model_validate(data)
+            return ExtractionAppel.model_validate(data)
         except Exception as exc:
             msg = f"Proposition d'extraction invalide: {exc}"
             raise BusinessValidationError(msg) from exc

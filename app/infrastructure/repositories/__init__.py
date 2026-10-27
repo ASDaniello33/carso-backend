@@ -7,8 +7,8 @@ from app.infrastructure.repositories.agent_runtime import (
     ConfigurationRuntimeAgentRepository,
 )
 from app.infrastructure.repositories.agent_task import AgentTaskRepository
-from app.infrastructure.repositories.appel_a_proposition import (
-    AppelAPropositionRepository,
+from app.infrastructure.repositories.appel import (
+    AppelRepository,
     LotRepository,
 )
 from app.infrastructure.repositories.audit import ApprobationRepository, AuditRepository
@@ -53,7 +53,7 @@ from app.infrastructure.repositories.utilisateur import UtilisateurRepository
 __all__ = [
     "AffectationEquipeRepository",
     "AgentTaskRepository",
-    "AppelAPropositionRepository",
+    "AppelRepository",
     "ApprobationRepository",
     "AuditRepository",
     "BaseRepository",

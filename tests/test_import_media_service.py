@@ -156,7 +156,7 @@ def test_aucune_ancre_metier_inventee(
     document = service.importer(ImportMediaInput(url=ADRESSE))
 
     assert document.organisation_id is None
-    assert document.appel_a_proposition_id is None
+    assert document.appel_id is None
     assert document.offre_id is None
     assert document.mission_id is None
     assert document.equipe_id is None

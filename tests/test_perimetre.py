@@ -44,7 +44,7 @@ from app.domain.enums import (
 )
 from app.domain.execution import AffectationEquipe, Equipe, Mission, MissionOffre
 from app.domain.identity import Utilisateur
-from app.domain.organization import AppelAProposition, Lot, Offre, Organisation
+from app.domain.organization import Appel, Lot, Offre, Organisation
 
 
 @compiles(JSONB, "sqlite")
@@ -237,17 +237,17 @@ def test_dossier_du_formateur_se_limite_a_ses_missions(session: Session) -> None
     organisation = Organisation(nom="Client")
     session.add(organisation)
     session.flush()
-    appel = AppelAProposition(
+    appel = Appel(
         organisation_id=organisation.id, reference="AO-1", titre="Appel"
     )
     session.add(appel)
     session.flush()
-    lot = Lot(appel_a_proposition_id=appel.id, numero="1", titre="Lot 1")
+    lot = Lot(appel_id=appel.id, numero="1", titre="Lot 1")
     session.add(lot)
     session.flush()
     offre = Offre(
         organisation_id=organisation.id,
-        appel_a_proposition_id=appel.id,
+        appel_id=appel.id,
         lot_id=lot.id,
         type=TypeOffre.OFFRE_TECHNIQUE.value,
         reference="O-1",
@@ -263,7 +263,7 @@ def test_dossier_du_formateur_se_limite_a_ses_missions(session: Session) -> None
     # Une mission hors périmètre porte un autre dossier : il doit rester fermé.
     autre_offre = Offre(
         organisation_id=organisation.id,
-        appel_a_proposition_id=appel.id,
+        appel_id=appel.id,
         lot_id=lot.id,
         type=TypeOffre.OFFRE_FINANCIERE.value,
         reference="O-2",

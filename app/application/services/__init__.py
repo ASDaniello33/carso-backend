@@ -6,7 +6,7 @@ Import unique—``from app.application.services import XService``.
 from app.application.services.affectation_service import AffectationService
 from app.application.services.agent_personnel_service import AgentPersonnelService
 from app.application.services.agent_runtime_service import AgentRuntimeService
-from app.application.services.appel_a_proposition_service import AppelAPropositionService
+from app.application.services.appel_service import AppelService
 from app.application.services.beneficiaire_service import BeneficiaireService
 from app.application.services.document_service import DocumentService
 from app.application.services.equipe_service import EquipeService
@@ -42,7 +42,7 @@ __all__ = [
     "AffectationService",
     "AgentPersonnelService",
     "AgentRuntimeService",
-    "AppelAPropositionService",
+    "AppelService",
     "BeneficiaireService",
     "DocumentService",
     "EquipeService",

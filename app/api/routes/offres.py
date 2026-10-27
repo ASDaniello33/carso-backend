@@ -114,7 +114,7 @@ def create_offre(
         payload.reference,
         payload.titre,
         type=payload.type,
-        appel_a_proposition_id=payload.appel_a_proposition_id,
+        appel_id=payload.appel_id,
         modele_document_id=payload.modele_document_id,
     )
 

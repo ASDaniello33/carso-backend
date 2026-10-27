@@ -6,13 +6,19 @@ import pytest
 from sqlalchemy.orm import configure_mappers
 
 from app.domain import Base
-from app.domain.enums import RoleMission, StatutMission, StatutOffre, est_formateur
+from app.domain.enums import (
+    RoleMission,
+    StatutMission,
+    StatutOffre,
+    StatutSessionFormation,
+    est_formateur,
+)
 from app.domain.organization import LigneBudget
 from app.domain.rules import compute_budget_total, compute_cout_total
 
 EXPECTED_TABLES = {
     "organisations",
-    "appels_a_proposition",
+    "appels",
     "lots",
     "offres",
     "missions",
@@ -120,7 +126,7 @@ def test_lot_to_offre_is_unique_per_type() -> None:
 def test_offre_repond_a_appel_et_lot() -> None:
     """Une offre répond toujours à ``Appel + Lot`` : les deux FK existent."""
     colonnes = set(Base.metadata.tables["offres"].columns.keys())
-    assert "appel_a_proposition_id" in colonnes
+    assert "appel_id" in colonnes
     assert "lot_id" in colonnes
     assert "type" in colonnes
 
@@ -142,7 +148,7 @@ def test_mission_porte_son_lieu() -> None:
 
 def test_appel_porte_son_type() -> None:
     """Un appel est soit un appel à proposition, soit une manifestation d'intérêt."""
-    colonnes = set(Base.metadata.tables["appels_a_proposition"].columns.keys())
+    colonnes = set(Base.metadata.tables["appels"].columns.keys())
     assert "type" in colonnes
 
 
@@ -163,14 +169,50 @@ def test_support_formation_lie_formateur_mission_document() -> None:
 
 
 def test_status_defaults_use_confirmed_vocabulary() -> None:
-    """Vérifie les défauts sur les Column objects (les défauts Python s'appliquent au flush)."""
+    """Vérifie les défauts sur les Column objects (les défauts Python s'appliquent au flush).
+
+    ADR 0012 : une mission naît « en planification » ; une session née de la
+    planification d'une mission démarre « planifiée ».
+    """
     mission_statut = Base.metadata.tables["missions"].columns["statut"].default.arg
+    session_statut = (
+        Base.metadata.tables["sessions"].columns["statut"].default.arg
+    )
     offre_statut = (
         Base.metadata.tables["offres"].columns["statut"].default.arg
     )
 
-    assert mission_statut == StatutMission.PLANIFIEE.value
+    assert mission_statut == StatutMission.EN_PLANIFICATION.value
+    assert session_statut == StatutSessionFormation.PLANIFIE.value
     assert offre_statut == StatutOffre.BROUILLON.value
+
+
+def test_cycle_de_vie_un_lot_une_mission_une_session() -> None:
+    """ADR 0012 : les cardinalités confirmées sont posées dans le schéma."""
+    # 1 lot → 1 mission (les prestations directes ne consomment aucun lot).
+    assert ("lot_id",) in _uniques("missions")
+    # 1 mission → 1 session.
+    assert ("mission_id",) in _uniques("sessions")
+    colonnes_mission = set(Base.metadata.tables["missions"].columns.keys())
+    assert {"lot_id", "organisation_id", "lieu_id"} <= colonnes_mission
+
+
+def test_propriete_documentaire_dans_le_schema() -> None:
+    """ADR 0013 : propriétaire, visibilité, références de partage."""
+    documents = set(Base.metadata.tables["documents"].columns.keys())
+    assert {"proprietaire_id", "visibilite"} <= documents
+    visibilite = Base.metadata.tables["documents"].columns["visibilite"]
+    assert visibilite.default.arg == "prive"
+    messages = set(Base.metadata.tables["messages"].columns.keys())
+    annonces = set(Base.metadata.tables["annonces_pieces"].columns.keys())
+    assert "document_id" in messages
+    assert "document_id" in annonces
+
+
+def test_fonction_libre_sur_la_personne() -> None:
+    """ADR 0012 : la fonction de travail est libre et portée par la personne."""
+    equipes = set(Base.metadata.tables["equipes"].columns.keys())
+    assert "fonction" in equipes
 
 
 def test_ligne_budget_columns_are_numeric_not_float() -> None:

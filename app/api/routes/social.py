@@ -82,6 +82,29 @@ def _televerser_piece(
     }
 
 
+def _servir_piece_referencee(
+    session: DbSession, document_id: UUID, nom_par_defaut: str | None
+) -> FileResponse:
+    """Sert une pièce **référencée** depuis sa fiche documentaire (ADR 0013).
+
+    La fiche fait foi : purgée (ligne disparue) ou en corbeille (fichier
+    retiré), la pièce n'est plus téléchargeable depuis le partage. Aucun
+    octet n'est copié — le fichier reste dans le dossier métier de la fiche.
+    """
+    from app.documents.paths import resolve_within_root
+    from app.domain.document import Document
+    from app.domain.enums import StatutDocument
+
+    document = session.get(Document, document_id)
+    if document is None or document.statut == StatutDocument.SUPPRIME.value:
+        raise HTTPException(
+            status_code=404,
+            detail="La fiche documentaire de cette pièce n'est plus disponible",
+        )
+    chemin = resolve_within_root(get_settings().storage_root, document.storage_path)
+    return FileResponse(path=chemin, filename=nom_par_defaut or document.nom)
+
+
 # --- Conversations ----------------------------------------------------------------
 
 
@@ -285,18 +308,17 @@ def importer_document_plateforme(
     session: DbSession,
     utilisateur: CurrentUser,
 ):
-    """Partage un **document de la plateforme** dans une conversation (30/09).
+    """Partage un **document existant** dans une conversation — par référence.
 
     Contrairement à ``/pieces`` (téléversement d'un fichier neuf), cette route
-    importe un document **déjà enregistré** dans le référentiel documentaire :
-    son fichier est **copié** dans le scope ``chat`` (le document d'origine
-    reste inchangé — jamais déplacé), puis un message est posté avec cette
-    pièce : tous les membres de la conversation peuvent le voir et le
-    télécharger par ``/social/pieces/{message_id}``, avec le même contrôle
-    d'accès que n'importe quelle pièce de chat (réservé aux membres).
+    joint une fiche **déjà enregistrée** : le message porte son identifiant
+    (``document_id``), **aucun octet n'est copié** dans le scope ``chat`` et la
+    visibilité du document dans la liste Documents n'est pas élargie (ADR
+    0013). L'accès est ouvert **par le canal** : les membres actifs de la
+    conversation peuvent télécharger la pièce par ``/social/pieces/{message_id}``.
+    L'auteur du partage doit pouvoir lire le document — sinon 404.
     """
     from app.application.services.document_service import DocumentService
-    from app.documents.paths import resolve_within_root
 
     service = SocialService(session)
     if not service.est_membre_actif(conversation_id, utilisateur.id):
@@ -304,24 +326,18 @@ def importer_document_plateforme(
             status_code=403, detail="Seul un membre actif peut partager un document"
         )
 
+    # ``obtenir`` applique le périmètre (propriété documentaire incluse) :
+    # hors périmètre, la fiche est « introuvable » — le partage ne révèle rien.
     document = DocumentService(session).obtenir(payload.document_id)
-    chemin_source = resolve_within_root(get_settings().storage_root, document.storage_path)
-    mime = document.mime_type or "application/octet-stream"
-
-    # Message d'abord (la pièce référencée doit exister au moment du post) :
-    # on copie le fichier, puis on poste le message porteur de la pièce.
-    conversation_dir = conversation_id
-    chemin_cible = build_logical_path("chat", conversation_dir, document.nom)
-    stocke = _stockage().save(chemin_cible, io.BytesIO(chemin_source.read_bytes()))
     message = service.poster_message(
         conversation_id,
         auteur_id=utilisateur.id,
         contenu=payload.contenu or "",
         piece={
             "nom": document.nom,
-            "chemin": stocke.logical_path,
-            "mime": mime,
-            "taille": document.taille_octets or stocke.taille_octets,
+            "mime": document.mime_type,
+            "taille": document.taille_octets,
+            "document_id": document.id,
         },
     )
     return lire_message(message).model_dump(mode="json")
@@ -334,14 +350,25 @@ def supprimer_message(message_id: UUID, session: DbSession, utilisateur: Current
 
 @router.get("/pieces/{message_id}", response_class=FileResponse)
 def telecharger_piece_message(message_id: UUID, session: DbSession, utilisateur: CurrentUser):
-    """Télécharge la pièce jointe d'un message (réservé aux membres)."""
+    """Télécharge la pièce jointe d'un message (réservé aux membres).
+
+    Deux chemins (ADR 0013) : une pièce **référencée** se sert depuis la fiche
+    documentaire — une fiche purgée rend la pièce introuvable, une fiche en
+    corbeille n'est plus téléchargeable par les destinataires du partage —
+    une pièce téléversée se sert depuis le scope ``chat`` comme avant.
+    """
     service = SocialService(session)
     message = service.obtenir_message(message_id)
-    if message is None or message.piece_chemin is None:
+    if message is None or (
+        message.piece_chemin is None and message.document_id is None
+    ):
         raise HTTPException(status_code=404, detail="Pièce jointe introuvable")
     if not service.est_membre(message.conversation_id, utilisateur.id):
         raise HTTPException(status_code=403, detail="Réservé aux membres de la conversation")
     from app.documents.paths import resolve_within_root
+
+    if message.document_id is not None:
+        return _servir_piece_referencee(session, message.document_id, message.piece_nom)
 
     chemin = resolve_within_root(get_settings().storage_root, message.piece_chemin)
     return FileResponse(path=chemin, filename=message.piece_nom or "piece")
@@ -474,6 +501,29 @@ def lister_annonces(session: DbSession, utilisateur: CurrentUser):
 
 @router.post("/annonces", status_code=status.HTTP_201_CREATED)
 def publier_annonce(payload: AnnonceCreate, session: DbSession, utilisateur: CurrentUser):
+    """Publie une annonce : texte, pièces téléversées et/ou fiches **référencées**.
+
+    ``document_ids`` joint des documents existants **par référence** (ADR
+    0013) : aucun octet n'est copié, la visibilité dans la liste Documents
+    n'est pas élargie. L'auteur doit pouvoir lire chaque document (404 sinon,
+    sans révéler l'existence d'une fiche hors de son périmètre).
+    """
+    documents_partages = []
+    if payload.document_ids:
+        from app.application.services.document_service import DocumentService
+
+        service_documents = DocumentService(session)
+        for document_id in payload.document_ids:
+            document = service_documents.obtenir(document_id)
+            documents_partages.append(
+                {
+                    "document_id": document.id,
+                    "nom": document.nom,
+                    "mime": document.mime_type,
+                    "taille": document.taille_octets,
+                }
+            )
+
     annonce = SocialService(session).publier_annonce(
         auteur_id=utilisateur.id,
         titre=payload.titre,
@@ -490,6 +540,8 @@ def publier_annonce(payload: AnnonceCreate, session: DbSession, utilisateur: Cur
         # ``POST /social/annonces/pieces``) — l'ordre du formulaire est
         # conservé (position).
         pieces=[p.model_dump() for p in payload.pieces],
+        # ADR 0013 : fiches existantes jointes par référence.
+        documents=documents_partages,
     )
     return lire_annonce(annonce)
 
@@ -539,7 +591,9 @@ def telecharger_piece_annonce_multiple(
     """Télécharge une pièce **parmi plusieurs** (incrément 33).
 
     Même contrat de sécurité que l'ancien endpoint : annonce visible, chemin
-    résolu sous le scope ``chat`` (anti path-traversal).
+    résolu sous le scope ``chat`` (anti path-traversal). Une pièce
+    **référencée** (ADR 0013) se sert depuis sa fiche documentaire : une fiche
+    purgée ou en corbeille rend la pièce introuvable — la fiche fait foi.
     """
     from app.domain.social import PieceAnnonce
 
@@ -551,12 +605,20 @@ def telecharger_piece_annonce_multiple(
         raise HTTPException(status_code=404, detail="Pièce jointe introuvable")
     from app.documents.paths import resolve_within_root
 
+    if piece.document_id is not None:
+        return _servir_piece_referencee(session, piece.document_id, piece.nom)
+
     chemin = resolve_within_root(get_settings().storage_root, piece.chemin)
     return FileResponse(path=chemin, filename=piece.nom or "piece")
 
 
 @router.get("/annonces/{annonce_id}/piece", response_class=FileResponse)
 def telecharger_piece_annonce(annonce_id: UUID, session: DbSession, utilisateur: CurrentUser):
+    """Télécharge la pièce historique d'une annonce (incrément 20).
+
+    Le champ ne porte que les pièces **téléversées** depuis l'ADR 0013 : une
+    annonce composée de fiches référencées se sert par la route multi-pièces.
+    """
     annonce = session.get(Annonce, annonce_id)
     if annonce is None or annonce.supprime_at is not None or annonce.piece_chemin is None:
         raise HTTPException(status_code=404, detail="Pièce jointe introuvable")

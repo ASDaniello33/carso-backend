@@ -158,7 +158,7 @@ def test_ancre_inconnue_refusee(
     sortie = outil.invoke(_payload(organisation, ancre="inconnue"))
     assert sortie["ok"] is False
     assert "ancre" in sortie["error"]["message"]
-    assert "appel_a_proposition" in sortie["error"]["message"]
+    assert "appel" in sortie["error"]["message"]
 
 
 def test_ancre_inexistante_range_sous_generated(
@@ -300,7 +300,7 @@ def test_schema_outil_expose_les_enums_et_le_spec_structure() -> None:
 
     schema = GenererDocumentInput.model_json_schema()
     assert _valeurs_enum(schema, "format") == ["docx", "xlsx", "pdf"]
-    assert "appel_a_proposition" in _valeurs_enum(schema, "ancre")
+    assert "appel" in _valeurs_enum(schema, "ancre")
     assert "carso_sobre" in _valeurs_enum(schema, "style")
     # Le document structuré est décrit par son schéma, pas par de la prose seule.
     assert "DocumentSpec" in schema["$defs"]

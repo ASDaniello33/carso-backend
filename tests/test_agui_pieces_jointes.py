@@ -149,7 +149,7 @@ def test_reecriture_injecte_fiche_et_extrait(monkeypatch) -> None:
         version = 1
         mime_type = "application/pdf"
         taille_octets = 100
-        appel_a_proposition_id = UUID("aaaaaaaa-0000-4000-8000-000000000001")
+        appel_id = UUID("aaaaaaaa-0000-4000-8000-000000000001")
         offre_id = None
         mission_id = None
         equipe_id = None
@@ -205,7 +205,7 @@ def _app_espion(captures: list[bytes]) -> FastAPI:
         captures.append(json.dumps(corps).encode("utf-8"))
         return {"ok": True}
 
-    @interne.post("/api/v1/appels-a-proposition")
+    @interne.post("/api/v1/appels")
     async def _metier(corps: dict) -> dict:
         captures.append(json.dumps(corps).encode("utf-8"))
         return {"ok": True}
@@ -254,7 +254,7 @@ def test_middleware_ne_touche_pas_les_routes_metier() -> None:
     payload = {"nom": "Appel 2026", "organisation_id": "org-1"}
     client, captures = _client_middleware()
 
-    assert client.post("/api/v1/appels-a-proposition", json=payload).status_code == 200
+    assert client.post("/api/v1/appels", json=payload).status_code == 200
     assert json.loads(captures[0]) == payload
 
 

@@ -1,6 +1,6 @@
-"""Sortie structurée de l'analyse d'un appel à proposition (instruction/05 §11).
+"""Sortie structurée de l'analyse d'un appel (instruction/05 §11).
 
-Le schéma couvre le minimum confirmé (Phase 2—Organisation, AppelAProposition, Lot).
+Le schéma couvre le minimum confirmé (Phase 2—Organisation, Appel, Lot).
 Tout champ client-spécifique non confirmé va dans ``extra``—l'agent n'invente
 jamais une colonne métier (AGENTS.md §2.2).
 """
@@ -31,10 +31,10 @@ class LotExtrait(BaseModel):
     date_fin: date | None = None
 
 
-class ExtractionAppelAProposition(BaseModel):
+class ExtractionAppel(BaseModel):
     """Proposition d'extraction complète — PROPOSITION, jamais donnée officielle.
 
-    Sérialisée (``model_dump(mode='json')``) dans ``appels_a_proposition.donnees_extraites``
+    Sérialisée (``model_dump(mode='json')``) dans ``appels.donnees_extraites``
     avec la zone ``_meta`` ajoutée par le service.
     """
 

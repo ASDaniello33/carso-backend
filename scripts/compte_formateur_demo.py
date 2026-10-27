@@ -267,7 +267,7 @@ def _ou_creer_mission(session: Session, organisation_id: UUID, lieu_id: UUID) ->
     # Machine à états : la mission s'ouvre en « en preparation » (c'est la
     # phase de staffing : l'affectation y est possible). Le passage en
     # « en cours » a lieu après l'affectation (cf. `_lancer_mission`).
-    return service.changer_statut(mission.id, StatutMission.EN_PREPARATION.value)
+    return service.changer_statut(mission.id, StatutMission.PLANIFIE.value)
 
 
 def _lancer_mission(session: Session, mission: Mission) -> Mission:
@@ -318,7 +318,7 @@ def _ou_creer_session(session: Session, mission_id: UUID) -> SessionFormation:
         )
     )
     # Une session confirmée donne au formateur une session à opérer.
-    return service.changer_statut(planifiee.id, StatutSessionFormation.CONFIRMEE.value)
+    return service.changer_statut(planifiee.id, StatutSessionFormation.PLANIFIE.value)
 
 
 def _ou_creer_participations(

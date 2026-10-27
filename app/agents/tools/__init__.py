@@ -18,7 +18,7 @@ Matrice d'accès base de données (docs/agents/REFACTOR-OUTILS-AGENTS.md §3) :
 |---|---|---|
 | généraliste | aucun (readonly total) | toutes les tables |
 | statistique | aucun (readonly total) | toutes les tables |
-| générateur d'offre | Document, AppelAProposition, Lot, Offre | autres |
+| générateur d'offre | Document, Appel, Lot, Offre | autres |
 | RH | Document, Equipe, Mission | autres |
 | assistant formateur | Beneficiaire, Document (mission) | Equipe/Mission/Lot/Offre de la mission |
 

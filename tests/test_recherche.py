@@ -11,11 +11,11 @@ from sqlalchemy.orm import Session
 
 from app.application.services.recherche_service import RechercheService
 from app.domain.enums import (
-    StatutAppelAProposition,
+    StatutAppel,
     StatutMission,
 )
 from app.domain.execution import Mission
-from app.domain.organization import AppelAProposition, Organisation
+from app.domain.organization import Appel, Organisation
 from tests.conftest import seed
 
 
@@ -23,12 +23,12 @@ def _organisation(nom: str = "Croix-Rouge Malagasy") -> Organisation:
     return Organisation(nom=nom)
 
 
-def _appel(organisation_id: object, titre: str, reference: str) -> AppelAProposition:
-    return AppelAProposition(
+def _appel(organisation_id: object, titre: str, reference: str) -> Appel:
+    return Appel(
         organisation_id=organisation_id,
         reference=reference,
         titre=titre,
-        statut=StatutAppelAProposition.RECU.value,
+        statut=StatutAppel.RECU.value,
     )
 
 

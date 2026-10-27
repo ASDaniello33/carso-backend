@@ -15,6 +15,10 @@ os.environ["AGENT_CHECKPOINT_PERSISTANT"] = "0"
 # Initialisation de démarrage (config d'agents + premier admin) : hors du
 # chemin des tests — elle ouvre PostgreSQL et fausserait les durées.
 os.environ["DEMARRAGE_INITIALISE_RUNTIME"] = "0"
+# Balayage du cycle de vie (ADR 0012) : désactivé dans la suite — les tests
+# appellent ``CycleDeVieService`` directement avec la date de leur choix ;
+# un thread de fond ajouterait du non-déterminisme aux statuts.
+os.environ["CYCLE_DE_VIE_BALAYAGE_ACTIF"] = "0"
 
 import pytest
 from fastapi.testclient import TestClient

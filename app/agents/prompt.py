@@ -184,7 +184,7 @@ Une pièce jointe déposée hors fiche métier vit sous `storage/generated/{id}/
 Outils, dans cet ordre :
 
 ```text
-read_appel_a_proposition            métadonnées de l'appel enregistré
+read_appel            métadonnées de l'appel enregistré
 list_appel_documents                documents rattachés à l'appel
 read_document_text                  texte extrait d'un document (document_id)
 read_document / lire_document       fiche + aperçu borné du texte (début)
@@ -283,7 +283,7 @@ Un lot sans titre clair n'est pas inventé : tu le signales.
 Un montant absent reste absent : tu n'estimes aucun budget.
 ```
 
-Structure attendue de la proposition (schéma `ExtractionAppelAProposition`) :
+Structure attendue de la proposition (schéma `ExtractionAppel`) :
 
 ```text
 organisation       nom (et type s'il est indiqué)
@@ -727,7 +727,7 @@ D'où vient cette ancre : elle t'est DONNÉE dans l'ancre réelle du message
   UUID tels quels dans ancre + entity_id ; tu n'en invente aucun.
 Si l'ancre n'est pas dans le message : tu la résous AVANT de générer
   (search_offres pour l'offre du dossier, get_lot / list_lots pour le lot,
-  search_appels_a_proposition pour l'appel). Un livrable d'offre se génère
+  search_appels pour l'appel). Un livrable d'offre se génère
   avec son ancre, jamais sans : un document sans ancre part en « non_classe »
   et n'apparaît PAS sur la fiche de l'offre — l'utilisateur ne voit rien.
 Type du livrable d'offre : type_document = 'offre' (technique, financière ou
@@ -815,7 +815,7 @@ Tu n'enregistres jamais une mission sans ce geste humain, et tu n'inventes ni li
 
 ```text
 Réception        search_organisations, enregistrer_appel, rattacher_document_appel
-Analyse          read_appel_a_proposition, list_appel_documents, read_document_text
+Analyse          read_appel, list_appel_documents, read_document_text
 Extraction       submit_rfp_extraction, list_lots, get_lot
 Offres           create_offer_draft, get_document_template, search_offres
 Documents        generer_document_professionnel (PRIORITAIRE docx/pdf/pptx : corps HTML
@@ -831,7 +831,7 @@ Documents        generer_document_professionnel (PRIORITAIRE docx/pdf/pptx : cor
                  lire_document, read_document (fiche + aperçu borné),
                  search_documents
 Corrections      propose_lot_update, propose_appel_update
-Consultation     search_appels_a_proposition, search_missions, search_sessions,
+Consultation     search_appels, search_missions, search_sessions,
                  search_beneficiaires, search_equipes, search_affectations,
                  get_organization
 Recherche web    langsearch_web_search (uniquement à la demande de l'utilisateur ;

@@ -22,7 +22,7 @@ from app.application.dossier import DossierAutorise, dossier_autorise
 from app.application.perimetre import Perimetre, perimetre_effectif
 from app.domain.document import Document
 from app.domain.execution import Beneficiaire, Equipe, Mission, SessionFormation
-from app.domain.organization import AppelAProposition, Offre, Organisation
+from app.domain.organization import Appel, Offre, Organisation
 
 #: Requête minimale (évite un balayage complet sur « a »).
 LONGUEUR_MINIMALE = 2
@@ -105,15 +105,15 @@ class RechercheService:
 
     def _appels(self, terme: str) -> list[dict[str, Any]]:
         motif_contient = _CONTIENT.format(terme)
-        requete = select(AppelAProposition).where(
+        requete = select(Appel).where(
             or_(
-                AppelAProposition.titre.ilike(motif_contient),
-                AppelAProposition.reference.ilike(motif_contient),
+                Appel.titre.ilike(motif_contient),
+                Appel.reference.ilike(motif_contient),
             )
         )
-        requete = self._restreindre(requete, AppelAProposition.id, self._dossier.appels)
+        requete = self._restreindre(requete, Appel.id, self._dossier.appels)
         lignes = self._session.execute(
-            requete.order_by(AppelAProposition.titre.asc()).limit(PLAFOND_PAR_FAMILLE)
+            requete.order_by(Appel.titre.asc()).limit(PLAFOND_PAR_FAMILLE)
         ).scalars().all()
         return [
             {

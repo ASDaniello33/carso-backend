@@ -83,7 +83,7 @@ TypeFormat = Literal["docx", "xlsx", "pdf"]
 #: Vocabulaire fermé des ancres métier réelles (doit rester aligné sur ``_ANCRES``).
 TypeAncre = Literal[
     "organisation",
-    "appel_a_proposition",
+    "appel",
     "offre",
     "mission",
     "equipe",
@@ -140,7 +140,7 @@ MAX_PLAGES_PAR_LECTURE = 8
 
 _ANCRES: dict[str, str] = {
     "organisation": "organisation_id",
-    "appel_a_proposition": "appel_a_proposition_id",
+    "appel": "appel_id",
     "offre": "offre_id",
     "mission": "mission_id",
     "equipe": "equipe_id",
@@ -179,7 +179,7 @@ class GenererDocumentInput(BaseModel):
     ancre: TypeAncre | None = Field(
         default=None,
         description=(
-            "Rattachement optionnel : 'organisation' | 'appel_a_proposition' | "
+            "Rattachement optionnel : 'organisation' | 'appel' | "
             "'offre' | 'mission' | 'equipe' | 'session'. "
             "Omettre si aucun objet métier n'est identifié — ne pas inventer."
         ),
@@ -315,7 +315,7 @@ class GenererDocumentHtmlInput(BaseModel):
     ancre: TypeAncre | None = Field(
         default=None,
         description=(
-            "Rattachement optionnel : 'organisation' | 'appel_a_proposition' | "
+            "Rattachement optionnel : 'organisation' | 'appel' | "
             "'offre' | 'mission' | 'equipe' | 'session'. "
             "Omettre si aucun objet métier n'est identifié — ne pas inventer."
         ),
@@ -565,7 +565,7 @@ class GenererDocumentProfessionnelInput(BaseModel):
     ancre: TypeAncre | None = Field(
         default=None,
         description=(
-            "Rattachement optionnel : 'organisation' | 'appel_a_proposition' | "
+            "Rattachement optionnel : 'organisation' | 'appel' | "
             "'offre' | 'mission' | 'equipe' | 'session'. "
             "Omettre si aucun objet métier n'est identifié — ne pas inventer."
         ),
@@ -691,7 +691,7 @@ class CorrigerDocumentInput(BaseModel):
     ancre: TypeAncre | None = Field(
         default=None,
         description=(
-            "Rattachement optionnel : 'organisation' | 'appel_a_proposition' | 'offre' | "
+            "Rattachement optionnel : 'organisation' | 'appel' | 'offre' | "
             "'mission' | 'equipe' | 'session'. Ignoré quand ``document_id`` est fourni "
             "(le document garde son rattachement)."
         ),

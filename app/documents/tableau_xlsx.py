@@ -1,6 +1,6 @@
 """Import d'un tableau depuis un classeur XLSX vers un ``Tableau`` du spec.
 
-Un appel à proposition CARSO arrive souvent avec ses annexes déjà saisies dans un
+Un appel CARSO arrive souvent avec ses annexes déjà saisies dans un
 tableur (planning, matrice d'activités, budget). Redemander à l'agent de
 ressaisir cette structure en JSON serait lent **et** infidèle—ce module
 **lit** la feuille et restitue ce qui s'y trouve réellement—texte, fusions,

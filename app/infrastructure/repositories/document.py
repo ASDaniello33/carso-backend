@@ -143,8 +143,8 @@ class DocumentRepository(BaseRepository[Document]):
     def list_for_mission(self, mission_id: uuid.UUID) -> list[Document]:
         return self._documents_actifs(Document.mission_id, mission_id)
 
-    def list_for_appel_a_proposition(self, appel_a_proposition_id: uuid.UUID) -> list[Document]:
-        return self._documents_actifs(Document.appel_a_proposition_id, appel_a_proposition_id)
+    def list_for_appel(self, appel_id: uuid.UUID) -> list[Document]:
+        return self._documents_actifs(Document.appel_id, appel_id)
 
     def list_for_offre(self, offre_id: uuid.UUID) -> list[Document]:
         return self._documents_actifs(Document.offre_id, offre_id)

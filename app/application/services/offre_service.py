@@ -30,9 +30,10 @@ from app.domain.enums import (
     ActionAudit,
     ActorType,
     DecisionApprobation,
-    StatutAppelAProposition,
+    StatutAppel,
     StatutBudget,
     StatutOffre,
+    TypeAppel,
     TypeOffre,
     TypeProposition,
 )
@@ -55,6 +56,21 @@ _SUFFIXES_TYPES = {
     TypeOffre.OFFRE_FINANCIERE.value: "FIN",
     TypeOffre.AUTRE.value: "AUTRE",
 }
+
+#: Types d'offre qu'un appel accepte (règle confirmée CARSO, 26/10).
+#: Un appel à proposition se répond par une offre technique **et** une offre
+#: financière ; une manifestation d'intérêt (ou tout autre type) par une offre
+#: « autre ». Le type n'est jamais déduit du document : il est contrôlé ici.
+_TYPES_PAR_APPEL: dict[str, frozenset[str]] = {
+    TypeAppel.APPEL_A_PROPOSITION.value: frozenset(
+        {TypeOffre.OFFRE_TECHNIQUE.value, TypeOffre.OFFRE_FINANCIERE.value}
+    ),
+}
+
+
+def types_offre_attendus(type_appel: str) -> frozenset[str]:
+    """Types d'offre autorisés pour ce type d'appel (défaut : ``autre``)."""
+    return _TYPES_PAR_APPEL.get(type_appel, frozenset({TypeOffre.AUTRE.value}))
 
 
 def _iso(valeur: date | None) -> str | None:
@@ -89,7 +105,7 @@ class OffreService:
         titre: str,
         *,
         type: str,
-        appel_a_proposition_id: UUID | None = None,
+        appel_id: UUID | None = None,
         modele_document_id: UUID | None = None,
     ) -> Offre:
         """Crée l'offre en brouillon pour **un lot et un type donnés**.
@@ -115,24 +131,35 @@ class OffreService:
         lot = self.lots.get(lot_id)
         if lot is None:
             raise NotFoundError(f"Lot {lot_id} introuvable")
-        appel = lot.appel_a_proposition
+        appel = lot.appel
+
+        attendus = types_offre_attendus(appel.type)
+        if type not in attendus:
+            raise ValidationError(
+                "Ce type d'offre ne correspond pas à la nature de l'appel",
+                details={
+                    "type_appel": appel.type,
+                    "type_fourni": type,
+                    "types_attendus": sorted(attendus),
+                },
+            )
 
         # Un lot officiel (extraction approuvée ou saisie manuelle) ouvre les
         # offres. Seul un appel rejeté les bloque : le statut ``valide`` n'est
         # pas un prérequis (il n'est atteint que par l'extraction).
-        if appel.statut == StatutAppelAProposition.REJETE.value:
+        if appel.statut == StatutAppel.REJETE.value:
             raise ValidationError(
                 "Impossible de créer une offre sur un appel rejeté",
                 details={"statut": appel.statut, "lot_id": str(lot_id)},
             )
 
-        if appel_a_proposition_id is not None and appel_a_proposition_id != appel.id:
+        if appel_id is not None and appel_id != appel.id:
             raise ValidationError(
                 "L'appel fourni ne correspond pas à celui du lot",
                 details={
                     "lot_id": str(lot_id),
                     "appel_du_lot": str(appel.id),
-                    "appel_fourni": str(appel_a_proposition_id),
+                    "appel_fourni": str(appel_id),
                 },
             )
 
@@ -163,7 +190,7 @@ class OffreService:
 
         offre = Offre(
             organisation_id=appel.organisation_id,
-            appel_a_proposition_id=appel.id,
+            appel_id=appel.id,
             lot_id=lot_id,
             type=type,
             reference=reference,
@@ -186,7 +213,7 @@ class OffreService:
         """brouillon → en_revue : mise à disposition pour décision humaine."""
         offre = self._get(offre_id)
         validate_transition(_ENTITY, offre.statut, StatutOffre.EN_REVUE.value)
-        offre.statut = StatutOffre.EN_REVUE
+        offre.statut = StatutOffre.EN_REVUE.value
         self._trace.record_event(
             actor_type=ActorType.HUMAIN.value,
             action=ActionAudit.OFFRE_SOUMISE.value,
@@ -203,7 +230,7 @@ class OffreService:
         offre = self._get(offre_id)
         validate_transition(_ENTITY, offre.statut, StatutOffre.APPROUVE.value)
 
-        offre.statut = StatutOffre.APPROUVE
+        offre.statut = StatutOffre.APPROUVE.value
         offre.approved_at = datetime.now().astimezone()
         self._trace.record_decision(
             entity_type=_ENTITY,

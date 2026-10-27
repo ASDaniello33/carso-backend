@@ -36,7 +36,7 @@ from app.agents.consultation import (
     compter_affectations_par_role,
     compter_beneficiaires_par_session,
     compter_missions_par_statut,
-    rechercher_appels_a_proposition,
+    rechercher_appels,
     rechercher_documents,
     rechercher_equipes,
     rechercher_missions,
@@ -83,7 +83,7 @@ NOMS_TOOLS: tuple[str, ...] = (
     "generer_document_professionnel",
     "importer_tableau_xlsx",
     "search_organisations",
-    "search_appels_a_proposition",
+    "search_appels",
     "search_lots",
     "search_offres",
     "search_missions",
@@ -187,10 +187,10 @@ def construire_tools_statistique(
         run=rechercher_organisations,
     ))
     kit.enregistrer(OperationSpec(
-        name="search_appels_a_proposition",
+        name="search_appels",
         description="Appels à proposition (organisation, statut, texte) + lots.",
         input_schema=PageSearchInput,
-        run=rechercher_appels_a_proposition,
+        run=rechercher_appels,
     ))
     kit.enregistrer(OperationSpec(
         name="search_lots",

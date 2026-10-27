@@ -17,10 +17,10 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql.ddl import CreateColumn
 
-from app.application.dto import AffectationProposee, AppelAPropositionInput, LigneBudgetInput
+from app.application.dto import AffectationProposee, AppelInput, LigneBudgetInput
 from app.application.services import (
     AffectationService,
-    AppelAPropositionService,
+    AppelService,
     OffreService,
 )
 from app.application.trace import Decision
@@ -30,14 +30,15 @@ from app.domain.document import Approbation, AuditEvent
 from app.domain.enums import (
     DecisionApprobation,
     StatutAffectation,
-    StatutAppelAProposition,
+    StatutAppel,
     StatutBudget,
     StatutMission,
     StatutOffre,
+    TypeAppel,
     TypeOffre,
 )
 from app.domain.execution import Equipe, Mission
-from app.domain.organization import AppelAProposition, Budget, Lot, Offre, Organisation
+from app.domain.organization import Appel, Budget, Lot, Offre, Organisation
 from app.domain.state_machines import validate_transition
 
 
@@ -65,18 +66,18 @@ def session() -> Iterator[Session]:
 # --- Fixtures métier ----------------------------------------------------------
 
 
-def _make_appel_en_analyse(session: Session) -> AppelAProposition:
+def _make_appel_en_analyse(session: Session) -> Appel:
     org = Organisation(nom="Client SARL")
     session.add(org)
     session.flush()  # id disponible avant référence
-    appel = AppelAProposition(organisation_id=org.id, reference="AO-2026-01", titre="Formation")
+    appel = Appel(organisation_id=org.id, reference="AO-2026-01", titre="Formation")
     session.add(appel)
     session.flush()
     return appel
 
 
-def _make_lot(session: Session, appel: AppelAProposition) -> Lot:
-    lot = Lot(appel_a_proposition_id=appel.id, numero="1", titre="Lot 1")
+def _make_lot(session: Session, appel: Appel) -> Lot:
+    lot = Lot(appel_id=appel.id, numero="1", titre="Lot 1")
     session.add(lot)
     session.flush()
     return lot
@@ -90,7 +91,7 @@ def _make_mission_planifiee(session: Session) -> Mission:
         organisation_id=org.id,
         reference="M-2026-01",
         titre="Formation trésorerie",
-        statut=StatutMission.PLANIFIEE.value,
+        statut=StatutMission.PLANIFIE.value,
     )
     session.add(mission)
     session.flush()
@@ -136,29 +137,29 @@ class TestStateMachines:
 # --- Appel à proposition : zone proposal / validation --------------------------------
 
 
-class TestAppelAPropositionService:
+class TestAppelService:
     def test_extraction_reste_en_zone_proposal(self, session: Session) -> None:
         appel = _make_appel_en_analyse(session)
-        service = AppelAPropositionService(session, actor_id="agent-ao")
+        service = AppelService(session, actor_id="agent-ao")
 
         service.enregistrer_extraction(
             appel.id,
             {"lots": [{"numero": "1", "titre": "Formation"}]},
-            proposed_by_agent="AgentAnalyseurAppelAProposition",
+            proposed_by_agent="AgentAnalyseurAppel",
         )
 
         # Aucune table officielle écrite : seulement la zone proposal + statut.
         # L'enregistrement soumet la proposition : l'appel arrive en 'propose',
         # prêt pour la décision humaine (Phase 2 §3).
         assert appel.donnees_extraites["_meta"]["proposed_by_agent"] == (
-            "AgentAnalyseurAppelAProposition"
+            "AgentAnalyseurAppel"
         )
-        assert appel.statut == StatutAppelAProposition.PROPOSE.value
+        assert appel.statut == StatutAppel.PROPOSE.value
         assert session.scalars(select(Lot)).all() == []
 
     def test_approbation_officialise_et_trace(self, session: Session) -> None:
         appel = _make_appel_en_analyse(session)
-        service = AppelAPropositionService(session)
+        service = AppelService(session)
         service.enregistrer_extraction(
             appel.id,
             {"lots": [{"numero": "1", "titre": "Lot Formation"}]},
@@ -169,7 +170,7 @@ class TestAppelAPropositionService:
             appel.id, Decision(decided_by="chef.carso", reason="conforme")
         )
 
-        assert appel.statut == StatutAppelAProposition.VALIDE.value
+        assert appel.statut == StatutAppel.VALIDE.value
         assert [lot.numero for lot in session.scalars(select(Lot)).all()] == ["1"]
         approbation = session.scalars(select(Approbation)).one()
         assert approbation.decided_by == "chef.carso"
@@ -180,25 +181,25 @@ class TestAppelAPropositionService:
 
     def test_refus_renvoie_en_correction_sans_effacer(self, session: Session) -> None:
         appel = _make_appel_en_analyse(session)
-        service = AppelAPropositionService(session)
+        service = AppelService(session)
         service.enregistrer_extraction(appel.id, {"lots": []}, proposed_by_agent="agent-ao")
 
         service.refuser_extraction(appel.id, Decision(decided_by="chef.carso"))
 
-        assert appel.statut == StatutAppelAProposition.CORRIGE.value
+        assert appel.statut == StatutAppel.CORRIGE.value
         assert appel.donnees_extraites is not None  # conservé pour audit
         decision = session.scalars(select(Approbation)).one()
         assert decision.decision == DecisionApprobation.REJETE.value
 
     def test_validation_sans_proposition_impossible(self, session: Session) -> None:
         appel = _make_appel_en_analyse(session)
-        service = AppelAPropositionService(session)
+        service = AppelService(session)
 
         with pytest.raises(ConflictError):
             service.approuver_extraction(appel.id, Decision(decided_by="chef.carso"))
 
     def test_entite_absente_leve_not_found(self, session: Session) -> None:
-        service = AppelAPropositionService(session)
+        service = AppelService(session)
         with pytest.raises(NotFoundError):
             service.approuver_extraction(uuid4(), Decision(decided_by="x"))
 
@@ -206,27 +207,27 @@ class TestAppelAPropositionService:
         org = Organisation(nom="Client Enregistrement")
         session.add(org)
         session.flush()
-        service = AppelAPropositionService(session, actor_id="collab")
+        service = AppelService(session, actor_id="collab")
 
         appel = service.enregistrer(
-            AppelAPropositionInput(
+            AppelInput(
                 organisation_id=org.id,
                 reference="ULA-097",
                 titre="Incubation TEFIALA",
             )
         )
 
-        assert appel.statut == StatutAppelAProposition.RECU.value
+        assert appel.statut == StatutAppel.RECU.value
         assert appel.reference == "ULA-097"
         events = session.scalars(select(AuditEvent)).all()
         assert any(e.action == "appel_a_proposition.enregistre" for e in events)
 
     def test_enregistrer_reference_doublon(self, session: Session) -> None:
         appel = _make_appel_en_analyse(session)
-        service = AppelAPropositionService(session)
+        service = AppelService(session)
         with pytest.raises(ConflictError):
             service.enregistrer(
-                AppelAPropositionInput(
+                AppelInput(
                     organisation_id=appel.organisation_id,
                     reference=appel.reference,
                     titre="Doublon",
@@ -236,7 +237,7 @@ class TestAppelAPropositionService:
     def test_approbation_materialise_lots_officiels(self, session: Session) -> None:
         """Validation humaine → lots officiels (1 lot = 1 ligne). Zone proposal intacte."""
         appel = _make_appel_en_analyse(session)
-        service = AppelAPropositionService(session)
+        service = AppelService(session)
         service.enregistrer_extraction(
             appel.id,
             {
@@ -270,11 +271,11 @@ class TestAppelAPropositionService:
     def test_approbation_ne_ecrase_pas_lot_manuel(self, session: Session) -> None:
         appel = _make_appel_en_analyse(session)
         existant = Lot(
-            appel_a_proposition_id=appel.id, numero="1", titre="Lot saisi à la main"
+            appel_id=appel.id, numero="1", titre="Lot saisi à la main"
         )
         session.add(existant)
         session.flush()
-        service = AppelAPropositionService(session)
+        service = AppelService(session)
         service.enregistrer_extraction(
             appel.id,
             {"lots": [{"numero": "1", "titre": "Lot extrait IA"}]},
@@ -287,65 +288,70 @@ class TestAppelAPropositionService:
         assert len(lots) == 1
         assert lots[0].titre == "Lot saisi à la main"
 
-    def test_validation_sans_lot_refusee(self, session: Session) -> None:
-        """Régression : une proposition sans lot ne peut plus figer l'appel.
+    def test_validation_sans_lot_cree_le_lot_unique(self, session: Session) -> None:
+        """ADR 0012 (règle 26/10) : un appel sans lot reçoit un lot unique « 1 ».
 
-        Avant : l'appel passait en ``valide`` (statut terminal) sans créer le
-        moindre lot officiel — plus aucun lot ne pouvait naître et la
-        proposition ne repartait plus.
+        Le lot porte le **titre de l'appel** et le numéro ``1`` : les offres de
+        cet appel y sont rattachées, aucune n'est orpheline. L'audit de la
+        décision dit que le lot vient du repli, pas d'une extraction.
         """
         appel = _make_appel_en_analyse(session)
-        service = AppelAPropositionService(session)
-        service.enregistrer_extraction(
-            appel.id, {"lots": []}, proposed_by_agent="agent-ao"
-        )
-
-        with pytest.raises(ConflictError):
-            service.approuver_extraction(appel.id, Decision(decided_by="chef.carso"))
-
-        assert appel.statut == StatutAppelAProposition.PROPOSE.value
-        assert session.scalars(select(Lot)).all() == []
-        assert session.scalars(select(Approbation)).all() == []
-
-    def test_validation_refusee_si_aucun_lot_exploitable(self, session: Session) -> None:
-        """Des lots proposés sans numéro ni titre n'officialisent rien : refus."""
-        appel = _make_appel_en_analyse(session)
-        service = AppelAPropositionService(session)
-        service.enregistrer_extraction(
-            appel.id,
-            {"lots": [{"titre": "Titre sans numéro"}, {"numero": "2"}]},
-            proposed_by_agent="agent-ao",
-        )
-
-        with pytest.raises(ConflictError):
-            service.approuver_extraction(appel.id, Decision(decided_by="chef.carso"))
-
-        assert appel.statut == StatutAppelAProposition.PROPOSE.value
-        assert session.scalars(select(Lot)).all() == []
-
-    def test_validation_acceptee_si_lot_manuel_deja_present(self, session: Session) -> None:
-        """Cas légitime conservé : un lot saisi à la main suffit à officialiser."""
-        appel = _make_appel_en_analyse(session)
-        _make_lot(session, appel)
-        service = AppelAPropositionService(session)
+        service = AppelService(session)
         service.enregistrer_extraction(
             appel.id, {"lots": []}, proposed_by_agent="agent-ao"
         )
 
         service.approuver_extraction(appel.id, Decision(decided_by="chef.carso"))
 
-        assert appel.statut == StatutAppelAProposition.VALIDE.value
+        assert appel.statut == StatutAppel.VALIDE.value
+        lots = session.scalars(select(Lot)).all()
+        assert len(lots) == 1
+        assert lots[0].numero == "1"
+        assert lots[0].titre == appel.titre
+
+    def test_validation_avec_lots_inexploitables_cree_aussi_le_lot_unique(
+        self, session: Session
+    ) -> None:
+        """Des lots sans numéro ni titre n'officialisent rien **d'eux-mêmes**
+        (aucun lot inventé depuis un champ absent) : le repli s'applique."""
+        appel = _make_appel_en_analyse(session)
+        service = AppelService(session)
+        service.enregistrer_extraction(
+            appel.id,
+            {"lots": [{"titre": "Titre sans numéro"}, {"numero": "2"}]},
+            proposed_by_agent="agent-ao",
+        )
+
+        service.approuver_extraction(appel.id, Decision(decided_by="chef.carso"))
+
+        assert appel.statut == StatutAppel.VALIDE.value
+        lots = session.scalars(select(Lot)).all()
+        assert len(lots) == 1
+        assert lots[0].numero == "1"
+
+    def test_validation_acceptee_si_lot_manuel_deja_present(self, session: Session) -> None:
+        """Cas légitime conservé : un lot saisi à la main suffit à officialiser."""
+        appel = _make_appel_en_analyse(session)
+        _make_lot(session, appel)
+        service = AppelService(session)
+        service.enregistrer_extraction(
+            appel.id, {"lots": []}, proposed_by_agent="agent-ao"
+        )
+
+        service.approuver_extraction(appel.id, Decision(decided_by="chef.carso"))
+
+        assert appel.statut == StatutAppel.VALIDE.value
         assert len(session.scalars(select(Lot)).all()) == 1
 
     def test_proposition_corrigee_remet_en_propose(self, session: Session) -> None:
         """L'appel validé sans lot redevient réparable par une nouvelle proposition."""
         appel = _make_appel_en_analyse(session)
-        service = AppelAPropositionService(session)
+        service = AppelService(session)
         service.enregistrer_extraction(
             appel.id, {"lots": []}, proposed_by_agent="agent-ao"
         )
         # On force l'état figeant observé en base (validation historique sans garde).
-        appel.statut = StatutAppelAProposition.VALIDE
+        appel.statut = StatutAppel.VALIDE
 
         service.enregistrer_proposition_corrigee(
             appel.id,
@@ -353,7 +359,7 @@ class TestAppelAPropositionService:
             proposed_by_agent="agent-ao",
         )
 
-        assert appel.statut == StatutAppelAProposition.PROPOSE.value
+        assert appel.statut == StatutAppel.PROPOSE.value
         assert session.scalars(select(Lot)).all() == []  # rien d'officiel avant approbation
 
         service.approuver_extraction(appel.id, Decision(decided_by="chef.carso"))
@@ -367,11 +373,11 @@ class TestAppelAPropositionService:
         OffreService(session).creer_brouillon(
             lot.id, "OF-1", "Offre Lot 1", type=TypeOffre.OFFRE_TECHNIQUE.value
         )
-        service = AppelAPropositionService(session)
+        service = AppelService(session)
         service.enregistrer_extraction(
             appel.id, {"lots": []}, proposed_by_agent="agent-ao"
         )
-        appel.statut = StatutAppelAProposition.VALIDE
+        appel.statut = StatutAppel.VALIDE
 
         with pytest.raises(ConflictError):
             service.enregistrer_proposition_corrigee(
@@ -380,29 +386,30 @@ class TestAppelAPropositionService:
                 proposed_by_agent="agent-ao",
             )
 
-        assert appel.statut == StatutAppelAProposition.VALIDE.value
+        assert appel.statut == StatutAppel.VALIDE.value
         assert appel.donnees_extraites["lots"] == []  # proposition intacte
 
-    def test_proposition_corrigee_refusee_si_vide(self, session: Session) -> None:
-        """Une re-soumission sans lot exploitable est refusée sans rien écrire."""
+    def test_proposition_corrigee_vide_acceptee(self, session: Session) -> None:
+        """Une re-soumission sans lot est **légitime** depuis le 26/10.
+
+        La validation crée alors le lot unique « 1 » : refuser la proposition
+        ici empêcherait le seul chemin qui produit un appel sans lot.
+        """
         appel = _make_appel_en_analyse(session)
-        service = AppelAPropositionService(session)
+        service = AppelService(session)
         service.enregistrer_extraction(
             appel.id,
             {"lots": [{"numero": "1", "titre": "Lot d'origine"}]},
             proposed_by_agent="agent-ao",
         )
-        appel.statut = StatutAppelAProposition.VALIDE
+        appel.statut = StatutAppel.VALIDE
 
-        with pytest.raises(ValidationError):
-            service.enregistrer_proposition_corrigee(
-                appel.id, {"lots": []}, proposed_by_agent="agent-ao"
-            )
+        service.enregistrer_proposition_corrigee(
+            appel.id, {"lots": []}, proposed_by_agent="agent-ao"
+        )
 
-        assert appel.statut == StatutAppelAProposition.VALIDE.value
-        assert appel.donnees_extraites["lots"] == [
-            {"numero": "1", "titre": "Lot d'origine"}
-        ]
+        assert appel.statut == StatutAppel.PROPOSE.value
+        assert appel.donnees_extraites["lots"] == []
 
 
 # --- Offre de formation : cardinalité configurable + budget ---------------------
@@ -421,8 +428,40 @@ class TestOffreService:
         assert offre.statut == StatutOffre.BROUILLON.value
         assert offre.type == TypeOffre.OFFRE_TECHNIQUE.value
         assert offre.organisation_id == appel.organisation_id
-        assert offre.appel_a_proposition_id == appel.id
+        assert offre.appel_id == appel.id
         assert offre.lot_id == lot.id
+
+    def test_le_type_d_offre_est_controlé_par_le_type_d_appel(
+        self, session: Session
+    ) -> None:
+        """Règle 26/10 : un appel à proposition se répond par une offre technique
+        et/ou financière ; une manifestation d'intérêt par une offre « autre ».
+        """
+        appel = _make_appel_en_analyse(session)  # appel à proposition (défaut)
+        lot = _make_lot(session, appel)
+        service = OffreService(session)
+
+        with pytest.raises(ValidationError, match="nature de l'appel"):
+            service.creer_brouillon(
+                lot.id, "OF-AUTRE-INTERDIT", "Offre", type=TypeOffre.AUTRE.value
+            )
+
+        # La même offre est légitime sur une manifestation d'intérêt.
+        appel.type = TypeAppel.APPEL_A_MANIFESTATION_INTERET.value
+        session.flush()
+        offre = service.creer_brouillon(
+            lot.id, "OF-AUTRE-AMI", "Offre AMI", type=TypeOffre.AUTRE.value
+        )
+        assert offre.type == TypeOffre.AUTRE.value
+
+        # Et réciproquement : une offre technique n'y a pas sa place.
+        lot_ami = Lot(appel_id=appel.id, numero="2", titre="Lot AMI")
+        session.add(lot_ami)
+        session.flush()
+        with pytest.raises(ValidationError, match="nature de l'appel"):
+            service.creer_brouillon(
+                lot_ami.id, "OF-TECH-INTERDIT", "Offre", type=TypeOffre.OFFRE_TECHNIQUE.value
+            )
 
     def test_un_lot_n_accepte_qu_une_offre_par_type(self, session: Session) -> None:
         """Un lot porte au plus une offre de chaque type (technique + financière)."""
@@ -453,17 +492,22 @@ class TestOffreService:
             service.creer_brouillon(lot.id, "OF-X", "Offre", type="type_invente")
 
     def test_reference_deja_prise_refusee_409(self, session: Session) -> None:
-        """Régression : une référence déjà utilisée ne doit plus lever 500."""
+        """Régression : une référence déjà utilisée ne doit plus lever 500.
+
+        Les deux offres sont des types **compatibles avec l'appel à
+        proposition** (règle 26/10 : le type est contrôlé contre la nature de
+        l'appel avant la référence).
+        """
         appel = _make_appel_en_analyse(session)
         lot = _make_lot(session, appel)
         service = OffreService(session)
         service.creer_brouillon(
-            lot.id, "OFFRE-AUTRE-L1", "Offre", type=TypeOffre.AUTRE.value
+            lot.id, "OFFRE-FIN-L1", "Offre", type=TypeOffre.OFFRE_FINANCIERE.value
         )
 
-        with pytest.raises(ConflictError, match="OFFRE-AUTRE-L1"):
+        with pytest.raises(ConflictError, match="OFFRE-FIN-L1"):
             service.creer_brouillon(
-                lot.id, "OFFRE-AUTRE-L1", "Doublon", type=TypeOffre.OFFRE_TECHNIQUE.value
+                lot.id, "OFFRE-FIN-L1", "Doublon", type=TypeOffre.OFFRE_TECHNIQUE.value
             )
 
     def test_reference_auto_attribuee_unique_entre_appels(self, session: Session) -> None:
@@ -471,6 +515,9 @@ class TestOffreService:
         battent plus (OFFRE-AUTRE-L1, puis OFFRE-AUTRE-L1-2)."""
         service = OffreService(session)
         appel_a = _make_appel_en_analyse(session)
+        # Une offre « autre » répond à une manifestation d'intérêt, pas à un
+        # appel à proposition (règle 26/10).
+        appel_a.type = TypeAppel.APPEL_A_MANIFESTATION_INTERET.value
         lot_a = _make_lot(session, appel_a)
         offre_a = service.creer_brouillon(
             lot_a.id, None, "Offre appel A", type=TypeOffre.AUTRE.value
@@ -478,14 +525,15 @@ class TestOffreService:
         assert offre_a.reference == "OFFRE-AUTRE-L1"
 
         # Second appel, même numéro de lot : la base prise est contournée.
-        autre_appel = AppelAProposition(
+        autre_appel = Appel(
             organisation_id=appel_a.organisation_id,
             reference="AO-2026-02",
             titre="Second appel",
+            type=TypeAppel.APPEL_A_MANIFESTATION_INTERET.value,
         )
         session.add(autre_appel)
         session.flush()
-        lot_b = Lot(appel_a_proposition_id=autre_appel.id, numero="1", titre="Lot 1 B")
+        lot_b = Lot(appel_id=autre_appel.id, numero="1", titre="Lot 1 B")
         session.add(lot_b)
         session.flush()
         offre_b = service.creer_brouillon(
@@ -609,7 +657,7 @@ class TestAffectationService:
 
     def test_mission_cloturee_refuse_le_staffing(self, session: Session) -> None:
         mission = _make_mission_planifiee(session)
-        mission.statut = StatutMission.CLOTUREE.value
+        mission.statut = StatutMission.CLOTURE.value
         membre = _make_equipe(session)
         service = AffectationService(session)
 

@@ -213,7 +213,7 @@ def test_generaliste_couve_toutes_les_tables() -> None:
 
     requis = {
         "search_organisations",
-        "search_appels_a_proposition",
+        "search_appels",
         "search_lots",
         "search_offres",
         "search_missions",
@@ -232,7 +232,7 @@ def test_statistique_couvre_toutes_les_tables() -> None:
     requis = {
         "query_analytics",
         "search_organisations",
-        "search_appels_a_proposition",
+        "search_appels",
         "search_lots",
         "search_offres",
         "search_missions",
@@ -282,7 +282,7 @@ def test_rh_lit_les_autres_tables() -> None:
 
     requis = {
         "search_organisations",
-        "search_appels_a_proposition",
+        "search_appels",
         "search_lots",
         "search_offres",
         "search_sessions",

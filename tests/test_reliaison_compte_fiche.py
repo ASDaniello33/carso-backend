@@ -107,7 +107,7 @@ def test_fiche_recreee_relit_le_compte_orphelin(session: Session) -> None:
         organisation_id=organisation.id,
         reference="M-1",
         titre="Mission 1",
-        statut=StatutMission.EN_PREPARATION.value,
+        statut=StatutMission.PLANIFIE.value,
     )
     session.add(mission)
     session.flush()

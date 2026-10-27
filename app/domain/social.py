@@ -106,8 +106,7 @@ class Message(Base, UuidPkMixin, TimestampMixin):
     """Un message du chat : texte, auteur (humain ou agent), pièce jointe optionnelle."""
 
     __tablename__ = "messages"
-    __table_args__ = (
-        Index("ix_messages_conversation_date", "conversation_id", "created_at"),
+    __table_args__ = (            Index("ix_messages_conversation_date", "conversation_id", "created_at"),
         Index("ix_messages_auteur", "auteur_id"),
         # Suppression auteur (décision validée) : soft-delete.
         Index("ix_messages_supprime", "supprime_at"),
@@ -131,6 +130,12 @@ class Message(Base, UuidPkMixin, TimestampMixin):
     piece_chemin: Mapped[str | None] = mapped_column(String(1024))
     piece_mime: Mapped[str | None] = mapped_column(String(255))
     piece_taille: Mapped[int | None] = mapped_column(Integer)
+    #: Fiche documentaire **référencée** (ADR 0013) : le partage d'un document
+    #: existant ne copie plus les octets, il pointe vers la fiche. ``NULL``
+    #: pour une pièce téléversée dans le fil (chemin sous le scope ``chat``).
+    document_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("documents.id", ondelete="SET NULL")
+    )
 
     supprime_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     #: Réponse à un message spécifique (incrément 24) : null = message racine.
@@ -157,6 +162,11 @@ class PieceAnnonce(Base, UuidPkMixin, TimestampMixin):
     chemin: Mapped[str] = mapped_column(String(1024), nullable=False)
     mime: Mapped[str | None] = mapped_column(String(255))
     taille: Mapped[int | None] = mapped_column(Integer)
+    #: Fiche documentaire référencée (ADR 0013) — jamais une copie. ``NULL``
+    #: pour une pièce téléversée dans l'annonce.
+    document_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("documents.id", ondelete="SET NULL")
+    )
     #: Ordre d'affichage (0 = première) — l'ordre du formulaire est conservé.
     position: Mapped[int] = mapped_column(SmallInteger, default=0, nullable=False)
 

@@ -29,7 +29,7 @@ def test_metrique_inconnue() -> None:
         assert "langsearch_web_search" in noms
         assert {
             "search_organisations",
-            "search_appels_a_proposition",
+            "search_appels",
             "search_lots",
             "search_offres",
             "search_missions",

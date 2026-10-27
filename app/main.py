@@ -15,7 +15,7 @@ from app.api.agui_pieces_jointes import MiddlewarePiecesJointes
 from app.api.routes import (
     affectations,
     agents,
-    appels_a_proposition,
+    appels,
     audit,
     auth,
     beneficiaires,
@@ -117,6 +117,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     import threading
 
     from app.agents.checkpointer import liberer_checkpointer
+    from app.infrastructure.balayage_cycle_de_vie import demarrer_balayage
 
     initialisation: threading.Thread | None = None
     if get_settings().demarrage_initialise_runtime:
@@ -126,8 +127,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             daemon=True,
         )
         initialisation.start()
+    # Balayage du cycle de vie (ADR 0012) : « en cours » au jour J, « clôturé »
+    # après la fin. Un thread démon, un verrou consultatif — la suite de tests
+    # le désactive par configuration.
+    balayage = demarrer_balayage()
     yield
     # Un arrêt ne doit pas attendre indéfiniment une base lente.
+    if balayage is not None:
+        balayage.arreter()
     if initialisation is not None:
         initialisation.join(timeout=5)
     get_runtime_manager().release()
@@ -188,7 +195,7 @@ def create_app() -> FastAPI:
     print(f"\nALLOWED ORIGINS: {settings.cors_origins}\n")
     app.include_router(health.router, prefix=settings.api_v1_prefix)
     app.include_router(auth.router, prefix=settings.api_v1_prefix)
-    app.include_router(appels_a_proposition.router, prefix=settings.api_v1_prefix)
+    app.include_router(appels.router, prefix=settings.api_v1_prefix)
     app.include_router(offres.router, prefix=settings.api_v1_prefix)
     app.include_router(lieux.router, prefix=settings.api_v1_prefix)
     app.include_router(voyage.router, prefix=settings.api_v1_prefix)

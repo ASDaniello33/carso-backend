@@ -49,7 +49,7 @@ from app.domain.execution import (
     SupportFormation,
 )
 from app.domain.organization import (
-    AppelAProposition,
+    Appel,
     Budget,
     LigneBudget,
     Lot,
@@ -118,18 +118,18 @@ def _graine(
         session.add(organisation)
         session.flush()
 
-        appel = AppelAProposition(
+        appel = Appel(
             organisation_id=organisation.id, reference="AO-CASC-01", titre="Appel"
         )
         session.add(appel)
         session.flush()  # l'id du parent doit exister avant de construire l'enfant
-        lot = Lot(appel_a_proposition_id=appel.id, numero="1", titre="Lot 1")
+        lot = Lot(appel_id=appel.id, numero="1", titre="Lot 1")
         session.add(lot)
         session.flush()
 
         offre = Offre(
             organisation_id=organisation.id,
-            appel_a_proposition_id=appel.id,
+            appel_id=appel.id,
             lot_id=lot.id,
             type="offre_technique",
             reference="O-CASC-01",
@@ -142,14 +142,14 @@ def _graine(
             organisation_id=organisation.id,
             reference="M-CASC-01",
             titre="Mission cascade",
-            statut=StatutMission.PLANIFIEE.value,
+            statut=StatutMission.PLANIFIE.value,
         )
         session.add(mission)
         session.flush()
         session.add(MissionOffre(mission_id=mission.id, offre_id=offre.id))
 
         formation = SessionFormation(
-            mission_id=mission.id, theme="Session cascade", statut="planifiee"
+            mission_id=mission.id, theme="Session cascade", statut="planifie"
         )
         session.add(formation)
         session.flush()
@@ -336,7 +336,7 @@ def test_suppression_organisation_emporte_tout_le_sous_arbre(
     assert rapport.fichiers_supprimes == 1
     for modele in (
         Organisation,
-        AppelAProposition,
+        Appel,
         Lot,
         Offre,
         Mission,
@@ -411,7 +411,7 @@ def test_suppression_lot_emporte_offre_mission_et_session(
     assert _compter(api_session_factory, Mission) == 0
     assert _compter(api_session_factory, SessionFormation) == 0
     # L'appel et l'organisation survivent : ils ne dépendent pas du lot.
-    assert _compter(api_session_factory, AppelAProposition) == 1
+    assert _compter(api_session_factory, Appel) == 1
     assert _compter(api_session_factory, Organisation) == 1
 
 

@@ -1,7 +1,7 @@
 """Routes—sessions de formation et participations (Lot C1, instruction/02 §F/§G).
 
 Contrôleurs minces ; les décisions de statut suivent la machine à états
-``session`` (planifiee → confirmee → realisee, annulable).
+``session`` (en_planification → planifie → en_cours → cloture | annule ; ADR 0012).
 
 Ajouts du 20/09 (espace « jour J »)—liste globale des sessions, documents
 propres à une session, pointage en lot, fiche de présence générée, et import
@@ -153,7 +153,11 @@ def change_session_statut(
     session: DbSession,
     utilisateur: InterneUser,
 ) -> SessionFormation:
-    """Transition planifiee → confirmee → realisee (annulable), machine à états."""
+    """Transitions **manuelles** : confirmation (``planifie``) et ``annule``.
+
+    « En cours » (jour J) et « Clôturé » (fin dépassée) sont appliqués
+    automatiquement par le balayage de cycle de vie (ADR 0012), jamais saisis.
+    """
     return SessionService(session, actor_id=str(utilisateur.id)).changer_statut(
         session_id, payload.statut
     )

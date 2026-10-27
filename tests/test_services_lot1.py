@@ -35,7 +35,7 @@ from app.application.services import (
 )
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.domain.document import AuditEvent
-from app.domain.organization import AppelAProposition, Organisation
+from app.domain.organization import Appel, Organisation
 
 
 @compiles(JSONB, "sqlite")
@@ -65,11 +65,11 @@ def _audit_actions(session: Session) -> list[str]:
     return list(session.scalars(select(AuditEvent.action)))
 
 
-def _seed_appel(session: Session) -> AppelAProposition:
+def _seed_appel(session: Session) -> Appel:
     org = Organisation(nom="Client Lots")
     session.add(org)
     session.flush()
-    appel = AppelAProposition(organisation_id=org.id, reference="AO-LOT1-01", titre="Appel lots")
+    appel = Appel(organisation_id=org.id, reference="AO-LOT1-01", titre="Appel lots")
     session.add(appel)
     session.flush()
     return appel
@@ -138,10 +138,10 @@ def test_lot_ajouter_lister(session: Session) -> None:
     appel = _seed_appel(session)
     service = LotService(session)
     lot = service.ajouter(
-        LotInput(appel_a_proposition_id=appel.id, numero="1", titre="Lot 1")
+        LotInput(appel_id=appel.id, numero="1", titre="Lot 1")
     )
     assert service.obtenir(lot.id).titre == "Lot 1"
-    lots = service.lister_pour_appel_a_proposition(appel.id)
+    lots = service.lister_pour_appel(appel.id)
     assert [lot_item.numero for lot_item in lots] == ["1"]
     assert _audit_actions(session) == ["lot.enregistre"]
 
@@ -149,23 +149,23 @@ def test_lot_ajouter_lister(session: Session) -> None:
 def test_lot_appel_inexistant_404(session: Session) -> None:
     with pytest.raises(NotFoundError):
         LotService(session).ajouter(
-            LotInput(appel_a_proposition_id=uuid4(), numero="1", titre="Lot 1")
+            LotInput(appel_id=uuid4(), numero="1", titre="Lot 1")
         )
 
 
 def test_lot_numero_duplique_409(session: Session) -> None:
     appel = _seed_appel(session)
     service = LotService(session)
-    service.ajouter(LotInput(appel_a_proposition_id=appel.id, numero="1", titre="Lot 1"))
+    service.ajouter(LotInput(appel_id=appel.id, numero="1", titre="Lot 1"))
     with pytest.raises(ConflictError):
-        service.ajouter(LotInput(appel_a_proposition_id=appel.id, numero="1", titre="Doublon"))
+        service.ajouter(LotInput(appel_id=appel.id, numero="1", titre="Doublon"))
 
 
 def test_lot_modifier_numero_duplique_409(session: Session) -> None:
     appel = _seed_appel(session)
     service = LotService(session)
-    service.ajouter(LotInput(appel_a_proposition_id=appel.id, numero="1", titre="Lot 1"))
-    lot2 = service.ajouter(LotInput(appel_a_proposition_id=appel.id, numero="2", titre="Lot 2"))
+    service.ajouter(LotInput(appel_id=appel.id, numero="1", titre="Lot 1"))
+    lot2 = service.ajouter(LotInput(appel_id=appel.id, numero="2", titre="Lot 2"))
     with pytest.raises(ConflictError):
         service.modifier(lot2.id, LotUpdateInput(numero="1"))
     # renommage licite vers un numéro libre
@@ -178,7 +178,7 @@ def test_lot_zones_source(session: Session) -> None:
     service = LotService(session)
     lot = service.ajouter(
         LotInput(
-            appel_a_proposition_id=appel.id,
+            appel_id=appel.id,
             numero="1",
             titre="Lot 1",
             objectifs="Former 100 agents",

@@ -17,6 +17,16 @@ class MissionRepository(BaseRepository[Mission]):
         stmt = select(Mission).where(Mission.reference == reference)
         return self.session.scalars(stmt).first()
 
+    def get_by_lot(self, lot_id: uuid.UUID) -> Mission | None:
+        """Mission d'un lot — 1 lot → 1 mission (ADR 0012).
+
+        ``lot_id`` est unique quand il est renseigné : ce contrôle explicite
+        donne une erreur 409 lisible là où la contrainte de base donnerait un
+        500 brute.
+        """
+        stmt = select(Mission).where(Mission.lot_id == lot_id)
+        return self.session.scalars(stmt).first()
+
     def list_by_statut(self, statut: str) -> list[Mission]:
         stmt = select(Mission).where(Mission.statut == statut)
         return list(self.session.scalars(stmt))

@@ -207,6 +207,12 @@ class Settings(BaseSettings):
     # sans attendre PostgreSQL. ``0`` la désactive (suite de tests, qui ne doit
     # jamais toucher la base réelle ni payer son délai de connexion).
     demarrage_initialise_runtime: bool = Field(default=True)
+    # Balayage du cycle de vie mission/session (ADR 0012) : applique
+    # périodiquement les transitions automatiques (« en cours » au jour J,
+    # « clôturé » après la fin). ``0`` le désactive (suite de tests) ;
+    # l'intervalle minimal est d'une seconde.
+    cycle_de_vie_balayage_actif: bool = Field(default=True)
+    cycle_de_vie_intervalle_secondes: int = Field(default=300, ge=1)
     # Extrait de texte injecté dans le ``context`` AG-UI pour chaque pièce
     # jointe du tour (caractères). Les octets ne passent jamais au modèle ;
     # la suite se lit via les tools du contrat.

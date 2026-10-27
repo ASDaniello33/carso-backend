@@ -60,7 +60,7 @@ def mission(session: Session) -> Mission:
         organisation_id=organisation.id,
         reference="M-2026-01",
         titre="Mission bureautique",
-        statut=StatutMission.PLANIFIEE.value,
+        statut=StatutMission.PLANIFIE.value,
     )
     session.add(active)
     session.flush()

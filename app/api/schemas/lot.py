@@ -1,4 +1,4 @@
-"""Schémas API — lots d'un appel à proposition (Lot C1, instruction/02 §B)."""
+"""Schémas API — lots d'un appel (Lot C1, instruction/02 §B)."""
 
 from datetime import date
 from typing import Any
@@ -10,7 +10,7 @@ from app.api.schemas.lieu import LieuRead
 
 
 class LotCreate(BaseModel):
-    """Création d'un lot rattaché à un appel à proposition."""
+    """Création d'un lot rattaché à un appel."""
 
     numero: str = Field(min_length=1, max_length=50)
     titre: str = Field(min_length=1, max_length=255)
@@ -43,7 +43,7 @@ class LotRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    appel_a_proposition_id: UUID
+    appel_id: UUID
     numero: str
     titre: str
     zone: str | None = None

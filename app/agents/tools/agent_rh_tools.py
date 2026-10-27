@@ -21,7 +21,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.agents.consultation import (
-    rechercher_appels_a_proposition,
+    rechercher_appels,
     rechercher_documents,
     rechercher_organisations,
 )
@@ -84,7 +84,7 @@ NOMS_TOOLS: tuple[str, ...] = (
     "propose_equipe_update",
     "propose_mission_update",
     "search_organisations",
-    "search_appels_a_proposition",
+    "search_appels",
     "search_lots",
     "search_offres",
     "search_sessions",
@@ -662,10 +662,10 @@ def construire_tools_rh(
         run=rechercher_organisations,
     ))
     kit.enregistrer(OperationSpec(
-        name="search_appels_a_proposition",
+        name="search_appels",
         description="Appels à proposition (organisation, statut, texte) + lots.",
         input_schema=PageSearchInput,
-        run=rechercher_appels_a_proposition,
+        run=rechercher_appels,
     ))
     kit.enregistrer(OperationSpec(
         name="search_lots",

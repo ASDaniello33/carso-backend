@@ -28,6 +28,12 @@ dependencies = [
 # (jamais de texte extrait vide silencieux).
 documents = [
     "pypdf>=4.2",
+    # Inspection PDF avancée (typographie, tableaux, zones d'en-tête/pied) et
+    # lecture d'un PDF de référence (app.documents.inspection / reference).
+    # Absent, l'inspection dégrade sur pypdf seul et le signale ; les tests
+    # documentaires exercent la voie complète, d'où la déclaration ici et
+    # dans l'extra 'dev'.
+    "pdfplumber>=0.11",
     "python-docx>=1.1",
     "openpyxl>=3.1",
     # Génération PDF (Lot L0, app.documents.generation). Pur Python, aucune
@@ -129,6 +135,7 @@ dev = [
     # Les tests documentaires exercent la vraie extraction : on reprend les
     # dépendances de l'extra 'documents' (référence croisée impossible en PEP 621).
     "pypdf>=4.2",
+    "pdfplumber>=0.11",
     "python-docx>=1.1",
     "openpyxl>=3.1",
     # Idem pour la génération professionnelle : les tests construisent le vrai

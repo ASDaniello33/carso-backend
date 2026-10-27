@@ -50,7 +50,7 @@ from app.domain.execution import (
     SessionFormation,
 )
 from app.domain.identity import Utilisateur
-from app.domain.organization import AppelAProposition, Lot, Offre, Organisation
+from app.domain.organization import Appel, Lot, Offre, Organisation
 
 PRÉFIXE = "/api/v1"
 
@@ -71,17 +71,17 @@ def contexte(api_session_factory: sessionmaker[Session]) -> Iterator[SimpleNames
         autre_organisation = Organisation(nom="Client B")
         session.add_all([organisation, autre_organisation])
         session.flush()
-        appel = AppelAProposition(
+        appel = Appel(
             organisation_id=organisation.id, reference="AO-A", titre="Appel A"
         )
         session.add(appel)
         session.flush()
-        lot = Lot(appel_a_proposition_id=appel.id, numero="1", titre="Lot A")
+        lot = Lot(appel_id=appel.id, numero="1", titre="Lot A")
         session.add(lot)
         session.flush()
         offre = Offre(
             organisation_id=organisation.id,
-            appel_a_proposition_id=appel.id,
+            appel_id=appel.id,
             lot_id=lot.id,
             type=TypeOffre.OFFRE_TECHNIQUE.value,
             reference="O-A",
@@ -240,7 +240,7 @@ def test_listes_transverses_et_dossier_lie(
     client_formateur: TestClient, contexte: SimpleNamespace
 ) -> None:
     """Les listes globales restent fermées ; le dossier de sa mission est lisible."""
-    assert client_formateur.get(f"{PRÉFIXE}/appels-a-proposition/").status_code == 403
+    assert client_formateur.get(f"{PRÉFIXE}/appels/").status_code == 403
     assert client_formateur.get(f"{PRÉFIXE}/organisations/").status_code == 403
     assert client_formateur.get(f"{PRÉFIXE}/offres/").status_code == 403
     assert client_formateur.get(f"{PRÉFIXE}/offres/lot/{contexte.lot.id}").status_code == 403
@@ -259,7 +259,7 @@ def test_listes_transverses_et_dossier_lie(
 
     assert (
         client_formateur.get(
-            f"{PRÉFIXE}/appels-a-proposition/{contexte.appel.id}"
+            f"{PRÉFIXE}/appels/{contexte.appel.id}"
         ).status_code
         == 200
     )
@@ -332,7 +332,7 @@ def test_gestes_de_pilotage_refuses(
         ),
         client_formateur.post(
             f"{PRÉFIXE}/sessions/{contexte.session.id}/statut",
-            json={"statut": "confirmee"},
+            json={"statut": "planifie"},
         ),
         client_formateur.post(
             f"{PRÉFIXE}/missions/{contexte.mission.id}/sessions",

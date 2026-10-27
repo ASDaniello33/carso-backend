@@ -21,7 +21,7 @@ class MissionDepuisAppelCreate(BaseModel):
     sinon). Les offres approuvées du lot sont référencées par le service.
     """
 
-    appel_a_proposition_id: UUID
+    appel_id: UUID
     lot_id: UUID
     reference: str = Field(min_length=1, max_length=100)
     titre: str = Field(min_length=1, max_length=255)
@@ -60,9 +60,35 @@ class MissionDirecteCreate(BaseModel):
 
 
 class MissionStatutUpdate(BaseModel):
-    """Changement de statut (machine à états ``mission``)."""
+    """Changement de statut (machine à états ``mission``).
+
+    Transitions manuelles autorisées : ``annule`` uniquement. ``planifie``
+    passe par la planification (crée la session), ``en_cours`` et ``cloture``
+    sont automatiques (ADR 0012).
+    """
 
     statut: str = Field(min_length=1, max_length=50)
+
+
+class MissionOffresRattachement(BaseModel):
+    """Rattachement d'offres **approuvées du même lot** à une mission existante.
+
+    Une mission peut naître avant l'approbation de toutes les offres de son
+    lot (ADR 0012) : ce rattachement les ajoute ensuite, une par une ou
+    ensemble.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    offre_ids: list[UUID] = Field(min_length=1)
+
+
+class MissionAnnulation(BaseModel):
+    """Annulation d'une mission (et de sa session)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    motif: str | None = Field(default=None, max_length=500)
 
 
 class MissionLieuUpdate(BaseModel):
@@ -76,17 +102,24 @@ class MissionLieuUpdate(BaseModel):
 
 
 class MissionUpdate(BaseModel):
-    """Modification partielle : titre, lieu, description (jamais les offres).
+    """Modification partielle : titre, lieu, description, dates (jamais les offres).
 
     Un champ absent n'est pas appliqué ; le lieu passe par identifiant (entité
     distincte), jamais par un texte libre. Détacher le lieu se fait par
     ``PATCH /missions/{id}/lieu`` avec ``lieu_id = null`` : un ``null`` ici
     signifie « non fourni ».
+
+    Les dates ne se modifient que pendant ``en_planification`` : la
+    planification les exige (ADR 0012) et une mission née sans elles doit
+    pouvoir les recevoir. Une fois la mission planifiée, la session porte le
+    calendrier — changer les dates ici créerait un désaccord silencieux.
     """
 
     titre: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
     lieu_id: UUID | None = None
+    date_debut: date | None = None
+    date_fin: date | None = None
 
 
 class MissionRead(BaseModel):
@@ -94,6 +127,9 @@ class MissionRead(BaseModel):
 
     id: UUID
     organisation_id: UUID
+    #: Lot d'appel dont la mission est la réponse ; ``None`` = prestation
+    #: directe (sans appel ni lot), identifiée comme telle.
+    lot_id: UUID | None = None
     reference: str
     titre: str
     description: str | None = None
@@ -109,3 +145,16 @@ class MissionRead(BaseModel):
     def offre_ids(self) -> list[UUID]:
         """Identifiants des offres rattachées — pratique pour l'UI et les filtres."""
         return [offre.id for offre in self.offres]
+
+
+class MissionPlanificationRead(BaseModel):
+    """Résultat de la planification : la mission et son avertissement éventuel.
+
+    La session créée n'est pas répétée ici — la mission expose sa session
+    unique par ``GET /missions/{id}/sessions`` ; l'avertissement « aucune
+    équipe approuvée » est une **information**, jamais un blocage (règle
+    validée avec CARSO).
+    """
+
+    mission: MissionRead
+    avertissements: list[str] = Field(default_factory=list)

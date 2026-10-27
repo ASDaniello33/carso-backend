@@ -65,7 +65,7 @@ def _seed_session(session: Session) -> SessionFormation:
         titre="Mission part",
         date_debut=date(2026, 9, 1),
         date_fin=date(2026, 9, 5),
-        statut=StatutMission.PLANIFIEE.value,
+        statut=StatutMission.PLANIFIE.value,
     )
     session.add(mission)
     session.flush()
@@ -74,7 +74,7 @@ def _seed_session(session: Session) -> SessionFormation:
         theme="Atelier",
         date_debut=date(2026, 9, 1),
         date_fin=date(2026, 9, 5),
-        statut=StatutSessionFormation.PLANIFIEE.value,
+        statut=StatutSessionFormation.PLANIFIE.value,
     )
     session.add(formation)
     session.flush()

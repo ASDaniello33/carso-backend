@@ -32,6 +32,7 @@ from app.api.schemas import (
     DocumentDecisionCreate,
     DocumentImportMediaCreate,
     DocumentMetadonneesUpdate,
+    DocumentVisibiliteUpdate,
     DocumentPurgeCreate,
     DocumentRead,
     ExtractionRead,
@@ -82,7 +83,7 @@ enregistrer_suppression(router, "documents", perimetre=True)
 
 _FILTERS = (
     "organisation_id",
-    "appel_a_proposition_id",
+    "appel_id",
     "offre_id",
     "mission_id",
     "equipe_id",
@@ -109,7 +110,7 @@ def _corbeille_reponse(fiche: FicheCorbeille) -> DocumentCorbeilleRead:
         restaurable=fiche.restaurable,
         blocage=fiche.blocage,
         organisation_id=fiche.organisation_id,
-        appel_a_proposition_id=fiche.appel_a_proposition_id,
+        appel_id=fiche.appel_id,
         offre_id=fiche.offre_id,
         mission_id=fiche.mission_id,
         equipe_id=fiche.equipe_id,
@@ -145,7 +146,7 @@ def upload_document(
     nom: Annotated[str | None, Form()] = None,
     proposed_by_agent: Annotated[str | None, Form()] = None,
     organisation_id: Annotated[UUID | None, Form()] = None,
-    appel_a_proposition_id: Annotated[UUID | None, Form()] = None,
+    appel_id: Annotated[UUID | None, Form()] = None,
     offre_id: Annotated[UUID | None, Form()] = None,
     mission_id: Annotated[UUID | None, Form()] = None,
     equipe_id: Annotated[UUID | None, Form()] = None,
@@ -166,7 +167,7 @@ def upload_document(
             str(user.id),
             proposed_by_agent,
             organisation_id=organisation_id,
-            appel_a_proposition_id=appel_a_proposition_id,
+            appel_id=appel_id,
             offre_id=offre_id,
             mission_id=mission_id,
             equipe_id=equipe_id,
@@ -230,7 +231,7 @@ def import_media(
             url=payload.url,
             nom=payload.nom,
             organisation_id=payload.organisation_id,
-            appel_a_proposition_id=payload.appel_a_proposition_id,
+            appel_id=payload.appel_id,
             offre_id=payload.offre_id,
             mission_id=payload.mission_id,
             equipe_id=payload.equipe_id,
@@ -474,7 +475,7 @@ def list_all_documents(
 def list_documents(
     session: DbSession,
     organisation_id: Annotated[UUID | None, Query()] = None,
-    appel_a_proposition_id: Annotated[UUID | None, Query()] = None,
+    appel_id: Annotated[UUID | None, Query()] = None,
     offre_id: Annotated[UUID | None, Query()] = None,
     mission_id: Annotated[UUID | None, Query()] = None,
     equipe_id: Annotated[UUID | None, Query()] = None,
@@ -488,7 +489,7 @@ def list_documents(
     """
     filtres = {
         "organisation_id": organisation_id,
-        "appel_a_proposition_id": appel_a_proposition_id,
+        "appel_id": appel_id,
         "offre_id": offre_id,
         "mission_id": mission_id,
         "equipe_id": equipe_id,
@@ -630,6 +631,25 @@ def update_document(
             doc_metadata=payload.doc_metadata,
         ),
     )
+
+
+@router.patch("/{document_id}/visibilite", response_model=DocumentRead)
+def changer_visibilite_document(
+    document_id: UUID,
+    payload: DocumentVisibiliteUpdate,
+    session: DbSession,
+    user: CurrentUser,
+    perimetre: PerimetreDep,
+) -> Document:
+    """Bascule un document **sans objet métier** entre privé et public (ADR 0013).
+
+    Réservé au propriétaire du document et à l'administration. Un document
+    rattaché à un objet métier suit le périmètre de cet objet : la bascule est
+    refusée (422) plutôt que d'écrire un indicateur sans effet.
+    """
+    return DocumentService(
+        session, actor_id=str(user.id), perimetre=perimetre
+    ).changer_visibilite(document_id, payload.visibilite)
 
 
 @router.get("/{document_id}/versions", response_model=list[DocumentRead])

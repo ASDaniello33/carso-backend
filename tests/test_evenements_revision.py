@@ -13,8 +13,8 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.domain.enums import StatutAppelAProposition
-from app.domain.organization import AppelAProposition, Lot, Organisation
+from app.domain.enums import StatutAppel
+from app.domain.organization import Appel, Lot, Organisation
 from tests.conftest import seed
 
 
@@ -38,11 +38,11 @@ def test_revision_change_apres_creation(
     avant = _revision(api_client)
     organisation = Organisation(nom="Client révision")
     seed(api_session_factory, organisation)
-    appel = AppelAProposition(
+    appel = Appel(
         organisation_id=organisation.id,
         reference="AO-REV-01",
         titre="Appel révision",
-        statut=StatutAppelAProposition.RECU,
+        statut=StatutAppel.RECU,
     )
     seed(api_session_factory, appel)
 
@@ -54,11 +54,11 @@ def test_revision_change_apres_modification(
 ) -> None:
     organisation = Organisation(nom="Client modification")
     seed(api_session_factory, organisation)
-    appel = AppelAProposition(
+    appel = Appel(
         organisation_id=organisation.id,
         reference="AO-REV-02",
         titre="Appel à modifier",
-        statut=StatutAppelAProposition.RECU,
+        statut=StatutAppel.RECU,
     )
     seed(api_session_factory, appel)
     avant = _revision(api_client)
@@ -67,7 +67,7 @@ def test_revision_change_apres_modification(
     # postérieure pour que le test vérifie le mécanisme, pas la résolution
     # d'horloge (PostgreSQL, la cible, conserve les microsecondes).
     with api_session_factory() as session:
-        objet = session.get(AppelAProposition, appel.id)
+        objet = session.get(Appel, appel.id)
         assert objet is not None
         objet.titre = "Appel modifié"
         objet.updated_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=30)
@@ -82,13 +82,13 @@ def test_revision_ignore_les_lignes_non_metier(
     """Un lot sans horodatage métier créé puis supprimé ne fige pas l'empreinte."""
     organisation = Organisation(nom="Client lot")
     seed(api_session_factory, organisation)
-    appel = AppelAProposition(
+    appel = Appel(
         organisation_id=organisation.id,
         reference="AO-REV-03",
         titre="Appel lot",
     )
     seed(api_session_factory, appel)
-    lot = Lot(appel_a_proposition_id=appel.id, numero="1", titre="Lot 1")
+    lot = Lot(appel_id=appel.id, numero="1", titre="Lot 1")
     seed(api_session_factory, lot)
 
     apres_creation = _revision(api_client)

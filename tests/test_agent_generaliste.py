@@ -34,7 +34,7 @@ from app.domain.execution import (
     Presence,
     SessionFormation,
 )
-from app.domain.organization import AppelAProposition, Lot, Organisation
+from app.domain.organization import Appel, Lot, Organisation
 from app.tools.base import TypedTool
 
 
@@ -72,12 +72,12 @@ def _seed(factory: sessionmaker) -> None:
         org = Organisation(nom="Client Généraliste")
         session.add(org)
         session.flush()
-        appel = AppelAProposition(
+        appel = Appel(
             organisation_id=org.id, reference="AO-GEN-01", titre="Appel générique"
         )
         session.add(appel)
         session.flush()
-        session.add(Lot(appel_a_proposition_id=appel.id, numero="1", titre="Lot unique"))
+        session.add(Lot(appel_id=appel.id, numero="1", titre="Lot unique"))
         mission_a = Mission(
             organisation_id=org.id,
             reference="M-GEN-A",
@@ -88,7 +88,7 @@ def _seed(factory: sessionmaker) -> None:
             organisation_id=org.id,
             reference="M-GEN-B",
             titre="Mission Bêta",
-            statut=StatutMission.PLANIFIEE.value,
+            statut=StatutMission.PLANIFIE.value,
         )
         session.add_all([mission_a, mission_b])
         session.flush()
@@ -106,7 +106,7 @@ def _seed(factory: sessionmaker) -> None:
         formation = SessionFormation(
             mission_id=mission_a.id,
             theme="Atelier",
-            statut=StatutSessionFormation.CONFIRMEE.value,
+            statut=StatutSessionFormation.PLANIFIE.value,
         )
         session.add(formation)
         session.flush()
@@ -155,7 +155,7 @@ def test_consulter_agrege_recherches(usine_sessions: sessionmaker) -> None:
     assert "Mission Alpha" in titres
     assert consultation["missions_par_statut"] == {
         "en_cours": 1,
-        "planifiee": 1,
+        "planifie": 1,
     }
     assert consultation["affectations_approuvees_par_role"] == {"formateur": 1}
 
@@ -202,7 +202,7 @@ def test_consulter_necrit_aucune_donnee_officielle(
 def test_analytique_missions_par_statut(usine_sessions: sessionmaker) -> None:
     agent = _agent(usine_sessions)
     assert agent.executer_analytique("missions_par_statut") == {
-        "missions_par_statut": {"en_cours": 1, "planifiee": 1},
+        "missions_par_statut": {"en_cours": 1, "planifie": 1},
         "total": 2,
     }
 
@@ -292,25 +292,25 @@ def test_analytique_sessions_par_mois(usine_sessions: sessionmaker) -> None:
             annee, mois = aujourd_hui.year - 1, 12
         else:
             annee, mois = aujourd_hui.year, aujourd_hui.month - 1
-        session.add_all(
-            [
-                SessionFormation(
-                    mission_id=mission.id,
-                    theme="Mois courant",
-                    date_debut=date(aujourd_hui.year, aujourd_hui.month, 10),
-                ),
-                SessionFormation(
-                    mission_id=mission.id,
-                    theme="Mois précédent",
-                    date_debut=date(annee, mois, 20),
-                ),
-                SessionFormation(
-                    mission_id=mission.id,
-                    theme="Hors fenêtre",
-                    date_debut=date(aujourd_hui.year - 2, 1, 5),
-                ),
-            ]
-        )
+        # 1 mission → 1 session (ADR 0012) : chaque session datée vit sur sa
+        # propre mission — les analytics comptent des sessions, pas des missions.
+        sessions_a_ajouter = [
+            ("Mois courant", date(aujourd_hui.year, aujourd_hui.month, 10)),
+            ("Mois précédent", date(annee, mois, 20)),
+            ("Hors fenêtre", date(aujourd_hui.year - 2, 1, 5)),
+        ]
+        for index, (theme, debut) in enumerate(sessions_a_ajouter):
+            nouvelle = Mission(
+                organisation_id=mission.organisation_id,
+                reference=f"M-GEN-MOIS-{index}",
+                titre=f"Mission {theme}",
+                statut=StatutMission.PLANIFIE.value,
+            )
+            session.add(nouvelle)
+            session.flush()
+            session.add(
+                SessionFormation(mission_id=nouvelle.id, theme=theme, date_debut=debut)
+            )
         session.commit()
     finally:
         session.close()
@@ -340,8 +340,18 @@ def test_analytique_beneficiaires_par_mois(usine_sessions: sessionmaker) -> None
         session.add(ben_c)
         session.flush()
         aujourd_hui = date.today()
+        # 1 mission → 1 session (ADR 0012) : la session du mois vit sur une
+        # nouvelle mission — ``formation`` occupe déjà celle de la graine.
+        mission_courante = Mission(
+            organisation_id=session.get(Mission, formation.mission_id).organisation_id,
+            reference="M-GEN-MOIS-BEN",
+            titre="Mission bénéficiaires",
+            statut=StatutMission.PLANIFIE.value,
+        )
+        session.add(mission_courante)
+        session.flush()
         session_courante = SessionFormation(
-            mission_id=formation.mission_id,
+            mission_id=mission_courante.id,
             theme="Atelier du mois",
             date_debut=date(aujourd_hui.year, aujourd_hui.month, 12),
         )
@@ -387,9 +397,9 @@ def test_kit_readonly_bloque_toute_mutation() -> None:
 
     kit = AgentTools(DEFINITION, readonly=True)
     for nom_mutation in (
-        "create_appel_a_proposition_draft",
+        "create_appel_draft",
         "update_draft",
-        "approve_appel_a_proposition",
+        "approve_appel",
         "delete_document",
         "propose_team_assignment",
     ):
@@ -435,7 +445,7 @@ def test_deep_tools_allow_list_du_contrat(
     noms = {tool.name for tool in retenus}
     assert {
         "search_organisations",
-        "search_appels_a_proposition",
+        "search_appels",
         "search_missions",
         "search_equipes",
         "search_documents",

@@ -92,7 +92,7 @@ def dossier_autorise(session: Session, perimetre: Perimetre) -> DossierAutorise:
     if lots:
         appels = frozenset(
             session.scalars(
-                select(Lot.appel_a_proposition_id).where(Lot.id.in_(lots))
+                select(Lot.appel_id).where(Lot.id.in_(lots))
             ).all()
         )
 

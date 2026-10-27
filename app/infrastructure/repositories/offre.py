@@ -39,10 +39,10 @@ class OffreRepository(BaseRepository[Offre]):
         stmt = select(Offre).where(Offre.lot_id == lot_id)
         return list(self.session.scalars(stmt))
 
-    def list_for_appel(self, appel_a_proposition_id: uuid.UUID) -> list[Offre]:
+    def list_for_appel(self, appel_id: uuid.UUID) -> list[Offre]:
         """Offres rattachées à un appel, tous lots confondus."""
         stmt = select(Offre).where(
-            Offre.appel_a_proposition_id == appel_a_proposition_id
+            Offre.appel_id == appel_id
         )
         return list(self.session.scalars(stmt))
 

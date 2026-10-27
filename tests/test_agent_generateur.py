@@ -15,8 +15,8 @@ from sqlalchemy.sql.ddl import CreateColumn
 from app.agents.generateur_offre import DEFINITION, build_generateur
 from app.core.errors import ValidationError
 from app.domain.base import Base
-from app.domain.enums import StatutAppelAProposition
-from app.domain.organization import AppelAProposition, Lot, Organisation
+from app.domain.enums import StatutAppel
+from app.domain.organization import Appel, Lot, Organisation
 
 
 @compiles(JSONB, "sqlite")
@@ -44,7 +44,7 @@ def _lot(session: Session, *, statut: str) -> Lot:
     org = Organisation(nom="Client Offre")
     session.add(org)
     session.flush()
-    appel = AppelAProposition(
+    appel = Appel(
         organisation_id=org.id,
         reference="AO-GEN-01",
         titre="AO",
@@ -52,7 +52,7 @@ def _lot(session: Session, *, statut: str) -> Lot:
     )
     session.add(appel)
     session.flush()
-    lot = Lot(appel_a_proposition_id=appel.id, numero="1", titre="Lot 1")
+    lot = Lot(appel_id=appel.id, numero="1", titre="Lot 1")
     session.add(lot)
     session.flush()
     return lot
@@ -75,7 +75,7 @@ def test_contrat_skills_et_hitl() -> None:
     # Responsabilités reprises de l'analyseur : capacité et outils de lecture.
     assert DEFINITION.policy.allows("analyze_rfp")
     assert {
-        "read_appel_a_proposition",
+        "read_appel",
         "read_document_text",
         "list_lots",
         "submit_rfp_extraction",
@@ -96,7 +96,7 @@ def test_contrat_skills_et_hitl() -> None:
 
 def test_preparer_lot_manuel_sur_appel_recu(session: Session) -> None:
     """Un lot saisi à la main sur un appel ``recu`` ouvre le brouillon."""
-    lot = _lot(session, statut=StatutAppelAProposition.RECU.value)
+    lot = _lot(session, statut=StatutAppel.RECU.value)
     agent = build_generateur(session)
     reponse = agent.preparer(lot.id, reference="OF-1", titre="Offre")
     assert reponse["requires_approval"] is True
@@ -104,14 +104,14 @@ def test_preparer_lot_manuel_sur_appel_recu(session: Session) -> None:
 
 
 def test_preparer_appel_rejete_refuse(session: Session) -> None:
-    lot = _lot(session, statut=StatutAppelAProposition.REJETE.value)
+    lot = _lot(session, statut=StatutAppel.REJETE.value)
     agent = build_generateur(session)
     with pytest.raises(ValidationError, match="appel rejeté"):
         agent.preparer(lot.id, reference="OF-1", titre="Offre")
 
 
 def test_preparer_lot_valide_brouillon(session: Session) -> None:
-    lot = _lot(session, statut=StatutAppelAProposition.VALIDE.value)
+    lot = _lot(session, statut=StatutAppel.VALIDE.value)
     agent = build_generateur(session)
     reponse = agent.preparer(lot.id, reference="OF-1", titre="Offre lot 1")
     assert reponse["requires_approval"] is True

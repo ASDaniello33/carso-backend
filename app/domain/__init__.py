@@ -26,7 +26,7 @@ from app.domain.geo import ItineraireCache, ParametresVoyage
 from app.domain.identity import CodeReinitialisation, Utilisateur
 from app.domain.mcp import ServeurMcp
 from app.domain.organization import (
-    AppelAProposition,
+    Appel,
     Budget,
     LigneBudget,
     Lot,
@@ -49,7 +49,7 @@ __all__ = [
     "ConfigurationAgentPersonnel",
     "AgentTask",
     "Annonce",
-    "AppelAProposition",
+    "Appel",
     "Approbation",
     "AuditEvent",
     "Base",

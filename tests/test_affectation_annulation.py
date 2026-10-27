@@ -30,7 +30,7 @@ def _mission(factory: sessionmaker[Session]) -> Mission:
         titre="Mission annulation",
         date_debut=date(2026, 11, 2),
         date_fin=date(2026, 11, 30),
-        statut=StatutMission.PLANIFIEE.value,
+        statut=StatutMission.PLANIFIE.value,
     )
     seed(factory, mission)
     return mission

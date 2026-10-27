@@ -28,11 +28,17 @@ class DocumentRead(BaseModel):
     version: int
     statut: str
     organisation_id: UUID | None = None
-    appel_a_proposition_id: UUID | None = None
+    appel_id: UUID | None = None
     offre_id: UUID | None = None
     mission_id: UUID | None = None
     equipe_id: UUID | None = None
     session_id: UUID | None = None
+    #: Propriétaire du document (ADR 0013) — compte qui l'a déposé ou fait
+    #: générer. Décide seul, avec l'administration, de la visibilité d'un
+    #: document **sans objet métier**.
+    proprietaire_id: UUID | None = None
+    #: ``prive`` (défaut) | ``public`` — n'a d'effet que sans objet métier.
+    visibilite: str = "prive"
     created_by: str | None = None
     #: Métadonnées de la fiche (provenance d'un média importé du web, par
     #: exemple). Exposées en lecture : une provenance qu'on ne peut pas relire
@@ -79,7 +85,7 @@ class DocumentImportMediaCreate(BaseModel):
     #: Ancre métier facultative (une seule) : rattache le média à un objet et le
     #: range dans son dossier. Absente, le média entre ``non_classe``.
     organisation_id: UUID | None = None
-    appel_a_proposition_id: UUID | None = None
+    appel_id: UUID | None = None
     offre_id: UUID | None = None
     mission_id: UUID | None = None
     equipe_id: UUID | None = None
@@ -177,6 +183,19 @@ class DocumentDecisionCreate(BaseModel):
     reason: str | None = Field(default=None, max_length=2000)
 
 
+class DocumentVisibiliteUpdate(BaseModel):
+    """Bascule privé ↔ public d'un document **sans objet métier** (ADR 0013).
+
+    Réservé au propriétaire du document et à l'administration : un document
+    rattaché à un objet métier suit le périmètre de cet objet, la bascule est
+    alors refusée par le service (422).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    visibilite: str = Field(pattern="^(prive|public)$")
+
+
 class DocumentPurgeCreate(BaseModel):
     """Purge définitive d'une fiche de la corbeille (administrateurs).
 
@@ -214,7 +233,7 @@ class DocumentCorbeilleRead(BaseModel):
     blocage: str | None = None
     #: Ancres conservées : la corbeille se filtre par fiche métier.
     organisation_id: UUID | None = None
-    appel_a_proposition_id: UUID | None = None
+    appel_id: UUID | None = None
     offre_id: UUID | None = None
     mission_id: UUID | None = None
     equipe_id: UUID | None = None

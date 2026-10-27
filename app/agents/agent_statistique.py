@@ -68,7 +68,7 @@ DEFINITION = AgentDefinition(
         "generer_document_professionnel",
         "importer_tableau_xlsx",
         "search_organisations",
-        "search_appels_a_proposition",
+        "search_appels",
         "search_lots",
         "search_offres",
         "search_missions",

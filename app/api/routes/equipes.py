@@ -76,6 +76,7 @@ def create_equipe(
             profil=payload.profil,
             statut=payload.statut,
             role_compte=payload.role_compte,
+            fonction=payload.fonction,
         )
     )
 

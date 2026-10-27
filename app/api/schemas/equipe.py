@@ -15,6 +15,9 @@ class EquipeCreate(BaseModel):
     profil: str | None = None
     statut: str | None = Field(default=None, max_length=50)
     role_compte: str | None = Field(default=None, max_length=50)
+    #: Fonction de travail **libre** (secrétaire, responsable RH…) : le métier
+    #: de la personne, ni un droit ni un rôle de mission (ADR 0012).
+    fonction: str | None = Field(default=None, max_length=150)
 
 
 class EquipeUpdate(BaseModel):
@@ -27,6 +30,7 @@ class EquipeUpdate(BaseModel):
     profil: str | None = None
     statut: str | None = Field(default=None, max_length=50)
     role_compte: str | None = Field(default=None, max_length=50)
+    fonction: str | None = Field(default=None, max_length=150)
 
 
 class EquipeRead(BaseModel):
@@ -40,3 +44,4 @@ class EquipeRead(BaseModel):
     profil: str | None = None
     statut: str | None = None
     role_compte: str | None = None
+    fonction: str | None = None

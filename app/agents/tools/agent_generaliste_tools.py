@@ -9,7 +9,7 @@ bornées—jamais de SQL libre (clinrules 08). Le kit est construit en
 Tools :
 
 - ``search_organisations``—organisations par nom ;
-- ``search_appels_a_proposition``—appels + lots ;
+- ``search_appels``—appels + lots ;
 - ``search_lots``—lots par appel / numéro ;
 - ``search_offres``—offres de formation (+ budget total) ;
 - ``search_missions``—missions + effectifs ;
@@ -41,7 +41,7 @@ from app.agents.consultation import (
     compter_missions_par_statut,
     compter_sessions_par_mois,
     missions_visibles,
-    rechercher_appels_a_proposition,
+    rechercher_appels,
     rechercher_documents,
     rechercher_equipes,
     rechercher_missions,
@@ -83,7 +83,7 @@ NOMS_TOOLS: tuple[str, ...] = (
     "rechercher_lieu",
     "calculer_itineraire",
     "search_organisations",
-    "search_appels_a_proposition",
+    "search_appels",
     "search_lots",
     "search_offres",
     "search_missions",
@@ -112,7 +112,7 @@ NOMS_TOOLS: tuple[str, ...] = (
 class LotSearchInput(PageSearchInput):
     """Filtres contrôlés des lots."""
 
-    appel_a_proposition_id: UUID | None = None
+    appel_id: UUID | None = None
 
 
 class OffreSearchInput(PageSearchInput):
@@ -164,7 +164,7 @@ class AnalyticsInput(BaseModel):
     limite: int = Field(default=20, ge=1, le=100)
 
 
-_CHAMPS_LOT = ("id", "appel_a_proposition_id", "numero", "titre", "zone")
+_CHAMPS_LOT = ("id", "appel_id", "numero", "titre", "zone")
 _CHAMPS_OFFRE = (
     "id",
     "organisation_id",
@@ -200,9 +200,9 @@ def rechercher_lots(session: Session, payload: dict[str, Any]) -> dict[str, Any]
     if missions_visibles() is not None:
         return {"lots": []}
     filtres = LotSearchInput.model_validate(payload)
-    stmt = select(Lot).order_by(Lot.appel_a_proposition_id, Lot.numero)
-    if filtres.appel_a_proposition_id is not None:
-        stmt = stmt.where(Lot.appel_a_proposition_id == filtres.appel_a_proposition_id)
+    stmt = select(Lot).order_by(Lot.appel_id, Lot.numero)
+    if filtres.appel_id is not None:
+        stmt = stmt.where(Lot.appel_id == filtres.appel_id)
     if filtres.recherche:
         motif = f"%{filtres.recherche.strip()}%"
         stmt = stmt.where(Lot.titre.ilike(motif) | Lot.numero.ilike(motif))
@@ -388,14 +388,14 @@ def construire_tools_generaliste(
         run=rechercher_organisations,
     ))
     kit.enregistrer(OperationSpec(
-        name="search_appels_a_proposition",
+        name="search_appels",
         description="Appels à proposition (organisation, statut, texte) + lots.",
         input_schema=PageSearchInput,
-        run=rechercher_appels_a_proposition,
+        run=rechercher_appels,
     ))
     kit.enregistrer(OperationSpec(
         name="search_lots",
-        description="Lots d'un appel à proposition (ou tous) : numéro, titre, zone.",
+        description="Lots d'un appel (ou tous) : numéro, titre, zone.",
         input_schema=LotSearchInput,
         run=rechercher_lots,
     ))

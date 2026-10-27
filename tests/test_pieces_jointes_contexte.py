@@ -36,7 +36,7 @@ class _Document:
         self.version = 1
         self.mime_type = "application/pdf"
         self.taille_octets = 2048
-        self.appel_a_proposition_id = APPEL_ID
+        self.appel_id = APPEL_ID
         self.offre_id = None
         self.mission_id = None
         self.equipe_id = None
@@ -199,7 +199,9 @@ def test_fiche_et_extrait_contiennent_identifiant_et_texte() -> None:
     assert str(DOC_ID) in item["value"]
     assert "MISSION CARSO 2026" in item["value"]
     assert "Ne redemande pas" in item["value"]
-    assert "appel à proposition" in item["value"]
+    # Vocabulaire 26/10 : l'ancre se lit « appel » (le type est une donnée,
+    # pas un préfixe) — la ligne reste précise : « Rattaché à : appel <id> ».
+    assert "Rattaché à : appel" in item["value"]
     assert "data:" not in item["value"]
     assert "%PDF" not in item["value"]
 

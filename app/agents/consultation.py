@@ -12,7 +12,7 @@ renvoie une valeur sérialisable par le kit (``serialiser_entite``).
 Fonctions :
 
 - ``rechercher_organisations``—organisations par nom (ilike borné).
-- ``rechercher_appels_a_proposition``—appels (filtre organisation et statut).
+- ``rechercher_appels``—appels (filtre organisation et statut).
 - ``rechercher_missions``—missions par statut / organisation.
 - ``rechercher_equipes``—vivier par nom/prénom/profil (CV exclus—seuls
   les documents de type ``cv`` sont listés par ``documents_d_equipe``).
@@ -56,9 +56,9 @@ from app.domain.execution import (
     Presence,
     SessionFormation,
 )
-from app.domain.organization import AppelAProposition, Organisation
+from app.domain.organization import Appel, Organisation
 from app.infrastructure.repositories import (
-    AppelAPropositionRepository,
+    AppelRepository,
     MissionRepository,
 )
 
@@ -72,7 +72,7 @@ _CHAMPS_APPEL = (
     "date_reception",
     "date_limite",
 )
-_CHAMPS_LOT = ("id", "appel_a_proposition_id", "numero", "titre", "zone")
+_CHAMPS_LOT = ("id", "appel_id", "numero", "titre", "zone")
 _CHAMPS_OFFRE = (
     "id",
     "organisation_id",
@@ -102,7 +102,7 @@ _CHAMPS_DOCUMENT = (
     "version",
     "statut",
     "organisation_id",
-    "appel_a_proposition_id",
+    "appel_id",
     "offre_id",
     "mission_id",
     "equipe_id",
@@ -225,31 +225,31 @@ def rechercher_organisations(session: Session, payload: dict[str, Any]) -> dict[
 
 
 class RechercheAppelsAPropositionInput(PageSearchInput):
-    """Filtres contrôlés des appels à proposition (aucun SQL libre)."""
+    """Filtres contrôlés des appels (aucun SQL libre)."""
 
     organisation_id: UUID | None = None
     statut: str | None = Field(default=None, max_length=50)
 
 
-def rechercher_appels_a_proposition(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+def rechercher_appels(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     """Appels à proposition filtrés (organisation, statut) + lots rattachés.
 
     Sous périmètre restreint, la réponse est vide : le dossier amont (appels,
     lots, offres) n'appartient pas à un compte formateur.
     """
     if missions_visibles() is not None:
-        return {"appels_a_proposition": []}
+        return {"appels": []}
     filtres = RechercheAppelsAPropositionInput.model_validate(payload)
-    appels = AppelAPropositionRepository(session)
+    appels = AppelRepository(session)
     if filtres.organisation_id is not None:
-        stmt = select(AppelAProposition).where(
-            AppelAProposition.organisation_id == filtres.organisation_id
+        stmt = select(Appel).where(
+            Appel.organisation_id == filtres.organisation_id
         )
         trouves = list(session.scalars(stmt.limit(filtres.limite)))
     elif filtres.statut is not None:
         trouves = appels.list_by_statut(filtres.statut)[: filtres.limite]
     else:
-        stmt = select(AppelAProposition).order_by(AppelAProposition.date_reception.desc())
+        stmt = select(Appel).order_by(Appel.date_reception.desc())
         trouves = list(session.scalars(stmt.limit(filtres.limite)))
     if filtres.recherche:
         terme = filtres.recherche.strip().lower()
@@ -259,7 +259,7 @@ def rechercher_appels_a_proposition(session: Session, payload: dict[str, Any]) -
             if terme in (appel.titre or "").lower() or terme in (appel.reference or "").lower()
         ]
     return {
-        "appels_a_proposition": [
+        "appels": [
             {
                 **serialiser_entite(appel, *_CHAMPS_APPEL),
                 "lots": [serialiser_entite(lot, *_CHAMPS_LOT) for lot in appel.lots],
@@ -302,7 +302,7 @@ def rechercher_missions(session: Session, payload: dict[str, Any]) -> dict[str, 
         "missions": [
             {
                 **serialiser_entite(mission, *_CHAMPS_MISSION),
-                "nb_sessions": len(mission.sessions),
+                "nb_sessions": 1 if mission.session is not None else 0,
                 "nb_affectations": len(mission.affectations),
             }
             for mission in trouvees
@@ -350,7 +350,7 @@ class RechercheDocumentsInput(PageSearchInput):
 
     type_document: str | None = Field(default=None, max_length=50)
     organisation_id: UUID | None = None
-    appel_a_proposition_id: UUID | None = None
+    appel_id: UUID | None = None
     offre_id: UUID | None = None
     mission_id: UUID | None = None
     equipe_id: UUID | None = None
@@ -363,7 +363,7 @@ def rechercher_documents(session: Session, payload: dict[str, Any]) -> dict[str,
     filtres = RechercheDocumentsInput.model_validate(payload)
     ancres = {
         "organisation_id": filtres.organisation_id,
-        "appel_a_proposition_id": filtres.appel_a_proposition_id,
+        "appel_id": filtres.appel_id,
         "offre_id": filtres.offre_id,
         "mission_id": filtres.mission_id,
         "equipe_id": filtres.equipe_id,
@@ -633,7 +633,7 @@ __all__ = [
     "missions_visibles",
     "organisations_visibles",
     "perimetre_courant",
-    "rechercher_appels_a_proposition",
+    "rechercher_appels",
     "rechercher_documents",
     "rechercher_equipes",
     "rechercher_missions",

@@ -38,7 +38,7 @@ ACTIONS_PAR_ENTITE: frozenset[str] = frozenset(
 #: Entité supprimable → forme articulée (« Suppression **d'une offre** »).
 #: Les clés sont celles de ``ServiceSuppression`` (``TYPES_SUPPRIMABLES``).
 ENTITES_SUPPRIMEES: dict[str, str] = {
-    "appels": "d'un appel à proposition",
+    "appels": "d'un appel",
     "offres": "d'une offre de formation",
     "missions": "d'une mission",
     "sessions": "d'une session",
@@ -53,8 +53,8 @@ ENTITES_SUPPRIMEES: dict[str, str] = {
 #: figurer — un test le verrouille, sinon le vocabulaire dériverait en silence.
 LIBELLES_ACTION: dict[str, str] = {
     # Appels à proposition
-    ActionAudit.APPEL_A_PROPOSITION_ENREGISTRE.value: "Appel à proposition enregistré",
-    ActionAudit.APPEL_A_PROPOSITION_MODIFIE.value: "Appel à proposition modifié",
+    ActionAudit.APPEL_A_PROPOSITION_ENREGISTRE.value: "Appel enregistré",
+    ActionAudit.APPEL_A_PROPOSITION_MODIFIE.value: "Appel modifié",
     ActionAudit.EXTRACTION_PROPOSEE.value: "Extraction d'appel proposée",
     ActionAudit.EXTRACTION_VALIDEE.value: "Extraction d'appel validée",
     ActionAudit.EXTRACTION_REJETEE.value: "Extraction d'appel rejetée",
@@ -88,6 +88,8 @@ LIBELLES_ACTION: dict[str, str] = {
     ActionAudit.DOCUMENT_PURGE.value: "Document purgé définitivement",
     ActionAudit.DOCUMENT_DEPOT_ANNULE.value: "Dépôt de document annulé",
     ActionAudit.DOCUMENT_METADONNEES_MODIFIEES.value: "Métadonnées du document modifiées",
+    # ADR 0013 : bascule privé ↔ public d'un document sans objet métier.
+    ActionAudit.DOCUMENT_VISIBILITE_MODIFIEE.value: "Visibilité du document changée",
     ActionAudit.MODELE_DOCUMENT_ENREGISTRE.value: "Modèle de document enregistré",
     ActionAudit.SUPPORT_FORMATION_AJOUTE.value: "Support de formation ajouté",
     ActionAudit.SUPPORT_FORMATION_RETIRE.value: "Support de formation retiré",
@@ -95,7 +97,14 @@ LIBELLES_ACTION: dict[str, str] = {
     ActionAudit.MISSION_CREEE.value: "Mission créée",
     ActionAudit.MISSION_MODIFIEE.value: "Mission modifiée",
     ActionAudit.MISSION_STATUT_CHANGE.value: "Statut de mission changé",
+    # ADR 0012 : la planification crée la session ; le rattachement d'offres
+    # complète une mission née avant l'approbation de toutes ses offres.
+    ActionAudit.MISSION_PLANIFIEE.value: "Mission planifiée (session créée)",
+    ActionAudit.MISSION_OFFRES_RATTACHEES.value: "Offres rattachées à la mission",
     ActionAudit.SESSION_PLANIFIEE.value: "Session planifiée",
+    # ADR 0012 : session créée automatiquement par la planification de la
+    # mission (distincte d'une session saisie à la main).
+    ActionAudit.SESSION_CREEE.value: "Session créée par la planification",
     ActionAudit.SESSION_MODIFIEE.value: "Session modifiée",
     ActionAudit.SESSION_STATUT_CHANGE.value: "Statut de session changé",
     ActionAudit.FICHE_PRESENCE_GENEREE.value: "Fiche de présence générée",
@@ -168,7 +177,7 @@ LIBELLES_ACTION: dict[str, str] = {
 LIBELLES_HISTORIQUES: dict[str, str] = {
     "affectation_equipe": "Proposition d'affectation",
     "document_officiel": "Document officiel approuvé",
-    "extraction_appel_a_proposition": "Extraction d'appel à proposition proposée",
+    "extraction_appel_a_proposition": "Extraction d'appel proposée",
     "publication_offre": "Offre publiée",
     "publication_offre_formation": "Offre de formation publiée",
     "chat_orphelins.purges": "Fichiers de conversation purgés",

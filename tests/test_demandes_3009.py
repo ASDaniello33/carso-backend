@@ -43,7 +43,7 @@ def _mission(factory: sessionmaker[Session]) -> Mission:
         titre="Mission demandes 30/09",
         date_debut=date(2026, 11, 2),
         date_fin=date(2026, 11, 30),
-        statut=StatutMission.PLANIFIEE.value,
+        statut=StatutMission.PLANIFIE.value,
     )
     seed(factory, mission)
     return mission
@@ -174,7 +174,11 @@ def test_document_session_supprimable(
 def test_importer_document_plateforme_dans_chat(
     api_client: TestClient, api_session_factory: sessionmaker[Session], tmp_path, monkeypatch
 ) -> None:
-    """Le document est copié dans le scope chat et posté comme pièce (30/09)."""
+    """Partage par **référence** (ADR 0013) : la fiche est pointée, jamais copiée.
+
+    Le message porte ``document_id`` ; aucun fichier ne quitte le dossier
+    métier de la fiche, et le téléchargement se sert depuis la fiche.
+    """
     monkeypatch.setattr(get_settings_safe(), "storage_root", str(tmp_path))
 
     depose = api_client.post(
@@ -192,25 +196,25 @@ def test_importer_document_plateforme_dans_chat(
     )
     assert partage.status_code == 201, partage.text
     message = partage.json()
-    assert message["piece_chemin"].startswith("chat/")
+    assert message["document_id"] == document["id"]
     assert message["piece_nom"] == "support-formation.png"
+    assert message["piece_chemin"] is None  # aucun octet copié dans le scope chat
 
-    # Le fichier copié existe bien sous le scope chat.
-    from app.core.config import get_settings as _gs
-    from app.documents.paths import resolve_within_root
+    # Le message porteur est en base avec sa référence (visible par les membres).
+    with api_session_factory() as db:
+        ligne = db.get(Message, uuid_module.UUID(message["id"]))
+        assert ligne is not None
+        assert ligne.document_id == uuid_module.UUID(document["id"])
+        assert ligne.piece_chemin is None
 
-    chemin = resolve_within_root(str(_gs().storage_root), message["piece_chemin"])
-    assert chemin.is_file()
+    # Le téléchargement par les membres sert le fichier **depuis la fiche**.
+    piece = api_client.get(f"/api/v1/social/pieces/{message['id']}")
+    assert piece.status_code == 200
+    assert piece.headers["content-type"].startswith("image/png")
 
     # L'original reste intact et téléchargeable par le référentiel documentaire.
     telechargement = api_client.get(f"/api/v1/documents/{document['id']}/contenu")
     assert telechargement.status_code == 200
-
-    # Le message porteur est en base avec sa pièce (visible par tous les membres).
-    with api_session_factory() as db:
-        ligne = db.get(Message, uuid_module.UUID(message["id"]))
-        assert ligne is not None
-        assert ligne.piece_chemin == message["piece_chemin"]
 
 
 def test_importer_document_conversation_inconnue_404(

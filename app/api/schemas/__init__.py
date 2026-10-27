@@ -13,10 +13,10 @@ from app.api.schemas.affectation import (
     MissionAffectationsRead,
     PropositionAgentRhRead,
 )
-from app.api.schemas.appel_a_proposition import (
-    AppelAPropositionCreate,
-    AppelAPropositionRead,
-    AppelAPropositionUpdate,
+from app.api.schemas.appel import (
+    AppelCreate,
+    AppelRead,
+    AppelUpdate,
     DecisionCreate,
     ExtractionProposeeCreate,
 )
@@ -30,6 +30,7 @@ from app.api.schemas.document import (
     DocumentDecisionCreate,
     DocumentImportMediaCreate,
     DocumentMetadonneesUpdate,
+    DocumentVisibiliteUpdate,
     DocumentPurgeCreate,
     DocumentRead,
     ExtractionRead,
@@ -64,6 +65,9 @@ from app.api.schemas.mission import (
     MissionRead,
     MissionStatutUpdate,
     MissionUpdate,
+    MissionAnnulation,
+    MissionOffresRattachement,
+    MissionPlanificationRead,
 )
 from app.api.schemas.offre import (
     BudgetRead,
@@ -117,9 +121,9 @@ __all__ = [
     "AffectationRead",
     "AffectationUpdate",
     "CandidatClasse",
-    "AppelAPropositionCreate",
-    "AppelAPropositionRead",
-    "AppelAPropositionUpdate",
+    "AppelCreate",
+    "AppelRead",
+    "AppelUpdate",
     "BeneficiaireCreate",
     "BeneficiaireRead",
     "BeneficiaireUpdate",
@@ -133,6 +137,7 @@ __all__ = [
     "DocumentDecisionCreate",
     "DocumentImportMediaCreate",
     "DocumentMetadonneesUpdate",
+    "DocumentVisibiliteUpdate",
     "DocumentPurgeCreate",
     "DocumentRead",
     "EquipeCreate",
@@ -164,6 +169,9 @@ __all__ = [
     "MissionUpdate",
     "MissionLieuUpdate",
     "MissionStatutUpdate",
+    "MissionAnnulation",
+    "MissionOffresRattachement",
+    "MissionPlanificationRead",
     "ModeleDocumentCreate",
     "ModeleDocumentRead",
     "OffreCreate",

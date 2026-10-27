@@ -376,7 +376,7 @@ def _texte_conteneur(conteneur: Any) -> str:
 def zones_docx(document: Any) -> list[dict[str, Any]]:
     """En-têtes et pieds de page par section (hors flux : ``element`` est ``None``).
 
-    Un DOCX d'appel à proposition porte souvent la référence de l'appel ou le nom
+    Un DOCX d'appel porte souvent la référence de l'appel ou le nom
     de l'organisation émettrice en en-tête : c'est un élément documentaire comme
     un autre, donc cherchable et relisible.
     """

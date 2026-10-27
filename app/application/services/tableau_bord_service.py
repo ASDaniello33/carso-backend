@@ -21,7 +21,7 @@ from app.application.perimetre import Perimetre, perimetre_effectif
 from app.domain.document import Document
 from app.domain.enums import (
     StatutAffectation,
-    StatutAppelAProposition,
+    StatutAppel,
     StatutBeneficiaire,
     StatutDocument,
     StatutEquipe,
@@ -39,7 +39,7 @@ from app.domain.execution import (
     SessionFormation,
 )
 from app.domain.identity import Utilisateur
-from app.domain.organization import AppelAProposition, Offre, Organisation
+from app.domain.organization import Appel, Offre, Organisation
 
 #: Fenêtre des « sessions à venir » (alertes + KPI).
 FENETRE_SESSIONS_JOURS = 7
@@ -133,8 +133,8 @@ class TableauBordService:
             for s in sessions
             if s.statut
             in (
-                StatutSessionFormation.PLANIFIEE.value,
-                StatutSessionFormation.CONFIRMEE.value,
+                StatutSessionFormation.EN_PLANIFICATION.value,
+                StatutSessionFormation.PLANIFIE.value,
             )
             and s.date_debut is not None
             and _aujourdhui() <= s.date_debut <= limite
@@ -149,7 +149,7 @@ class TableauBordService:
                 # Les rubriques hors périmètre (appels, offres, comptes en
                 # attente) restent à zéro : le formulaire du dashboard ne
                 # change pas de forme, il ne montre simplement pas l'entreprise.
-                "appels": {s.value: 0 for s in StatutAppelAProposition},
+                "appels": {s.value: 0 for s in StatutAppel},
                 "offres": {s.value: 0 for s in StatutOffre},
                 "missions": par_statut_missions,
                 "sessions": {**par_statut_sessions, "a_venir_7j": a_venir},
@@ -206,8 +206,8 @@ class TableauBordService:
                 SessionFormation.mission_id.in_([m.id for m in missions]),
                 SessionFormation.statut.in_(
                     [
-                        StatutSessionFormation.PLANIFIEE.value,
-                        StatutSessionFormation.CONFIRMEE.value,
+                        StatutSessionFormation.EN_PLANIFICATION.value,
+                        StatutSessionFormation.PLANIFIE.value,
                     ]
                 ),
                 SessionFormation.date_debut >= _aujourdhui(),
@@ -219,8 +219,8 @@ class TableauBordService:
         alertes: list[dict[str, Any]] = []
         for session_formation, mission_titre in lignes:
             statut = (
-                "confirmée"
-                if session_formation.statut == StatutSessionFormation.CONFIRMEE.value
+                "à confirmer"
+                if session_formation.statut == StatutSessionFormation.EN_PLANIFICATION.value
                 else "planifiée"
             )
             alertes.append(
@@ -295,7 +295,7 @@ class TableauBordService:
         a_venir = self._compter_sessions_a_venir(nb=0)
         return {
             "appels": self._compter_par_statut(
-                AppelAProposition.statut, [s.value for s in StatutAppelAProposition]
+                Appel.statut, [s.value for s in StatutAppel]
             ),
             "offres": self._compter_par_statut(
                 Offre.statut, [s.value for s in StatutOffre]
@@ -335,12 +335,12 @@ class TableauBordService:
 
         appels_attente = (
             self._compter_total(
-                AppelAProposition,
-                AppelAProposition.statut == StatutAppelAProposition.RECU.value,
+                Appel,
+                Appel.statut == StatutAppel.RECU.value,
             )
             + self._compter_total(
-                AppelAProposition,
-                AppelAProposition.statut == StatutAppelAProposition.EN_ANALYSE.value,
+                Appel,
+                Appel.statut == StatutAppel.EN_ANALYSE.value,
             )
         )
         if appels_attente > 0:
@@ -349,7 +349,7 @@ class TableauBordService:
                     "type": "appels_a_traiter",
                     "nb": appels_attente,
                     "texte": (
-                        f"{appels_attente} appel à proposition attend une analyse"
+                        f"{appels_attente} appel attend une analyse"
                         if appels_attente == 1
                         else f"{appels_attente} appels à proposition attendent une analyse"
                     ),
@@ -416,8 +416,8 @@ class TableauBordService:
                 .where(
                     SessionFormation.statut.in_(
                         [
-                            StatutSessionFormation.PLANIFIEE.value,
-                            StatutSessionFormation.CONFIRMEE.value,
+                            StatutSessionFormation.EN_PLANIFICATION.value,
+                            StatutSessionFormation.PLANIFIE.value,
                         ]
                     ),
                     SessionFormation.date_debut >= _aujourdhui(),
@@ -429,8 +429,10 @@ class TableauBordService:
             .all()
         )
         for session_formation, mission_titre in sessions_prochaines:
-            confirmee = session_formation.statut == StatutSessionFormation.CONFIRMEE.value
-            statut = "confirmée" if confirmee else "planifiée"
+            a_confirmer = (
+                session_formation.statut == StatutSessionFormation.EN_PLANIFICATION.value
+            )
+            statut = "à confirmer" if a_confirmer else "planifiée"
             alertes.append(
                 {
                     "type": "session_a_venir",
@@ -446,7 +448,7 @@ class TableauBordService:
         return alertes
 
     def _compter_sessions_a_venir(self, *, nb: int) -> int:
-        """Sessions planifiées/confirmées démarrant sous 7 jours (KPI)."""
+        """Sessions planifiées (ou à confirmer) démarrant sous 7 jours (KPI)."""
         limite = _aujourdhui() + timedelta(days=FENETRE_SESSIONS_JOURS)
         return int(
             self._session.scalar(
@@ -455,8 +457,8 @@ class TableauBordService:
                 .where(
                     SessionFormation.statut.in_(
                         [
-                            StatutSessionFormation.PLANIFIEE.value,
-                            StatutSessionFormation.CONFIRMEE.value,
+                            StatutSessionFormation.EN_PLANIFICATION.value,
+                            StatutSessionFormation.PLANIFIE.value,
                         ]
                     ),
                     SessionFormation.date_debut >= _aujourdhui(),
@@ -475,8 +477,8 @@ class TableauBordService:
         elements: list[dict[str, Any]] = []
 
         for appel in self._session.scalars(
-            select(AppelAProposition)
-            .order_by(AppelAProposition.created_at.desc())
+            select(Appel)
+            .order_by(Appel.created_at.desc())
             .limit(PLAFOND_ACTIVITE)
         ):
             elements.append(

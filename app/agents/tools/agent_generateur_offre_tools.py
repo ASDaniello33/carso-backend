@@ -9,7 +9,7 @@ ses outils de lecture et d'extraction vivent désormais ici (aucun doublon,
 
 Matrice d'accès (validée) :
 
-- **Read/Write (écritures sous HITL)**—``Document``, ``AppelAProposition``,
+- **Read/Write (écritures sous HITL)**—``Document``, ``Appel``,
   ``Lot``, ``Offre`` ;
 - **Lecture seule**—les autres tables (organisations, missions…).
 
@@ -30,13 +30,13 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.agents.consultation import (
-    rechercher_appels_a_proposition,
+    rechercher_appels,
     rechercher_documents,
     rechercher_equipes,
     rechercher_missions,
     rechercher_organisations,
 )
-from app.agents.extraction.schemas import ExtractionAppelAProposition
+from app.agents.extraction.schemas import ExtractionAppel
 from app.agents.toolkit import AgentTools, OperationSpec, PageSearchInput
 from app.agents.tools.agent_generaliste_tools import (
     AffectationSearchInput,
@@ -48,9 +48,9 @@ from app.agents.tools.agent_generaliste_tools import (
     rechercher_offres,
     rechercher_sessions,
 )
-from app.application.dto import AppelAPropositionInput, LieuInput, LotUpdateInput
+from app.application.dto import AppelInput, LieuInput, LotUpdateInput
 from app.application.services import (
-    AppelAPropositionService,
+    AppelService,
     DocumentService,
     LieuService,
     LotService,
@@ -61,9 +61,9 @@ from app.application.services import (
 from app.core.config import get_settings
 from app.core.errors import ValidationError
 from app.domain.document import Document
-from app.domain.enums import StatutAppelAProposition, TypeAppel, TypeDocument
+from app.domain.enums import StatutAppel, TypeAppel, TypeDocument
 from app.domain.execution import Lieu
-from app.domain.organization import AppelAProposition, Lot
+from app.domain.organization import Appel, Lot
 
 AGENT_ID = "agent_generateur_offre"
 TASK_TYPE = "preparer_offre"
@@ -74,7 +74,7 @@ NOMS_TOOLS: tuple[str, ...] = (
     "rechercher_lieu",
     "calculer_itineraire",
     "rattacher_document_appel",
-    "read_appel_a_proposition",
+    "read_appel",
     "read_document_text",
     "submit_rfp_extraction",
     "get_lot",
@@ -86,7 +86,7 @@ NOMS_TOOLS: tuple[str, ...] = (
     "propose_lot_update",
     "propose_appel_update",
     "search_organisations",
-    "search_appels_a_proposition",
+    "search_appels",
     "search_offres",
     "search_missions",
     "search_sessions",
@@ -177,15 +177,15 @@ class LotUpdateInput(BaseModel):
 
 
 class AppelIdInput(BaseModel):
-    """Identifiant d'un appel à proposition (lectures bornées)."""
+    """Identifiant d'un appel (lectures bornées)."""
 
-    appel_a_proposition_id: UUID
+    appel_id: UUID
 
 
 class AppelUpdateInput(BaseModel):
     """Modification de l'appel : proposition (HITL) — statut via workflow API."""
 
-    appel_a_proposition_id: UUID
+    appel_id: UUID
     titre: str | None = Field(default=None, min_length=1, max_length=255)
 
 
@@ -198,17 +198,17 @@ class DocumentIdInput(BaseModel):
 class ExtractionProposeeInput(BaseModel):
     """Proposition d'extraction d'un appel, soumise à validation humaine (HITL).
 
-    ``extraction`` est typée par le schéma de sortie (``ExtractionAppelAProposition``)
+    ``extraction`` est typée par le schéma de sortie (``ExtractionAppel``)
     et non ``Any`` : une chaîne JSON sérialisée est tolérée (les LLM sérialisent
     parfois malgré le schéma du tool) mais un type non objet est refusé à la
     frontière avec une erreur actionnable — jamais avalée en ``(racine)``.
     """
 
-    appel_a_proposition_id: UUID
-    extraction: ExtractionAppelAProposition = Field(
+    appel_id: UUID
+    extraction: ExtractionAppel = Field(
         description=(
             "Données extraites du document source, structurées "
-            "(schéma ExtractionAppelAProposition : organisation, resume, lots[], extra). "
+            "(schéma ExtractionAppel : organisation, resume, lots[], extra). "
             "Aucune valeur absente du document n'est inventée."
         )
     )
@@ -262,7 +262,7 @@ class RattachementDocumentInput(BaseModel):
     """Rattachement d'un document déjà déposé à l'appel qu'il concerne (HITL)."""
 
     document_id: UUID
-    appel_a_proposition_id: UUID
+    appel_id: UUID
 
 
 # --- Requêtes nommées (read) ---------------------------------------------------
@@ -274,7 +274,7 @@ def _get_lot(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
         "id": str(lot.id),
         "numero": lot.numero,
         "titre": lot.titre,
-        "appel_a_proposition_id": str(lot.appel_a_proposition_id),
+        "appel_id": str(lot.appel_id),
         "zone": lot.zone,
         "objectifs": lot.objectifs,
     }
@@ -364,13 +364,13 @@ def _get_template(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
 
 def _list_lots(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     """Lots d'un appel : permet de sélectionner sans lire tout l'appel."""
-    appel_id = UUID(str(payload["appel_a_proposition_id"]))
-    if session.get(AppelAProposition, appel_id) is None:
+    appel_id = UUID(str(payload["appel_id"]))
+    if session.get(Appel, appel_id) is None:
         raise ValidationError(f"Appel {appel_id} introuvable")
     lots = list(
         session.scalars(
             select(Lot)
-            .where(Lot.appel_a_proposition_id == appel_id)
+            .where(Lot.appel_id == appel_id)
             .order_by(Lot.numero)
         )
     )
@@ -390,11 +390,11 @@ def _list_lots(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
 
 def _list_appel_documents(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     """Documents rattachés à un appel (métadonnées, jamais le chemin disque)."""
-    appel_id = UUID(str(payload["appel_a_proposition_id"]))
+    appel_id = UUID(str(payload["appel_id"]))
     docs = list(
         session.scalars(
             select(Document)
-            .where(Document.appel_a_proposition_id == appel_id)
+            .where(Document.appel_id == appel_id)
             .order_by(Document.version.desc())
         )
     )
@@ -419,13 +419,13 @@ def _statut(entite: Any) -> str:
     return statut.value if hasattr(statut, "value") else str(statut)
 
 
-def _read_appel_a_proposition(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+def _read_appel(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     """Métadonnées de l'appel (jamais le contenu du document, jamais un chemin disque)."""
-    appel = AppelAPropositionService(session, actor_id=AGENT_ID).obtenir(
-        UUID(str(payload["appel_a_proposition_id"]))
+    appel = AppelService(session, actor_id=AGENT_ID).obtenir(
+        UUID(str(payload["appel_id"]))
     )
     return {
-        "appel_a_proposition_id": str(appel.id),
+        "appel_id": str(appel.id),
         "reference": appel.reference,
         "titre": appel.titre,
         "type": appel.type,
@@ -441,7 +441,7 @@ def _read_appel_a_proposition(session: Session, payload: dict[str, Any]) -> dict
     }
 
 
-def etat_lots(session: Session, appel: AppelAProposition) -> dict[str, Any]:
+def etat_lots(session: Session, appel: Appel) -> dict[str, Any]:
     """État des lots d'un appel : officiels, proposés, et statut figé ou non.
 
     Lecture seule. ``proposition_sans_lot`` est le signal que la validation a
@@ -451,14 +451,14 @@ def etat_lots(session: Session, appel: AppelAProposition) -> dict[str, Any]:
     officiels = list(
         session.scalars(
             select(Lot)
-            .where(Lot.appel_a_proposition_id == appel.id)
+            .where(Lot.appel_id == appel.id)
             .order_by(Lot.numero)
         )
     )
     proposition = appel.donnees_extraites or {}
     proposes = proposition.get("lots")
     nb_proposes = len(proposes) if isinstance(proposes, list) else 0
-    valide = appel.statut == StatutAppelAProposition.VALIDE.value
+    valide = appel.statut == StatutAppel.VALIDE.value
     return {
         "nb_lots_officiels": len(officiels),
         "numeros_lots_officiels": [lot.numero for lot in officiels],
@@ -535,15 +535,15 @@ def _propose_lot_update(session: Session, payload: dict[str, Any]) -> dict[str, 
 
 def _propose_appel_update(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     """Applique une correction de l'appel après HITL."""
-    from app.application.services import AppelAPropositionService
+    from app.application.services import AppelService
 
     entree = AppelUpdateInput.model_validate(payload)
-    appel = AppelAPropositionService(session, actor_id=AGENT_ID).modifier_titre(
-        entree.appel_a_proposition_id,
+    appel = AppelService(session, actor_id=AGENT_ID).modifier_titre(
+        entree.appel_id,
         titre=entree.titre,
     )
     return {
-        "appel_a_proposition_id": str(appel.id),
+        "appel_id": str(appel.id),
         "titre": appel.titre,
         "requires_approval": True,
         "message": "Appel mis à jour après votre approbation.",
@@ -564,8 +564,8 @@ def _enregistrer_appel(session: Session, payload: dict[str, Any]) -> dict[str, A
             details={"types_valides": sorted(type_.value for type_ in TypeAppel)},
         )
 
-    appel = AppelAPropositionService(session, actor_id=AGENT_ID).enregistrer(
-        AppelAPropositionInput(
+    appel = AppelService(session, actor_id=AGENT_ID).enregistrer(
+        AppelInput(
             organisation_id=entree.organisation_id,
             reference=entree.reference,
             titre=entree.titre,
@@ -579,7 +579,7 @@ def _enregistrer_appel(session: Session, payload: dict[str, Any]) -> dict[str, A
     document_source: dict[str, Any] | None = None
     if entree.document_source_id is not None:
         document = DocumentService(session, actor_id=AGENT_ID).rattacher_document(
-            entree.document_source_id, appel_a_proposition_id=appel.id
+            entree.document_source_id, appel_id=appel.id
         )
         document_source = {
             "document_id": str(document.id),
@@ -588,7 +588,7 @@ def _enregistrer_appel(session: Session, payload: dict[str, Any]) -> dict[str, A
         }
 
     return {
-        "appel_a_proposition_id": str(appel.id),
+        "appel_id": str(appel.id),
         "reference": appel.reference,
         "titre": appel.titre,
         "type": appel.type,
@@ -611,14 +611,14 @@ def _rattacher_document_appel(session: Session, payload: dict[str, Any]) -> dict
     entree = RattachementDocumentInput.model_validate(payload)
     document = DocumentService(session, actor_id=AGENT_ID).rattacher_document(
         entree.document_id,
-        appel_a_proposition_id=entree.appel_a_proposition_id,
+        appel_id=entree.appel_id,
     )
     return {
         "document_id": str(document.id),
         "nom": document.nom,
         "type_document": document.type_document,
         "storage_path": document.storage_path,
-        "appel_a_proposition_id": str(entree.appel_a_proposition_id),
+        "appel_id": str(entree.appel_id),
         "requires_approval": True,
         "message": "Document source rattaché à l'appel.",
     }
@@ -635,11 +635,11 @@ def _soumettre_extraction(session: Session, payload: dict[str, Any]) -> dict[str
     """
     entree = ExtractionProposeeInput.model_validate(payload)
     extraction = entree.extraction
-    service = AppelAPropositionService(session, actor_id=AGENT_ID)
-    appel = service.obtenir(entree.appel_a_proposition_id)
-    if appel.statut == StatutAppelAProposition.VALIDE.value:
+    service = AppelService(session, actor_id=AGENT_ID)
+    appel = service.obtenir(entree.appel_id)
+    if appel.statut == StatutAppel.VALIDE.value:
         appel = service.enregistrer_proposition_corrigee(
-            entree.appel_a_proposition_id,
+            entree.appel_id,
             extraction.model_dump(mode="json"),
             proposed_by_agent=AGENT_ID,
         )
@@ -650,7 +650,7 @@ def _soumettre_extraction(session: Session, payload: dict[str, Any]) -> dict[str
         )
     else:
         appel = service.enregistrer_extraction(
-            entree.appel_a_proposition_id,
+            entree.appel_id,
             extraction.model_dump(mode="json"),
             proposed_by_agent=AGENT_ID,
         )
@@ -660,7 +660,7 @@ def _soumettre_extraction(session: Session, payload: dict[str, Any]) -> dict[str
             "approbation."
         )
     return {
-        "appel_a_proposition_id": str(appel.id),
+        "appel_id": str(appel.id),
         "statut": _statut(appel),
         "requires_approval": True,
         "nb_lots": len(extraction.lots),
@@ -709,14 +709,14 @@ def construire_tools_generateur_offre(
     ))
     # --- Analyse documentaire et extraction (ex-outils de l'analyseur) -----
     kit.enregistrer(OperationSpec(
-        name="read_appel_a_proposition",
+        name="read_appel",
         description=(
-            "Lit les métadonnées d'un appel à proposition (référence, titre, "
+            "Lit les métadonnées d'un appel (référence, titre, "
             "type, statut, échéances, présence d'une proposition antérieure). "
             "Lecture seule."
         ),
         input_schema=AppelIdInput,
-        run=_read_appel_a_proposition,
+        run=_read_appel,
     ))
     kit.enregistrer(OperationSpec(
         name="read_document_text",
@@ -771,7 +771,7 @@ def construire_tools_generateur_offre(
     ))
     kit.enregistrer(OperationSpec(
         name="list_lots",
-        description="Liste les lots d'un appel à proposition (sélection utilisateur).",
+        description="Liste les lots d'un appel (sélection utilisateur).",
         input_schema=AppelIdInput,
         run=_list_lots,
     ))
@@ -808,7 +808,7 @@ def construire_tools_generateur_offre(
     kit.enregistrer(OperationSpec(
         name="propose_appel_update",
         description=(
-            "Propose une correction de l'appel à proposition (titre) : aucune "
+            "Propose une correction de l'appel (titre) : aucune "
             "écriture directe, l'approbation humaine déclenche l'application."
         ),
         input_schema=AppelUpdateInput,
@@ -823,10 +823,10 @@ def construire_tools_generateur_offre(
         run=rechercher_organisations,
     ))
     kit.enregistrer(OperationSpec(
-        name="search_appels_a_proposition",
+        name="search_appels",
         description="Appels à proposition (organisation, statut, texte) + lots.",
         input_schema=PageSearchInput,
-        run=rechercher_appels_a_proposition,
+        run=rechercher_appels,
     ))
     kit.enregistrer(OperationSpec(
         name="search_offres",

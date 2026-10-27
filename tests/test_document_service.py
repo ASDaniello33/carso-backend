@@ -41,7 +41,7 @@ from app.domain.enums import (
     TypeProposition,
 )
 from app.domain.execution import Equipe, Mission
-from app.domain.organization import AppelAProposition, Lot, Offre, Organisation
+from app.domain.organization import Appel, Lot, Offre, Organisation
 from tests.document_fixtures import (
     build_docx,
     build_pdf,
@@ -81,7 +81,7 @@ class Donnees:
     """Ancres métier disponibles pour les dépôts documentaires."""
 
     organisation: Organisation
-    appel: AppelAProposition
+    appel: Appel
     lot: Lot
     offre: Offre
     mission: Mission
@@ -94,19 +94,19 @@ def donnees(session: Session) -> Donnees:
     session.add(organisation)
     session.flush()
 
-    appel = AppelAProposition(
+    appel = Appel(
         organisation_id=organisation.id, reference="AO-2026-01", titre="Formation bureautique"
     )
     session.add(appel)
     session.flush()
 
-    lot = Lot(appel_a_proposition_id=appel.id, numero="1", titre="Lot 1")
+    lot = Lot(appel_id=appel.id, numero="1", titre="Lot 1")
     session.add(lot)
     session.flush()
 
     offre = Offre(
         organisation_id=organisation.id,
-        appel_a_proposition_id=appel.id,
+        appel_id=appel.id,
         lot_id=lot.id,
         type=TypeOffre.OFFRE_TECHNIQUE.value,
         reference="OF-2026-01",
@@ -117,7 +117,7 @@ def donnees(session: Session) -> Donnees:
         organisation_id=organisation.id,
         reference="M-2026-01",
         titre="Mission bureautique",
-        statut=StatutMission.PLANIFIEE.value,
+        statut=StatutMission.PLANIFIE.value,
     )
     equipe = Equipe(nom="Haddad", prenom="Omar", email="ohaddad@example.com")
     session.add_all([offre, mission, equipe])
@@ -203,10 +203,63 @@ def test_depot_par_agent_place_en_zone_proposition(
     assert evenement.actor_type == ActorType.AGENT.value
 
 
+# --- Règle CARSO 26/10 : CV et documents d'appel sans cycle de décision ---------
+
+
+def test_cv_depose_par_humain_nait_importe(
+    service: DocumentService, session: Session, donnees: Donnees
+) -> None:
+    """Un CV ne porte pas de cycle de décision : déposé par un humain, il
+    naît « importé » — puis archivé ou supprimé selon son cycle de vie."""
+    document = service.enregistrer_document(
+        _entree(
+            type_document=TypeDocument.CV.value,
+            nom="CV Mino Rasoa.pdf",
+            equipe_id=donnees.equipe.id,
+        )
+    )
+
+    assert document.statut == StatutDocument.IMPORTE.value
+
+
+def test_document_d_appel_depose_par_humain_nait_importe(
+    service: DocumentService, session: Session, donnees: Donnees
+) -> None:
+    """Même règle pour les pièces de l'appel : « importé » au dépôt humain,
+    jamais « draft » — le document source d'un appel ne se soumet pas."""
+    document = service.enregistrer_document(
+        _entree(
+            type_document=TypeDocument.APPEL_PROPOSITION.value,
+            nom="Appel source.pdf",
+            appel_id=donnees.appel.id,
+        )
+    )
+
+    assert document.statut == StatutDocument.IMPORTE.value
+
+
+def test_cv_depose_par_agent_reste_une_proposition(
+    service: DocumentService, session: Session, donnees: Donnees
+) -> None:
+    """La règle ne contourne pas le HITL : le dépôt d'un agent, même sur un
+    CV, reste une proposition en attente de décision humaine (règle 6 [C])."""
+    document = service.enregistrer_document(
+        _entree(
+            type_document=TypeDocument.CV.value,
+            nom="CV proposé.pdf",
+            equipe_id=donnees.equipe.id,
+            proposed_by_agent="AgentRH",
+            created_by=None,
+        )
+    )
+
+    assert document.statut == StatutDocument.PROPOSED.value
+
+
 def test_ancre_multiple_refusee(service: DocumentService) -> None:
     with pytest.raises(ValidationError):
         service.enregistrer_document(
-            _entree(mission_id=uuid4(), appel_a_proposition_id=uuid4())
+            _entree(mission_id=uuid4(), appel_id=uuid4())
         )
 
 
@@ -266,7 +319,7 @@ def test_doublon_de_version_1_refuse(service: DocumentService, donnees: Donnees)
     ("champ", "scope"),
     [
         ("organisation_id", "organisations"),
-        ("appel_a_proposition_id", "appel_proposition"),
+        ("appel_id", "appel_proposition"),
         ("offre_id", "offres"),
         ("mission_id", "missions"),
         ("equipe_id", "equipes"),
@@ -277,7 +330,7 @@ def test_chaque_ancre_determine_le_dossier_de_stockage(
 ) -> None:
     ancre = {
         "organisation_id": donnees.organisation.id,
-        "appel_a_proposition_id": donnees.appel.id,
+        "appel_id": donnees.appel.id,
         "offre_id": donnees.offre.id,
         "mission_id": donnees.mission.id,
         "equipe_id": donnees.equipe.id,
@@ -577,7 +630,7 @@ def test_listing_par_objet_metier(
         _entree(
             nom="Appel.pdf",
             type_document=TypeDocument.APPEL_PROPOSITION.value,
-            appel_a_proposition_id=donnees.appel.id,
+            appel_id=donnees.appel.id,
         )
     )
 

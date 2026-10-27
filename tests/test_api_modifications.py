@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.domain.document import AuditEvent, Document
 from app.domain.enums import ActionAudit, StatutDocument, StatutMission
 from app.domain.execution import Mission, Participation, SessionFormation
-from app.domain.organization import AppelAProposition, Lot, Offre, Organisation
+from app.domain.organization import Appel, Lot, Offre, Organisation
 from tests.conftest import seed
 
 PRÉFIXE = "/api/v1"
@@ -34,8 +34,8 @@ def _organisation(factory: sessionmaker[Session]) -> Organisation:
 
 def _appel(
     factory: sessionmaker[Session], organisation: Organisation
-) -> AppelAProposition:
-    appel = AppelAProposition(
+) -> Appel:
+    appel = Appel(
         organisation_id=organisation.id,
         reference="AO-MOD-01",
         titre="Appel à modifier",
@@ -45,8 +45,8 @@ def _appel(
     return appel
 
 
-def _lot(factory: sessionmaker[Session], appel: AppelAProposition) -> Lot:
-    lot = Lot(appel_a_proposition_id=appel.id, numero="1", titre="Lot à modifier")
+def _lot(factory: sessionmaker[Session], appel: Appel) -> Lot:
+    lot = Lot(appel_id=appel.id, numero="1", titre="Lot à modifier")
     seed(factory, lot)
     return lot
 
@@ -73,7 +73,7 @@ def _mission(factory: sessionmaker[Session], organisation: Organisation) -> Miss
         reference="M-MOD-01",
         titre="Mission à modifier",
         description="Avant",
-        statut=StatutMission.PLANIFIEE.value,
+        statut=StatutMission.PLANIFIE.value,
     )
     seed(factory, mission)
     return mission
@@ -85,7 +85,7 @@ def _session(
     session = SessionFormation(
         mission_id=mission.id,
         theme="Thème initial",
-        statut="planifiee",
+        statut="planifie",
     )
     seed(factory, session)
     return session
@@ -129,7 +129,7 @@ def test_patch_offre_change_le_titre_et_le_type(
     assert corps["type"] == "autre"
     # Le lot et l'appel ne bougent jamais : une offre répond à ``Appel + Lot``.
     assert corps["lot_id"] == offre["lot_id"]
-    assert corps["appel_a_proposition_id"] == offre["appel_a_proposition_id"]
+    assert corps["appel_id"] == offre["appel_id"]
     assert corps["reference"] == offre["reference"]
 
 
@@ -294,7 +294,7 @@ def test_patch_appel_modifie_et_relit_la_description(
     appel = _appel(api_session_factory, _organisation(api_session_factory))
 
     reponse = api_client.patch(
-        f"{PRÉFIXE}/appels-a-proposition/{appel.id}",
+        f"{PRÉFIXE}/appels/{appel.id}",
         json={"titre": "Titre revu", "description": "Description revue"},
     )
 
@@ -354,7 +354,7 @@ def test_supprimer_une_organisation_emporte_son_sous_arbre(
 
     with api_session_factory() as session:
         assert session.get(Organisation, organisation.id) is None
-        assert session.get(AppelAProposition, appel.id) is None
+        assert session.get(Appel, appel.id) is None
         assert session.get(Lot, lot.id) is None
         assert session.get(Offre, UUID(offre["id"])) is None
         evenement = session.scalars(

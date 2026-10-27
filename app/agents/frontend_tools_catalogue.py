@@ -70,7 +70,7 @@ OUTILS_FRONTEND: tuple[OutilFrontend, ...] = (
         description=(
             "Lit la page actuellement ouverte par l'utilisateur : chemin, section, "
             "identifiant de l'entité affichée et ancre documentaire suggérée "
-            "(appel_a_proposition_id, offre_id, session_id, mission_id, equipe_id). "
+            "(appel_id, offre_id, session_id, mission_id, equipe_id). "
             "À appeler AVANT de générer ou déposer un document quand l'utilisateur "
             "est sur une fiche : le document se rattache au bon élément sans "
             "demander d'UUID. Lecture seule : ne modifie rien."
@@ -199,7 +199,7 @@ OUTILS_FRONTEND: tuple[OutilFrontend, ...] = (
     OutilFrontend(
         name="afficher_lots_appel",
         description=(
-            "Affiche les lots d'un appel à proposition avec, pour chacun, "
+            "Affiche les lots d'un appel avec, pour chacun, "
             "l'état des offres déjà créées et la création du brouillon. "
             "Un lot porte au plus une offre par type (technique, financière, autre)."
         ),
@@ -210,13 +210,16 @@ OUTILS_FRONTEND: tuple[OutilFrontend, ...] = (
         name="proposer_creation_mission",
         description=(
             "Affiche un formulaire de création de mission pré-rempli "
-            "(offres du lot, lieu, dates). L'utilisateur modifie ce qu'il veut, "
-            "puis crée la mission ou renonce : rien n'est enregistré sans son geste."
+            "(lot, lieu, dates, offres déjà connues). L'utilisateur modifie ce "
+            "qu'il veut, puis crée la mission ou renonce : rien n'est "
+            "enregistré sans son geste. La mission naît du lot — les offres "
+            "approuvées du lot se rattacheront ensuite (règle 26/10)."
         ),
         agents=frozenset({AGENT_GENERATEUR}),
         usage=(
-            "Après les offres d'un lot, proposer la mission sans l'imposer : "
-            "n'invente ni lieu, ni date."
+            "Dès qu'un lot est officiel, proposer la mission sans l'imposer : "
+            "n'invente ni lieu, ni date, et n'attends pas l'approbation des "
+            "offres."
         ),
     ),
     OutilFrontend(

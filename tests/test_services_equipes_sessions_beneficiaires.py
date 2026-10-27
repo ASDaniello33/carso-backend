@@ -100,7 +100,7 @@ def _mission(session: Session) -> Mission:
         titre="Mission sessions",
         date_debut=JOUR_1,
         date_fin=JOUR_5,
-        statut=StatutMission.PLANIFIEE.value,
+        statut=StatutMission.PLANIFIE.value,
     )
     session.add(mission)
     session.flush()
@@ -230,10 +230,27 @@ def test_valeur_de_presence_inconnue_refusee(session: Session) -> None:
 
 
 def test_pointage_en_lot_refuse_une_participation_etrangere(session: Session) -> None:
-    """Une fiche de présence ne peut pas pointer la session voisine."""
+    """Une fiche de présence ne peut pas pointer la session voisine.
+
+    Une mission ne porte plus qu'une session (ADR 0012) : la session
+    « voisine » vit sur une **autre mission**.
+    """
     premiere = _session_formation(session)
+    organisation = Organisation(nom="Client voisin")
+    session.add(organisation)
+    session.flush()
+    mission_voisine = Mission(
+        organisation_id=organisation.id,
+        reference="M-SESS-02",
+        titre="Mission voisine",
+        date_debut=JOUR_1,
+        date_fin=JOUR_5,
+        statut=StatutMission.PLANIFIE.value,
+    )
+    session.add(mission_voisine)
+    session.flush()
     seconde = SessionService(session).planifier(
-        SessionPlanificationInput(mission_id=premiere.mission_id, theme="Jour 2")
+        SessionPlanificationInput(mission_id=mission_voisine.id, theme="Jour 2")
     )
     participation = _inscrire(session, seconde.id)
 

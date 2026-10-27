@@ -23,7 +23,7 @@ ALTER_FK = re.compile(
 
 DOMAIN_TABLES = (
     "organisations",
-    "appels_a_proposition",
+    "appels",
     "lots",
     "offres",
     "missions",
@@ -48,7 +48,7 @@ DOMAIN_TABLES = (
 
 #: Tables créées sous un ancien nom puis renommées par une migration ultérieure :
 #: l'offre est créée ``offres_formation`` (0002) et renommée ``offres`` (0008).
-TABLES_RENOMMEES = {"appels_a_proposition", "offres"}
+TABLES_RENOMMEES = {"appels", "offres"}
 
 
 def _alembic_config() -> Config:
@@ -64,10 +64,10 @@ def test_offline_upgrade_emits_full_domain_schema(
     sql_out = capsys.readouterr().out
 
     for table in DOMAIN_TABLES:
-        if table == "appels_a_proposition":
+        if table == "appels":
             # Table créée sous l'ancien nom (0002), renommée en 0005.
             assert "CREATE TABLE appels_offre" in sql_out, "table historique manquante"
-            assert "RENAME TO appels_a_proposition" in sql_out, "rename 0005 manquant"
+            assert "RENAME TO appels" in sql_out, "rename 0005 manquant"
             continue
         if table == "offres":
             # Table créée sous l'ancien nom (0002), renommée en 0008.
@@ -127,7 +127,7 @@ def test_offline_ddl_ne_reference_pas_une_table_non_encore_creee(
 
     assert violations == [], f"FK non résolues dans le DDL émis: {violations}"
     # Garde-fou : l'analyse a bien parcouru les tables du domaine.
-    # ``appels_a_proposition`` est créée sous l'ancien nom (0002) puis
+    # ``appels`` est créée sous l'ancien nom (0002) puis
     # renommée (0005) : on accepte les deux formes dans le DDL émis.
     creees = set(re.findall(r"CREATE TABLE (\w+)", sql_out))
     renommees = set(re.findall(r"RENAME TO (\w+)", sql_out))
@@ -135,7 +135,7 @@ def test_offline_ddl_ne_reference_pas_une_table_non_encore_creee(
     assert attendues <= creees
     assert "appels_offre" in creees
     assert "offres_formation" in creees
-    assert "appels_a_proposition" in renommees
+    assert "appels" in renommees
     assert "offres" in renommees
 
 

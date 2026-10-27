@@ -545,11 +545,16 @@ class SocialService:
         contenu: str | None,
         piece: dict[str, object] | None = None,
         pieces: list[dict[str, object]] | None = None,
+        documents: list[dict[str, object]] | None = None,
     ) -> Annonce:
         """Publication à toute l'équipe (texte + plusieurs images/documents).
 
         ``pieces`` (incrément 33) : liste de ``{nom, chemin, mime, taille}`` —
         chaque chemin a été pré-stocké par ``POST /social/annonces/pieces``.
+        ``documents`` (ADR 0013) : fiches **existantes** jointes **par
+        référence** — ``{document_id, nom, mime, taille}``, aucun octet copié,
+        aucune visibilité élargie dans la liste Documents : l'accès est ouvert
+        par le canal de l'annonce.
         ``piece`` (singulier) reste accepté pour compatibilité (ancien client),
         fusionné en tête de liste. Une annonce reste soumise à : texte OU
         au moins une pièce.
@@ -563,7 +568,8 @@ class SocialService:
         toutes = list(pieces or [])
         if piece is not None:
             toutes = [piece, *toutes]
-        toutes = [p for p in toutes if p.get("chemin")]
+        toutes.extend(documents or [])
+        toutes = [p for p in toutes if p.get("chemin") or p.get("document_id")]
         if len(toutes) > MAX_PIECES_ANNONCE:
             raise ValidationError(
                 f"Une annonce accepte au plus {MAX_PIECES_ANNONCE} pièces jointes"
@@ -576,6 +582,20 @@ class SocialService:
             contenu=texte,
         )
         for position, p in enumerate(toutes):
+            if p.get("document_id") is not None:
+                # Partage par **référence** (ADR 0013) : la pièce vit tant que
+                # la fiche vit — aucun fichier ne quitte son dossier.
+                annonce.pieces.append(
+                    PieceAnnonce(
+                        nom=str(p.get("nom") or "pièce"),
+                        chemin=str(p.get("chemin") or ""),
+                        mime=p.get("mime"),  # type: ignore[arg-type]
+                        taille=p.get("taille"),  # type: ignore[arg-type]
+                        document_id=p["document_id"],  # type: ignore[arg-type]
+                        position=position,
+                    )
+                )
+                continue
             annonce.pieces.append(
                 PieceAnnonce(
                     nom=str(p.get("nom") or "pièce"),
@@ -585,10 +605,12 @@ class SocialService:
                     position=position,
                 )
             )
-        # Ancien champ (pièce unique) rempli avec la première pièce : les
-        # anciens clients (et le téléchargement historique) restent valides.
-        if toutes:
-            premiere = toutes[0]
+        # Ancien champ (pièce unique) rempli avec la première pièce **téléversée**
+        # seulement : une référence n'a pas de chemin de stockage propre, et
+        # les anciens clients (téléchargement historique) ne la serviraient pas.
+        televersees = [p for p in toutes if p.get("chemin")]
+        if televersees:
+            premiere = televersees[0]
             annonce.piece_nom = str(premiere.get("nom") or "pièce")
             annonce.piece_chemin = str(premiere["chemin"])
             annonce.piece_mime = premiere.get("mime")  # type: ignore[assignment]
@@ -889,9 +911,21 @@ class SocialService:
 
 
 def _champs_piece(piece: dict[str, object] | None) -> dict[str, object]:
-    """Champs de pièce jointe normalisés (chemin logique déjà validé par la route)."""
+    """Champs de pièce jointe normalisés (chemin logique déjà validé par la route).
+
+    Une pièce **référencée** (ADR 0013) porte un ``document_id`` et aucun
+    chemin : le fichier vit dans le dossier métier de la fiche, il n'est pas
+    copié dans le scope ``chat``.
+    """
     if not piece:
         return {}
+    if piece.get("document_id") is not None:
+        return {
+            "piece_nom": piece.get("nom"),
+            "piece_mime": piece.get("mime"),
+            "piece_taille": piece.get("taille"),
+            "document_id": piece["document_id"],
+        }
     return {
         "piece_nom": piece.get("nom"),
         "piece_chemin": piece.get("chemin"),

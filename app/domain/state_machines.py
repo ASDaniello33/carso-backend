@@ -9,7 +9,7 @@ from app.core.errors import ConflictError
 from app.domain.enums import (
     StatutAffectation,
     StatutAgentTask,
-    StatutAppelAProposition,
+    StatutAppel,
     StatutBudget,
     StatutDocument,
     StatutMission,
@@ -19,24 +19,24 @@ from app.domain.enums import (
 )
 
 TRANSITIONS: dict[str, dict[str, set[str]]] = {
-    "appel_a_proposition": {
-        StatutAppelAProposition.RECU: {
-            StatutAppelAProposition.EN_ANALYSE,
-            StatutAppelAProposition.REJETE,
+    "appel": {
+        StatutAppel.RECU: {
+            StatutAppel.EN_ANALYSE,
+            StatutAppel.REJETE,
         },
-        StatutAppelAProposition.EN_ANALYSE: {
-            StatutAppelAProposition.PROPOSE,
-            StatutAppelAProposition.REJETE,
+        StatutAppel.EN_ANALYSE: {
+            StatutAppel.PROPOSE,
+            StatutAppel.REJETE,
         },
-        StatutAppelAProposition.PROPOSE: {
-            StatutAppelAProposition.CORRIGE,
-            StatutAppelAProposition.VALIDE,
+        StatutAppel.PROPOSE: {
+            StatutAppel.CORRIGE,
+            StatutAppel.VALIDE,
         },
         # CORRIGE → EN_ANALYSE : boucle de re-analyse après correction humaine
         # (P1 : l'utilisateur corrige puis l'agent ré-analyse).
-        StatutAppelAProposition.CORRIGE: {
-            StatutAppelAProposition.EN_ANALYSE,
-            StatutAppelAProposition.VALIDE,
+        StatutAppel.CORRIGE: {
+            StatutAppel.EN_ANALYSE,
+            StatutAppel.VALIDE,
         },
         # VALIDE → PROPOSE : retour en proposition, chemin de **réparation**.
         # Une validation qui n'a rien pu matérialiser (proposition sans lot)
@@ -45,8 +45,8 @@ TRANSITIONS: dict[str, dict[str, set[str]]] = {
         # ``enregistrer_proposition_corrigee``, qui refuse l'opération dès
         # qu'une offre existe : une proposition dont le contenu a produit du
         # concret ne se réécrit pas.
-        StatutAppelAProposition.VALIDE: {StatutAppelAProposition.PROPOSE},
-        StatutAppelAProposition.REJETE: set(),
+        StatutAppel.VALIDE: {StatutAppel.PROPOSE},
+        StatutAppel.REJETE: set(),
     },
     "offre": {
         StatutOffre.BROUILLON: {
@@ -61,23 +61,42 @@ TRANSITIONS: dict[str, dict[str, set[str]]] = {
         StatutOffre.APPROUVE: {StatutOffre.ARCHIVE},
         StatutOffre.ARCHIVE: set(),
     },
+    # Cycle de vie confirmé avec CARSO le 26/10/2026 (ADR 0012).
+    #
+    # La seule transition **humaine** est « Planifier » ; elle crée la session
+    # dans la même transaction (``MissionService.planifier``). ``en_cours`` et
+    # ``cloture`` sont commandés par le calendrier et appliqués par le balayage
+    # de cycle de vie, tracé en ``SYSTEME``. ``annule`` est ouvert à l'équipe
+    # interne depuis tout état vivant.
     "mission": {
-        StatutMission.PLANIFIEE: {StatutMission.EN_PREPARATION},
-        StatutMission.EN_PREPARATION: {StatutMission.EN_COURS},
-        StatutMission.EN_COURS: {StatutMission.CLOTUREE},
-        StatutMission.CLOTUREE: set(),
+        StatutMission.EN_PLANIFICATION: {
+            StatutMission.PLANIFIE,
+            StatutMission.ANNULE,
+        },
+        StatutMission.PLANIFIE: {StatutMission.EN_COURS, StatutMission.ANNULE},
+        StatutMission.EN_COURS: {StatutMission.CLOTURE, StatutMission.ANNULE},
+        StatutMission.CLOTURE: set(),
+        StatutMission.ANNULE: set(),
     },
+    # Une session naît ``planifie`` (planification de la mission) ou
+    # ``en_planification`` (création manuelle, confirmée ensuite). Les passages
+    # ``en_cours`` / ``cloture`` sont automatiques ; ``annule`` est humain et
+    # annule la mission.
     "session": {
-        StatutSessionFormation.PLANIFIEE: {
-            StatutSessionFormation.CONFIRMEE,
-            StatutSessionFormation.ANNULEE,
+        StatutSessionFormation.EN_PLANIFICATION: {
+            StatutSessionFormation.PLANIFIE,
+            StatutSessionFormation.ANNULE,
         },
-        StatutSessionFormation.CONFIRMEE: {
-            StatutSessionFormation.REALISEE,
-            StatutSessionFormation.ANNULEE,
+        StatutSessionFormation.PLANIFIE: {
+            StatutSessionFormation.EN_COURS,
+            StatutSessionFormation.ANNULE,
         },
-        StatutSessionFormation.REALISEE: set(),
-        StatutSessionFormation.ANNULEE: set(),
+        StatutSessionFormation.EN_COURS: {
+            StatutSessionFormation.CLOTURE,
+            StatutSessionFormation.ANNULE,
+        },
+        StatutSessionFormation.CLOTURE: set(),
+        StatutSessionFormation.ANNULE: set(),
     },
     "document": {
         # ``SUPPRIME`` est atteignable depuis tout état de conservation : la fiche

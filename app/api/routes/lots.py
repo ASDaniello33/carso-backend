@@ -1,8 +1,8 @@
-"""Routes—lots d'un appel à proposition (Lot C1, instruction/02 §B).
+"""Routes—lots d'un appel (Lot C1, instruction/02 §B).
 
 Deux routeurs, volontairement :
 
-- ``router`` (``/appels-a-proposition/{id}/lots``) porte le cycle de vie d'un lot
+- ``router`` (``/appels/{id}/lots``) porte le cycle de vie d'un lot
   **dans le contexte de son appel** (liste, création, modification) ;
 - ``router_lot`` (``/lots``) porte la lecture et la suppression **par identifiant
   de lot**. Un lot circule hors du contexte d'un appel (une offre référence son
@@ -23,7 +23,7 @@ from app.application.services import LotService
 from app.domain.organization import Lot
 
 router = APIRouter(
-    prefix="/appels-a-proposition/{appel_a_proposition_id}/lots",
+    prefix="/appels/{appel_id}/lots",
     tags=["lots"],
     dependencies=[Depends(get_current_user)],
 )
@@ -32,9 +32,9 @@ router = APIRouter(
 @router.get(
     "/", response_model=list[LotRead], dependencies=[Depends(exiger_interne)]
 )
-def list_lots(appel_a_proposition_id: UUID, session: DbSession) -> list[Lot]:
-    """Lots d'un appel à proposition (404 si l'appel est absent)."""
-    return LotService(session).lister_pour_appel_a_proposition(appel_a_proposition_id)
+def list_lots(appel_id: UUID, session: DbSession) -> list[Lot]:
+    """Lots d'un appel (404 si l'appel est absent)."""
+    return LotService(session).lister_pour_appel(appel_id)
 
 
 @router.post(
@@ -44,7 +44,7 @@ def list_lots(appel_a_proposition_id: UUID, session: DbSession) -> list[Lot]:
     dependencies=[Depends(exiger_interne)],
 )
 def create_lot(
-    appel_a_proposition_id: UUID,
+    appel_id: UUID,
     payload: LotCreate,
     session: DbSession,
     utilisateur: InterneUser,
@@ -52,7 +52,7 @@ def create_lot(
     """Crée un lot rattaché à l'appel (409 si le numéro existe déjà)."""
     return LotService(session, actor_id=str(utilisateur.id)).ajouter(
         LotInput(
-            appel_a_proposition_id=appel_a_proposition_id,
+            appel_id=appel_id,
             numero=payload.numero,
             titre=payload.titre,
             zone=payload.zone,
@@ -68,7 +68,7 @@ def create_lot(
 
 @router.get("/{lot_id}", response_model=LotRead)
 def get_lot(
-    appel_a_proposition_id: UUID,
+    appel_id: UUID,
     lot_id: UUID,
     session: DbSession,
     perimetre: PerimetreDep,
@@ -81,13 +81,13 @@ def get_lot(
     "/{lot_id}", response_model=LotRead, dependencies=[Depends(exiger_interne)]
 )
 def update_lot(
-    appel_a_proposition_id: UUID,
+    appel_id: UUID,
     lot_id: UUID,
     payload: LotUpdate,
     session: DbSession,
     utilisateur: InterneUser,
 ) -> Lot:
-    """Modification partielle (``appel_a_proposition_id`` jamais modifiable)."""
+    """Modification partielle (``appel_id`` jamais modifiable)."""
     return LotService(session, actor_id=str(utilisateur.id)).modifier(
         lot_id,
         LotUpdateInput(

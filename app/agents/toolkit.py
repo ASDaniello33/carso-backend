@@ -1,6 +1,6 @@
 """Kit de construction des tools d'un agent métier (Lot A1).
 
-L'``AgentAnalyseurAppelAProposition`` (627 lignes) porte cinq mécanismes de plomberie
+L'``AgentAnalyseurAppel`` (627 lignes) porte cinq mécanismes de plomberie
 que chacun des six agents devrait réécrire : transaction par appel de tool,
 vérification de capacité, enveloppe ``TypedTool``, sérialisation entité→dict,
 trace ``AgentTask``. Ce module est la **seam profonde unique** : l'agent

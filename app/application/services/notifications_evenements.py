@@ -225,8 +225,15 @@ def notifier_session_changement(
     L'équipe est connue via les affectations (vivier, pas comptes) : on notifie
     les administrateurs, coordinateurs de l'exécution — décision documentée.
     """
+    # Vocabulaire de session aligné sur l'ADR 0012. Les anciennes clés restent
+    # tolérées pour un événement déjà en file au moment du déploiement.
     libelles = {
         "planifiee": "Session planifiée",
+        "planifie": "Session planifiée",
+        "en_planification": "Session à confirmer",
+        "en_cours": "Session en cours",
+        "cloture": "Session clôturée",
+        "annule": "Session annulée",
         "confirmee": "Session confirmée",
         "annulee": "Session annulée",
         "realisee": "Session réalisée",
