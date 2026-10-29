@@ -10,8 +10,10 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.domain.enums import StatutAffectation, StatutMission
-from app.domain.execution import Equipe, Mission
+from datetime import date
+
+from app.domain.enums import SourceAffectation, StatutAffectation, StatutMission
+from app.domain.execution import AffectationEquipe, Equipe, Mission
 from app.domain.organization import Organisation
 from tests.conftest import seed
 
@@ -131,6 +133,178 @@ def test_proposition_agent_rh_mission_cloturee_409(
     )
 
     assert reponse.status_code == 409
+
+
+def test_proposition_agent_rh_ecarte_une_personne_en_conflit(
+    api_client: TestClient, api_session_factory: sessionmaker[Session]
+) -> None:
+    """Le classement applique la règle réelle : le n°1 indisponible est écarté.
+
+    Sans cette règle, la route proposait le meilleur score même déjà approuvé
+    ailleurs sur des dates qui chevauchent — proposition refusée à coup sûr par
+    le service (audit AgentRH du 28/10).
+    """
+    org = Organisation(nom="Client RH conflit")
+    seed(api_session_factory, org)
+    mission = Mission(
+        organisation_id=org.id,
+        reference="M-RH-API-CONFLIT",
+        titre="Mission à staffer",
+        statut=StatutMission.PLANIFIE.value,
+        date_debut=date(2026, 11, 2),
+        date_fin=date(2026, 11, 6),
+    )
+    occupante = Mission(
+        organisation_id=org.id,
+        reference="M-RH-API-OCCUPEE",
+        titre="Mission qui bloque",
+        statut=StatutMission.PLANIFIE.value,
+        date_debut=date(2026, 11, 4),
+        date_fin=date(2026, 11, 9),
+    )
+    formateur = Equipe(nom="Amrani", prenom="Sara", profil="formateur senior")
+    logisticien = Equipe(nom="Benali", prenom="Karim", profil="logistique")
+    seed(api_session_factory, mission, occupante, formateur, logisticien)
+    seed(
+        api_session_factory,
+        AffectationEquipe(
+            mission_id=occupante.id,
+            equipe_id=formateur.id,
+            role_dans_mission="formateur",
+            statut=StatutAffectation.APPROUVEE.value,
+            source_affectation=SourceAffectation.MANUAL.value,
+        ),
+    )
+
+    corps = _test_route(api_client, mission)
+
+    # Le meilleur score (formateur, rôle dans le profil) est rétrogradé :
+    # le classement place d'abord les personnes disponibles.
+    assert [c["nom"] for c in corps["candidats"]] == ["Benali", "Amrani"]
+    disponible, ecartee = corps["candidats"]
+    assert disponible["disponible"] is True and disponible["conflits"] == []
+    assert ecartee["disponible"] is False
+    assert "M-RH-API-OCCUPEE" in ecartee["conflits"][0]
+    assert ecartee["score"] > disponible["score"]  # meilleur score, mais bloquée
+
+    # La proposition va au meilleur candidat **disponible**.
+    assert len(corps["propositions"]) == 1
+    assert corps["propositions"][0]["equipe_id"] == str(logisticien.id)
+
+
+def test_proposition_agent_rh_aucun_disponible_ne_propose_rien(
+    api_client: TestClient, api_session_factory: sessionmaker[Session]
+) -> None:
+    """Vivier entièrement en conflit : aucune proposition, et le message le dit."""
+    org = Organisation(nom="Client RH complet")
+    seed(api_session_factory, org)
+    mission = Mission(
+        organisation_id=org.id,
+        reference="M-RH-API-COMPLET",
+        titre="Mission à staffer",
+        statut=StatutMission.PLANIFIE.value,
+        date_debut=date(2026, 11, 2),
+        date_fin=date(2026, 11, 6),
+    )
+    occupante = Mission(
+        organisation_id=org.id,
+        reference="M-RH-API-BLOQUANTE",
+        titre="Mission qui bloque",
+        statut=StatutMission.PLANIFIE.value,
+        date_debut=date(2026, 11, 5),
+        date_fin=date(2026, 11, 7),
+    )
+    seule = Equipe(nom="Solo", prenom="Sam", profil="formateur")
+    seed(api_session_factory, mission, occupante, seule)
+    seed(
+        api_session_factory,
+        AffectationEquipe(
+            mission_id=occupante.id,
+            equipe_id=seule.id,
+            role_dans_mission="formateur",
+            statut=StatutAffectation.APPROUVEE.value,
+            source_affectation=SourceAffectation.MANUAL.value,
+        ),
+    )
+
+    corps = _test_route(api_client, mission)
+
+    assert corps["propositions"] == []
+    assert corps["candidats"][0]["disponible"] is False
+    assert "Aucun membre du vivier n'est disponible" in corps["message"]
+
+
+def test_disponibilites_lues_par_la_carte(
+    api_client: TestClient, api_session_factory: sessionmaker[Session]
+) -> None:
+    """La carte lit la règle au serveur : plus besoin de croire le modèle."""
+    org = Organisation(nom="Client RH dispo")
+    seed(api_session_factory, org)
+    mission = Mission(
+        organisation_id=org.id,
+        reference="M-RH-API-DISPO",
+        titre="Mission à staffer",
+        statut=StatutMission.PLANIFIE.value,
+        date_debut=date(2026, 11, 2),
+        date_fin=date(2026, 11, 6),
+    )
+    occupante = Mission(
+        organisation_id=org.id,
+        reference="M-RH-API-BLOC",
+        titre="Mission qui bloque",
+        statut=StatutMission.PLANIFIE.value,
+        date_debut=date(2026, 11, 4),
+        date_fin=date(2026, 11, 9),
+    )
+    prise = Equipe(nom="Amrani", prenom="Sara", profil="formateur")
+    libre = Equipe(nom="Benali", prenom="Karim", profil="formateur")
+    seed(api_session_factory, mission, occupante, prise, libre)
+    seed(
+        api_session_factory,
+        AffectationEquipe(
+            mission_id=occupante.id,
+            equipe_id=prise.id,
+            role_dans_mission="formateur",
+            statut=StatutAffectation.APPROUVEE.value,
+            source_affectation=SourceAffectation.MANUAL.value,
+        ),
+    )
+
+    reponse = api_client.get(
+        f"{PRÉFIXE}/missions/{mission.id}/disponibilites",
+        params={"equipe_ids": f"{prise.id},{libre.id}"},
+    )
+    assert reponse.status_code == 200, reponse.text
+    corps = reponse.json()
+    assert corps["evaluable"] is True
+    par_personne = {p["equipe_id"]: p for p in corps["personnes"]}
+    assert par_personne[str(prise.id)]["disponible"] is False
+    conflit = par_personne[str(prise.id)]["conflits"][0]
+    assert conflit["reference"] == "M-RH-API-BLOC"
+    assert conflit["titre"] == "Mission qui bloque"
+    assert conflit["date_debut"] == "2026-11-04"
+    assert conflit["date_fin"] == "2026-11-09"
+    assert par_personne[str(libre.id)]["disponible"] is True
+    assert par_personne[str(libre.id)]["conflits"] == []
+
+
+def test_disponibilites_mission_sans_dates_non_evaluable(
+    api_client: TestClient, api_session_factory: sessionmaker[Session]
+) -> None:
+    """Sans dates, la règle ne s'applique pas : rien n'est déclaré indisponible."""
+    mission = _seed_mission(api_session_factory, reference="M-RH-API-SANS-DATES")
+    personne = Equipe(nom="Solo", prenom="Sam", profil="formateur")
+    seed(api_session_factory, personne)
+
+    reponse = api_client.get(
+        f"{PRÉFIXE}/missions/{mission.id}/disponibilites",
+        params={"equipe_ids": str(personne.id)},
+    )
+
+    assert reponse.status_code == 200, reponse.text
+    corps = reponse.json()
+    assert corps["evaluable"] is False
+    assert corps["personnes"] == []
 
 
 def test_proposition_puis_approbation_hitl_complet(

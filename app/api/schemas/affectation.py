@@ -93,6 +93,50 @@ class CandidatClasse(BaseModel):
     score_max: int
     criteres: dict[str, bool]
     deja_affecte: bool = False
+    #: Disponibilité **calculée** (ADR 0012) sur les dates de la mission :
+    #: faux dès qu'une affectation approuvée chevauche ces dates.
+    disponible: bool = True
+    #: Missions bloquantes, lisibles telles quelles (« REF (début → fin) »).
+    conflits: list[str] = Field(default_factory=list)
+
+
+class ConflitDisponibilite(BaseModel):
+    """Mission approuvée qui occupe la personne sur la période examinée.
+
+    Données structurées, pas une phrase : l'interface écrit le motif lisible
+    (« En mission du … au … — REF ») et reste libre de sa présentation.
+    """
+
+    reference: str
+    titre: str
+    date_debut: date
+    date_fin: date
+
+
+class DisponibilitePersonne(BaseModel):
+    """Disponibilité **calculée** d'une personne pour une mission (lecture).
+
+    Même règle que le refus de proposition (ADR 0012) : la carte de l'agent
+    n'a pas à croire la plume du modèle — le serveur tranche.
+    """
+
+    equipe_id: UUID
+    disponible: bool
+    conflits: list[ConflitDisponibilite] = Field(default_factory=list)
+
+
+class MissionDisponibilitesRead(BaseModel):
+    """Disponibilités d'un lot de personnes sur les dates d'une mission.
+
+    ``evaluable`` est faux quand la mission n'a pas ses deux dates : la règle
+    ne s'applique pas et aucune personne n'est déclarée indisponible.
+    """
+
+    mission_id: UUID
+    evaluable: bool
+    date_debut: date | None = None
+    date_fin: date | None = None
+    personnes: list[DisponibilitePersonne] = Field(default_factory=list)
 
 
 class PropositionAgentRhRead(BaseModel):

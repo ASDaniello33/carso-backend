@@ -144,6 +144,32 @@ class FicheCorbeille:
 
 
 @dataclass(frozen=True, slots=True)
+class FicheNonPurgee:
+    """Fiche de corbeille **conservée** : la purge de masse l'a laissée en place.
+
+    Le motif vient du refus du service (document encore référencé), jamais d'un
+    choix silencieux : une fiche écartée est toujours expliquée à l'appelant.
+    """
+
+    document_id: UUID
+    nom: str
+    motif: str
+
+
+@dataclass(frozen=True, slots=True)
+class RapportPurgeCorbeille:
+    """Ce qu'une purge **de la corbeille entière** a réellement effacé.
+
+    Une fiche encore référencée n'est pas détruite : elle est **ignorée** et
+    nommée, plutôt que de faire échouer la purge de toutes les autres.
+    """
+
+    fiches_purgees: int
+    fichiers_supprimes: int
+    ignores: tuple[FicheNonPurgee, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class ExtractedDocument:
     """Résultat d'une extraction documentaire (lecture seule, rien n'est persisté)."""
 

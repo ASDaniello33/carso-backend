@@ -126,6 +126,7 @@ def test_generateur_a_ses_outils_daffichage() -> None:
     noms = noms_pour_agent(AGENT_GENERATEUR)
     assert "naviguer_vers" in noms
     assert "afficher_lots_appel" in noms
+    assert "proposer_creation_organisation" in noms
     assert "proposer_creation_mission" in noms
     assert "proposer_telechargement_document" in noms
     assert "poser_questionnaire" in noms
@@ -371,10 +372,43 @@ def test_stub_mission_porte_le_schema_et_relaye_les_champs() -> None:
     assert "lot_id" in (sans_lot.get("error", {}).get("message", "") or str(sans_lot))
 
 
+def test_proposer_creation_organisation_porte_le_formulaire_et_relaye_les_champs() -> None:
+    """Le formulaire d'organisation remplace le blocage « UUID inconnu ».
+
+    `enregistrer_appel` exige un `organisation_id` déjà enregistré : quand le
+    document nomme une organisation absente du référentiel, ce hook est le seul
+    chemin (constat de recette : l'agent réclamait un UUID impossible à
+    inventer). Le schéma doit donc porter les vrais champs — sans `nom`, le stub
+    retomberait sur le formulaire générique et la carte n'aurait rien à
+    pré-remplir.
+    """
+    from app.agents.frontend_tools_catalogue import PayloadPropositionOrganisation
+
+    tool = stub_frontend("proposer_creation_organisation", "formulaire organisation")
+    assert tool.input_schema is PayloadPropositionOrganisation
+    resultat = tool.invoke(
+        {
+            "nom": "Organisation Internationale de la Francophonie",
+            "type": "Organisation internationale",
+            "email": "contact@francophonie.org",
+            "origine": "En-tête, page 1",
+        }
+    )
+    assert resultat["ok"] is True
+    assert resultat["rendu"] == "client"
+    assert resultat["nom"] == "Organisation Internationale de la Francophonie"
+    assert resultat["origine"] == "En-tête, page 1"
+    # Le nom est le seul champ exigé par le service : sans lui, rien à créer.
+    sans_nom = tool.invoke({"type": "ONG"})
+    assert sans_nom["ok"] is False
+    assert "nom" in str(sans_nom)
+
+
 def test_prompt_liste_les_outils_daffichage_du_generateur() -> None:
     systeme = build_system_prompt(GENERATEUR)
     assert "Outils d'affichage" in systeme
     assert "`afficher_lots_appel`" in systeme
+    assert "`proposer_creation_organisation`" in systeme
     assert "`naviguer_vers`" in systeme
     assert "`poser_questionnaire`" in systeme
     assert "tools fournis (métier + affichage" in systeme
@@ -436,6 +470,7 @@ def test_catalogue_aligne_sur_les_hooks_client() -> None:
         "afficher_synthese_lecture",
         "afficher_resultats_web",
         "afficher_lots_appel",
+        "proposer_creation_organisation",
         "proposer_creation_mission",
         "afficher_proposition_affectation",
         "afficher_liste_beneficiaires",

@@ -13,6 +13,7 @@ langue ou disponibilité inventé : un score d'adéquation est explicable
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from typing import Any
 from uuid import UUID
 
@@ -80,6 +81,10 @@ NOMS_TOOLS: tuple[str, ...] = (
     "get_mission",
     "list_mission_assignments",
     "search_missions",
+    # Disponibilité **calculée** sur une période : la règle du service,
+    # exposée en lecture pour que le classement écarte les personnes en
+    # conflit avant de proposer (constat playtest 28/10).
+    "verifier_disponibilite",
     "create_assignment_proposal",
     "propose_equipe_update",
     "propose_mission_update",
@@ -124,6 +129,33 @@ class MissionSearchInput(PageSearchInput):
     """Missions par statut (lecture toutes missions, périmètre RH)."""
 
     statut: str | None = Field(default=None, max_length=50)
+
+
+class DisponibiliteInput(BaseModel):
+    """Période évaluée, et périmètre de personnes (défaut : tout le vivier).
+
+    Lecture seule : le calcul s'appuie sur les affectations **approuvées** et
+    les dates de mission — exactement la règle appliquée au moment de
+    proposer. Aucune disponibilité n'est stockée.
+    """
+
+    date_debut: date = Field(description="Premier jour de la période (inclus).")
+    date_fin: date = Field(description="Dernier jour de la période (inclus).")
+    equipe_ids: list[UUID] = Field(
+        default_factory=list,
+        max_length=50,
+        description=(
+            "Personnes à évaluer. Vide = tout le vivier (200 personnes au plus)."
+        ),
+    )
+    mission_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Mission écartée du calcul : renseigner la mission pour laquelle on "
+            "cherche (une proposition déjà approuvée sur cette mission ne compte "
+            "pas comme un conflit avec elle-même)."
+        ),
+    )
 
 
 class AssignmentProposalInput(BaseModel):
@@ -308,6 +340,68 @@ def _list_assignments(session: Session, payload: dict[str, Any]) -> dict[str, An
             }
             for a in items
         ]
+    }
+
+
+def _disponibilites(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Disponibilité du vivier sur une période — lecture seule, règle partagée.
+
+    Réutilise :meth:`AffectationService.conflits_disponibilite`, la **même**
+    règle que celle qui refuse une proposition : l'agent ne peut donc pas
+    annoncer « libre » quelqu'un que le serveur refusera. Une personne sans
+    conflit est dite disponible ; une mission sans dates n'étant pas évaluable,
+    la période est ici obligatoire.
+    """
+    entree = DisponibiliteInput.model_validate(payload)
+    if entree.date_fin < entree.date_debut:
+        raise BusinessValidationError(
+            "Période incohérente : la date de fin précède la date de début.",
+            details={
+                "date_debut": str(entree.date_debut),
+                "date_fin": str(entree.date_fin),
+            },
+        )
+    if entree.equipe_ids:
+        personnes = [EquipeService(session).obtenir(equipe_id) for equipe_id in entree.equipe_ids]
+    else:
+        personnes = list(
+            session.scalars(select(Equipe).order_by(Equipe.nom, Equipe.prenom).limit(200))
+        )
+    service = AffectationService(session)
+    resultats: list[dict[str, Any]] = []
+    for personne in personnes:
+        conflits = service.conflits_disponibilite(
+            personne.id,
+            entree.date_debut,
+            entree.date_fin,
+            mission_id=entree.mission_id,
+        )
+        resultats.append(
+            {
+                "equipe_id": str(personne.id),
+                "nom_complet": " ".join(
+                    part for part in (personne.prenom, personne.nom) if (part or "").strip()
+                ),
+                "disponible": not conflits,
+                "conflits": conflits,
+            }
+        )
+    disponibles = sum(1 for item in resultats if item["disponible"])
+    return {
+        "periode": {
+            "date_debut": str(entree.date_debut),
+            "date_fin": str(entree.date_fin),
+        },
+        "mission_id": str(entree.mission_id) if entree.mission_id else None,
+        "nb_personnes": len(resultats),
+        "nb_disponibles": disponibles,
+        "nb_en_conflit": len(resultats) - disponibles,
+        "personnes": resultats,
+        "regle": (
+            "Disponibilité calculée : affectations approuvées sur des missions "
+            "non annulées dont les dates chevauchent la période. Une mission "
+            "annulée ne bloque personne."
+        ),
     }
 
 
@@ -627,6 +721,18 @@ def construire_tools_rh(
         run=_list_assignments,
     ))
     kit.enregistrer(OperationSpec(
+        name="verifier_disponibilite",
+        description=(
+            "Disponibilité CALCULÉE sur une période (lecture seule) : à appeler "
+            "AVANT de classer ou de proposer, avec les dates de la mission. "
+            "Renvoie pour chaque personne `disponible` et les missions en "
+            "conflit (référence, titre, dates). Une personne indisponible ne "
+            "doit pas être proposée : le serveur la refuserait."
+        ),
+        input_schema=DisponibiliteInput,
+        run=_disponibilites,
+    ))
+    kit.enregistrer(OperationSpec(
         name="create_assignment_proposal",
         description="Crée une affectation proposed (HITL).",
         input_schema=AssignmentProposalInput,
@@ -763,6 +869,7 @@ __all__ = [
     "NOMS_TOOLS",
     "TASK_TYPE",
     "AssignmentProposalInput",
+    "DisponibiliteInput",
     "EnvoyerEmailInput",
     "construire_tools_rh",
 ]

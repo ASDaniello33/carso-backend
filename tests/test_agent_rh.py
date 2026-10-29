@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Iterator
+from datetime import date
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -33,12 +34,13 @@ from app.domain.document import AuditEvent, Document
 from app.domain.enums import (
     ActionAudit,
     ActorType,
+    SourceAffectation,
     StatutAffectation,
     StatutDocument,
     StatutMission,
     TypeDocument,
 )
-from app.domain.execution import Equipe, Lieu, Mission
+from app.domain.execution import AffectationEquipe, Equipe, Lieu, Mission
 from app.domain.organization import Organisation
 from app.tools.base import TypedTool
 from app.tools.permissions import PermissionPolicy
@@ -663,6 +665,138 @@ def test_envoyer_email_piece_jointe_supprimee_refusee(
     assert sortie["ok"] is False
     assert sortie["error"]["code"] == "not_found"
     assert envois == []
+
+
+# --- Disponibilité calculée sur une période (28/10) ---------------------------
+
+
+def _semis_disponibilite(factory: sessionmaker[Session]) -> dict[str, UUID]:
+    """Deux missions qui se chevauchent (5-6/11) et deux personnes du vivier."""
+    with factory() as session:
+        org = Organisation(nom="Client dispo")
+        session.add(org)
+        session.flush()
+        cherchee = Mission(
+            organisation_id=org.id,
+            reference="M-DISPO-1",
+            titre="Mission à staffer",
+            statut=StatutMission.PLANIFIE.value,
+            date_debut=date(2026, 11, 2),
+            date_fin=date(2026, 11, 6),
+        )
+        occupante = Mission(
+            organisation_id=org.id,
+            reference="M-DISPO-2",
+            titre="Mission déjà staffée",
+            statut=StatutMission.PLANIFIE.value,
+            date_debut=date(2026, 11, 5),
+            date_fin=date(2026, 11, 7),
+        )
+        libre = Equipe(nom="Libre", prenom="Lea", profil="formateur")
+        prise = Equipe(nom="Occupée", prenom="Paul", profil="formateur")
+        session.add_all([cherchee, occupante, libre, prise])
+        session.flush()
+        session.add(
+            AffectationEquipe(
+                mission_id=occupante.id,
+                equipe_id=prise.id,
+                role_dans_mission="formateur",
+                statut=StatutAffectation.APPROUVEE.value,
+                source_affectation=SourceAffectation.MANUAL.value,
+            )
+        )
+        session.commit()
+        return {
+            "mission": cherchee.id,
+            "libre": libre.id,
+            "prise": prise.id,
+        }
+
+
+def test_verifier_disponibilite_expose_la_regle_du_service(
+    factory: sessionmaker[Session],
+) -> None:
+    """Le classement dispose de la règle réelle : conflit signalé, libre confirmé."""
+    ids = _semis_disponibilite(factory)
+    assert "verifier_disponibilite" in DEFINITION.tools
+    outils = _outils_rh(factory)
+    assert "verifier_disponibilite" in outils
+
+    sortie = outils["verifier_disponibilite"].invoke(
+        {
+            "date_debut": "2026-11-02",
+            "date_fin": "2026-11-06",
+            "equipe_ids": [str(ids["libre"]), str(ids["prise"])],
+            "mission_id": str(ids["mission"]),
+        }
+    )
+    assert sortie["ok"] is True
+    par_personne = {item["equipe_id"]: item for item in sortie["personnes"]}
+    assert par_personne[str(ids["libre"])]["disponible"] is True
+    assert par_personne[str(ids["libre"])]["conflits"] == []
+
+    occupee = par_personne[str(ids["prise"])]
+    assert occupee["disponible"] is False
+    assert occupee["conflits"][0]["reference"] == "M-DISPO-2"
+    assert occupee["nom_complet"] == "Paul Occupée"
+    assert sortie["nb_disponibles"] == 1
+    assert sortie["nb_en_conflit"] == 1
+    # La règle est dite dans la réponse : l'agent sait pourquoi, pas seulement qui.
+    assert "calculée" in sortie["regle"]
+
+
+def test_verifier_disponibilite_ignore_la_mission_courante(
+    factory: sessionmaker[Session],
+) -> None:
+    """`mission_id` écarte la mission examinée : sa propre affectation ne bloque pas.
+
+    Sans cette exclusion, une personne déjà affectée à la mission qu'on cherche
+    à staffer apparaîtrait « en conflit avec elle-même ».
+    """
+    ids = _semis_disponibilite(factory)
+    # La personne est approuvée sur M-DISPO-2 ; interrogeons M-DISPO-2 elle-même.
+    from app.domain.execution import Mission as MissionModel
+
+    with factory() as session:
+        occupee = session.scalars(
+            select(MissionModel).where(MissionModel.reference == "M-DISPO-2")
+        ).one()
+        mission_occupee_id = str(occupee.id)
+
+    outils = _outils_rh(factory)
+    exclue = outils["verifier_disponibilite"].invoke(
+        {
+            "date_debut": "2026-11-05",
+            "date_fin": "2026-11-07",
+            "equipe_ids": [str(ids["prise"])],
+            "mission_id": mission_occupee_id,
+        }
+    )
+    assert exclue["ok"] is True
+    assert exclue["personnes"][0]["disponible"] is True
+
+    autre = outils["verifier_disponibilite"].invoke(
+        {
+            "date_debut": "2026-11-05",
+            "date_fin": "2026-11-07",
+            "equipe_ids": [str(ids["prise"])],
+            "mission_id": str(ids["mission"]),
+        }
+    )
+    assert autre["ok"] is True
+    assert autre["personnes"][0]["disponible"] is False
+
+
+def test_verifier_disponibilite_periode_incoherente_refusee(
+    factory: sessionmaker[Session],
+) -> None:
+    """Fin avant début : refus explicite, jamais un résultat trompeur."""
+    _semis_disponibilite(factory)
+    sortie = _outils_rh(factory)["verifier_disponibilite"].invoke(
+        {"date_debut": "2026-11-06", "date_fin": "2026-11-02"}
+    )
+    assert sortie["ok"] is False
+    assert sortie["error"]["code"] == "business_validation_error"
 
 
 def test_envoyer_email_pieces_jointes_trop_lourdes_refusees(

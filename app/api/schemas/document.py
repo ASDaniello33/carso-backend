@@ -247,6 +247,27 @@ class RapportPurgeRead(BaseModel):
     fichiers_supprimes: int = 0
 
 
+class FicheNonPurgeeRead(BaseModel):
+    """Fiche de corbeille laissée en place par la purge de masse, avec son motif."""
+
+    document_id: UUID
+    nom: str
+    motif: str
+
+
+class RapportPurgeCorbeilleRead(BaseModel):
+    """Ce qu'une purge **de la corbeille entière** a effacé, et ce qu'elle a laissé.
+
+    Une fiche encore référencée n'interrompt pas la purge : elle est listée dans
+    ``ignores`` avec le refus du service, pour que l'interface dise exactement
+    quelles fiches restent et pourquoi.
+    """
+
+    fiches_purgees: int
+    fichiers_supprimes: int = 0
+    ignores: list[FicheNonPurgeeRead] = []
+
+
 class ExtractionRead(BaseModel):
     """Texte extrait d'un document (lecture seule, bornée par la configuration)."""
 

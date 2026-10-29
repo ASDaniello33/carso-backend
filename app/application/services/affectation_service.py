@@ -340,20 +340,75 @@ class AffectationService:
 
     # --- internes ---------------------------------------------------------
 
+    def conflits_disponibilite(
+        self,
+        equipe_id: UUID,
+        date_debut: object | None,
+        date_fin: object | None,
+        *,
+        mission_id: UUID | None = None,
+        sauf_affectation_id: UUID | None = None,
+    ) -> list[dict[str, str]]:
+        """Missions **approuvées** en conflit avec une période (lecture seule).
+
+        Source unique de la règle de disponibilité (ADR 0012) : la
+        disponibilité est **calculée**, jamais stockée. Sont en conflit les
+        affectations **approuvées** de la personne, sur des missions **non
+        annulées**, dont les **dates de mission** se chevauchent — ``début ≤
+        autre.fin`` et ``fin ≥ autre début`` (bornes incluses : deux missions
+        qui se touchent le même jour se chevauchent).
+
+        Une période inévaluable (dates absentes) ne renvoie aucun conflit : le
+        contrôle ne s'applique pas, et ce cas est documenté — aucun droit n'est
+        inventé.
+
+        Args:
+            equipe_id: la personne du vivier.
+            date_debut / date_fin: période évaluée (dates de la mission).
+            mission_id: mission écartée du calcul (la mission courante).
+            sauf_affectation_id: affectation écartée (cas d'une modification).
+
+        Returns:
+            Les missions bloquantes, de la plus récente à la plus ancienne.
+        """
+        if date_debut is None or date_fin is None:
+            return []
+        criteres = [
+            AffectationEquipe.equipe_id == equipe_id,
+            AffectationEquipe.statut == StatutAffectation.APPROUVEE.value,
+            Mission.statut != StatutMission.ANNULE.value,
+            Mission.date_debut.is_not(None),
+            Mission.date_fin.is_not(None),
+            Mission.date_debut <= date_fin,
+            Mission.date_fin >= date_debut,
+        ]
+        if mission_id is not None:
+            criteres.append(AffectationEquipe.mission_id != mission_id)
+        if sauf_affectation_id is not None:
+            criteres.append(AffectationEquipe.id != sauf_affectation_id)
+        occupees = self._session.execute(
+            select(AffectationEquipe, Mission)
+            .join(Mission, AffectationEquipe.mission_id == Mission.id)
+            .where(*criteres)
+            .order_by(Mission.date_debut.desc())
+        ).all()
+        return [
+            {
+                "reference": m.reference,
+                "titre": m.titre,
+                "date_debut": str(m.date_debut),
+                "date_fin": str(m.date_fin),
+            }
+            for _, m in occupees
+        ]
+
     def _verifier_disponibilite(
         self, mission: Mission, equipe_id: UUID, *, sauf_affectation_id: UUID | None = None
     ) -> None:
         """Refuse l'affectation si la personne est déjà en mission aux mêmes dates.
 
-        Règle validée (ADR 0012) : la disponibilité est **calculée**, jamais
-        stockée. Source unique : les affectations **approuvées** de la même
-        personne, sur des missions **non annulées**, dont les **dates de
-        mission** se chevauchent — ``début ≤ autre.fin`` et ``fin ≥ autre
-        début`` (bornes incluses : deux missions qui se touchent le même jour
-        se chevauchent).
-
-        Une mission sans dates n'est pas évaluable : le contrôle ne
-        s'applique pas, et ce cas est documenté — aucun droit n'est inventé.
+        Délègue à :meth:`conflits_disponibilite` : une seule règle, partagée
+        avec la lecture proposée aux agents.
 
         Raises:
             ConflictError: conflit de disponibilité, avec les missions en
@@ -361,24 +416,14 @@ class AffectationService:
         """
         if mission.date_debut is None or mission.date_fin is None:
             return
-        criteres = [
-            AffectationEquipe.equipe_id == equipe_id,
-            AffectationEquipe.statut == StatutAffectation.APPROUVEE.value,
-            AffectationEquipe.mission_id != mission.id,
-            Mission.statut != StatutMission.ANNULE.value,
-            Mission.date_debut.is_not(None),
-            Mission.date_fin.is_not(None),
-            Mission.date_debut <= mission.date_fin,
-            Mission.date_fin >= mission.date_debut,
-        ]
-        if sauf_affectation_id is not None:
-            criteres.append(AffectationEquipe.id != sauf_affectation_id)
-        occupees = self._session.execute(
-            select(AffectationEquipe, Mission)
-            .join(Mission, AffectationEquipe.mission_id == Mission.id)
-            .where(*criteres)
-        ).all()
-        if not occupees:
+        conflits = self.conflits_disponibilite(
+            equipe_id,
+            mission.date_debut,
+            mission.date_fin,
+            mission_id=mission.id,
+            sauf_affectation_id=sauf_affectation_id,
+        )
+        if not conflits:
             return
         raise ConflictError(
             "Cette personne n'est pas disponible : elle est déjà affectée "
@@ -390,15 +435,7 @@ class AffectationService:
                     "date_debut": str(mission.date_debut),
                     "date_fin": str(mission.date_fin),
                 },
-                "missions_en_conflit": [
-                    {
-                        "reference": m.reference,
-                        "titre": m.titre,
-                        "date_debut": str(m.date_debut),
-                        "date_fin": str(m.date_fin),
-                    }
-                    for _, m in occupees
-                ],
+                "missions_en_conflit": conflits,
             },
         )
 

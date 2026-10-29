@@ -58,8 +58,10 @@ from app.application.dto import (
     DocumentUploadInput,
     ExtractedDocument,
     FicheCorbeille,
+    FicheNonPurgee,
     LigneLecturePlage,
     PageApercuDocument,
+    RapportPurgeCorbeille,
 )
 from app.application.perimetre import Perimetre, perimetre_effectif
 from app.application.services import notifications_evenements as notifications
@@ -840,6 +842,51 @@ class DocumentService:
         # la purge a effacé (nom, version, motif de suppression, date).
         self.documents.delete(document)
         return retires
+
+    def purger_corbeille(self, decision: DecisionInput) -> RapportPurgeCorbeille:
+        """Purge **toute la corbeille** — administrateurs, geste tracé fiche par fiche.
+
+        Chaque fiche suit **exactement** la règle de ``purger_document`` : une
+        fiche encore référencée (gabarit de modèle, support de formation, modèle
+        d'offre) n'est jamais détruite. La différence est le traitement de ce
+        refus : une purge de masse ne s'arrête pas à la première fiche bloquée —
+        elle purge ce qui peut l'être et **rend la liste** de ce qu'elle a laissé,
+        avec le motif du refus. Un lot partiellement purgé qui se tairait ferait
+        croire à une corbeille vide.
+
+        Chaque fiche conserve son propre événement d'audit (nom, version, motif),
+        écrit par ``purger_document`` avant la suppression de la ligne.
+
+        Returns:
+            Compte des fiches purgées, fichiers retirés et fiches conservées.
+
+        Raises:
+            PermissionDeniedError: périmètre restreint (défense en profondeur —
+                la route exige déjà un administrateur).
+        """
+        self._perimetre.exiger_complet("purger la corbeille")
+        fiches = self.lister_corbeille()
+        purgees = 0
+        fichiers = 0
+        ignores: list[FicheNonPurgee] = []
+        for fiche in fiches:
+            try:
+                fichiers += self.purger_document(fiche.document_id, decision)
+            except ConflictError as exc:
+                ignores.append(
+                    FicheNonPurgee(
+                        document_id=fiche.document_id,
+                        nom=fiche.nom,
+                        motif=exc.message,
+                    )
+                )
+                continue
+            purgees += 1
+        return RapportPurgeCorbeille(
+            fiches_purgees=purgees,
+            fichiers_supprimes=fichiers,
+            ignores=tuple(ignores),
+        )
 
     def annuler_depot(self, document_id: UUID, acteur_id: str) -> int:
         """Annule un **dépôt** resté intact — la pièce jointe retirée avant envoi.

@@ -29,6 +29,7 @@ from app.agents.graphe_par_utilisateur import GrapheParUtilisateur
 from app.agents.harness import recursion_limit
 from app.agents.manager import get_runtime_manager
 from app.api.agui_ids import AgentFluxIdsUniques
+from app.api.agui_interrupt_orphelin import PurgeInterruptOrphelin
 from app.api.deps import CurrentUser, get_current_user
 from app.api.permissions import agents_autorises, garde_agui
 from app.api.schemas.agent_runtime import HitlReponseItem, HitlScenarioItem
@@ -147,7 +148,16 @@ class StreamingRunError:
         except BaseException as exc:
             if isinstance(exc, (KeyboardInterrupt, SystemExit)):
                 raise
-            _logger.warning("Run AG-UI interrompu : %s: %s", type(exc).__name__, exc)
+            # exc_info : sans pile, une erreur de run (TypeError de reprise
+            # HITL constatée en recette) est indélocalisable — le message seul
+            # ne dit ni le fichier ni la ligne. Le traceback n'atteint jamais
+            # l'utilisateur, il ne vit que dans le journal serveur.
+            _logger.warning(
+                "Run AG-UI interrompu : %s: %s",
+                type(exc).__name__,
+                exc,
+                exc_info=exc,
+            )
             if RunErrorEvent is not None:
                 yield RunErrorEvent(message=_message_erreur(exc))
 
@@ -288,6 +298,11 @@ def _ajouter_endpoint(
             # La fin brutale d'un run (provider coupé…) devient un événement
             # RUN_ERROR : le client affiche l'échec au lieu d'un flux tronqué.
             agent = StreamingRunError(agent)
+            # Un questionnaire HITL resté sans réponse bloquait le fil : tout
+            # run sans `resume` sur un fil interrompu était court-circuité par
+            # ag-ui-langgraph (message jamais traité). La purge refuse les
+            # actions en attente avant de déléguer (voir agui_interrupt_orphelin).
+            agent = PurgeInterruptOrphelin(agent, graph)
             _monter_endpoint(add_endpoint, app, agent, path, definition.agent_id)
             return
         except TypeError:

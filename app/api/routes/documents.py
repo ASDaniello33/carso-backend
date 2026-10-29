@@ -36,7 +36,9 @@ from app.api.schemas import (
     DocumentPurgeCreate,
     DocumentRead,
     ExtractionRead,
+    FicheNonPurgeeRead,
     PisteFluxRead,
+    RapportPurgeCorbeilleRead,
     RapportPurgeRead,
     ResolutionFluxRead,
     VideoFluxRead,
@@ -551,6 +553,39 @@ def restore_document(
         document_id,
         DecisionInput(decided_by=str(user.id), reason=reason),
         flux=flux,
+    )
+
+
+@router.post("/corbeille/purge", response_model=RapportPurgeCorbeilleRead)
+def purge_corbeille(
+    payload: DocumentPurgeCreate,
+    user: AdminUser,
+    session: DbSession,
+) -> RapportPurgeCorbeilleRead:
+    """Purge **définitive de toute la corbeille** — administrateurs seulement.
+
+    Déclarée **avant** ``/{document_id}/purge`` : un chemin littéral doit gagner
+    sur un paramètre de chemin, sinon « corbeille » serait reçu comme un
+    identifiant (``422``) sans jamais atteindre cette route.
+
+    Une fiche encore référencée n'est pas détruite : elle est **ignorée** et
+    rendue dans ``ignores`` avec le refus du service. La purge n'échoue donc pas
+    en bloc à cause d'une seule fiche bloquée ; elle ne cache pas non plus ce
+    qu'elle a laissé. Le motif est obligatoire et chaque fiche garde son
+    événement d'audit (nom, version, motif).
+    """
+    rapport = DocumentService(session, actor_id=str(user.id)).purger_corbeille(
+        DecisionInput(decided_by=str(user.id), reason=payload.reason)
+    )
+    return RapportPurgeCorbeilleRead(
+        fiches_purgees=rapport.fiches_purgees,
+        fichiers_supprimes=rapport.fichiers_supprimes,
+        ignores=[
+            FicheNonPurgeeRead(
+                document_id=fiche.document_id, nom=fiche.nom, motif=fiche.motif
+            )
+            for fiche in rapport.ignores
+        ],
     )
 
 

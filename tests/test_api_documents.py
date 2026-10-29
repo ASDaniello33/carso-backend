@@ -738,3 +738,94 @@ def test_purge_reservee_aux_administrateurs(
     assert evenement.event_metadata["reason"] == "Fin de conservation"
     assert evenement.before["nom"] == document["nom"]
     assert documents_client.get(f"{PRÉFIXE}/documents/corbeille").json() == []
+
+
+def test_purge_corbeille_globale_reservee_aux_administrateurs(
+    documents_client: TestClient,
+    donnees: Donnees,
+    api_session_factory: sessionmaker[Session],
+) -> None:
+    """Purge de toute la corbeille : 403 hors admin, puis effacement réel de chaque fiche."""
+    mission_id = str(donnees.mission.id)
+    premier = _upload(documents_client, mission_id=mission_id).json()
+    second = _upload(documents_client, nom="Checklist.pdf", mission_id=mission_id).json()
+    _supprimer(documents_client, premier["id"], "Doublon")
+    _supprimer(documents_client, second["id"], "Version obsolète")
+    url = f"{PRÉFIXE}/documents/corbeille/purge"
+
+    refus = documents_client.post(url, json={"reason": "Nettoyage"})
+    assert refus.status_code == 403
+
+    _brancher_admin(documents_client)
+    # Le motif reste obligatoire : une purge de masse muette ne serait pas auditable.
+    assert documents_client.post(url, json={"reason": ""}).status_code == 422
+
+    reponse = documents_client.post(url, json={"reason": "Fin de conservation"})
+    assert reponse.status_code == 200
+    corps = reponse.json()
+    assert corps["fiches_purgees"] == 2
+    assert corps["ignores"] == []
+    assert documents_client.get(f"{PRÉFIXE}/documents/corbeille").json() == []
+
+    import uuid as _uuid
+
+    with api_session_factory() as session:
+        for fiche in (premier, second):
+            assert session.get(Document, _uuid.UUID(fiche["id"])) is None
+        evenements = session.scalars(
+            select(AuditEvent).where(AuditEvent.action == ActionAudit.DOCUMENT_PURGE.value)
+        ).all()
+    # Chaque fiche garde son propre événement : le nom effacé survit à la purge.
+    assert sorted(e.before["nom"] for e in evenements) == sorted(
+        [premier["nom"], second["nom"]]
+    )
+
+
+def test_purge_corbeille_ignore_et_nomme_une_fiche_referencee(
+    documents_client: TestClient,
+    donnees: Donnees,
+    api_session_factory: sessionmaker[Session],
+) -> None:
+    """Une fiche encore référencée est conservée et expliquée, sans bloquer les autres."""
+    from uuid import UUID as _UUID
+
+    from app.application.services.modele_document_service import ModeleDocumentService
+
+    mission_id = str(donnees.mission.id)
+    gabarit = _upload(
+        documents_client,
+        nom="Modele client.pdf",
+        type_document=TypeDocument.TEMPLATE.value,
+        organisation_id=str(donnees.organisation.id),
+    ).json()
+    libre = _upload(documents_client, nom="Ancienne fiche.pdf", mission_id=mission_id).json()
+
+    # Le gabarit est référencé par un modèle de document : même lien que celui
+    # exploité par la purge unitaire (``references == {"modeles": 1}``).
+    with api_session_factory() as session:
+        ModeleDocumentService(session, actor_id="test").enregistrer_modele(
+            donnees.organisation.id,
+            nom="Modèle offre client",
+            type_document=TypeDocument.OFFRE.value,
+            document_template_id=_UUID(gabarit["id"]),
+            registered_by="test",
+        )
+        # Le modèle doit être visible de la requête suivante : sans commit, la
+        # fiche paraîtrait libre et la purge l'effacerait (test faux-positif).
+        session.commit()
+
+    _supprimer(documents_client, gabarit["id"], "Gabarit remplacé")
+    _supprimer(documents_client, libre["id"], "Doublon")
+
+    _brancher_admin(documents_client)
+    reponse = documents_client.post(
+        f"{PRÉFIXE}/documents/corbeille/purge", json={"reason": "Fin de conservation"}
+    )
+
+    assert reponse.status_code == 200
+    corps = reponse.json()
+    assert corps["fiches_purgees"] == 1
+    assert [ignore["nom"] for ignore in corps["ignores"]] == [gabarit["nom"]]
+    assert "encore référencé" in corps["ignores"][0]["motif"]
+    restantes = documents_client.get(f"{PRÉFIXE}/documents/corbeille").json()
+    assert [fiche["document_id"] for fiche in restantes] == [gabarit["id"]]

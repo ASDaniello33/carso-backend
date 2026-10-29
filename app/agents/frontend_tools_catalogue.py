@@ -207,6 +207,22 @@ OUTILS_FRONTEND: tuple[OutilFrontend, ...] = (
         usage="Quand l'utilisateur doit choisir un lot ou voir l'état des offres.",
     ),
     OutilFrontend(
+        name="proposer_creation_organisation",
+        description=(
+            "Affiche un formulaire de création d'organisation pré-rempli "
+            "(nom, type, adresse, e-mail, téléphone, statut). L'utilisateur "
+            "corrige puis enregistre, ou renonce : rien n'est créé sans son "
+            "geste. À utiliser dès qu'un appel nomme une organisation absente "
+            "du référentiel — l'agent ne crée jamais l'organisation lui-même."
+        ),
+        agents=frozenset({AGENT_GENERATEUR}),
+        usage=(
+            "Quand `search_organisations` ne trouve pas l'organisation "
+            "émettrice : proposer sa création avec les valeurs réellement lues "
+            "dans le document, puis reprendre `enregistrer_appel`."
+        ),
+    ),
+    OutilFrontend(
         name="proposer_creation_mission",
         description=(
             "Affiche un formulaire de création de mission pré-rempli "
@@ -616,6 +632,51 @@ class PayloadPropositionMission(BaseModel):
     )
 
 
+class PayloadPropositionOrganisation(BaseModel):
+    """Arguments de ``proposer_creation_organisation`` — même contrat que le hook client.
+
+    Le formulaire est la surface d'écriture : l'agent pré-remplit ce qu'il a lu
+    dans le document, l'utilisateur corrige et enregistre. ``nom`` est le seul
+    champ exigé par le service — le schéma le dit au modèle au lieu de laisser
+    un formulaire vide se rendre sans rien à créer (même régression que le
+    formulaire de mission).
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    nom: str = Field(
+        min_length=1,
+        max_length=255,
+        description="Nom exact de l'organisation, tel qu'il figure dans le document.",
+    )
+    type: str | None = Field(
+        default=None,
+        max_length=100,
+        description=(
+            "Nature de l'organisation si le document la nomme : ONG, ministère, "
+            "entreprise… À omettre sinon."
+        ),
+    )
+    adresse: str | None = Field(
+        default=None,
+        description="Adresse postale, si elle est écrite dans le document.",
+    )
+    email: str | None = Field(default=None, max_length=255)
+    telephone: str | None = Field(default=None, max_length=50)
+    statut: str | None = Field(
+        default=None,
+        max_length=50,
+        description="Statut administratif éventuel (« active ») — jamais déduit.",
+    )
+    origine: str | None = Field(
+        default=None,
+        description=(
+            "Où ces informations ont été lues (page, en-tête du document) : "
+            "affiché en pied de carte comme trace de lecture."
+        ),
+    )
+
+
 class PayloadIndicateurs(BaseModel):
     """Arguments de ``afficher_indicateurs``."""
 
@@ -889,6 +950,7 @@ SCHEMAS_FRONTEND: dict[str, type[BaseModel]] = {
     "poser_questionnaire": PayloadQuestionnaire,
     "afficher_synthese_lecture": PayloadSynthese,
     "afficher_lots_appel": PayloadLots,
+    "proposer_creation_organisation": PayloadPropositionOrganisation,
     "proposer_creation_mission": PayloadPropositionMission,
     "afficher_proposition_affectation": PayloadProposition,
     "afficher_liste_beneficiaires": PayloadBeneficiaires,
