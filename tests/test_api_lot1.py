@@ -58,6 +58,13 @@ def test_equipe_crud(api_client: TestClient, api_session_factory) -> None:
         f"/api/v1/equipes/{equipe_id}", json={"profil": "Formateur principal"}
     )
     assert modifie.json()["profil"] == "Formateur principal"
+    # La fonction de travail libre (ADR 0012) passe par le PATCH : la route
+    # perdait ce champ et répondait « aucune modification fournie ».
+    fonction = api_client.patch(
+        f"/api/v1/equipes/{equipe_id}", json={"fonction": "Responsable RH"}
+    )
+    assert fonction.status_code == 200, fonction.text
+    assert fonction.json()["fonction"] == "Responsable RH"
     assert api_client.get(f"/api/v1/equipes/{uuid4()}").status_code == 404
 
 

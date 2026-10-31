@@ -13,8 +13,10 @@ from app.application.services.equipe_service import EquipeService
 from app.application.services.import_beneficiaires_service import (
     ImportBeneficiairesService,
 )
+from app.application.services.itineraire_service import ItineraireService
 from app.application.services.lieu_service import LieuService
 from app.application.services.lot_service import LotService
+from app.application.services.meteo_service import MeteoService
 from app.application.services.mission_service import MissionService
 from app.application.services.modele_document_service import ModeleDocumentService
 from app.application.services.offre_service import OffreService
@@ -24,14 +26,13 @@ from app.application.services.orphelins_chat_service import (
     OrphelinsChatService,
     RapportPurgeOrphelins,
 )
+from app.application.services.parametres_voyage_service import (
+    ParametresVoyageService,
+)
 from app.application.services.participation_service import ParticipationService
 from app.application.services.presence_chat_service import PresenceChatService
 from app.application.services.presence_service import PresenceService
 from app.application.services.session_service import SessionService
-from app.application.services.itineraire_service import ItineraireService
-from app.application.services.parametres_voyage_service import (
-    ParametresVoyageService,
-)
 from app.application.services.skills_service import SkillsService
 from app.application.services.support_formation_service import (
     SupportFormationService,
@@ -49,6 +50,7 @@ __all__ = [
     "ImportBeneficiairesService",
     "LieuService",
     "LotService",
+    "MeteoService",
     "MissionService",
     "ModeleDocumentService",
     "OffreService",

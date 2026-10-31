@@ -101,6 +101,9 @@ def update_equipe(
             profil=payload.profil,
             statut=payload.statut,
             role_compte=payload.role_compte,
+            # Le champ était lu par le schéma mais perdu ici : modifier la
+            # fonction de travail relevait « aucune modification fournie ».
+            fonction=payload.fonction,
         ),
     )
 

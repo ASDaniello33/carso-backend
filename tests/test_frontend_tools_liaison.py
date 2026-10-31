@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from app.agents.catalogue import AGENT_DEFINITIONS
 from app.agents.frontend_tools_catalogue import (
     AGENT_GENERATEUR,
@@ -472,6 +474,10 @@ def test_catalogue_aligne_sur_les_hooks_client() -> None:
         "afficher_lots_appel",
         "proposer_creation_organisation",
         "proposer_creation_mission",
+        "proposer_modification_appel_offre",
+        "proposer_suppression_appel_offre",
+        "proposer_modification_rh",
+        "proposer_suppression_rh",
         "afficher_proposition_affectation",
         "afficher_liste_beneficiaires",
         "afficher_tableau_import_beneficiaires",
@@ -543,3 +549,52 @@ def test_la_ressource_du_tableau_ouvre_les_actions_de_ligne() -> None:
 
     with pytest.raises(ValidationError):
         PayloadTableau(titre="t", ressource="inconnue")  # type: ignore[arg-type]
+
+def test_outils_de_proposition_edition_sont_restreints_par_agent() -> None:
+    """Le générateur propose l'appel et l'offre, le RH les fiches RH — et rien d'autre."""
+    from app.agents.frontend_tools_catalogue import (
+        AGENT_RH,
+        SCHEMAS_FRONTEND,
+        PayloadPropositionEdition,
+    )
+
+    generateur = noms_pour_agent(AGENT_GENERATEUR)
+    rh = noms_pour_agent(AGENT_RH)
+
+    for nom in (
+        "proposer_modification_appel_offre",
+        "proposer_suppression_appel_offre",
+    ):
+        assert nom in generateur
+        assert nom not in rh, "un outil du générateur n'est pas ouvert au RH"
+        assert SCHEMAS_FRONTEND[nom] is PayloadPropositionEdition
+
+    for nom in ("proposer_modification_rh", "proposer_suppression_rh"):
+        assert nom in rh
+        assert nom not in generateur, "le RH ne propose pas d'éditer un appel"
+        assert SCHEMAS_FRONTEND[nom] is PayloadPropositionEdition
+
+    # Le bloc de prompt de chaque agent nomme ses propres outils, pas ceux de l'autre.
+    bloc_generateur = bloc_outils_frontend(AGENT_GENERATEUR)
+    bloc_rh = bloc_outils_frontend(AGENT_RH)
+    assert "proposer_modification_appel_offre" in bloc_generateur
+    assert "proposer_modification_rh" not in bloc_generateur
+    assert "proposer_suppression_rh" in bloc_rh
+    assert "proposer_suppression_appel_offre" not in bloc_rh
+
+
+def test_payload_edition_refuse_une_ressource_inconnue() -> None:
+    from pydantic import ValidationError as PydanticValidationError
+
+    from app.agents.frontend_tools_catalogue import PayloadPropositionEdition
+
+    with pytest.raises(PydanticValidationError):
+        PayloadPropositionEdition(
+            ressource="document", action="modifier", id="x", titre="T"
+        )
+
+    valide = PayloadPropositionEdition(
+        ressource="mission", action="supprimer", id="abc", titre="Mission X"
+    )
+    assert valide.action == "supprimer"
+    assert valide.resume is None

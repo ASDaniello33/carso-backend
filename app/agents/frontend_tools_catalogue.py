@@ -239,6 +239,73 @@ OUTILS_FRONTEND: tuple[OutilFrontend, ...] = (
         ),
     ),
     OutilFrontend(
+        name="proposer_modification_appel_offre",
+        description=(
+            "Ouvre un formulaire de **modification** pré-rempli pour un appel "
+            "ou une offre existant. Obligatoire : ressource (appel|offre), id "
+            "réel de la fiche, titre. Tu ne fournis aucune valeur : le "
+            "formulaire relit la fiche, l'utilisateur corrige les champs puis "
+            "enregistre. N'affirme jamais qu'une modification est faite avant "
+            "son geste."
+        ),
+        agents=frozenset({AGENT_GENERATEUR}),
+        usage=(
+            "Quand l'utilisateur veut corriger un appel ou une offre : lire la "
+            "fiche d'abord (`get_appel`, `search_offres`…), puis proposer le "
+            "formulaire avec l'identifiant réel — jamais un titre ni un numéro "
+            "de ligne."
+        ),
+    ),
+    OutilFrontend(
+        name="proposer_suppression_appel_offre",
+        description=(
+            "Ouvre une **confirmation de suppression** pour un appel ou une "
+            "offre. Le formulaire affiche d'abord l'inventaire de ce qui "
+            "disparaît, exige un motif, et n'exécute la suppression qu'au geste "
+            "de l'utilisateur. Ne supprime jamais toi-même et ne dis jamais que "
+            "c'est fait."
+        ),
+        agents=frozenset({AGENT_GENERATEUR}),
+        usage=(
+            "Quand l'utilisateur demande de supprimer un appel ou une offre : "
+            "proposer la confirmation avec l'identifiant réel, sans dramatiser "
+            "et sans promettre que ce sera réversible."
+        ),
+    ),
+    OutilFrontend(
+        name="proposer_modification_rh",
+        description=(
+            "Ouvre un formulaire de **modification** pré-rempli pour une "
+            "personne du vivier, un bénéficiaire, une mission ou une session. "
+            "Obligatoire : ressource (equipe|beneficiaire|mission|session), id "
+            "réel, titre. Tu ne fournis aucune valeur : le formulaire relit la "
+            "fiche, l'utilisateur corrige puis enregistre. N'affirme jamais "
+            "qu'une modification est faite avant son geste."
+        ),
+        agents=frozenset({AGENT_RH}),
+        usage=(
+            "Quand l'utilisateur veut corriger une fiche (personne, "
+            "bénéficiaire, mission, session) : lire la fiche d'abord, puis "
+            "proposer le formulaire avec l'identifiant réel."
+        ),
+    ),
+    OutilFrontend(
+        name="proposer_suppression_rh",
+        description=(
+            "Ouvre une **confirmation de suppression** pour une personne du "
+            "vivier, un bénéficiaire, une mission ou une session. Le formulaire "
+            "affiche d'abord l'inventaire de ce qui disparaît, exige un motif, "
+            "et n'exécute la suppression qu'au geste de l'utilisateur. Ne "
+            "supprime jamais toi-même."
+        ),
+        agents=frozenset({AGENT_RH}),
+        usage=(
+            "Quand l'utilisateur demande de supprimer une de ces fiches : "
+            "proposer la confirmation avec l'identifiant réel ; rappeler ce "
+            "qui disparaît sans le minimiser."
+        ),
+    ),
+    OutilFrontend(
         name="afficher_proposition_affectation",
         description=(
             "Présente un classement de candidats pour une mission. "
@@ -940,6 +1007,45 @@ class PayloadCarte(BaseModel):
     )
 
 
+class PayloadPropositionEdition(BaseModel):
+    """Arguments des outils ``proposer_modification_*`` / ``proposer_suppression_*``.
+
+    L'agent désigne l'entité ; il ne transporte **aucune valeur**. Le
+    formulaire relit la fiche par l'API, l'utilisateur corrige les champs, et
+    son geste exécute l'écriture : un modèle ne peut donc ni inventer une
+    valeur, ni présenter une modification comme déjà faite.
+    """
+
+    ressource: Literal[
+        "appel", "offre", "mission", "session", "equipe", "beneficiaire"
+    ] = Field(description="Ressource de l'entité à modifier ou à supprimer.")
+    action: Literal["modifier", "supprimer"] = Field(
+        description=(
+            "modifier = formulaire éditable ; supprimer = inventaire d'impact "
+            "puis confirmation."
+        )
+    )
+    id: str = Field(
+        min_length=1,
+        max_length=64,
+        description="Identifiant réel de l'entité (UUID lu en base), jamais un libellé.",
+    )
+    titre: str = Field(
+        min_length=1,
+        max_length=200,
+        description=(
+            "Libellé court de l'entité, affiché pendant le chargement de la fiche."
+        ),
+    )
+    resume: str | None = Field(
+        default=None,
+        max_length=500,
+        description=(
+            "Ce que tu proposes de changer (ou pourquoi supprimer), en une phrase."
+        ),
+    )
+
+
 SCHEMAS_FRONTEND: dict[str, type[BaseModel]] = {
     "afficher_carte": PayloadCarte,
     "naviguer_vers": PayloadNavigation,
@@ -952,6 +1058,10 @@ SCHEMAS_FRONTEND: dict[str, type[BaseModel]] = {
     "afficher_lots_appel": PayloadLots,
     "proposer_creation_organisation": PayloadPropositionOrganisation,
     "proposer_creation_mission": PayloadPropositionMission,
+    "proposer_modification_appel_offre": PayloadPropositionEdition,
+    "proposer_suppression_appel_offre": PayloadPropositionEdition,
+    "proposer_modification_rh": PayloadPropositionEdition,
+    "proposer_suppression_rh": PayloadPropositionEdition,
     "afficher_proposition_affectation": PayloadProposition,
     "afficher_liste_beneficiaires": PayloadBeneficiaires,
     "afficher_tableau_import_beneficiaires": PayloadImportBeneficiaires,

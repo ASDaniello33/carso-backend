@@ -25,6 +25,7 @@ from app.api.routes import (
     health,
     lieux,
     lots,
+    meteo,
     missions,
     modeles_documents,
     notifications,
@@ -198,6 +199,9 @@ def create_app() -> FastAPI:
     app.include_router(appels.router, prefix=settings.api_v1_prefix)
     app.include_router(offres.router, prefix=settings.api_v1_prefix)
     app.include_router(lieux.router, prefix=settings.api_v1_prefix)
+    # Météo, imagerie satellite et veille cyclonique : lecture seule, sources
+    # publiques sans clé (docs/design/METEO_ET_RISQUES.md).
+    app.include_router(meteo.router, prefix=settings.api_v1_prefix)
     app.include_router(voyage.router, prefix=settings.api_v1_prefix)
     app.include_router(affectations.router, prefix=settings.api_v1_prefix)
     app.include_router(documents.router, prefix=settings.api_v1_prefix)

@@ -290,6 +290,90 @@ class Settings(BaseSettings):
     overpass_timeout_s: float = Field(default=45.0, ge=5, le=120)
     #: Durée de validité des tags d'une voie : OSM évolue, un itinéraire non.
     osm_tags_cache_jours: int = Field(default=30, ge=1, le=365)
+
+    # --- Météo, imagerie satellite et veille cyclonique ---------------------
+    # Sources **publiques et sans clé**. La météo est une aide à la préparation
+    # d'un déplacement, jamais une garantie de sécurité : ces réglages bornent
+    # l'usage des services, ils ne changent aucune règle métier. Chaque source
+    # se désactive indépendamment (un fournisseur en panne ne vide pas l'écran).
+    meteo_actif: bool = Field(
+        default=True, description="Active le module météo (conditions et prévisions)."
+    )
+    #: Fournisseur de conditions. Interchangeable : ajouter une implémentation
+    #: dans ``app.geo.meteo`` et son nom ici, sans toucher à la carte.
+    meteo_fournisseur: str = Field(default="open-meteo")
+    open_meteo_base_url: str = Field(
+        default="https://api.open-meteo.com/v1",
+        description="Base de l'API Open-Meteo (chemins /forecast).",
+    )
+    open_meteo_timeout_s: float = Field(default=12.0, gt=0, le=120)
+    #: Une prévision horaire change lentement : 10 minutes de cache suffisent et
+    #: absorbent les clics répétés sans servir une valeur périmée.
+    meteo_conditions_ttl_s: int = Field(default=600, ge=30, le=86_400)
+
+    meteo_satellite_actif: bool = Field(
+        default=True, description="Active les couches d'imagerie satellite."
+    )
+    eumetview_wms_url: str = Field(
+        default="https://view.eumetsat.int/geoserver/wms",
+        description="WMS EUMETSAT EUMETView (MSG Indian Ocean, sans clé).",
+    )
+    #: Le rendu d'un GetMap a été mesuré entre 3 et 40 s côté fournisseur :
+    #: une borne courte classerait une image en échec alors qu'elle arrive.
+    eumetview_timeout_s: float = Field(default=60.0, ge=5, le=180)
+    #: GetCapabilities pèse 282 Ko et sert à connaître le **dernier créneau
+    #: publié** : relu toutes les 6 h, il reste valable bien plus longtemps.
+    eumetview_capacites_ttl_s: int = Field(default=21_600, ge=300, le=172_800)
+    #: Une image d'un créneau passé est immuable : le cache peut vivre longtemps.
+    meteo_satellite_ttl_s: int = Field(default=3_600, ge=60, le=86_400)
+    #: Nombre d'images conservées (≈ 250 Ko chacune) — borne mémoire volontaire.
+    meteo_satellite_images_max: int = Field(default=40, ge=4, le=200)
+    #: Côté de l'image demandée. Mesuré le 29/10/2026 : 22 s à 512 px contre
+    #: 74 s à 1024 px pour le même créneau — le rendu côté fournisseur domine,
+    #: et 512 px couvre déjà la région à ~6 km/pixel. L'image est ensuite
+    #: servie depuis notre cache.
+    meteo_satellite_taille: int = Field(default=512, ge=256, le=2048)
+
+    gibs_actif: bool = Field(
+        default=True, description="Active le fournisseur secondaire NASA GIBS."
+    )
+    gibs_wms_url: str = Field(
+        default="https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi",
+        description="WMS NASA GIBS (réflectance vraie couleur journalière).",
+    )
+    gibs_timeout_s: float = Field(default=25.0, ge=5, le=120)
+
+    meteo_cyclones_actif: bool = Field(
+        default=True, description="Active la veille cyclonique (GDACS)."
+    )
+    gdacs_api_url: str = Field(
+        default="https://www.gdacs.org/gdacsapi/api",
+        description="API publique GDACS (systèmes tropicaux, sans clé).",
+    )
+    #: Mesuré entre 4 et 11 s en régime normal, avec des connexions coupées ou
+    #: des attentes de 60 s et plus. La borne est volontairement **plus courte
+    #: que ce pire cas** : la météo du trajet attend la veille, et un service
+    #: bloqué ne doit pas faire expirer la requête entière (météo ~15 s +
+    #: veille 20 s reste sous la borne de 40 s du client). Un dépassement
+    #: dégrade l'affichage au lieu de le vider.
+    gdacs_timeout_s: float = Field(default=20.0, ge=5, le=180)
+    #: Un avis cyclonique doit rester frais : 15 minutes, pas davantage.
+    meteo_cyclones_ttl_s: int = Field(default=900, ge=60, le=21_600)
+    #: Fenêtre de recherche des épisodes (jours) — assez large pour un système
+    #: qui vient de se dissiper et reste dans les bulletins.
+    meteo_cyclones_jours: int = Field(default=7, ge=1, le=30)
+
+    #: Plafond d'appels externes par minute (toutes sources météo confondues) :
+    #: l'animation satellite demande plusieurs images d'affilée, sans quoi une
+    #: rafale consommerait le quota de toute l'instance.
+    meteo_requetes_par_minute: int = Field(default=40, ge=5, le=600)
+
+    # Emprise de référence des images satellite : Madagascar et l'océan Indien
+    # sud-ouest. Une image plus large diluerait la résolution utile.
+    meteo_region_sud: float = Field(default=-30.0, ge=-60, le=10)
+    meteo_region_ouest: float = Field(default=30.0, ge=-20, le=120)
+    meteo_region_nord: float = Field(default=2.0, ge=-40, le=30)
+    meteo_region_est: float = Field(default=60.0, ge=0, le=180)
     # Lecture d'une page web par un agent (tools ``fetch_url`` / ``read_urls``) :
     # bornes de service (anti-abus), pas des règles métier. Le texte rendu est un
     # **extrait** : un agent ne doit pas tirer une page entière dans le contexte.

@@ -46,6 +46,7 @@ from __future__ import annotations
 
 from contextvars import ContextVar, Token
 from dataclasses import MISSING, dataclass, field, fields
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -57,6 +58,40 @@ from app.application.perimetre import (
     pour_utilisateur,
 )
 from app.domain.identity import Utilisateur
+
+#: Madagascar n'a pas d'heure d'été : UTC+3 toute l'année. Le fuseau est fixé
+#: ici plutôt que lu sur la machine (et sans dépendre de la base tzdata).
+FUSEAU_CARSO = timezone(timedelta(hours=3), "EAT")
+
+_JOURS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+_MOIS = (
+    "janvier",
+    "février",
+    "mars",
+    "avril",
+    "mai",
+    "juin",
+    "juillet",
+    "août",
+    "septembre",
+    "octobre",
+    "novembre",
+    "décembre",
+)
+
+
+def _date_longue(instant: datetime) -> str:
+    """Date du jour en clair, à Toliara, avec sa forme ISO et l'heure locale.
+
+    Un agent a besoin des deux : « vendredi 30 octobre 2026 » pour parler, et
+    « 2026-10-30 » pour comparer une échéance ou calculer une ancienneté.
+    """
+    local = instant.astimezone(FUSEAU_CARSO)
+    return (
+        f"{_JOURS[local.weekday()]} {local.day} {_MOIS[local.month - 1]} "
+        f"{local.year} ({local.strftime('%Y-%m-%d')}, "
+        f"{local.strftime('%H:%M')} à Toliara, UTC+3)"
+    )
 
 try:  # pragma: no cover - dépend de l'extra agents
     from langchain.agents.middleware.types import AgentMiddleware as _AgentMiddleware
@@ -196,16 +231,33 @@ class UserContext:
             return True
         return outil in self.outils_autorises
 
-    def bloc_prompt(self) -> str:
-        """Bloc de prompt : qui parle, et ce qu'il peut faire.
+    def bloc_prompt(self, maintenant: datetime | None = None) -> str:
+        """Bloc de prompt : qui parle, ce qu'il peut faire, et quel jour on est.
 
         Écrit pour un agent CARSO : il dit le rôle, le périmètre, et surtout ce
         qui est **hors** périmètre — c'est ce qui empêche de proposer un geste
-        refusé en boucle.
+        refusé en boucle. La date du jour y figure : sans elle, « cette
+        semaine » se déduit du document lu, et une donnée de la semaine
+        dernière passe pour actuelle.
+
+        Args:
+            maintenant: instant de référence (les tests en fixent un).
         """
         lignes = ["## Contexte de l'utilisateur connecté (fourni par le serveur)"]
         lignes.append(f"- Nom : {self.nom_complet or 'compte de service'}")
         lignes.append(f"- Rôle : {self.role or 'inconnu'}")
+        lignes.append(
+            f"- Date du jour : {_date_longue(maintenant or datetime.now(UTC))}."
+        )
+        lignes.append(
+            "- « Aujourd'hui », « cette semaine », une échéance, un retard ou une "
+            "ancienneté se calculent à partir de cette date — jamais déduits d'un "
+            "document."
+        )
+        lignes.append(
+            "- Une donnée datée est présentée avec sa date (ou son âge) ; si elle est "
+            "ancienne, dis-le au lieu de la présenter comme actuelle."
+        )
         if self.profil:
             lignes.append(f"- Profil : {self.profil}")
         if self.est_interne:
