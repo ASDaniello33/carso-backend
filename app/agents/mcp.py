@@ -25,7 +25,14 @@ Ce que le module garantit :
   ``langchain-mcp-adapters`` (seule une erreur ``isError=True`` du serveur est
   convertie en Tool Message). Non traitées, elles interrompent le workflow
   entier—d'où l'enveloppe ``proteger_outil_mcp``—le modèle reçoit le détail
-  de l'échec et poursuit sa tâche en le signalant.
+  de l'échec et poursuit sa tâche en le signalant ;
+- **nom d'outil conforme à la grammaire du fournisseur**—le préfixe ajouté par
+  l'adaptateur reprend le nom **affiché** du connecteur (« Parallel Search »),
+  espaces compris. Or une API OpenAI-compatible exige
+  ``^[a-zA-Z0-9_.-]+$`` et rejette alors **toute la requête** (donc tout le
+  run), pas seulement l'outil fautif. Le nom exposé au modèle est normalisé ici
+  (:func:`nom_outil_conforme`), le nom lisible restant seul utilisé dans les
+  journaux et les payloads d'erreur.
 """
 
 from __future__ import annotations
@@ -33,9 +40,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import threading
 import time
-from collections.abc import Sequence
+import unicodedata
+from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from hashlib import sha256
 from typing import Any
@@ -61,6 +70,17 @@ _tls_avertissement_emis = False
 _boucle: asyncio.AbstractEventLoop | None = None
 _fil: threading.Thread | None = None
 _verrou_boucle = threading.Lock()
+
+#: Grammaire imposée aux noms d'outils par les API OpenAI-compatibles. Un nom
+#: hors motif fait rejeter **la requête entière** (donc le run), pas seulement
+#: l'outil : la normalisation est une garantie de disponibilité, pas du confort.
+MOTIF_NOM_OUTIL = re.compile(r"[^a-zA-Z0-9_.-]")
+
+#: Longueur maximale d'un nom de fonction côté fournisseur.
+LIMITE_NOM_OUTIL = 64
+
+#: Nom de repli quand un libellé ne contient aucun caractère exploitable.
+NOM_OUTIL_DEFAUT = "outil_mcp"
 
 
 def paquet_disponible() -> bool:
@@ -125,6 +145,59 @@ def _causes(exc: BaseException, limite: int = 3) -> list[str]:
     return vues
 
 
+def nom_outil_conforme(nom: str, *, defaut: str = NOM_OUTIL_DEFAUT) -> str:
+    """Nom d'outil exposable à un fournisseur de modèle (``^[a-zA-Z0-9_.-]+$``).
+
+    Un nom déjà conforme est rendu **inchangé** : la normalisation ne renomme
+    jamais un outil sain (contrat des tests et des graphes existants).
+
+    - tout caractère hors motif devient ``_`` (espace, accent, parenthèse, « / ») ;
+    - les séries de ``_`` sont repliées et les points de bord retirés — le nom
+      reste lisible (``Parallel Search_web_search`` → ``Parallel_Search_web_search``) ;
+    - un libellé entièrement consommé retombe sur ``defaut`` plutôt que de
+      produire un nom vide ;
+    - au-delà de :data:`LIMITE_NOM_OUTIL`, troncature **avec empreinte courte** :
+      deux noms longs différents ne se confondent pas, et le résultat est stable
+      (même entrée, même nom — condition du cache des outils).
+    """
+    # Accents retirés plutôt que remplacés : un connecteur « Recherche météo »
+    # doit rester lisible (`Recherche_meteo`), pas devenir `Recherche_m_t_o`.
+    sans_accents = "".join(
+        caractere
+        for caractere in unicodedata.normalize("NFKD", str(nom))
+        if not unicodedata.combining(caractere)
+    )
+    propre = MOTIF_NOM_OUTIL.sub("_", sans_accents.strip())
+    propre = re.sub(r"_{2,}", "_", propre).strip(".")
+    if not propre:
+        return defaut
+    if len(propre) > LIMITE_NOM_OUTIL:
+        empreinte = sha256(propre.encode("utf-8")).hexdigest()[:8]
+        propre = f"{propre[: LIMITE_NOM_OUTIL - 9]}_{empreinte}"
+    return propre
+
+
+def nom_outil_unique(nom: str, pris: Iterable[str]) -> str:
+    """Nom conforme libre dans ``pris``, suffixé si nécessaire.
+
+    Deux outils distincts peuvent se normaliser pareil (« web search » et
+    « web_search »), deux connecteurs porter des noms qui ne diffèrent que par
+    un espace. LangGraph refuse deux outils de même nom : le suffixe garde les
+    deux capacités au lieu d'en perdre une.
+    """
+    occupes = set(pris)
+    if nom not in occupes:
+        return nom
+    troncature = LIMITE_NOM_OUTIL - 5  # place pour « _999 »
+    base = nom[:troncature] if len(nom) > troncature else nom
+    for rang in range(2, 1000):
+        candidat = f"{base}_{rang}"
+        if candidat not in occupes:
+            return candidat
+    empreinte = sha256(nom.encode("utf-8")).hexdigest()[:8]
+    return f"{base[: LIMITE_NOM_OUTIL - 9]}_{empreinte}"
+
+
 def payload_erreur_mcp(outil: str, serveur: str, exc: BaseException) -> str:
     """Échec d'un outil MCP rendu au modèle — **jamais** une exception.
 
@@ -167,10 +240,10 @@ def _contenu_outil(resultat: Any) -> str:
     return json.dumps(resultat, ensure_ascii=False, default=str)
 
 
-def proteger_outil_mcp(outil: Any, *, serveur: str) -> Any:
+def proteger_outil_mcp(outil: Any, *, serveur: str, nom: str | None = None) -> Any:
     """Enveloppe un outil MCP : toute exception devient un résultat pour le modèle.
 
-    Deux garanties, chacune corrige une panne constatée :
+    Trois garanties, chacune corrige une panne constatée :
 
     1. **Aucune panne distante ne casse le run.** ``langchain-mcp-adapters`` ne
        convertit en Tool Message que les erreurs d'exécution déclarées par le
@@ -183,13 +256,19 @@ def proteger_outil_mcp(outil: Any, *, serveur: str) -> Any:
        graphe invoqué hors coroutine levait ``NotImplementedError:
        StructuredTool does not support sync invocation``. Le pont synchrone
        réutilise la boucle MCP dédiée (mêmes garde-fous, mêmes payloads).
+    3. **Nom exposable au fournisseur.** Le préfixe de l'adaptateur reprend le
+       libellé du connecteur ; un espace y suffit pour que l'API rejette la
+       requête entière (``Invalid 'tools[N].function.name'``, constaté le
+       31/10). Le nom effectif passe par :func:`nom_outil_conforme` — y compris
+       quand l'appelant le fournit (``nom``), pour qu'aucun chemin ne puisse
+       réinjecter un nom invalide.
 
-    Le nom, la description et le schéma d'entrée de l'outil d'origine sont
-    conservés : le modèle voit exactement le même contrat.
+    La description et le schéma d'entrée de l'outil d'origine sont conservés :
+    le modèle voit le même contrat, sous un nom que le fournisseur accepte.
     """
     from langchain_core.tools import StructuredTool
 
-    nom = str(getattr(outil, "name", "outil_mcp"))
+    nom = nom_outil_conforme(nom or str(getattr(outil, "name", NOM_OUTIL_DEFAUT)))
     description = str(getattr(outil, "description", "") or "")
     schema = getattr(outil, "args_schema", None) or {
         "type": "object",
@@ -458,43 +537,45 @@ def signature(serveurs: Sequence[ServeurMcp]) -> str:
     return "§".join(parties)
 
 
-def _sans_doublons(
-    agent_id: str, serveur: ServeurMcp, charges: Sequence[Any]
-) -> list[Any]:
-    """Ecarte un outil deja fourni, connecteur personnel prime.
+def _nom_outil_pour(
+    agent_id: str, serveur: ServeurMcp, nom: str, pris: dict[str, ServeurMcp]
+) -> str | None:
+    """Nom effectif d'un outil pour cet agent, ou ``None`` s'il s'écarte.
 
-    Un connecteur global et un connecteur personnel peuvent exposer le meme
-    nom d'outil. ``tool_name_prefix`` produit alors deux outils de meme nom et
-    LangGraph refuse les doublons : l'echec porterait sur la totalite du
-    graphe, y compris les outils sans rapport. Regle : **le personnel
-    ecrase le global** pour cet agent, et l'ecart est journalise — jamais
-    silencieusement.
+    Un connecteur global et un connecteur personnel peuvent exposer le même nom
+    d'outil. ``tool_name_prefix`` produirait alors deux outils de même nom et
+    LangGraph refuse les doublons : l'échec porterait sur la totalité du graphe,
+    y compris les outils sans rapport. Règle : **le personnel écarte le global**
+    pour cet agent, et l'écart est journalisé — jamais silencieusement.
+
+    Deux outils de même *famille* qui se normalisent pareil ne s'écartent pas :
+    ce sont deux capacités distinctes, un suffixe les garde toutes les deux.
+    L'ordre de chargement (personnels d'abord, cf. ``outils_mcp_pour``) rend le
+    cas « global puis personnel » impossible ; par sûreté il suffixe au lieu de
+    masquer.
     """
-    deja_vus: set[str] = set()
-    retenus: list[Any] = []
-    for outil in charges:
-        nom = str(getattr(outil, "name", "?"))
-        if nom in deja_vus:
-            if serveur.utilisateur_id is not None:
-                _logger.warning(
-                    "Outil MCP %s fourni deux fois pour %s : le connecteur "
-                    "personnel « %s » est prioritaire sur le global.",
-                    nom,
-                    agent_id,
-                    serveur.nom,
-                )
-            else:
-                _logger.warning(
-                    "Outil MCP %s fourni deux fois pour %s : le connecteur "
-                    "global « %s » est masque par un connecteur personnel.",
-                    nom,
-                    agent_id,
-                    serveur.nom,
-                )
-            continue
-        deja_vus.add(nom)
-        retenus.append(outil)
-    return retenus
+    occupant = pris.get(nom)
+    if occupant is None:
+        return nom
+    if serveur.utilisateur_id is None and occupant.utilisateur_id is not None:
+        _logger.warning(
+            "Outil MCP %s écarté pour %s : le connecteur personnel « %s » est "
+            "prioritaire sur le global « %s ».",
+            nom,
+            agent_id,
+            occupant.nom,
+            serveur.nom,
+        )
+        return None
+    unique = nom_outil_unique(nom, pris)
+    _logger.info(
+        "Outil MCP %s déjà pris (connecteur « %s ») : exposé sous %s pour %s.",
+        nom,
+        occupant.nom,
+        unique,
+        agent_id,
+    )
+    return unique
 
 
 def outils_mcp_pour(agent_id: str, serveurs: Sequence[ServeurMcp]) -> tuple[Any, ...]:
@@ -527,8 +608,10 @@ def outils_mcp_pour(agent_id: str, serveurs: Sequence[ServeurMcp]) -> tuple[Any,
     from langchain_mcp_adapters.client import MultiServerMCPClient
 
     outils: list[Any] = []
+    #: Nom exposé → connecteur qui l'a fourni (règle personnel/global).
+    pris: dict[str, ServeurMcp] = {}
     # Personnels d'abord : en cas de collision de nom d'outil, c'est le global
-    # qui s'ecarte (voir ``_sans_doublons``).
+    # qui s'ecarte (voir ``_nom_outil_pour``).
     ordre = sorted(
         serveurs,
         key=lambda x: (x.utilisateur_id is None, x.nom),
@@ -551,7 +634,14 @@ def outils_mcp_pour(agent_id: str, serveurs: Sequence[ServeurMcp]) -> tuple[Any,
             # Typé ``Any`` : la forme exacte attendue (StdioConnection,
             # StreamableHttpConnection…) diffère selon la version des
             # adaptateurs ; ``_connexion`` produit la variante du transport.
-            connexions: dict[str, Any] = {serveur.nom: _connexion(serveur)}
+            #
+            # Clé **assainie** : ``tool_name_prefix`` reprend la clé telle
+            # quelle pour préfixer chaque outil. Le libellé du connecteur
+            # (« Parallel Search ») produisait `Parallel Search_web_search`,
+            # qu'une API OpenAI-compatible refuse — la requête entière tombait.
+            connexions: dict[str, Any] = {
+                nom_outil_conforme(serveur.nom, defaut="mcp"): _connexion(serveur)
+            }
             client = MultiServerMCPClient(
                 connexions,
                 tool_name_prefix=True,
@@ -560,22 +650,37 @@ def outils_mcp_pour(agent_id: str, serveurs: Sequence[ServeurMcp]) -> tuple[Any,
             # Enveloppe obligatoire : ``handle_tool_errors`` ne couvre que les
             # erreurs ``isError=True`` du serveur — les pannes de transport et
             # de session remonteraient en exception et arrêteraient le run.
+            #
+            # Ordre : assainir → dédupliquer → envelopper. Dédupliquer après
+            # l'ajout (état antérieur) ne filtrait rien : la liste était déjà
+            # étendue quand `_sans_doublons` rendait son résultat.
             charges = _executer(client.get_tools())
-            outils.extend(proteger_outil_mcp(outil, serveur=serveur.nom) for outil in charges)
+            retenus: list[Any] = []
+            exposes: list[str] = []
+            for outil in charges:
+                brut = str(getattr(outil, "name", NOM_OUTIL_DEFAUT))
+                nom = _nom_outil_pour(
+                    agent_id, serveur, nom_outil_conforme(brut), pris
+                )
+                if nom is None:
+                    continue
+                pris[nom] = serveur
+                retenus.append(proteger_outil_mcp(outil, serveur=serveur.nom, nom=nom))
+                exposes.append(nom if nom == brut else f"{brut} → {nom}")
+            outils.extend(retenus)
             # Journalisé au chargement, pas seulement en cas d'échec : sans cette
             # ligne, un connecteur qui répond ne laisse aucune trace, et un
             # agent privé de ses outils distants est indiscernable d'un agent
             # qui n'en a jamais eu (constaté le 04/10 sur `search.parallel.ai`,
             # où cinq connexions 405 semblaient être une panne alors que
-            # `tools/list` aboutissait).
-            charges = _sans_doublons(agent_id, serveur, charges)
+            # `tools/list` aboutissait). Les noms journalisés sont ceux que le
+            # modèle voit, avec leur forme d'origine quand elle a changé.
             _logger.info(
                 "Connecteur MCP %s chargé pour %s : %d outil(s) — %s",
                 serveur.nom,
                 agent_id,
-                len(charges),
-                ", ".join(sorted(str(getattr(o, "name", "?")) for o in charges))
-                or "aucun",
+                len(retenus),
+                ", ".join(sorted(exposes)) or "aucun",
             )
         except Exception as exc:
             # Un connecteur en échec ne prive pas l'agent de ses autres outils.
@@ -607,7 +712,11 @@ async def charger_avec_consentement(serveur: ServeurMcp, attente: Any) -> tuple[
     from langchain_mcp_adapters.client import MultiServerMCPClient
 
     client = MultiServerMCPClient(
-        {serveur.nom: _connexion(serveur, attente=attente)},
+        {
+            nom_outil_conforme(serveur.nom, defaut="mcp"): _connexion(
+                serveur, attente=attente
+            )
+        },
         tool_name_prefix=True,
         handle_tool_errors=True,
     )
@@ -661,7 +770,7 @@ def sonder_serveur(serveur: ServeurMcp) -> dict[str, Any]:
         from langchain_mcp_adapters.client import MultiServerMCPClient
 
         client = MultiServerMCPClient(
-            {serveur.nom: _connexion(serveur)},
+            {nom_outil_conforme(serveur.nom, defaut="mcp"): _connexion(serveur)},
             tool_name_prefix=True,
             handle_tool_errors=True,
         )
@@ -704,6 +813,8 @@ def vider_cache(
 __all__ = [
     "charger_avec_consentement",
     "motif_erreur",
+    "nom_outil_conforme",
+    "nom_outil_unique",
     "fabrique_client_mcp",
     "outils_mcp_pour",
     "paquet_disponible",

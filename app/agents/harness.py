@@ -34,6 +34,7 @@ from app.agents.annuaire import bloc_annuaire
 from app.agents.base import AgentDefinition
 from app.agents.contexte import ContexteUtilisateurMiddleware, UserContext
 from app.agents.frontend_tools_catalogue import bloc_outils_frontend
+from app.agents.historique_outils import HistoriqueOutilsCoherentMiddleware
 from app.agents.page_courante import BLOC_PAGE_COURANTE
 from app.agents.pieces_jointes_contexte import BLOC_PIECES_JOINTES
 from app.agents.prompt import BLOC_RECHERCHE_WEB
@@ -222,8 +223,14 @@ def create_carso_deep_agent(
     if skills_resolus:
         kwargs["skills"] = skills_resolus
     # Ordre : le contexte d'abord (il précise le prompt avant que les outils
-    # d'affichage ne soient fusionnés au tour modèle).
-    middleware: list[Any] = [ContexteUtilisateurMiddleware()]
+    # d'affichage ne soient fusionnés au tour modèle), puis la cohérence de
+    # l'historique — en dernier, juste avant le fournisseur : un `ToolMessage`
+    # orphelin ou un `tool_calls` sans réponse fait rejeter la requête entière
+    # (voir app/agents/historique_outils.py).
+    middleware: list[Any] = [
+        ContexteUtilisateurMiddleware(),
+        HistoriqueOutilsCoherentMiddleware(),
+    ]
     affichage = _middleware_frontend(definition.agent_id)
     if affichage is not None:
         middleware.append(affichage)

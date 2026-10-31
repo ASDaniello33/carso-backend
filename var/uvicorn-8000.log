@@ -1,0 +1,305 @@
+
+ALLOWED ORIGINS: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3950', 'http://127.0.0.1:3950', 'https://carso-ai.onrender.com']
+
+2026-10-31 14:52:26 | INFO     | app.api.agui | AG-UI : 6 endpoint(s) monté(s)
+INFO:     Started server process [19872]
+INFO:     Waiting for application startup.
+2026-10-31 14:52:26 | INFO     | app.infrastructure.balayage_cycle_de_vie | Cycle de vie : balayage démarré (toutes les 300 s).
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:4949 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:4949 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:4957 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:4957 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:4959 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:4963 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+2026-10-31 14:52:30 | WARNING  | app.agents.providers | AGENT_SSL_VERIFY=false : le certificat TLS du provider LLM n'est pas vérifié (environnements de développement uniquement).
+2026-10-31 14:52:31 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-31 14:52:31 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-31 14:52:33 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-31 14:52:33 | INFO     | mcp.client.streamable_http | Received session ID: 4256c8b5-9d35-4603-a7c9-0fbdaf047f19
+2026-10-31 14:52:33 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-31 14:52:33 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-31 14:52:33 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-31 14:52:33 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-31 14:52:33 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-31 14:52:33 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-31 14:52:33 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-31 14:52:33 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-31 14:52:33 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-31 14:52:33 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-31 14:52:33 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_assistant_formateur : 2 outil(s) — Parallel_Search_web_fetch, Parallel_Search_web_search
+2026-10-31 14:52:34 | INFO     | app.agents.checkpointer | Checkpointer LangGraph persistant : PostgreSQL (threads des agents conservés entre les redémarrages)
+INFO:     127.0.0.1:4976 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:4975 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:4978 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:4978 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:4975 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:4976 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:4982 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:4982 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+2026-10-31 14:52:39 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-31 14:52:39 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-31 14:52:39 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-31 14:52:39 | INFO     | mcp.client.streamable_http | Received session ID: 3dbec91d-46ed-4463-9d59-a7c4539a94c0
+2026-10-31 14:52:39 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-31 14:52:39 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-31 14:52:39 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-31 14:52:39 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-31 14:52:39 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-31 14:52:40 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-31 14:52:40 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-31 14:52:40 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-31 14:52:40 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-31 14:52:40 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-31 14:52:40 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_generaliste_readonly : 2 outil(s) — Parallel_Search_web_fetch, Parallel_Search_web_search
+INFO:     127.0.0.1:5014 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5018 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+npm notice run npx
+npm notice run mcp-terminal
+INFO:     127.0.0.1:5018 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+MCP Terminal Server running...
+2026-10-31 14:52:50 | INFO     | app.agents.mcp | Connecteur MCP Terminal chargé pour agent_generaliste_readonly : 1 outil(s) — Terminal_execute_command
+2026-10-31 14:52:50 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-31 14:52:50 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-31 14:52:53 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-31 14:52:53 | INFO     | mcp.client.streamable_http | Received session ID: 6f8869b9-92f4-4a9d-884f-9d04ae551efc
+2026-10-31 14:52:53 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-31 14:52:53 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-31 14:52:53 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-31 14:52:53 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-31 14:52:53 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-31 14:52:53 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-31 14:52:53 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-31 14:52:53 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-31 14:52:53 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-31 14:52:53 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-31 14:52:53 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_generateur_offre : 2 outil(s) — Parallel_Search_web_fetch, Parallel_Search_web_search
+2026-10-31 14:52:54 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://bqksu-153-67-85-88.run.pinggy-free.link/mcp
+2026-10-31 14:52:54 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-31 14:52:54 | WARNING  | app.agents.mcp | Connecteur MCP Desktop injoignable pour agent_personnel : ConnectError: [Errno 11004] getaddrinfo failed
+2026-10-31 14:52:54 | WARNING  | app.agents.mcp | Connecteur MCP Github ignoré pour agent_personnel : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-31 14:52:55 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://asus-77698e7a.loca.lt/mcp
+2026-10-31 14:52:55 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-31 14:52:57 | INFO     | httpx | HTTP Request: POST https://asus-77698e7a.loca.lt/mcp "HTTP/1.1 503 Service Unavailable"
+2026-10-31 14:52:57 | WARNING  | app.agents.mcp | Connecteur MCP Mon desktop injoignable pour agent_personnel : HTTPStatusError HTTP 503 https://asus-77698e7a.loca.lt/mcp
+INFO:     127.0.0.1:5047 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5048 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5047 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5047 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5047 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5047 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5066 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5066 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+2026-10-31 14:53:09 | INFO     | app.agents.mcp | Connecteur MCP Time chargé pour agent_personnel : 2 outil(s) — Time_convert_time, Time_get_current_time
+2026-10-31 14:53:09 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://mcp.facebook.com/whatsapp_business_tools
+2026-10-31 14:53:09 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-31 14:53:10 | INFO     | httpx | HTTP Request: POST https://mcp.facebook.com/whatsapp_business_tools "HTTP/1.1 401 Unauthorized"
+2026-10-31 14:53:10 | WARNING  | app.agents.mcp | Connecteur MCP WhatsApp Business Tools injoignable pour agent_personnel : HTTPStatusError HTTP 401 https://mcp.facebook.com/whatsapp_business_tools
+2026-10-31 14:53:10 | WARNING  | app.agents.mcp | Connecteur MCP WhatsApp Business Tools ignoré pour agent_personnel : autorisation OAuth requise (aucun jeton) — cliquer « S'authentifier ».
+2026-10-31 14:53:10 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-31 14:53:10 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-31 14:53:11 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-31 14:53:11 | INFO     | mcp.client.streamable_http | Received session ID: a4f74336-77fa-4c15-9cde-d1c4e440aaf5
+2026-10-31 14:53:11 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-31 14:53:11 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-31 14:53:11 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-31 14:53:11 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-31 14:53:11 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-31 14:53:11 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-31 14:53:11 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-31 14:53:11 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-31 14:53:11 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-31 14:53:11 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-31 14:53:11 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_rh : 2 outil(s) — Parallel_Search_web_fetch, Parallel_Search_web_search
+2026-10-31 14:53:12 | DEBUG    | mcp.client.streamable_http | Connecting to StreamableHTTP endpoint: https://search.parallel.ai/mcp
+2026-10-31 14:53:12 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='initialize', params={'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'mcp', 'version': '0.1.0'}}, jsonrpc='2.0', id=0)
+2026-10-31 14:53:13 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-31 14:53:13 | INFO     | mcp.client.streamable_http | Received session ID: 40d2e576-6fb8-4380-b216-005892e9a9eb
+2026-10-31 14:53:13 | INFO     | mcp.client.streamable_http | Negotiated protocol version: 2025-11-25
+2026-10-31 14:53:13 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCNotification(method='notifications/initialized', params=None, jsonrpc='2.0')
+2026-10-31 14:53:13 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 202 Accepted"
+2026-10-31 14:53:13 | DEBUG    | mcp.client.streamable_http | Received 202 Accepted
+2026-10-31 14:53:13 | DEBUG    | mcp.client.streamable_http | Sending client message: root=JSONRPCRequest(method='tools/list', params=None, jsonrpc='2.0', id=1)
+2026-10-31 14:53:13 | INFO     | httpx | HTTP Request: GET https://search.parallel.ai/mcp "HTTP/1.1 405 Method Not Allowed"
+2026-10-31 14:53:13 | DEBUG    | mcp.client.streamable_http | GET stream error: Client error '405 Method Not Allowed' for url 'https://search.parallel.ai/mcp'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/405
+2026-10-31 14:53:13 | INFO     | mcp.client.streamable_http | GET stream disconnected, reconnecting in 1000ms...
+2026-10-31 14:53:13 | INFO     | httpx | HTTP Request: POST https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-31 14:53:13 | INFO     | httpx | HTTP Request: DELETE https://search.parallel.ai/mcp "HTTP/1.1 200 OK"
+2026-10-31 14:53:13 | INFO     | app.agents.mcp | Connecteur MCP Parallel Search chargé pour agent_statistique : 2 outil(s) — Parallel_Search_web_fetch, Parallel_Search_web_search
+2026-10-31 14:53:13 | INFO     | app.api.agui | AG-UI : 6 endpoint(s) monté(s)
+2026-10-31 14:53:13 | INFO     | app.agents.manager | Configuration des agents restaurée depuis la base (provider=openai_compatible, model=gpt-chat-latest)
+2026-10-31 14:53:13 | INFO     | app.main | Bootstrap admin : compte prêt pour admin@carso.mg
+INFO:     127.0.0.1:5100 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5100 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5126 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5129 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5131 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5132 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5129 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5129 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5140 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5141 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5145 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5166 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5167 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5166 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5166 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5167 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5169 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5182 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5182 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5187 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5187 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5187 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5187 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5187 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5190 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5190 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5187 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5205 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5207 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5210 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5211 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5213 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5190 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5218 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5218 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5190 - "OPTIONS /api/v1/agents/runtime HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5190 - "OPTIONS /api/v1/agents/catalogue HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5218 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5213 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5221 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5221 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5218 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5218 - "OPTIONS /api/v1/parametres/etat HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5218 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5218 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5231 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5231 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5238 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5238 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5254 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5254 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5254 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5255 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5266 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5267 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5267 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5266 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5279 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5279 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5279 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5279 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5274 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5274 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5295 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5295 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5303 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5303 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5307 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5307 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5310 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5312 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5312 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5310 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5308 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5308 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5319 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5322 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5331 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5331 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5340 - "GET /api/v1/docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5340 - "GET /api/v1/openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5346 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5350 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5353 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5353 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5350 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5350 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5360 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5361 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5361 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5360 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5353 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5353 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5362 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5362 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5383 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5383 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5384 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5384 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5384 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5384 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5389 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5389 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5389 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5391 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5394 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5394 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5395 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5395 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5403 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5403 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5403 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5403 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5403 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5404 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+2026-10-31 14:56:57 | ERROR    | asyncio | Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] Une connexion existante a dû être fermée par l’hôte distant
+INFO:     127.0.0.1:5406 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5406 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5410 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5410 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5411 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5411 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5420 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5420 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5420 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5420 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5423 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5425 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5425 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5423 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5421 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5421 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5442 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5444 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5451 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5451 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5452 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5452 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5452 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5452 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5452 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5452 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5483 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5483 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5479 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5479 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5503 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5503 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5504 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5504 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5504 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5504 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5519 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5521 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5521 - "OPTIONS /api/v1/social/non-lus HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5519 - "OPTIONS /api/v1/notifications/ HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5529 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5529 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5530 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5530 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:5530 - "OPTIONS /api/v1/evenements/revision HTTP/1.1" 400 Bad Request
