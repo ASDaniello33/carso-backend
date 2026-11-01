@@ -19,6 +19,10 @@ os.environ["DEMARRAGE_INITIALISE_RUNTIME"] = "0"
 # appellent ``CycleDeVieService`` directement avec la date de leur choix ;
 # un thread de fond ajouterait du non-déterminisme aux statuts.
 os.environ["CYCLE_DE_VIE_BALAYAGE_ACTIF"] = "0"
+# Indexation de la base de connaissance : un thread de fond ouvrirait le
+# répertoire Qdrant pendant la suite — les tests appellent l'indexation
+# explicitement (`indexer_prochain`) et désactivent donc le worker.
+os.environ["KNOWLEDGE_INDEXATION_ACTIVE"] = "0"
 
 import pytest
 from fastapi.testclient import TestClient

@@ -57,6 +57,10 @@ EXPECTED_TABLES = {
     "annonces_lectures",
     "commentaires",
     "reactions",
+    # Base de connaissance (RAG) : bibliothèque, passages, modèle d'embedding.
+    "documents_connaissance",
+    "chunks_connaissance",
+    "configurations_embedding",
 }
 
 

@@ -79,6 +79,9 @@ ANALYTIQUES_AUTORISEES = (
 )
 
 NOMS_TOOLS: tuple[str, ...] = (
+    # Base de connaissance : consulter une méthode, un cadre de référence,
+    # une expertise déjà écrite — à la demande, jamais injectée d'office.
+    "search_knowledge_base",
     # Lieux : recherche d'adresse et itinéraire, pour tous les agents.
     "rechercher_lieu",
     "calculer_itineraire",
@@ -460,11 +463,15 @@ def construire_tools_generaliste(
     # Tools de lieux partagés par tous les agents du catalogue (recherche
     # d'adresse + itinéraire) — filtrés par le contrat de l'agent.
     from app.agents.tools.agent_lieux_tools import construire_tools_lieux
+    from app.agents.tools.connaissances import outils_connaissance_pour
 
     return attacher_recherche_video(
         definition,
         attacher_outils_web(
-            definition, tuple(outils) + construire_tools_lieux(definition, session_factory)
+            definition,
+            tuple(outils)
+            + construire_tools_lieux(definition, session_factory)
+            + outils_connaissance_pour(definition, session_factory),
         ),
     )
 

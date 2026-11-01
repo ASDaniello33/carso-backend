@@ -68,6 +68,9 @@ AGENT_ID = "agent_statistique"
 TASK_TYPE = "produire_statistiques"
 
 NOMS_TOOLS: tuple[str, ...] = (
+    # Base de connaissance : consulter une méthode, un cadre de référence,
+    # une expertise déjà écrite — à la demande, jamais injectée d'office.
+    "search_knowledge_base",
     "rechercher_lieu",
     "calculer_itineraire",
     "query_analytics",
@@ -237,10 +240,15 @@ def construire_tools_statistique(
     from app.tools.recherche_video import attacher_recherche_video
     from app.tools.web import attacher_outils_web
 
+    from app.agents.tools.connaissances import outils_connaissance_pour
+
     return attacher_recherche_video(
         definition,
         attacher_outils_web(
-            definition, outils + construire_tools_lieux(definition, session_factory)
+            definition,
+            outils
+            + construire_tools_lieux(definition, session_factory)
+            + outils_connaissance_pour(definition, session_factory),
         ),
     )
 

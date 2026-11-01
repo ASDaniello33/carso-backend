@@ -33,6 +33,9 @@ AGENT_ID = "agent_assistant_formateur"
 TASK_TYPE = "preparer_documents_mission"
 
 NOMS_TOOLS: tuple[str, ...] = (
+    # Base de connaissance : consulter une méthode, un cadre de référence,
+    # une expertise déjà écrite — à la demande, jamais injectée d'office.
+    "search_knowledge_base",
     "rechercher_lieu",
     "calculer_itineraire",
     "inspect_beneficiaires_xlsx",
@@ -431,12 +434,16 @@ def construire_tools_assistant_formateur(
         + tools_scripts_pour(definition)
     )
     from app.agents.tools.agent_lieux_tools import construire_tools_lieux
+    from app.agents.tools.connaissances import outils_connaissance_pour
 
     return attacher_recherche_video(
         definition,
         attacher_outils_web(
             definition,
-            tuple(kit.construire()) + extras + construire_tools_lieux(definition, session_factory),
+            tuple(kit.construire())
+            + extras
+            + construire_tools_lieux(definition, session_factory)
+            + outils_connaissance_pour(definition, session_factory),
         ),
     )
 

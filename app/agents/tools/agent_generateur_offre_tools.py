@@ -69,6 +69,9 @@ AGENT_ID = "agent_generateur_offre"
 TASK_TYPE = "preparer_offre"
 
 NOMS_TOOLS: tuple[str, ...] = (
+    # Base de connaissance : consulter une méthode, un cadre de référence,
+    # une expertise déjà écrite — à la demande, jamais injectée d'office.
+    "search_knowledge_base",
     "enregistrer_appel",
     "situer_zone_lot",
     "rechercher_lieu",
@@ -875,6 +878,7 @@ def construire_tools_generateur_offre(
     from app.tools.web import attacher_outils_web
 
     from app.agents.tools.agent_lieux_tools import construire_tools_lieux
+    from app.agents.tools.connaissances import outils_connaissance_pour
 
     return attacher_recherche_video(
         definition,
@@ -882,7 +886,8 @@ def construire_tools_generateur_offre(
             definition,
             tuple(kit.construire())
             + extra_tools
-            + construire_tools_lieux(definition, session_factory),
+            + construire_tools_lieux(definition, session_factory)
+            + outils_connaissance_pour(definition, session_factory),
         ),
     )
 

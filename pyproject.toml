@@ -127,6 +127,20 @@ agents = [
     "langgraph-checkpoint-postgres>=3.1",
 ]
 
+# Base de connaissance (RAG) : index vectoriel **local** (Qdrant embarqué, aucun
+# serveur à exploiter) et embeddings par endpoint compatible OpenAI. L'extraction
+# des ouvrages réutilise l'extra ``documents`` (pypdf, python-docx, openpyxl).
+# Absent, le backend démarre : l'onglet Base de connaissance annonce que le
+# support n'est pas installé et les tools de recherche échouent explicitement —
+# jamais une réponse vide silencieuse.
+connaissances = [
+    "qdrant-client>=1.12",
+    "openai>=1.40",
+    "pypdf>=4.2",
+    "python-docx>=1.1",
+    "openpyxl>=3.1",
+]
+
 dev = [
     "pytest>=8.2",
     "httpx>=0.27",
@@ -162,6 +176,11 @@ dev = [
     # appels sortants sont remplacés, aucun réseau). Aucun binaire externe n'est
     # nécessaire : le module n'écrit rien et n'assemble rien.
     "yt-dlp>=2025.1",
+    # Base de connaissance : les tests exercent le vrai index Qdrant local (dans
+    # un répertoire temporaire) et le vrai découpage ; l'appel d'embedding, lui,
+    # est remplacé — aucun réseau, aucune clé.
+    "qdrant-client>=1.12",
+    "openai>=1.40",
 ]
 
 [tool.setuptools.packages.find]

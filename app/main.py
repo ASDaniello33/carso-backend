@@ -19,6 +19,7 @@ from app.api.routes import (
     audit,
     auth,
     beneficiaires,
+    connaissances,
     documents,
     equipes,
     evenements,
@@ -119,6 +120,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     from app.agents.checkpointer import liberer_checkpointer
     from app.infrastructure.balayage_cycle_de_vie import demarrer_balayage
+    from app.infrastructure.indexation_connaissances import demarrer_indexation
 
     initialisation: threading.Thread | None = None
     if get_settings().demarrage_initialise_runtime:
@@ -132,10 +134,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # après la fin. Un thread démon, un verrou consultatif — la suite de tests
     # le désactive par configuration.
     balayage = demarrer_balayage()
+    # Indexation de la base de connaissance : un thread démon, une prise par
+    # ``FOR UPDATE SKIP LOCKED``, réveil immédiat après un import. Désactivée
+    # par configuration dans la suite de tests.
+    indexation = demarrer_indexation()
     yield
     # Un arrêt ne doit pas attendre indéfiniment une base lente.
     if balayage is not None:
         balayage.arreter()
+    if indexation is not None:
+        indexation.arreter()
     if initialisation is not None:
         initialisation.join(timeout=5)
     get_runtime_manager().release()
@@ -205,6 +213,9 @@ def create_app() -> FastAPI:
     app.include_router(voyage.router, prefix=settings.api_v1_prefix)
     app.include_router(affectations.router, prefix=settings.api_v1_prefix)
     app.include_router(documents.router, prefix=settings.api_v1_prefix)
+    # Base de connaissance (RAG) : bibliothèque, recherche et réglages du
+    # modèle d'embedding. Monte après les documents, avant les routes métier.
+    app.include_router(connaissances.router, prefix=settings.api_v1_prefix)
     # Téléchargement d'un fichier vidéo relayé : **sans** la garde
     # d'authentification du router principal (un <a href> du navigateur ne peut
     # pas porter de Bearer) — la sécurité tient au jeton signé et à expiration

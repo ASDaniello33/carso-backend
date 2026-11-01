@@ -164,6 +164,18 @@ LIBELLES_ACTION: dict[str, str] = {
     ActionAudit.SERVEUR_MCP_MODIFIE.value: "Serveur MCP modifié",
     ActionAudit.SERVEUR_MCP_SUPPRIME.value: "Serveur MCP supprimé",
     ActionAudit.CHAT_ORPHELINS_PURGES.value: "Fichiers de conversation purgés",
+    # Base de connaissance : les indexations sont tracées comme les autres
+    # gestes du système, y compris celles lancées par le worker (acteur
+    # ``SYSTEME``) — un document n'entre jamais dans la bibliothèque en silence.
+    ActionAudit.CONNAISSANCE_AJOUTEE.value: "Ouvrage ajouté à la base de connaissance",
+    ActionAudit.CONNAISSANCE_MODIFIEE.value: "Ouvrage de la base de connaissance modifié",
+    ActionAudit.CONNAISSANCE_SUPPRIMEE.value: "Ouvrage retiré de la base de connaissance",
+    ActionAudit.CONNAISSANCE_REINDEXATION_DEMANDEE.value: "Réindexation demandée",
+    ActionAudit.CONNAISSANCE_INDEXEE.value: "Ouvrage indexé",
+    ActionAudit.CONNAISSANCE_INDEXATION_ECHOUEE.value: "Indexation en échec",
+    ActionAudit.CONFIGURATION_EMBEDDING_MODIFIEE.value: (
+        "Modèle d'embedding de la base de connaissance modifié"
+    ),
     # Suppression générique : le libellé dépend de l'entité (voir _ENTITES).
     ActionAudit.SUPPRESSION_EFFECTUEE.value: "Suppression",
 }

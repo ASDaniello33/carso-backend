@@ -19,9 +19,19 @@ from app.infrastructure.repositories.beneficiaire import (
     PresenceRepository,
 )
 from app.infrastructure.repositories.budget import BudgetRepository, LigneBudgetRepository
+from app.infrastructure.repositories.connaissance import (
+    ChunkConnaissanceRepository,
+    ConfigurationEmbeddingRepository,
+    DocumentConnaissanceRepository,
+)
 from app.infrastructure.repositories.document import (
     DocumentRepository,
     ModeleDocumentRepository,
+)
+from app.infrastructure.repositories.geo import (
+    ItineraireCacheRepository,
+    OsmVoieRepository,
+    ParametresVoyageRepository,
 )
 from app.infrastructure.repositories.lieu import LieuRepository
 from app.infrastructure.repositories.mission import (
@@ -34,11 +44,6 @@ from app.infrastructure.repositories.organisation import OrganisationRepository
 from app.infrastructure.repositories.parametres import (
     ServeurMcpRepository,
     SurchargeAgentRepository,
-)
-from app.infrastructure.repositories.geo import (
-    ItineraireCacheRepository,
-    OsmVoieRepository,
-    ParametresVoyageRepository,
 )
 from app.infrastructure.repositories.reinitialisation import (
     CodeReinitialisationRepository,
@@ -59,9 +64,12 @@ __all__ = [
     "BaseRepository",
     "BeneficiaireRepository",
     "BudgetRepository",
+    "ChunkConnaissanceRepository",
     "CodeReinitialisationRepository",
+    "ConfigurationEmbeddingRepository",
     "ConfigurationAgentPersonnelRepository",
     "ConfigurationRuntimeAgentRepository",
+    "DocumentConnaissanceRepository",
     "DocumentRepository",
     "EquipeRepository",
     "ItineraireCacheRepository",

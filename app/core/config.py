@@ -218,6 +218,49 @@ class Settings(BaseSettings):
     # la suite se lit via les tools du contrat.
     agent_attachment_excerpt_chars: int = Field(default=4000, ge=200, le=50_000)
 
+    # --- Base de connaissance (RAG) ----------------------------------------
+    # Répertoire des fichiers d'ouvrages (PDF, DOCX, XLSX, TXT/MD/CSV). Par
+    # défaut il vit **sous** ``STORAGE_ROOT`` : la convention documentaire du
+    # projet reste une seule racine sauvegardée. ``KNOWLEDGE_STORAGE_PATH``
+    # (absolu ou relatif) prime sur ``knowledge_directory`` — le chemin
+    # littéral ``/storage/connaissances`` est donc obtenu en le renseignant,
+    # sans déplacer la racine documentaire.
+    knowledge_storage_path: str | None = Field(default=None)
+    knowledge_directory: str = Field(default="connaissances")
+    #: Plafond de taille d'un ouvrage (un livre numérisé dépasse le plafond
+    #: d'un document métier : 25 Mo). Borne de service, pas une règle métier.
+    knowledge_max_upload_bytes: int = Field(default=100 * 1024 * 1024, ge=1)
+    #: Sous-dossier des vecteurs (Qdrant local), dans le répertoire ci-dessus.
+    knowledge_vectors_subdir: str = Field(default="_vecteurs")
+    #: Plafond de texte indexé par ouvrage (caractères). Une encyclopédie de
+    #: 2000 pages dépasse ce plafond : l'ouvrage est indexé jusqu'à la borne et
+    #: le signalement reste visible (aucun texte inventé).
+    knowledge_max_caracteres: int = Field(default=2_000_000, ge=10_000)
+    knowledge_chunk_taille: int = Field(default=1200, ge=200, le=8000)
+    knowledge_chunk_chevauchement: int = Field(default=200, ge=0, le=2000)
+    #: Garde-fou de volume par ouvrage (un PDF de 5000 pages reste indexable).
+    knowledge_max_chunks: int = Field(default=8000, ge=1)
+    #: Résultats renvoyés par une recherche d'agent (le service resserre).
+    knowledge_recherche_max_resultats: int = Field(default=8, ge=1, le=20)
+    #: Indexation en tâche de fond : un thread démon, une prise par
+    #: ``FOR UPDATE SKIP LOCKED``. ``0`` la désactive (suite de tests).
+    knowledge_indexation_active: bool = Field(default=True)
+    knowledge_indexation_intervalle_secondes: int = Field(default=20, ge=1)
+
+    # --- Modèle d'embedding (repli quand l'administration n'a rien réglé) ---
+    # Même philosophie que le provider de chat : un réglage de **déploiement**,
+    # surchargeable à chaud depuis Paramètres. Seuls les endpoints compatibles
+    # OpenAI sont branchés (OpenAI, Azure, Mistral, Ollama, LM Studio…) ; un
+    # provider inconnu est refusé explicitement, jamais approximé.
+    embedding_provider: str = Field(default="openai_compatible")
+    embedding_model: str = Field(default="")
+    embedding_base_url: str | None = Field(default=None)
+    embedding_api_key: SecretStr | None = Field(default=None)
+    #: Dimensions **réelles** du modèle. Jamais devinées : l'enregistrement
+    #: depuis Paramètres exécute un appel réel et mesure le vecteur. ``0``
+    #: signifie « non mesuré » et rend l'indexation indisponible.
+    embedding_dimensions: int = Field(default=0, ge=0, le=8192)
+
     # --- Collaboration inter-agent (instruction/05 §5/§7, instruction/10 §8) ---
     # Garde-fou anti-boucle : profondeur maximale d'une chaîne de délégation
     # partageant le même ``correlation_id``. Une chaîne plus profonde est refusée

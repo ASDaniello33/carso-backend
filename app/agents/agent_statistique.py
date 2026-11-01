@@ -77,6 +77,9 @@ DEFINITION = AgentDefinition(
         "search_equipes",
         "search_affectations",
         "search_documents",
+        # Base de connaissance : la méthode ou l'étude qui explique un chiffre
+        # se cite (ouvrage, page) au lieu d'être supposée.
+        "search_knowledge_base",
         "langsearch_web_search",
         # Lecture d'une page trouvée (``app.tools.web``) : la donnée est lue dans
         # la source et citée, jamais estimée. Même capacité ``web_search``.

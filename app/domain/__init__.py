@@ -8,6 +8,11 @@ resolves string relationship targets only after all classes are registered.
 from app.domain.agent_personnel import ConfigurationAgentPersonnel
 from app.domain.agent_runtime import ConfigurationRuntimeAgent, SurchargeAgent
 from app.domain.base import Base
+from app.domain.connaissance import (
+    ChunkConnaissance,
+    ConfigurationEmbedding,
+    DocumentConnaissance,
+)
 from app.domain.document import AgentTask, Approbation, AuditEvent, Document
 from app.domain.execution import (
     AffectationEquipe,
@@ -55,7 +60,10 @@ __all__ = [
     "Base",
     "Beneficiaire",
     "Budget",
+    "ChunkConnaissance",
     "Commentaire",
+    "ConfigurationEmbedding",
+    "DocumentConnaissance",
     "Conversation",
     "MembreConversation",
     "Message",

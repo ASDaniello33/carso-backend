@@ -282,6 +282,21 @@ class StatutAgentTask(StrEnum):
     TIMEOUT = "timeout"
 
 
+class StatutIndexationConnaissance(StrEnum):
+    """État d'indexation d'un ouvrage de la base de connaissance.
+
+    ``en_attente`` est l'état initial (et celui d'une réindexation demandée) ;
+    ``indexation`` est posé par le worker **avant** de lire le fichier — un
+    document repris après un arrêt n'est jamais indexé deux fois en parallèle ;
+    ``erreur`` porte un message lisible et peut être relancé.
+    """
+
+    EN_ATTENTE = "en_attente"
+    INDEXATION = "indexation"
+    INDEXE = "indexe"
+    ERREUR = "erreur"
+
+
 class StatutAffectation(StrEnum):
     """Cycle de validation d'une affectation (Phase 2, événements
     AffectationProposee / Validee). Le vocabulaire des rôles lui-même reste [P] Q5.
@@ -519,3 +534,14 @@ class ActionAudit(StrEnum):
     # d'administration, motif obligatoire, inventaire before conservé — jamais
     # une destruction silencieuse de fichiers.
     CHAT_ORPHELINS_PURGES = "chat_orphelins.purges"
+    # Base de connaissance (RAG) : ajout, correction des métadonnées, retrait,
+    # réindexation demandée, fin d'indexation (réussie ou en erreur) et
+    # changement du modèle d'embedding. Un retrait conserve l'inventaire de ce
+    # qui a disparu (titre, auteur, nombre de passages) — jamais le texte indexé.
+    CONNAISSANCE_AJOUTEE = "connaissance.ajoutee"
+    CONNAISSANCE_MODIFIEE = "connaissance.modifiee"
+    CONNAISSANCE_SUPPRIMEE = "connaissance.supprimee"
+    CONNAISSANCE_REINDEXATION_DEMANDEE = "connaissance.reindexation_demandee"
+    CONNAISSANCE_INDEXEE = "connaissance.indexee"
+    CONNAISSANCE_INDEXATION_ECHOUEE = "connaissance.indexation_echouee"
+    CONFIGURATION_EMBEDDING_MODIFIEE = "configuration_embedding.modifiee"

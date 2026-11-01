@@ -89,6 +89,9 @@ DEFINITION = AgentDefinition(
         "search_equipes",
         "search_affectations",
         "search_documents",
+        # Base de connaissance : consulter une méthode, un cadre de référence,
+        # une expertise CARSO — passages sourcés (ouvrage, page, section).
+        "search_knowledge_base",
         READ_DOCUMENT_TOOL,
         # Une pièce jointe image (scan, capture) se lit en la **voyant** : le
         # texte extrait d'une image n'existe pas.
