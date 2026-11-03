@@ -37,7 +37,7 @@ from app.agents.frontend_tools_catalogue import bloc_outils_frontend
 from app.agents.historique_outils import HistoriqueOutilsCoherentMiddleware
 from app.agents.page_courante import BLOC_PAGE_COURANTE
 from app.agents.pieces_jointes_contexte import BLOC_PIECES_JOINTES
-from app.agents.prompt import BLOC_RECHERCHE_WEB
+from app.agents.prompt import BLOC_BASE_CONNAISSANCE, BLOC_RECHERCHE_WEB
 from app.agents.providers import AgentConfigurationError, build_chat_model
 from app.core.config import Settings, get_settings
 from app.core.errors import ValidationError as BusinessValidationError
@@ -124,12 +124,19 @@ def build_system_prompt(definition: AgentDefinition, *, extra: str | None = None
     # ne reçoit pas un mode d'emploi qu'il ne peut pas suivre.
     outils = definition.allowed_tools()
     recherche = BLOC_RECHERCHE_WEB if "langsearch_web_search" in outils else ""
+    # Même règle pour la bibliothèque : le mode d'emploi de
+    # ``search_knowledge_base`` (une liste de formulations par appel, pas une
+    # reformulation par appel) n'est utile qu'à qui possède l'outil.
+    connaissance = (
+        BLOC_BASE_CONNAISSANCE if "search_knowledge_base" in outils else ""
+    )
     parties = [
         definition.prompt.strip() or definition.description.strip(),
         _CADRE_CARSO,
         BLOC_PIECES_JOINTES,
         BLOC_PAGE_COURANTE,
         recherche,
+        connaissance,
         skills,
         affichage,
         annuaire,

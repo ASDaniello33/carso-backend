@@ -186,11 +186,12 @@ dev = [
 [tool.setuptools.packages.find]
 include = ["app*"]
 
-# Les skills des agents (``app/agents/skills/<nom>/SKILL.md``) sont des données
-# du paquet : sans cette entrée, un wheel n'embarquerait que les .py et les
-# agents montés depuis un wheel perdraient leurs skills.
+# Les skills des agents (``app/agents/skills/<nom>/SKILL.md``) et les system
+# prompts (``app/agents/prompts/*.md``) sont des données du paquet : sans ces
+# entrées, un wheel n'embarquerait que les .py, et un agent monté depuis un wheel
+# perdrait ses skills et ses instructions.
 [tool.setuptools.package-data]
-"app.agents" = ["skills/**/*.md"]
+"app.agents" = ["skills/**/*.md", "prompts/**/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

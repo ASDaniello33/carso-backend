@@ -199,6 +199,93 @@ def test_bout_en_bout_ajout_indexation_recherche(
     assert resultat["signature"] == FauxEmbedder().configuration.signature
 
 
+def test_recherche_multi_formulations_groupe_par_requete(
+    service: tuple[ConnaissanceService, Session, IndexQdrant],
+) -> None:
+    """Deux formulations ⇒ deux groupes de passages, dans l'ordre demandé."""
+    svc, session, _ = service
+    qualite = _ajouter(
+        svc,
+        titre="Suivi qualite",
+        contenu="Le suivi qualite repose sur un rapport mensuel remis au client.",
+    )
+    collecte = _ajouter(
+        svc,
+        titre="Collecte des donnees",
+        contenu="La collecte des donnees passe par une enquete de terrain.",
+    )
+    svc.indexer_maintenant(qualite.id)
+    svc.indexer_maintenant(collecte.id)
+    session.commit()
+
+    lot = svc.rechercher_plusieurs(["suivi qualite", "collecte des donnees"], limite=2)
+
+    assert [groupe["query"] for groupe in lot["requetes"]] == [
+        "suivi qualite",
+        "collecte des donnees",
+    ]
+    assert lot["requetes"][0]["passages"][0]["titre"] == "Suivi qualite"
+    assert lot["requetes"][1]["passages"][0]["titre"] == "Collecte des donnees"
+    assert all(groupe["nombre"] for groupe in lot["requetes"])
+    # ``limite`` borne **chaque** formulation, pas le total : deux ouvrages
+    # indexés, deux passages au plus par groupe.
+    assert all(groupe["nombre"] <= 2 for groupe in lot["requetes"])
+    assert lot["total_passages"] == sum(
+        groupe["nombre"] for groupe in lot["requetes"]
+    )
+    assert lot["message"] is None
+    assert lot["signature"] == FauxEmbedder().configuration.signature
+
+
+def test_recherche_multi_formulations_un_seul_appel_d_embedding(
+    service: tuple[ConnaissanceService, Session, IndexQdrant],
+) -> None:
+    """Regrouper ne coûte pas N appels au fournisseur d'embedding."""
+
+    class CompteurEmbedder(FauxEmbedder):
+        appels = 0
+
+        def vectoriser(self, textes: list[str]) -> list[list[float]]:
+            type(self).appels += 1
+            return super().vectoriser(textes)
+
+    svc, session, index = service
+    document = _ajouter(
+        svc, titre="Methode", contenu="Une methode de suivi qualite sur trois visites."
+    )
+    svc.indexer_maintenant(document.id)
+    session.commit()
+
+    compteur = ConnaissanceService(
+        session,
+        racine=svc._racine,  # noqa: SLF001 — même répertoire que le fixture
+        index=index,
+        embedder=CompteurEmbedder(),
+    )
+    lot = compteur.rechercher_plusieurs(["suivi qualite", "visites de terrain"])
+
+    assert len(lot["requetes"]) == 2
+    assert CompteurEmbedder.appels == 1
+
+
+def test_recherche_multi_formulations_dedoublonne_et_borne(
+    service: tuple[ConnaissanceService, Session, IndexQdrant],
+) -> None:
+    svc, session, index = service
+    document = _ajouter(svc, titre="Ouvrage", contenu="Une methode de suivi qualite.")
+    svc.indexer_maintenant(document.id)
+    session.commit()
+
+    # Même formulation à un espace près : une seule requête réellement exécutée.
+    lot = svc.rechercher_plusieurs(["suivi  qualite", " suivi qualite "])
+    assert [groupe["query"] for groupe in lot["requetes"]] == ["suivi qualite"]
+
+    with pytest.raises(ValidationError):
+        svc.rechercher_plusieurs([f"question {indice}" for indice in range(6)])
+    with pytest.raises(ValidationError):
+        svc.rechercher_plusieurs(["   "])
+
+
 def test_doublon_refuse(
     service: tuple[ConnaissanceService, Session, IndexQdrant],
 ) -> None:
@@ -364,10 +451,26 @@ def test_outil_renvoie_des_passages_sources(
     )
     tool = construire_tool_connaissance(GENERALISTE, api_session_factory)
     assert tool is not None
-    resultat = tool.invoke({"question": "animer un atelier", "limite": 3})
+    resultat = tool.invoke({"query": ["animer un atelier"], "top_k": 3})
     assert resultat["ok"] is True
-    assert resultat["passages"][0]["titre"] == "Manuel de facilitation"
+    assert resultat["requetes"][0]["passages"][0]["titre"] == "Manuel de facilitation"
+    assert resultat["total_passages"] >= 1
     assert "consigne" in resultat
+
+
+def test_outil_valide_les_formulations() -> None:
+    """Les bornes sont dites au modèle (schéma), pas découvertes par une erreur."""
+    from pydantic import ValidationError as PydanticValidationError
+
+    from app.agents.tools.connaissances import RechercheConnaissanceInput
+
+    assert RechercheConnaissanceInput.model_validate({"query": ["un sujet"]}).top_k == 5
+    with pytest.raises(PydanticValidationError):
+        RechercheConnaissanceInput.model_validate({"query": []})
+    with pytest.raises(PydanticValidationError):
+        RechercheConnaissanceInput.model_validate(
+            {"query": [f"question {indice}" for indice in range(6)]}
+        )
 
 
 # --- Audit et API ------------------------------------------------------------

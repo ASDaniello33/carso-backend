@@ -6,6 +6,14 @@ CARSO, guide technique) et appelle ``search_knowledge_base``. Rien n'est inject�
 d'office dans le prompt : la bibliothèque est consultée à la demande, comme une
 page web.
 
+**Un appel, plusieurs formulations.** ``query`` est une *liste* de 1 à 5
+formulations : l'agent y regroupe les variantes d'une même question (synonyme,
+sigle développé, autre langue, un angle par entrée) et reçoit les passages
+**groupés par formulation**. C'est ce qui coupe la boucle de reformulation
+observée en recette : au lieu d'enchaîner « entrepreneur », puis
+« entrepreneuriat », puis « définition entrepreneur », le modèle formule une
+fois et conclut avec ce qu'il a.
+
 Le résultat porte la **source** (titre, auteur, page, section) et la
 similarité : le modèle cite au lieu de paraphraser de mémoire, et l'humain peut
 vérifier le passage dans l'ouvrage.
@@ -19,14 +27,17 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from typing import Any
+from typing import Annotated, Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.agents.base import AgentDefinition
-from app.application.services.connaissance_service import ConnaissanceService
+from app.application.services.connaissance_service import (
+    MAX_QUESTIONS_PAR_RECHERCHE,
+    ConnaissanceService,
+)
 from app.core.errors import CarsoError
 from app.tools.base import TypedTool, formater_erreur_outil
 
@@ -35,32 +46,51 @@ logger = logging.getLogger(__name__)
 #: Nom stable du tool (déclaré dans les contrats ; l'agent personnel peut le retirer).
 TOOL_NAME = "search_knowledge_base"
 
+#: Rappel joint à chaque résultat : citer, ne pas réinventer, ne pas relancer.
+CONSIGNE = (
+    "Réponds avec ces passages et cite-les (ouvrage, page ou section). "
+    "N'invente aucun contenu absent des extraits. Ne relance pas la même "
+    "recherche avec d'autres mots : les formulations demandées sont déjà "
+    "couvertes — si un point précis reste manquant, un seul appel ciblé sur ce "
+    "point, puis tu conclus."
+)
+
 DESCRIPTION = (
     "Consulte la bibliothèque de connaissances de CARSO : livres, ouvrages, "
     "études, méthodologies, guides, expertises et rapports techniques. "
-    "Renvoie les passages les plus proches de la question, chacun avec sa "
-    "source (ouvrage, auteur, page ou section) et sa similarité. À utiliser "
-    "dès qu'une réponse dépend d'une référence documentaire ou d'une méthode "
-    "déjà écrite, et citer la source au lieu de paraphraser de mémoire. Ne "
+    "`query` est une LISTE de 1 à 5 formulations : regroupe dans CE SEUL appel "
+    "les variantes d'une même question (synonyme, sigle développé, "
+    "français/anglais, un angle par entrée) au lieu d'enchaîner les appels. "
+    "Les passages reviennent groupés par formulation, chacun avec sa source "
+    "(ouvrage, auteur, page ou section) et sa similarité. À utiliser dès "
+    "qu'une réponse dépend d'une référence documentaire ou d'une méthode déjà "
+    "écrite, et citer la source au lieu de paraphraser de mémoire. Ne "
     "l'utilise PAS pour les données métier (missions, offres, bénéficiaires) : "
     "leurs outils existent séparément. Une bibliothèque vide ou un index en "
     "cours de reconstruction est signalé explicitement."
 )
 
+#: Une formulation : 2 caractères au moins, bornée pour ne pas saturer le modèle.
+Formulation = Annotated[str, Field(min_length=2, max_length=1000)]
+
 
 class RechercheConnaissanceInput(BaseModel):
-    """Question en langage naturel + filtres facultatifs."""
+    """Formulations recherchées (ensemble) + filtres facultatifs."""
 
-    question: str = Field(
-        min_length=2,
-        max_length=1000,
-        description="Question ou thème recherché, en français de préférence.",
+    query: list[Formulation] = Field(
+        min_length=1,
+        max_length=MAX_QUESTIONS_PAR_RECHERCHE,
+        description=(
+            "1 à 5 formulations, en français de préférence. Regrouper ici les "
+            "synonymes, sigles développés, traductions et angles d'une même "
+            "question : un seul appel suffit."
+        ),
     )
-    limite: int = Field(
+    top_k: int = Field(
         default=5,
         ge=1,
         le=10,
-        description="Nombre de passages renvoyés (5 suffit pour la plupart des questions).",
+        description="Passages renvoyés PAR formulation (3 à 5 suffisent).",
     )
     categorie: str | None = Field(
         default=None,
@@ -90,9 +120,9 @@ def construire_tool_connaissance(
         entree = RechercheConnaissanceInput.model_validate(payload)
         session = session_factory()
         try:
-            resultat = ConnaissanceService(session).rechercher(
-                entree.question,
-                limite=entree.limite,
+            resultat = ConnaissanceService(session).rechercher_plusieurs(
+                entree.query,
+                limite=entree.top_k,
                 document_id=entree.document_id,
                 categorie=entree.categorie,
             )
@@ -102,10 +132,7 @@ def construire_tool_connaissance(
             session.close()
         return {
             "ok": True,
-            "consigne": (
-                "Cite les passages utilisés avec leur ouvrage et leur page/section. "
-                "N'invente aucun contenu absent des extraits."
-            ),
+            "consigne": CONSIGNE,
             **resultat,
         }
 
@@ -128,6 +155,7 @@ def outils_connaissance_pour(
 
 
 __all__ = [
+    "CONSIGNE",
     "DESCRIPTION",
     "TOOL_NAME",
     "RechercheConnaissanceInput",

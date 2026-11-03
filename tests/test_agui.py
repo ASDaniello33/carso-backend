@@ -248,6 +248,30 @@ def test_message_erreur_vide_retombe_sur_le_nom_d_exception() -> None:
     assert _message_erreur(RuntimeError("panne réseau: Connection error"))[:5] == "Le mo"
 
 
+def test_silence_du_flux_n_est_pas_une_panne_reseau() -> None:
+    """Un flux qui se tait est nommé comme tel, pas « fournisseur injoignable ».
+
+    ``StreamChunkTimeoutError`` (langchain_openai, borné par
+    ``AGENT_STREAM_CHUNK_TIMEOUT``) signifie que la connexion est vivante et que
+    le fournisseur a cessé d'émettre : envoyer l'utilisateur vérifier son réseau
+    serait un faux diagnostic. Le type ou le message du SDK doivent suffire.
+    """
+    par_sa_classe = type("StreamChunkTimeoutError", (Exception,), {}) (
+        "No streaming chunk received for 300.0s (model=qwen-3.8-27b, chunks_received=0)"
+    )
+    for exc in (
+        par_sa_classe,
+        RuntimeError(
+            "No streaming chunk received for 12.0s (model=grok, chunks_received=4)"
+        ),
+    ):
+        message = _message_erreur(exc)
+        assert "silence du fournisseur" in message
+        assert "injoignable" not in message
+        assert "qwen" not in message and "grok" not in message  # aucun détail
+        assert "No streaming chunk" not in message
+
+
 def test_clone_du_pont_isole_par_requete() -> None:
     """``clone()`` traverse la chaîne de décorateurs (un état par requête SSE)."""
 

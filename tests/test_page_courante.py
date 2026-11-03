@@ -196,6 +196,22 @@ def test_bloc_recherche_seulement_pour_un_agent_qui_a_l_outil() -> None:
     assert "Recherche web : quand, combien, comment" not in build_system_prompt(sans)
 
 
+def test_bloc_connaissance_seulement_pour_un_agent_qui_a_l_outil() -> None:
+    avec = _definition("agent_generaliste_readonly")
+    assert "search_knowledge_base" in avec.allowed_tools()
+    assert "Base de connaissance : une recherche, plusieurs formulations" in build_system_prompt(
+        avec
+    )
+
+    sans = replace(
+        avec, tools=tuple(t for t in avec.tools if t != "search_knowledge_base")
+    )
+    assert (
+        "Base de connaissance : une recherche, plusieurs formulations"
+        not in build_system_prompt(sans)
+    )
+
+
 def test_paliers_de_recherche_dans_le_prompt() -> None:
     systeme = build_system_prompt(_definition("agent_personnel"))
     assert "8 appels" in systeme

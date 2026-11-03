@@ -70,6 +70,12 @@ logger = logging.getLogger(__name__)
 #: Plafond de passages renvoyés par une recherche, quel que soit le demandeur.
 MAX_PASSAGES_RENVOYES = 20
 
+#: Plafond de formulations par appel. Un agent regroupe les variantes d'une
+#: même question (synonymes, sigle développé, autre langue) au lieu d'enchaîner
+#: les appels : au-delà de cinq, l'appel n'est plus un regroupement mais une
+#: exploration — le modèle doit alors poser sa question autrement.
+MAX_QUESTIONS_PAR_RECHERCHE = 5
+
 
 class ConnaissanceService:
     """Use cases de la base de connaissance (aucun accès disque direct ailleurs)."""
@@ -461,7 +467,11 @@ class ConnaissanceService:
         document_id: UUID | None = None,
         categorie: str | None = None,
     ) -> dict[str, Any]:
-        """Recherche les passages les plus proches de la question.
+        """Recherche les passages les plus proches d'**une** question.
+
+        Même mécanique que :meth:`rechercher_plusieurs`, projetée sur une seule
+        formulation : le contrat HTTP ne change pas, mais il n'existe qu'un
+        chemin de recherche.
 
         Returns:
             ``{question, nombre, passages, signature, message}`` — chaque passage
@@ -474,10 +484,70 @@ class ConnaissanceService:
             NotFoundError: aucun index/ouvrage indexé.
             EmbeddingIndisponibleError: modèle d'embedding inutilisable.
         """
-        texte = " ".join((question or "").split())
-        if len(texte) < 2:
+        lot = self.rechercher_plusieurs(
+            [question], limite=limite, document_id=document_id, categorie=categorie
+        )
+        groupe = lot["requetes"][0]
+        return {
+            "question": groupe["query"],
+            "nombre": groupe["nombre"],
+            "passages": groupe["passages"],
+            "signature": lot["signature"],
+            "message": groupe["message"],
+        }
+
+    def rechercher_plusieurs(
+        self,
+        questions: Sequence[str],
+        *,
+        limite: int = 5,
+        document_id: UUID | None = None,
+        categorie: str | None = None,
+    ) -> dict[str, Any]:
+        """Recherche **plusieurs formulations** en un seul passage.
+
+        Un agent qui doit couvrir « définition de l'entrepreneur » et
+        « entrepreneuriat » n'enchaîne pas deux appels : les formulations
+        partent ensemble — **une** requête d'embedding, **un** contrôle de
+        signature — et les passages reviennent groupés par formulation, dans
+        l'ordre demandé. C'est ce qui coupe la boucle de reformulation : le
+        modèle formule une fois, reçoit tout, puis conclut.
+
+        Args:
+            questions: une à ``MAX_QUESTIONS_PAR_RECHERCHE`` formulations ; un
+                doublon exact (espaces normalisés) est fusionné.
+            limite: passages **par** formulation (resserré par la configuration).
+
+        Returns:
+            ``{requetes: [{query, nombre, passages, message}], signature,
+            total_passages, message}``.
+
+        Raises:
+            BusinessValidationError: aucune formulation exploitable, ou plus
+                que le plafond par appel.
+            ConflictError: l'index a été construit avec un autre modèle.
+            NotFoundError: aucun index/ouvrage indexé.
+            EmbeddingIndisponibleError: modèle d'embedding inutilisable.
+        """
+        textes: list[str] = []
+        for question in questions:
+            texte = " ".join((question or "").split())
+            if len(texte) < 2:
+                raise BusinessValidationError(
+                    "Formulation de recherche vide", details={"champ": "query"}
+                )
+            if texte not in textes:
+                textes.append(texte)
+        if not textes:
             raise BusinessValidationError(
-                "Question de recherche vide", details={"champ": "question"}
+                "Aucune formulation de recherche fournie", details={"champ": "query"}
+            )
+        if len(textes) > MAX_QUESTIONS_PAR_RECHERCHE:
+            raise BusinessValidationError(
+                f"{len(textes)} formulations demandées : en regrouper au plus "
+                f"{MAX_QUESTIONS_PAR_RECHERCHE} par appel (synonymes, sigle "
+                "développé, autre langue dans la même liste)",
+                details={"champ": "query", "maximum": MAX_QUESTIONS_PAR_RECHERCHE},
             )
         borne = max(
             1,
@@ -500,20 +570,38 @@ class ConnaissanceService:
                 details={"index": signature_index, "attendu": configuration.signature},
             )
 
-        vecteurs = embedder.vectoriser([texte])
-        resultats = index.rechercher(
-            vecteurs[0],
-            limite=borne,
-            document_id=str(document_id) if document_id else None,
-            categorie=categorie or None,
-        )
-        passages = self._hydrater(resultats)
+        # Un seul appel d'embedding pour toutes les formulations : le coût d'un
+        # regroupement n'est pas la somme de ses appels.
+        vecteurs = embedder.vectoriser(textes)
+        requetes: list[dict[str, Any]] = []
+        for texte, vecteur in zip(textes, vecteurs, strict=True):
+            resultats = index.rechercher(
+                vecteur,
+                limite=borne,
+                document_id=str(document_id) if document_id else None,
+                categorie=categorie or None,
+            )
+            passages = self._hydrater(resultats)
+            requetes.append(
+                {
+                    "query": texte,
+                    "nombre": len(passages),
+                    "passages": passages,
+                    "message": (
+                        None
+                        if passages
+                        else "Aucun passage pertinent pour cette formulation."
+                    ),
+                }
+            )
+        total = sum(groupe["nombre"] for groupe in requetes)
         return {
-            "question": texte,
-            "nombre": len(passages),
-            "passages": passages,
+            "requetes": requetes,
             "signature": signature_index or configuration.signature,
-            "message": None if passages else "Aucun passage pertinent trouvé dans la bibliothèque.",
+            "total_passages": total,
+            "message": None
+            if total
+            else "Aucun passage pertinent trouvé dans la bibliothèque.",
         }
 
     def _hydrater(self, resultats: Sequence[Any]) -> list[dict[str, Any]]:
@@ -895,6 +983,7 @@ def declencher_indexation() -> None:
 
 __all__ = [
     "MAX_PASSAGES_RENVOYES",
+    "MAX_QUESTIONS_PAR_RECHERCHE",
     "ConnaissanceService",
     "declencher_indexation",
     "resoudre_embedder",

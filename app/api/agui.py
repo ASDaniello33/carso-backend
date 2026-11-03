@@ -28,6 +28,7 @@ from app.agents.catalogue import AGENT_DEFINITIONS
 from app.agents.graphe_par_utilisateur import GrapheParUtilisateur
 from app.agents.harness import recursion_limit
 from app.agents.manager import get_runtime_manager
+from app.api.agui_historique import HistoriqueArgumentsSains
 from app.api.agui_ids import AgentFluxIdsUniques
 from app.api.agui_interrupt_orphelin import PurgeInterruptOrphelin
 from app.api.deps import CurrentUser, get_current_user
@@ -92,6 +93,18 @@ def _message_erreur(exc: BaseException) -> str:
     en cause générique — la traceback brute, elle, reste dans les logs serveur.
     """
     brut = str(exc).strip()
+    # Silence du flux (``StreamChunkTimeoutError`` de langchain_openai, borné par
+    # ``AGENT_STREAM_CHUNK_TIMEOUT``) : la connexion est vivante, le fournisseur
+    # a simplement cessé d'émettre. Ce n'est pas une panne réseau — le dire
+    # « injoignable » enverrait l'utilisateur vérifier sa connectivité.
+    if type(exc).__name__ == "StreamChunkTimeoutError" or (
+        "no streaming chunk received" in brut.lower()
+    ):
+        return (
+            "Le modèle d'IA a cessé d'émettre sa réponse en cours de route "
+            "(silence du fournisseur). Relancez la demande ; si le problème se "
+            "répète, demandez une réponse plus courte."
+        )
     if any(
         indice in brut.lower()
         for indice in (
@@ -303,6 +316,12 @@ def _ajouter_endpoint(
             # ag-ui-langgraph (message jamais traité). La purge refuse les
             # actions en attente avant de déléguer (voir agui_interrupt_orphelin).
             agent = PurgeInterruptOrphelin(agent, graph)
+            # Un run coupé en plein appel d'outil (flux SSE du fournisseur
+            # interrompu) laisse des arguments JSON cassés dans l'historique du
+            # client : ag-ui-langgraph les relisait à chaque tour (JSONDecodeError
+            # avant même d'appeler le modèle) et le fil restait empoisonné.
+            # L'entrée est assainie avant d'être relayée (voir agui_historique).
+            agent = HistoriqueArgumentsSains(agent)
             _monter_endpoint(add_endpoint, app, agent, path, definition.agent_id)
             return
         except TypeError:
