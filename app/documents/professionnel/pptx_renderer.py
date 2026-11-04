@@ -179,6 +179,17 @@ def _estimation_lignes(blocs: list[Bloc], taille: float, largeur_in: float) -> i
     return lignes
 
 
+def _hauteur_texte_reelle(blocs: list[Bloc], taille: float, largeur_in: float) -> float:
+    """Hauteur estimée du texte rendu, en pouces.
+
+    Sert à empiler un bloc sous le texte (tableau, chiffres clés, figure
+    bandeau) **à sa vraie hauteur** : un décalage fixe laissait un tiers de
+    diapositive vide au-dessus d'un tableau seul.
+    """
+    lignes = _estimation_lignes(blocs, taille, largeur_in)
+    return lignes * taille * 1.45 / 72 + 0.2
+
+
 def _taille_corps(
     blocs: list[Bloc],
     largeur_in: float,
@@ -447,25 +458,27 @@ def _contenu(slide, diapositive: Diapositive, t: Theme, total: int, index: int,
 
     # Un encadré occupe le bas de la colonne de texte ; le reste est au-dessus.
     hauteur_encadre = 1.05 if encadres else 0.0
+    hauteur_dispo = CORPS_HAUTEUR_IN - hauteur_encadre - (0.12 if encadres else 0)
+    #: Un bloc (tableau, chiffres clés) se pose SOUS le texte, à sa vraie hauteur.
+    bloc_sous_texte = bool(tableaux or kpis)
     taille = None
     if texte:
         taille = _taille_corps(
-            texte, largeur_texte, CORPS_HAUTEUR_IN - hauteur_encadre - 0.12,
-            diapositive.titre,
+            texte, largeur_texte, hauteur_dispo, diapositive.titre
         )
-    if pleine_largeur and texte and taille is not None:
-        # Texte sur la zone haute, figure bandeau empilée sur le reste : la
-        # réserve de texte est la hauteur RÉELLEMENT estimée (une ligne de
-        # contexte ne doit pas manger la moitié de la zone figure).
-        lignes = _estimation_lignes(texte, taille, largeur_texte)
-        hauteur_estimee = lignes * taille * 1.45 / 72 + 0.2
-        hauteur_texte = min(
-            hauteur_estimee,
-            HAUTEUR_TEXTE_EMPILE_IN,
-            CORPS_HAUTEUR_IN - hauteur_encadre - 0.12,
-        )
+    hauteur_estimee = (
+        _hauteur_texte_reelle(texte, taille, largeur_texte)
+        if texte and taille is not None
+        else 0.0
+    )
+    if texte and taille is not None and (pleine_largeur or bloc_sous_texte):
+        # Texte sur la zone haute, figure bandeau ou tableau empilé sur le
+        # reste : la réserve de texte est la hauteur RÉELLEMENT estimée (une
+        # ligne de contexte ne doit pas manger la moitié de la zone du dessous,
+        # ni laisser une page blanche au-dessus d'un tableau seul).
+        hauteur_texte = min(hauteur_estimee, HAUTEUR_TEXTE_EMPILE_IN, hauteur_dispo)
     else:
-        hauteur_texte = CORPS_HAUTEUR_IN - hauteur_encadre - (0.12 if encadres else 0)
+        hauteur_texte = hauteur_dispo
     if texte and taille is not None:
         _texte_colonne(slide, texte, MARGE_IN, CORPS_HAUT_IN, largeur_texte,
                        hauteur_texte, taille=taille, accent=t.accent)
@@ -508,10 +521,15 @@ def _contenu(slide, diapositive: Diapositive, t: Theme, total: int, index: int,
                 ratio=ratio_figure,
             )
     elif tableaux and tableaux[0].tableau is not None:
-        _tableau(slide, tableaux[0].tableau, t, MARGE_IN, CORPS_HAUT_IN + 2.55,
-                 LARGEUR_UTILE_IN, CORPS_BAS_IN - CORPS_HAUT_IN - 2.6)
+        # Collé sous le texte réellement écrit (ou directement sous le titre
+        # quand la diapositive ne porte que le tableau) : aucun blanc réservé.
+        haut_tableau = CORPS_HAUT_IN + (hauteur_texte + 0.22 if texte else 0.0)
+        _tableau(slide, tableaux[0].tableau, t, MARGE_IN, haut_tableau,
+                 LARGEUR_UTILE_IN, CORPS_BAS_IN - haut_tableau)
     elif kpis:
-        _kpi(slide, kpis[0].kpis, t, MARGE_IN, CORPS_HAUT_IN + 2.35, LARGEUR_UTILE_IN)
+        haut_kpi = CORPS_HAUT_IN + (hauteur_texte + 0.28 if texte else 0.0)
+        _kpi(slide, kpis[0].kpis, t, MARGE_IN,
+             min(haut_kpi, CORPS_BAS_IN - 1.12), LARGEUR_UTILE_IN)
 
     if diapositive.notes:
         slide.notes_slide.notes_text_frame.text = diapositive.notes

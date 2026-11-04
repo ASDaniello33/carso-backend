@@ -5,8 +5,8 @@ réel, jamais une écriture directe, et la base est une seule transaction :
 
 1. un appel **sans lot** est enregistré puis validé : il reçoit son **lot
    unique « 1 »** au titre de l'appel ;
-2. l'appel (à proposition) reçoit une offre **technique** et une offre
-   **financière** ; une offre « autre » y est refusée ;
+2. l'appel reçoit une offre **technique** et une offre **financière**
+   (règle du 04/11 : tout appel se répond en technique + financière) ;
 3. la mission est créée **avant** l'approbation des offres, puis l'offre
    technique approuvée est **rattachée** ;
 4. la **planification** crée la session (dates obligatoires, avertissement
@@ -112,11 +112,8 @@ def test_chaine_complete_des_regles_de_gestion(session: Session) -> None:
     assert lot.numero == "1"
     assert lot.titre == appel.titre
 
-    # --- 2. Offres : type contrôlé par la nature de l'appel ------------------
+    # --- 2. Offres : tout appel se répond en technique + financière (04/11) --
     offres = OffreService(session)
-    with pytest.raises(ValidationError, match="nature de l'appel"):
-        offres.creer_brouillon(lot.id, "OFFRE-AUTRE", "Autre", type=TypeOffre.AUTRE.value)
-
     technique = offres.creer_brouillon(
         lot.id, "OFFRE-TECH", "Offre technique", type=TypeOffre.OFFRE_TECHNIQUE.value
     )

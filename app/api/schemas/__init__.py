@@ -28,6 +28,14 @@ from app.api.schemas.beneficiaire import (
     BeneficiaireRead,
     BeneficiaireUpdate,
 )
+from app.api.schemas.budget import (
+    BudgetCreate,
+    BudgetDetailRead,
+    BudgetRepriseCreate,
+    BudgetResumeRead,
+    LigneBudgetDetailRead,
+    LigneBudgetUpdate,
+)
 from app.api.schemas.connaissance import (
     ConnaissanceEtatRead,
     ConnaissanceListeRead,
@@ -197,6 +205,12 @@ __all__ = [
     "TronconItineraireRead",
     "LigneBudgetCreate",
     "LigneBudgetRead",
+    "LigneBudgetDetailRead",
+    "LigneBudgetUpdate",
+    "BudgetCreate",
+    "BudgetDetailRead",
+    "BudgetRepriseCreate",
+    "BudgetResumeRead",
     "LotCreate",
     "LotRead",
     "LotUpdate",

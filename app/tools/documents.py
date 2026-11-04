@@ -37,16 +37,18 @@ Une ancre absente, inconnue ou inventée range le document sous
 from __future__ import annotations
 
 import io
+import json
 from pathlib import Path
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.application.dto import DocumentUploadInput
-from app.core.errors import ValidationError
+from app.core.errors import NotFoundError, ValidationError
 from app.documents.repair import Operation
 from app.documents.spec import DocumentSpec
+from app.domain.enums import StatutDocument, TypeDocument
 from app.tools.permissions import AgentIdentity, PermissionPolicy
 
 __all__ = [
@@ -73,6 +75,7 @@ __all__ = [
     "RemplirTemplateInput",
     "ReferenceDocumentInput",
     "ValiderDocumentInput",
+    "ModifierSectionDocumentInput",
     "RenderDocumentInput",
     "build_document_tools",
 ]
@@ -422,6 +425,36 @@ class GraphiqueInput(BaseModel):
     hauteur: int = Field(default=400, ge=150, le=1600, description="Hauteur en pixels.")
 
 
+#: Borne d'une section en rédaction progressive : chaque appel de l'agent doit
+#: rester une **petite** génération — un fournisseur qui reçoit une génération
+#: géante d'un seul tenant cesse d'émettre et le run meurt sans exécuter l'outil
+#: (INC-105 : aucun document déposé, silence complet côté modèle).
+_BORNE_SECTION_CARACTERES = 30_000
+
+#: Borne du corps fourni d'un tenant (``action='generer'``). Une génération
+#: plus longue fait taire le fournisseur : le flux s'interrompt après plusieurs
+#: milliers de chunks et l'outil n'est jamais exécuté (constaté : 13 331 chunks
+#: reçus, 300 s de silence, run mort). Au-delà, l'erreur renvoie vers la
+#: rédaction progressive — elle le dit AVANT que le modèle ne s'épuise.
+_BORNE_CORPS_CARACTERES = 30_000
+
+#: Champs d'habillage figés à l'ouverture d'un brouillon (rédaction progressive)
+#: et relus tels quels à la finalisation.
+_CLES_BROUILLON = (
+    "titre",
+    "format",
+    "theme",
+    "orientation",
+    "auteur",
+    "css_supplementaire",
+    "nom_fichier",
+    "type_document",
+    "ancre",
+    "entity_id",
+    "propose_par",
+)
+
+
 class GenererDocumentProfessionnelInput(BaseModel):
     """Entrée du tool ``generer_document_professionnel`` : corps HTML + habillage.
 
@@ -445,8 +478,8 @@ class GenererDocumentProfessionnelInput(BaseModel):
     DOCX (rendu natif Word).
     """
 
-    contenu_html: str = Field(
-        min_length=1,
+    contenu_html: str | None = Field(
+        default=None,
         max_length=300_000,
         description=(
             "Contenu du **<body>** uniquement, en HTML sémantique avec les classes "
@@ -489,17 +522,21 @@ class GenererDocumentProfessionnelInput(BaseModel):
             "texte, choisir pdf/docx."
         ),
     )
-    titre: str = Field(
+    titre: str | None = Field(
+        default=None,
         min_length=1,
         max_length=300,
         description=(
             "Titre du document : il apparaît dans l'en-tête de chaque page et dans "
-            "les métadonnées du fichier. Titre court et explicite."
+            "les métadonnées du fichier. Titre court et explicite. Requis pour "
+            "action='generer' et action='demarrer'."
         ),
     )
-    format: Literal["pdf", "docx", "pptx", "xlsx"] = Field(
+    format: Literal["pdf", "docx", "pptx", "xlsx"] | None = Field(
+        default=None,
         description=(
-            "Format cible. 'pdf' (défaut de fait pour un livrable à remettre), "
+            "Format cible, requis pour action='generer' et action='demarrer'. "
+            "'pdf' (défaut de fait pour un livrable à remettre), "
             "'docx' seulement si l'utilisateur doit modifier le fichier, "
             "'pptx' pour une présentation/deck 16:9 native (PowerPoint), "
             "'xlsx' pour un classeur Excel stylé (chaque table.data devient une "
@@ -549,9 +586,26 @@ class GenererDocumentProfessionnelInput(BaseModel):
             "flux, cycle), écris directement un <svg> dans contenu_html."
         ),
     )
-    type_document: str = Field(
+    plan: list[str] | None = Field(
+        default=None,
+        min_length=1,
+        max_length=24,
         description=(
-            "Type de dépôt (vocabulaire FERMÉ, valeurs exactes) : 'offre', "
+            "action='demarrer' uniquement : le PLAN du document, une entrée par "
+            "partie qui fera l'objet d'UN appel action='section' (ex. "
+            "['Couverture', '1. Contexte', '2. Démarche', '3. Budget']). "
+            "Répartir le document en 2 à 6 parties, chacune correspondant à "
+            "plusieurs pages si besoin : la progression « Partie 2/4 » est "
+            "affichée à l'utilisateur, elle prouve qu'il n'y a pas de boucle. "
+            "Écrire 30 000 caractères par partie (bien moins d'appels) tout en "
+            "restant court pour le modèle."
+        ),
+    )
+    type_document: str | None = Field(
+        default=None,
+        description=(
+            "Type de dépôt (vocabulaire FERMÉ, valeurs exactes), requis pour "
+            "action='generer' et action='demarrer' : 'offre'," 
             "'appel_proposition', 'cv', 'fiche_technique', 'fiche_presence', "
             "'liste_beneficiaires', 'checklist', 'rapport', 'justificatif', "
             "'budget', 'template', 'autre', 'non_classe'. "
@@ -580,6 +634,121 @@ class GenererDocumentProfessionnelInput(BaseModel):
     propose_par: str = Field(
         description="Identifiant de l'agent proposant (ex. 'agent_generateur_offre')."
     )
+
+    action: Literal["generer", "demarrer", "section", "finaliser"] = Field(
+        default="generer",
+        description=(
+            "'generer' (défaut) : le corps complet est fourni d'un tenant — pour "
+            "un document COURT. "
+            "'demarrer' : ouvre un brouillon (titre, format, thème…) sans corps. "
+            "'section' : ajoute le HTML d'UNE section (≤ 30 000 caractères) au "
+            "brouillon. "
+            "'finaliser' : assemble les sections, rend et dépose le document "
+            "(graphiques déclarés ici). "
+            "DOCUMENT LONG (au-delà d'une dizaine de pages) : écris OBLIGATOIREMENT "
+            "par sections — une génération d'un seul tenant trop longue fait "
+            "taire le fournisseur et tue le run sans exécuter l'outil."
+        ),
+    )
+    brouillon_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Identifiant du brouillon (renvoyé par action='demarrer'), requis "
+            "pour 'section' et 'finaliser'. Le brouillon appartient à l'agent "
+            "qui l'a ouvert."
+        ),
+    )
+    section_index: int | None = Field(
+        default=None,
+        ge=1,
+        description=(
+            "action='section' uniquement : numéro (1-based) d'une section déjà "
+            "écrite à REMPLACER (correction). Omis : la section est ajoutée à "
+            "la suite."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _coherence_action(self) -> GenererDocumentProfessionnelInput:
+        """Champs exigés selon l'action — l'erreur dit quoi faire, sans devine."""
+        if self.action == "generer":
+            if not self.contenu_html:
+                raise ValueError(
+                    "action='generer' exige contenu_html (corps complet). Pour un "
+                    "document long, préférer demarrer/section/finaliser."
+                )
+            if len(self.contenu_html) > _BORNE_CORPS_CARACTERES:
+                raise ValueError(
+                    f"Corps trop long pour action='generer' : "
+                    f"{len(self.contenu_html)} caractères (maximum "
+                    f"{_BORNE_CORPS_CARACTERES}). Un corps plus long fait taire "
+                    "le fournisseur en cours d'émission et le run meurt sans "
+                    "déposer le document. Utiliser la rédaction PROGRESSIVE : "
+                    "action='demarrer' (titre, format, type_document), puis "
+                    "action='section' avec le HTML d'UNE section par appel "
+                    f"(≤ {_BORNE_SECTION_CARACTERES} caractères), puis "
+                    "action='finaliser' avec brouillon_id."
+                )
+            if not self.titre or not self.type_document or not self.format:
+                raise ValueError(
+                    "action='generer' exige titre, format et type_document."
+                )
+        elif self.action == "demarrer":
+            if self.contenu_html:
+                raise ValueError(
+                    "action='demarrer' ne prend pas de corps : les sections "
+                    "s'écrivent ensuite, une par appel (action='section')."
+                )
+            if self.plan is not None and any(not (item or "").strip() for item in self.plan):
+                raise ValueError(
+                    "plan contient une partie vide : chaque entrée est le titre "
+                    "d'UNE partie (ex. '2. Démarche')."
+                )
+            if self.brouillon_id is not None:
+                raise ValueError(
+                    "action='demarrer' crée un NOUVEAU brouillon : ne pas "
+                    "fournir brouillon_id."
+                )
+            if not self.titre or not self.type_document or not self.format:
+                raise ValueError(
+                    "action='demarrer' exige titre, format et type_document : "
+                    "l'habillage est figé pour tout le brouillon."
+                )
+        elif self.action == "section":
+            if self.brouillon_id is None:
+                raise ValueError(
+                    "action='section' exige brouillon_id (renvoyé par "
+                    "action='demarrer')."
+                )
+            if self.plan is not None:
+                raise ValueError(
+                    "plan se donne à action='demarrer' (il est figé pour le "
+                    "brouillon) : action='section' reçoit seulement le contenu "
+                    "d'UNE partie."
+                )
+            if not self.contenu_html:
+                raise ValueError(
+                    "action='section' exige contenu_html : le HTML d'UNE section."
+                )
+            if len(self.contenu_html) > _BORNE_SECTION_CARACTERES:
+                raise ValueError(
+                    f"Une section est bornée à {_BORNE_SECTION_CARACTERES} caractères "
+                    f"(reçu {len(self.contenu_html)}) : coupe le document en "
+                    "sections plus courtes (une génération trop longue fait "
+                    "taire le fournisseur)."
+                )
+        else:  # finaliser
+            if self.brouillon_id is None:
+                raise ValueError(
+                    "action='finaliser' exige brouillon_id (renvoyé par "
+                    "action='demarrer')."
+                )
+            if self.contenu_html:
+                raise ValueError(
+                    "action='finaliser' ne prend pas de contenu_html : le corps "
+                    "vient des sections du brouillon."
+                )
+        return self
 
 
 class ImporterTableauInput(BaseModel):
@@ -706,6 +875,102 @@ class CorrigerDocumentInput(BaseModel):
         default=True,
         description="Revalider le document corrigé (structure, contenu, style).",
     )
+
+
+class ModifierSectionDocumentInput(BaseModel):
+    """Correction d'un livrable **par section**, sans le réécrire entier.
+
+    Un document rendu par ``generer_document_professionnel`` garde sa source
+    (corps HTML + habillage). Corriger un montant, une phrase, une diapositive
+    ne demande donc plus de régénérer tout le document : on remplace, ajoute ou
+    supprime **un** morceau, le reste est conservé à l'identique.
+
+    Chaque correction produit une **nouvelle version** du même document (nom,
+    type et rattachement conservés ; l'ancienne version reste sur disque) —
+    l'humain valide la version proposée comme d'habitude.
+
+    Ordre d'usage : ``lister`` (voir les sections et leur index), puis
+    ``remplacer`` / ``ajouter`` / ``supprimer``.
+    """
+
+    document_id: UUID = Field(
+        description=(
+            "UUID du document à corriger : celui renvoyé par "
+            "generer_document_professionnel. Ne jamais inventer d'identifiant."
+        )
+    )
+    action: Literal["lister", "remplacer", "ajouter", "supprimer"] = Field(
+        default="lister",
+        description=(
+            "'lister' (défaut) : rend les sections du document (index, balise, "
+            "titre, taille) — à faire AVANT toute modification. "
+            "'remplacer' : remplace la section `section_index` par le HTML "
+            "fourni. 'ajouter' : insère une section après `section_index` "
+            "(à la fin si omis). 'supprimer' : retire la section "
+            "`section_index`."
+        ),
+    )
+    section_index: int | None = Field(
+        default=None,
+        ge=1,
+        description=(
+            "Numéro (1-based) de la section, tel que renvoyé par action='lister'. "
+            "Requis pour 'remplacer' et 'supprimer'. Pour 'ajouter' : la "
+            "nouvelle section est insérée APRÈS ce numéro (omis = à la fin)."
+        ),
+    )
+    contenu_html: str | None = Field(
+        default=None,
+        description=(
+            "HTML d'UNE section (un seul élément racine : <section>, <table>, "
+            "<div>…). Requis pour 'remplacer' et 'ajouter'. Mêmes classes de "
+            "thème que la génération (lead, table.data, table.kpi, callout…), "
+            "pas de <style>. Pour un deck : <section class='slide'> (ou "
+            "'cover') par diapositive. Données : uniquement des informations "
+            "réelles — une donnée absente s'écrit '(à compléter)'."
+        ),
+    )
+    graphiques: list[GraphiqueInput] | None = Field(
+        default=None,
+        max_length=12,
+        description=(
+            "Graphiques de données à déclarer pour CETTE section (même "
+            "contrat qu'à la génération : <figure data-graphique='id'></figure> "
+            "dans le HTML, spec ici au même 'id'). Les graphiques déjà "
+            "déclarés sont conservés."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _coherence_action(self) -> ModifierSectionDocumentInput:
+        """Champs exigés par l'action — l'erreur dit quoi fournir."""
+        if self.action == "lister":
+            if self.section_index is not None or self.contenu_html:
+                raise ValueError(
+                    "action='lister' ne modifie rien : retirer section_index et "
+                    "contenu_html (ce sont les actions de modification)."
+                )
+        elif self.action in {"remplacer", "supprimer"}:
+            if self.section_index is None:
+                raise ValueError(
+                    f"action='{self.action}' exige section_index (le numéro "
+                    "renvoyé par action='lister')."
+                )
+        if self.action in {"remplacer", "ajouter"} and not (self.contenu_html or "").strip():
+            raise ValueError(
+                f"action='{self.action}' exige contenu_html : le HTML d'UNE section."
+            )
+        if self.action in {"supprimer", "lister"} and self.contenu_html:
+            raise ValueError(
+                f"action='{self.action}' ne prend pas de contenu_html."
+            )
+        if self.contenu_html and len(self.contenu_html) > _BORNE_SECTION_CARACTERES:
+            raise ValueError(
+                f"Une section est bornée à {_BORNE_SECTION_CARACTERES} caractères "
+                f"(reçu {len(self.contenu_html)}) : corriger une section plus "
+                "courte, ou la découper en deux."
+            )
+        return self
 
 
 class LireDocumentInput(BaseModel):
@@ -1169,6 +1434,18 @@ def _type_depot(payload: dict[str, Any]) -> str:
     return brute
 
 
+def _memes_ancres(document: Any, ancres: dict[str, UUID]) -> bool:
+    """Le document porte-t-il exactement le rattachement demandé ?
+
+    Deux documents de même nom sur deux offres différentes sont deux documents
+    distincts : versionner l'un depuis l'autre mélangerait deux dossiers.
+    """
+    for champ in _ANCRES.values():
+        if getattr(document, champ, None) != ancres.get(champ):
+            return False
+    return True
+
+
 def _kwargs_ancre(payload: dict[str, Any]) -> dict[str, UUID]:
     """Ancre réelle → FK. Ancre absente / nom inconnu / UUID manquant → {} (repli).
 
@@ -1277,11 +1554,204 @@ def _message_livrable(sortie: dict[str, Any], conforme: bool) -> str:
     )
 
 
+# --- Borne du payload de structure --------------------------------------------
+
+#: Budget, en caractères, du payload ``get_document_structure`` remis au modèle.
+#: Mesuré sur un TDR réel de 2,3 Mo : **182 821 caractères** (~46 000 tokens)
+#: pour un seul appel. Le tour suivant devenait si lourd que le fournisseur
+#: cessait d'émettre — ``StreamChunkTimeoutError`` après 300 s de silence — et
+#: « Réessayer » rejouait la même requête (même échec, même tirage). La
+#: structure est une **carte**, pas le contenu : les comptages restent exacts,
+#: les textes sont bornés, et chaque coupe est nommée dans ``limites``.
+BUDGET_STRUCTURE_CARACTERES = 24_000
+
+#: Longueurs conservées par la première passe (bloc, cellule d'en-tête, section).
+_EXTRAIT_BLOC = 80
+_EXTRAIT_CELLULE = 60
+_EXTRAIT_SECTION = 120
+#: Tableaux détaillés conservés avant réduction aux dimensions seules.
+_TABLEAUX_DETAIL = 40
+#: Liens et images conservés avant réduction au comptage seul.
+_ANNEXES_DETAIL = 10
+
+
+def _taille_payload(payload: dict[str, Any]) -> int:
+    """Poids réel du payload, tel qu'il sera sérialisé pour le modèle."""
+    return len(json.dumps(payload, ensure_ascii=False, default=str))
+
+
+def _tronquer(valeur: Any, limite: int) -> Any:
+    """Tronque un texte en le **disant** : le « … » est le repère de coupe."""
+    if not isinstance(valeur, str) or len(valeur) <= limite:
+        return valeur
+    return valeur[:limite].rstrip() + "…"
+
+
+def _reduire_textes(payload: dict[str, Any]) -> None:
+    """Borne chaque texte : la carte garde le repère, pas le contenu."""
+    for bloc in payload.get("hierarchie") or []:
+        bloc["texte"] = _tronquer(bloc.get("texte"), _EXTRAIT_BLOC)
+        if bloc.get("items"):
+            bloc["items"] = [_tronquer(item, _EXTRAIT_BLOC) for item in bloc["items"]]
+    for tableau in payload.get("tableaux") or []:
+        tableau["entete"] = [
+            _tronquer(cellule, _EXTRAIT_CELLULE)
+            for cellule in tableau.get("entete") or []
+        ]
+    for section in payload.get("sections_detaillees") or []:
+        section["entete"] = _tronquer(section.get("entete"), _EXTRAIT_SECTION)
+        section["pied"] = _tronquer(section.get("pied"), _EXTRAIT_SECTION)
+    for cle in ("entetes", "pieds"):
+        payload[cle] = [_tronquer(t, _EXTRAIT_SECTION) for t in payload.get(cle) or []]
+    for lien in payload.get("liens") or []:
+        lien["url"] = _tronquer(lien.get("url"), _EXTRAIT_SECTION)
+
+
+def _reduire_doublons(payload: dict[str, Any]) -> None:
+    """Retire ce que l'inspection répète deux fois.
+
+    ``sections_detaillees`` répète ``sections`` + ``entetes``/``pieds``, et
+    chaque tableau figure deux fois (dans ``hierarchie`` à sa position, puis
+    dans ``tableaux``). La liste détaillée est conservée ; la hiérarchie ne
+    garde que le repère ``element``, qui suffit pour relire le tableau.
+    """
+    payload.pop("sections_detaillees", None)
+    for bloc in payload.get("hierarchie") or []:
+        if bloc.get("type") == "tableau":
+            for cle in ("entete", "largeurs_mm", "fusions"):
+                bloc.pop(cle, None)
+    for tableau in (payload.get("tableaux") or [])[_TABLEAUX_DETAIL:]:
+        for cle in ("entete", "largeurs_mm", "fusions"):
+            tableau.pop(cle, None)
+
+
+def _reduire_tableaux(payload: dict[str, Any]) -> None:
+    """Tableaux réduits à leurs dimensions : le détail se lit à la demande.
+
+    L'en-tête d'un tableau est déjà du **contenu**. Sur un appel réel, les 23
+    tableaux d'un TDR pesaient 38 049 caractères à eux seuls — assez pour
+    qu'après réduction de la hiérarchie le payload reste deux fois au-dessus
+    du budget. Les dimensions (lignes, colonnes, fusions) suffisent à choisir
+    **quel** tableau relire avec ``lire_element_document``.
+    """
+    for tableau in payload.get("tableaux") or []:
+        for cle in ("entete", "largeurs_mm", "fusions"):
+            tableau.pop(cle, None)
+
+
+def _echantillonner_hierarchie(payload: dict[str, Any], pas: int) -> None:
+    """Garde titres et tableaux, échantillonne le reste un bloc sur ``pas``."""
+    vus = 0
+    gardes: list[dict[str, Any]] = []
+    for bloc in payload.get("hierarchie") or []:
+        if bloc.get("type") in ("titre", "tableau"):
+            gardes.append(bloc)
+            continue
+        if vus % pas == 0:
+            gardes.append(bloc)
+        vus += 1
+    payload["hierarchie"] = gardes
+
+
+def _reduire_annexes(payload: dict[str, Any]) -> None:
+    """Liens et images ne gardent qu'un échantillon (les comptages restent)."""
+    for cle in ("liens", "images"):
+        entrees = payload.get(cle) or []
+        if len(entrees) > _ANNEXES_DETAIL:
+            payload[cle] = entrees[:_ANNEXES_DETAIL]
+
+
+def _borner_structure(
+    payload: dict[str, Any], budget: int = BUDGET_STRUCTURE_CARACTERES
+) -> dict[str, Any]:
+    """Ramène sous ``budget`` le payload de ``get_document_structure``.
+
+    L'inspection elle-même reste **complète et exacte** (l'API et l'aperçu
+    humain gardent la structure entière) : c'est son transport vers le modèle
+    qui est borné. Un payload de 182 821 caractères rend le tour suivant si
+    lourd que le fournisseur cesse d'émettre ; le run meurt alors en silence,
+    et « Réessayer » rejoue la même requête.
+
+    Les réductions s'appliquent par coût croissant pour l'agent et s'arrêtent
+    dès que le budget est tenu ; chacune nomme sa coupe dans ``limites``
+    (aucune troncature silencieuse). Les comptages exacts (``nb_elements``,
+    ``nb_paragraphes``, ``nb_tableaux``, ``nb_pages``, ``unite_pagination``) et
+    le repère ``element`` de chaque bloc survivent : l'agent relit n'importe
+    quel emplacement avec ``chercher_dans_document`` / ``read_document_range``.
+    """
+    if _taille_payload(payload) <= budget:
+        return payload
+
+    limites: list[str] = payload.setdefault("limites", [])
+
+    _reduire_textes(payload)
+    limites.append(f"textes_tronques_a_{_EXTRAIT_BLOC}_caracteres")
+    if _taille_payload(payload) <= budget:
+        return payload
+
+    _reduire_doublons(payload)
+    limites.append("sections_detaillees_retirees_et_tableaux_non_dupliques")
+    if _taille_payload(payload) <= budget:
+        return payload
+
+    _reduire_tableaux(payload)
+    limites.append("tableaux_reduits_a_leurs_dimensions")
+    if _taille_payload(payload) <= budget:
+        return payload
+
+    for pas in (2, 4, 8, 16, 32, 64):
+        _echantillonner_hierarchie(payload, pas)
+        if _taille_payload(payload) <= budget:
+            limites.append(f"hierarchie_echantillonnee_un_bloc_sur_{pas}")
+            return payload
+    limites.append("hierarchie_echantillonnee_un_bloc_sur_64")
+
+    _reduire_annexes(payload)
+    limites.append(f"liens_et_images_limites_a_{_ANNEXES_DETAIL}")
+
+    # Dernier recours : la carte garde un préfixe de blocs, et le dit. Le
+    # repère ``element`` restant rend la suite lisible par lecture ciblée.
+    hierarchie = payload.get("hierarchie") or []
+    nombre = len(hierarchie)
+    while _taille_payload(payload) > budget and nombre > 20:
+        nombre = max(20, nombre // 2)
+        payload["hierarchie"] = hierarchie[:nombre]
+    if nombre < len(hierarchie):
+        limites.append(f"hierarchie_tronquee_a_{nombre}_blocs")
+
+    # Garantie finale : si même les textes pèsent trop, ils partent — il reste
+    # les types, les comptages et les repères, ce qui suffit à naviguer.
+    if _taille_payload(payload) > budget:
+        for bloc in payload.get("hierarchie") or []:
+            bloc.pop("texte", None)
+            bloc.pop("items", None)
+        limites.append("textes_de_hierarchie_retires_pour_tenir_dans_le_budget")
+    return payload
+
+
+def _progression(ecrites: int, total: int) -> str | None:
+    """Libellé « Partie 2/4 » du plan de rédaction (``None`` sans plan).
+
+    C'est ce texte que le chat affiche à côté de l'appel d'outil : l'utilisateur
+    voit avancer le document au lieu de croire à une boucle.
+    """
+    if total <= 0:
+        return None
+    return f"Partie {min(ecrites, total)}/{total}"
+
+
+def _plan_brouillon(etat: dict[str, Any]) -> list[str]:
+    """Plan figé à l'ouverture du brouillon : une entrée par appel de section."""
+    return [str(item) for item in (etat.get("meta") or {}).get("plan") or []]
+
+
 def build_document_tools(
     *,
     identite: AgentIdentity,
     policy: PermissionPolicy,
     service_factory: Any,
+    dossier_brouillons: Any = None,
+    dossier_sources: Any = None,
 ) -> list[Any]:
     """Construit les tools documentaires pour UN agent.
 
@@ -1330,9 +1800,30 @@ def build_document_tools(
             "proposed_by_agent": payload.get("propose_par") or identite.agent_id,
             "created_by": payload.get("propose_par") or identite.agent_id,
         }
-        kwargs_dto.update(_kwargs_ancre(payload))
+        ancres = _kwargs_ancre(payload)
+        kwargs_dto.update(ancres)
         entree = DocumentUploadInput(**kwargs_dto)
-        document = service.enregistrer_document(entree)
+        # Un document sans ancre est enregistré par le service sous le type
+        # ``non_classe`` : chercher sa version sous le type *demandé* ne
+        # trouvait rien et retombait sur « version 1 existe déjà ». La recherche
+        # de version se fait donc sur le type réellement écrit en base.
+        type_reel = type_depot if ancres else TypeDocument.NON_CLASSE.value
+        # Un document du même nom, du même type et du même rattachement est
+        # **révisé**, pas dupliqué : c'est une NOUVELLE VERSION (v2, v3…). Sans
+        # cela, chaque régénération butait sur « version 1 existe déjà » et
+        # l'agent n'avait d'autre issue que de renommer le document à la main.
+        existant = service.derniere_version(nom, type_reel)
+        if (
+            existant is not None
+            and existant.statut
+            not in (StatutDocument.ARCHIVED.value, StatutDocument.SUPPRIME.value)
+            and _memes_ancres(existant, ancres)
+        ):
+            document = service.remplacer_document(existant.id, entree)
+            remplace: str | None = str(existant.id)
+        else:
+            document = service.enregistrer_document(entree)
+            remplace = None
         non_classe = all(
             getattr(document, champ) is None for champ in _ANCRES.values()
         )
@@ -1340,8 +1831,11 @@ def build_document_tools(
             "document_id": str(document.id),
             "statut": document.statut,
             "nom": document.nom,
-            "type_document": type_depot,
+            "type_document": document.type_document,
+            "version": document.version,
         }
+        if remplace is not None:
+            sortie["nouvelle_version_de"] = remplace
         if type_demande and type_demande != type_depot:
             sortie["type_document_convertis"] = (
                 f"'{type_demande}' → '{type_depot}' : les noms de profils "
@@ -1490,6 +1984,7 @@ def build_document_tools(
             documents["pdf"] = jumeau["document_id"]
 
         sortie["documents"] = documents
+        sortie["format"] = rendu.format
         sortie["pages"] = rendu.pages
         sortie["theme"] = rendu.theme
         if rendu.format == "pptx":
@@ -1532,6 +2027,93 @@ def build_document_tools(
             )
         )
         return sortie
+
+    def _generer_professionnel_ou_brouillon(payload: dict[str, Any]) -> dict[str, Any]:
+        """Aiguille ``action`` : génération d'un tenant, ou rédaction progressive.
+
+        ``demarrer`` / ``section`` / ``finaliser`` font écrire au modèle de
+        **petites** parties (le plan annoncé avant génération), pendant que
+        ``generer`` garde le corps complet pour un document court.
+        """
+        action = payload.get("action") or "generer"
+        if action == "demarrer":
+            return _brouillon_demarrer(payload)
+        if action == "section":
+            return _brouillon_section(payload)
+        if action == "finaliser":
+            return _brouillon_finaliser(payload)
+        return _rendre_et_deposer_professionnel(payload)
+
+    def _rendre_et_deposer_professionnel(payload: dict[str, Any]) -> dict[str, Any]:
+        """Rend le livrable professionnel et l'habille du message d'agent.
+
+        Point commun de ``generer_document_professionnel`` (action='generer'),
+        de la rédaction progressive (action='finaliser') et de la correction par
+        section : le dépôt, les avertissements et le message ne sont écrits
+        qu'une fois.
+        """
+        sortie = _generer_professionnel(payload)
+        sortie["message"] = _message_livrable(
+            sortie, conforme=not sortie.get("avertissements")
+        )
+        _enregistrer_source(
+            sortie,
+            corps=str(payload.get("contenu_html") or ""),
+            meta=payload,
+            graphiques=payload.get("graphiques"),
+        )
+        return sortie
+
+    def _enregistrer_source(
+        sortie: dict[str, Any],
+        *,
+        corps: str,
+        meta: dict[str, Any],
+        graphiques: Any,
+    ) -> None:
+        """Mémorise le corps et l'habillage du livrable déposé.
+
+        C'est ce qui rend la correction par section possible : sans source, un
+        document ne peut être que régénéré. Un échec d'écriture (disque plein,
+        droits) ne fait pas perdre le livrable déjà déposé — la source manquera
+        simplement, avec une erreur explicite à la correction.
+        """
+        from app.documents.sources import enregistrer as _ecrire_source
+
+        specs = [
+            entree if isinstance(entree, dict) else entree.model_dump(mode="json")
+            for entree in (graphiques or [])
+        ]
+        racine = _racine_sources_rendus()
+        documents = sortie.get("documents") or {}
+        principal = documents.get("principal") or sortie.get("document_id")
+        jumeau = documents.get("pdf")
+        try:
+            _ecrire_source(
+                racine,
+                principal,
+                corps=corps,
+                meta=meta,
+                graphiques=specs,
+                principal_id=principal,
+                jumeau_id=jumeau,
+            )
+            if jumeau:
+                _ecrire_source(
+                    racine,
+                    jumeau,
+                    corps=corps,
+                    meta={**meta, "format": "pdf"},
+                    graphiques=specs,
+                    principal_id=principal,
+                    jumeau_id=jumeau,
+                )
+        except OSError:
+            return
+
+    def _sans_rattachement(sortie: dict[str, Any]) -> bool:
+        """Le livrable a-t-il été rangé sous ``generated/{id}`` faute d'ancre ?"""
+        return bool(sortie.get("non_classe", False))
 
     def _generer_structurer(payload: dict[str, Any], fmt: str) -> dict[str, Any]:
         """Génère un vrai livrable depuis un ``DocumentSpec`` (avec validation).
@@ -1695,7 +2277,6 @@ def build_document_tools(
             )
             resultat = {
                 **sortie,
-                "document_spec": corrige.model_dump(mode="json"),
                 "operations_appliquees": journal,
             }
         else:
@@ -1719,7 +2300,6 @@ def build_document_tools(
                 "version": principal["version"],
                 "nom": principal["nom"],
                 "documents": documents,
-                "document_spec": corrige.model_dump(mode="json"),
                 "operations_appliquees": journal,
                 "resume_document": corrige.resume(),
                 "message": (
@@ -2347,6 +2927,279 @@ def build_document_tools(
         octets = remplir_template_docx(chemin, payload.get("valeurs") or {})
         return _deposer(octets, payload, ".docx")
 
+    def _modifier_section(payload: dict[str, Any]) -> dict[str, Any]:
+        """Corrige **une** section du livrable rendu, sans le réécrire entier.
+
+        La source (corps HTML + habillage) est cherchée dans la **famille** du
+        document : même nom et même type, versions résolues sous périmètre par
+        le service. Une correction faite sur une v2 dont la source a été écrite
+        pour la v1 ne se perd donc pas.
+        """
+        from app.documents.sections import assembler, decouper, decrire, normaliser_fragment
+        from app.documents.sources import charger_famille
+        from app.documents.sources import enregistrer as _ecrire_source
+
+        service = service_factory()
+        document_id = _uuid(payload["document_id"], "document_id")
+        # ``obtenir`` applique le périmètre d'accès : un document hors
+        # périmètre est refusé ici, jamais édité.
+        document = service.obtenir(document_id)
+        racine = _racine_sources_rendus()
+        trouvee = charger_famille(racine, document_id, service.versions(document_id))
+        if trouvee is None:
+            raise NotFoundError(
+                f"« {document.nom} » n'a pas de source éditable : seul un "
+                "document rendu par generer_document_professionnel se corrige "
+                "par section (un import ou un document structuré n'a pas de "
+                "corps HTML). Régénérer le document pour le modifier."
+            )
+        source, identifiant_source = trouvee
+        meta = dict(source.get("meta") or {})
+        format_document = str(meta.get("format") or "pdf")
+        morceaux = decouper(str(source.get("corps") or ""))
+
+        action = payload.get("action") or "lister"
+        if action == "lister":
+            return {
+                "action": "lister",
+                "document_id": str(document_id),
+                "nom": document.nom,
+                "format": format_document,
+                "sections": decrire(morceaux),
+                "message": (
+                    "Corriger : action='remplacer' (section_index + "
+                    "contenu_html), 'ajouter' (après section_index) ou "
+                    "'supprimer'. Le reste du document n'est jamais réécrit."
+                ),
+            }
+
+        index = payload.get("section_index")
+        if index is not None:
+            index = int(index)
+            # 'ajouter' accepte un index une position au-delà de la dernière
+            # section (insertion à la fin) : la borne le dit.
+            derniere = len(morceaux) if action in {"remplacer", "supprimer"} else len(morceaux) + 1
+            if index > derniere:
+                raise ValidationError(
+                    f"section_index {index} hors bornes : le document contient "
+                    f"{len(morceaux)} section(s) (indices 1 à {len(morceaux)}). "
+                    "Appeler action='lister' pour les voir."
+                )
+
+        graphiques = list(source.get("graphiques") or [])
+        if action == "supprimer":
+            del morceaux[int(index) - 1]
+            if not morceaux:
+                raise ValidationError(
+                    "Supprimer cette section viderait le document : corriger "
+                    "son contenu plutôt (action='remplacer')."
+                )
+        else:
+            fragment = normaliser_fragment(
+                str(payload.get("contenu_html") or ""), format_document=format_document
+            )
+            if action == "remplacer":
+                morceaux[int(index) - 1] = fragment
+            elif index is None:
+                morceaux.append(fragment)
+            else:
+                morceaux.insert(int(index), fragment)
+            for entree in payload.get("graphiques") or []:
+                spec = (
+                    entree
+                    if isinstance(entree, dict)
+                    else entree.model_dump(mode="json")
+                )
+                graphiques = [
+                    existant
+                    for existant in graphiques
+                    if (existant.get("id") if isinstance(existant, dict) else None)
+                    != spec.get("id")
+                ] + [spec]
+
+        corps = assembler(morceaux)
+        sortie = _rendre_et_deposer_professionnel(
+            {**meta, "format": format_document, "contenu_html": corps, "graphiques": graphiques}
+        )
+        try:
+            _ecrire_source(
+                racine,
+                sortie["document_id"],
+                corps=corps,
+                meta={**meta, "format": format_document},
+                graphiques=graphiques,
+                principal_id=str(identifiant_source),
+                jumeau_id=None,
+            )
+        except OSError:
+            # Le livrable est déposé : une source non réécrite se retrouve
+            # depuis la famille de versions au prochain correctif.
+            pass
+        sortie["action"] = action
+        sortie["sections"] = len(morceaux)
+        sortie["sections_modifiees"] = [index] if index is not None else [len(morceaux)]
+        return sortie
+
+    def _racine_sources_rendus() -> Path:
+        """Racine technique des sources de livrables (surcharge de test sinon storage)."""
+        if dossier_sources is not None:
+            return Path(dossier_sources)
+        from app.core.config import get_settings
+        from app.documents.sources import racine_sources
+
+        return racine_sources(get_settings().storage_root)
+
+    def _racine_brouillons() -> Path:
+        """Racine technique des brouillons (surcharge de test, sinon storage_root)."""
+        if dossier_brouillons is not None:
+            return Path(dossier_brouillons)
+        from app.core.config import get_settings
+        from app.documents.brouillons import racine_brouillons
+
+        return racine_brouillons(get_settings().storage_root)
+
+    def _brouillon_demarrer(payload: dict[str, Any]) -> dict[str, Any]:
+        """Ouvre un brouillon : le corps s'écrira ensuite partie par partie.
+
+        Le **plan** (une entrée par appel de section) est figé avec l'habillage :
+        il donne la progression (« Partie 2/4 ») affichée à côté de l'appel
+        d'outil dans le chat — l'utilisateur voit avancer le document au lieu de
+        croire à une boucle. Sans plan, la progression reste un simple compteur.
+        """
+        from app.documents.brouillons import ouvrir
+
+        meta = {
+            cle: payload[cle] for cle in _CLES_BROUILLON if payload.get(cle) is not None
+        }
+        plan = [
+            item.strip() for item in (payload.get("plan") or []) if item and item.strip()
+        ]
+        if plan:
+            meta["plan"] = plan
+        etat = ouvrir(_racine_brouillons(), identite.agent_id, meta)
+        if plan:
+            etapes = "; ".join(
+                f"{numero}. {titre}" for numero, titre in enumerate(plan, start=1)
+            )
+            message = (
+                f"Brouillon ouvert, plan en {len(plan)} partie(s) : {etapes}. "
+                "Écris maintenant la partie 1/"
+                f"{len(plan)} : action='section' avec brouillon_id et le HTML "
+                f"d'UNE partie (≤ {_BORNE_SECTION_CARACTERES} caractères par appel, "
+                "plusieurs pages possibles dans une même partie), puis les "
+                "suivantes dans l'ordre. Remplacer une partie déjà écrite : "
+                "action='section' avec section_index. Terminer par "
+                "action='finaliser' (rendu et dépôt du document complet)."
+            )
+        else:
+            message = (
+                "Brouillon ouvert. Écris maintenant le corps partie par partie : "
+                "action='section' avec brouillon_id et le HTML d'UNE partie "
+                f"(≤ {_BORNE_SECTION_CARACTERES} caractères par appel), dans "
+                "l'ordre du document. Remplacer une partie déjà écrite : "
+                "action='section' avec section_index. Terminer par "
+                "action='finaliser' (rendu et dépôt du document complet)."
+            )
+        return {
+            "action": "demarrer",
+            "brouillon_id": etat["brouillon_id"],
+            "titre": meta.get("titre"),
+            "format": meta.get("format"),
+            "sections": 0,
+            "parties": len(plan) or None,
+            "partie": 0 if plan else None,
+            "progression": _progression(0, len(plan)) if plan else None,
+            "message": message,
+        }
+
+    def _brouillon_section(payload: dict[str, Any]) -> dict[str, Any]:
+        """Ajoute (ou remplace) une partie du document dans le brouillon de l'agent."""
+        from app.documents.brouillons import charger, enregistrer
+
+        racine = _racine_brouillons()
+        etat = charger(racine, identite.agent_id, payload["brouillon_id"])
+        sections: list[str] = list(etat["sections"])
+        plan = _plan_brouillon(etat)
+        contenu = str(payload["contenu_html"])
+        index = payload.get("section_index")
+        remplacee: int | None = None
+        if index is not None:
+            if int(index) > len(sections):
+                raise ValidationError(
+                    f"section_index {index} hors bornes : le brouillon contient "
+                    f"{len(sections)} section(s) (indices 1 à {len(sections)}). "
+                    "Sans section_index, la section est ajoutée à la suite."
+                )
+            remplacee = int(index)
+            sections[remplacee - 1] = contenu
+        else:
+            sections.append(contenu)
+        etat["sections"] = sections
+        enregistrer(racine, identite.agent_id, etat)
+        total = sum(len(partie) for partie in sections)
+        progression = _progression(len(sections), len(plan)) if plan else None
+        if plan and len(sections) < len(plan):
+            suite = (
+                f"Écrire maintenant la partie {len(sections) + 1}/{len(plan)}"
+                f" (« {plan[len(sections)]} »)"
+            )
+        else:
+            suite = "Terminer par action='finaliser' (rendu et dépôt du document)"
+        quoi = progression or ("Partie" if plan else "Section")
+        if remplacee is not None:
+            quoi = f"{quoi} n° {remplacee}" if not plan else quoi
+        action = "remplacée" if remplacee is not None else "ajoutée"
+        return {
+            "action": "section",
+            "brouillon_id": etat["brouillon_id"],
+            "sections": len(sections),
+            "caracteres": total,
+            "remplacee": remplacee,
+            "parties": len(plan) or None,
+            "partie": len(sections) if plan else None,
+            "progression": progression,
+            "message": (
+                f"{quoi} {action} : {len(sections)} section(s), "
+                f"{total} caractères cumulés. {suite}."
+            ),
+        }
+
+    def _brouillon_finaliser(payload: dict[str, Any]) -> dict[str, Any]:
+        """Assemble les parties, rend le document et le dépose en proposition."""
+        from app.documents.brouillons import charger, supprimer
+
+        racine = _racine_brouillons()
+        etat = charger(racine, identite.agent_id, payload["brouillon_id"])
+        if not etat["sections"]:
+            raise ValidationError(
+                "Brouillon vide : écris au moins une section "
+                "(action='section') avant de finaliser."
+            )
+        plan = _plan_brouillon(etat)
+        complet = {
+            **etat["meta"],
+            **{
+                cle: payload[cle]
+                for cle in ("graphiques", "css_supplementaire")
+                if payload.get(cle) is not None
+            },
+        }
+        complet["contenu_html"] = "\\n".join(etat["sections"])
+        nombre_sections = len(etat["sections"])
+        # Le brouillon n'est supprimé qu'après un dépôt réussi : un échec de
+        # rendu laisse l'agent corriger la partie fautive (action='section'
+        # avec section_index) puis re-finaliser, sans rien réécrire.
+        resultat = _rendre_et_deposer_professionnel(complet)
+        supprimer(racine, identite.agent_id, payload["brouillon_id"])
+        resultat["action"] = "finaliser"
+        resultat["sections"] = nombre_sections
+        resultat["parties"] = len(plan) or None
+        resultat["partie"] = len(plan) if plan else None
+        resultat["progression"] = (
+            _progression(len(plan), len(plan)) if plan else None
+        )
+        return resultat
+
     return [
         TypedTool(
             name="generer_document",
@@ -2372,6 +3225,18 @@ def build_document_tools(
             handler=_generer,
             input_schema=GenererDocumentInput,
             tags=("documents", "generation"),
+        ),
+        TypedTool(
+            name="modifier_section_document",
+            description=(
+                "Corrige UNE section d'un document rendu par "
+                "generer_document_professionnel, sans le réécrire entier "
+                "(nouvelle version du même document). action='lister' d'abord "
+                "(index et titres), puis 'remplacer' / 'ajouter' / 'supprimer'."
+            ),
+            handler=_modifier_section,
+            input_schema=ModifierSectionDocumentInput,
+            tags=("documents", "écriture"),
         ),
         TypedTool(
             name="generer_document_professionnel",
@@ -2420,7 +3285,7 @@ def build_document_tools(
                 "Après succès : render_document puis "
                 "proposer_telechargement_document."
             ),
-            handler=_generer_professionnel,
+            handler=_generer_professionnel_ou_brouillon,
             input_schema=GenererDocumentProfessionnelInput,
             tags=("documents", "generation", "professionnel"),
         ),

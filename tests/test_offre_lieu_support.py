@@ -233,19 +233,81 @@ class TestTypeAppel:
         appel = _appel_valide(session)
         assert appel.type == TypeAppel.APPEL_A_PROPOSITION.value
 
-    def test_type_inconnu_refuse(self, session: Session) -> None:
+    def test_type_libre_accepte(self, session: Session) -> None:
+        """Vocabulaire ouvert (04/11) : toute nature explicite est acceptée."""
         org = Organisation(nom="Client")
         session.add(org)
         session.flush()
-        with pytest.raises(ValidationError, match="Type d'appel inconnu"):
+        appel = AppelService(session).enregistrer(
+            AppelInput(
+                organisation_id=org.id,
+                reference="AO-X",
+                titre="Appel",
+                type="Appel à candidature",
+            )
+        )
+        assert appel.type == "Appel à candidature"
+
+    def test_type_vide_refuse(self, session: Session) -> None:
+        org = Organisation(nom="Client")
+        session.add(org)
+        session.flush()
+        with pytest.raises(ValidationError, match="vide"):
             AppelService(session).enregistrer(
                 AppelInput(
                     organisation_id=org.id,
                     reference="AO-X",
                     titre="Appel",
-                    type="type_invente",
+                    type="   ",
                 )
             )
+
+    def test_type_trop_long_refuse(self, session: Session) -> None:
+        """La colonne est un ``String(50)`` : au-delà, refus explicite (422),
+        jamais une erreur 500 de contrainte PostgreSQL."""
+        org = Organisation(nom="Client")
+        session.add(org)
+        session.flush()
+        with pytest.raises(ValidationError, match="50 caractères"):
+            AppelService(session).enregistrer(
+                AppelInput(
+                    organisation_id=org.id,
+                    reference="AO-X",
+                    titre="Appel",
+                    type="x" * 51,
+                )
+            )
+
+    def test_types_connus_reunit_canoniques_et_utilises(self, session: Session) -> None:
+        """La liste des types proposés à la saisie : les 3 canoniques d'abord,
+        puis les types déjà portés par des appels, dédupliqués sans la casse."""
+        service = AppelService(session)
+        org = Organisation(nom="Client")
+        session.add(org)
+        session.flush()
+        service.enregistrer(
+            AppelInput(
+                organisation_id=org.id,
+                reference="AO-1",
+                titre="A",
+                type="Appel à candidature",
+            )
+        )
+        # Orthographe différente, même type (déduplication insensible à la casse).
+        service.enregistrer(
+            AppelInput(
+                organisation_id=org.id,
+                reference="AO-2",
+                titre="B",
+                type="appel à CANDIDATURE",
+            )
+        )
+        connus = service.types_connus()
+        assert connus[:3] == [t.value for t in TypeAppel]
+        assert "Appel à candidature" in connus
+        assert sum(
+            1 for t in connus if t.casefold() == "appel à candidature"
+        ) == 1
 
 
 # --- 3. Lieu ----------------------------------------------------------------------

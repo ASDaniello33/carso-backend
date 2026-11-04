@@ -58,10 +58,11 @@ from app.application.services import (
     OffreService,
     OrganisationService,
 )
+from app.application.services.appel_service import normaliser_type_appel
 from app.core.config import get_settings
 from app.core.errors import ValidationError
 from app.domain.document import Document
-from app.domain.enums import StatutAppel, TypeAppel, TypeDocument
+from app.domain.enums import StatutAppel, TypeDocument
 from app.domain.execution import Lieu
 from app.domain.organization import Appel, Lot
 
@@ -105,6 +106,7 @@ NOMS_TOOLS: tuple[str, ...] = (
     "valider_document",
     "render_document",
     "corriger_document",
+    "modifier_section_document",
     "analyze_document_reference",
     "importer_tableau_xlsx",
     "fill_template",
@@ -245,8 +247,10 @@ class AppelCreateInput(BaseModel):
     titre: str = Field(min_length=1, max_length=255)
     type: str = Field(
         description=(
-            "Nature de l'appel : 'appel_a_proposition', "
-            "'appel_a_manifestation_interet' ou 'autre'."
+            "Nature de l'appel, telle qu'écrite sur le document reçu "
+            "(ex. 'appel_a_proposition', 'appel_a_manifestation_interet'). "
+            "Vocabulaire ouvert : toute nature explicite est acceptée (50 "
+            "caractères maximum)."
         )
     )
     description: str | None = Field(default=None, max_length=4000)
@@ -554,18 +558,14 @@ def _propose_appel_update(session: Session, payload: dict[str, Any]) -> dict[str
 
 
 def _enregistrer_appel(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
-    """Enregistre l'appel reçu (proposition ou manifestation d'intérêt) — HITL.
+    """Enregistre l'appel reçu avec sa nature explicite — HITL.
 
     L'organisation doit déjà exister : l'agent ne crée jamais d'organisation ni
     de référence. Le document source, s'il est fourni, est rattaché dans la
     même transaction (dossier ``appel_proposition/{id}/``).
     """
     entree = AppelCreateInput.model_validate(payload)
-    if entree.type not in {type_.value for type_ in TypeAppel}:
-        raise ValidationError(
-            f"Type d'appel inconnu : {entree.type!r}",
-            details={"types_valides": sorted(type_.value for type_ in TypeAppel)},
-        )
+    type_normalise = normaliser_type_appel(entree.type)
 
     appel = AppelService(session, actor_id=AGENT_ID).enregistrer(
         AppelInput(
@@ -575,7 +575,7 @@ def _enregistrer_appel(session: Session, payload: dict[str, Any]) -> dict[str, A
             description=entree.description,
             date_reception=entree.date_reception,
             date_limite=entree.date_limite,
-            type=entree.type,
+            type=type_normalise,
         )
     )
 

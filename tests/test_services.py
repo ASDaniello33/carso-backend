@@ -24,7 +24,7 @@ from app.application.services import (
     OffreService,
 )
 from app.application.trace import Decision
-from app.core.errors import ConflictError, NotFoundError, ValidationError
+from app.core.errors import ConflictError, NotFoundError
 from app.domain.base import Base
 from app.domain.document import Approbation, AuditEvent
 from app.domain.enums import (
@@ -431,37 +431,50 @@ class TestOffreService:
         assert offre.appel_id == appel.id
         assert offre.lot_id == lot.id
 
-    def test_le_type_d_offre_est_controlé_par_le_type_d_appel(
+    def test_tout_appel_accepte_technique_et_financiere(
         self, session: Session
     ) -> None:
-        """Règle 26/10 : un appel à proposition se répond par une offre technique
-        et/ou financière ; une manifestation d'intérêt par une offre « autre ».
+        """Règle du 04/11 : le type d'appel ne limite plus la réponse — tout
+        appel se répond par une offre technique **et** une offre financière.
+        « Autre » reste valide (rétrocompatibilité des offres existantes).
         """
         appel = _make_appel_en_analyse(session)  # appel à proposition (défaut)
         lot = _make_lot(session, appel)
         service = OffreService(session)
 
-        with pytest.raises(ValidationError, match="nature de l'appel"):
-            service.creer_brouillon(
-                lot.id, "OF-AUTRE-INTERDIT", "Offre", type=TypeOffre.AUTRE.value
-            )
+        technique = service.creer_brouillon(
+            lot.id, "OF-TECH-AP", "Offre technique", type=TypeOffre.OFFRE_TECHNIQUE.value
+        )
+        financiere = service.creer_brouillon(
+            lot.id, "OF-FIN-AP", "Offre financière", type=TypeOffre.OFFRE_FINANCIERE.value
+        )
+        assert (technique.type, financiere.type) == (
+            TypeOffre.OFFRE_TECHNIQUE.value,
+            TypeOffre.OFFRE_FINANCIERE.value,
+        )
 
-        # La même offre est légitime sur une manifestation d'intérêt.
+        # La même réponse est légitime sur une manifestation d'intérêt.
         appel.type = TypeAppel.APPEL_A_MANIFESTATION_INTERET.value
         session.flush()
-        offre = service.creer_brouillon(
-            lot.id, "OF-AUTRE-AMI", "Offre AMI", type=TypeOffre.AUTRE.value
-        )
-        assert offre.type == TypeOffre.AUTRE.value
-
-        # Et réciproquement : une offre technique n'y a pas sa place.
         lot_ami = Lot(appel_id=appel.id, numero="2", titre="Lot AMI")
         session.add(lot_ami)
         session.flush()
-        with pytest.raises(ValidationError, match="nature de l'appel"):
-            service.creer_brouillon(
-                lot_ami.id, "OF-TECH-INTERDIT", "Offre", type=TypeOffre.OFFRE_TECHNIQUE.value
-            )
+        technique_ami = service.creer_brouillon(
+            lot_ami.id, "OF-TECH-AMI", "Offre technique", type=TypeOffre.OFFRE_TECHNIQUE.value
+        )
+        financiere_ami = service.creer_brouillon(
+            lot_ami.id, "OF-FIN-AMI", "Offre financière", type=TypeOffre.OFFRE_FINANCIERE.value
+        )
+        assert (technique_ami.type, financiere_ami.type) == (
+            TypeOffre.OFFRE_TECHNIQUE.value,
+            TypeOffre.OFFRE_FINANCIERE.value,
+        )
+
+        # « Autre » reste valide sur n'importe quel appel.
+        autre = service.creer_brouillon(
+            lot_ami.id, "OF-AUTRE-AMI", "Offre AMI", type=TypeOffre.AUTRE.value
+        )
+        assert autre.type == TypeOffre.AUTRE.value
 
     def test_un_lot_n_accepte_qu_une_offre_par_type(self, session: Session) -> None:
         """Un lot porte au plus une offre de chaque type (technique + financière)."""

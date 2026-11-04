@@ -189,6 +189,34 @@ def test_creer_appel(api_client: TestClient, session_factory) -> None:
     assert any(item["reference"] == "ULA-097" for item in liste.json())
 
 
+def test_creer_appel_type_libre_et_liste_des_types(
+    api_client: TestClient, session_factory
+) -> None:
+    """Vocabulaire ouvert (04/11) : un type saisi librement est accepté et
+    rejoint la liste des types proposés à la saisie (GET /appels/types)."""
+    org = _seed_org(session_factory)
+    cree = api_client.post(
+        "/api/v1/appels/",
+        json={
+            "organisation_id": str(org.id),
+            "type": "Appel à candidature",
+            "reference": "AC-2026-01",
+            "titre": "Appel à candidature",
+        },
+    )
+    assert cree.status_code == 201, cree.text
+    assert cree.json()["type"] == "Appel à candidature"
+
+    types = api_client.get("/api/v1/appels/types")
+    assert types.status_code == 200
+    assert types.json()[:3] == [
+        "appel_a_proposition",
+        "appel_a_manifestation_interet",
+        "autre",
+    ]
+    assert "Appel à candidature" in types.json()
+
+
 def test_creer_appel_organisation_absente_404(api_client: TestClient) -> None:
     resp = api_client.post(
         "/api/v1/appels/",

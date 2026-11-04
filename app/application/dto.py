@@ -36,6 +36,34 @@ class BudgetTotal:
 
 
 @dataclass(frozen=True, slots=True)
+class BudgetResume:
+    """Budget et son total recalculé — ce que liste un écran ou une API."""
+
+    budget_id: UUID
+    offre_id: UUID | None
+    mission_id: UUID | None
+    devise: str
+    statut: str
+    version: int
+    total: Decimal
+    nb_lignes: int
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetComplet:
+    """Budget détaillé : entête, lignes ordonnées et total déterministe."""
+
+    budget_id: UUID
+    offre_id: UUID | None
+    mission_id: UUID | None
+    devise: str
+    statut: str
+    version: int
+    lignes: tuple[Any, ...]
+    total: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class DocumentUploadInput:
     """Dépôt d'un fichier documentaire.
 

@@ -91,6 +91,10 @@ DEFINITION = AgentDefinition(
             task_types=frozenset({"propose_team_assignment"}),
         ),
     ),
+    # ``generer_document_professionnel`` n'est PAS sous approbation d'appel : il
+    # dépose un livrable en ``proposed`` (jamais officiel) et la rédaction
+    # progressive (INC-105) en fait plusieurs appels par document long — la
+    # décision humaine reste à la validation du document, pas à chaque appel.
     approval_required=(
         "enregistrer_appel",
         "rattacher_document_appel",
@@ -98,9 +102,11 @@ DEFINITION = AgentDefinition(
         "create_offer_draft",
         "fill_template",
         "generer_document",
-        "generer_document_professionnel",
         "generer_document_html",
-        "corriger_document",
+        # ``corriger_document`` n'est PAS sous approbation d'appel (04/11) : une
+        # correction ciblée retouche un brouillon ``proposed`` en une nouvelle
+        # version du même document — la validation humaine reste celle du
+        # document, comme pour ``generer_document_professionnel`` (03/11).
         "clone_document_structure",
         "propose_lot_update",
         "propose_appel_update",
@@ -116,10 +122,10 @@ DEFINITION = AgentDefinition(
             id="reception_appel",
             titre="Enregistrer cet appel reçu dans le système ?",
             contexte=(
-                "L'appel est enregistré avec sa nature explicite (appel à "
-                "proposition ou appel à manifestation d'intérêt), son organisation "
-                "émettrice déjà connue et son document source. Rien n'est inventé : "
-                "une organisation absente du référentiel arrête l'enregistrement."
+                "L'appel est enregistré avec sa nature explicite (telle qu'écrite "
+                "sur le document reçu), son organisation émettrice déjà connue et "
+                "son document source. Rien n'est inventé : une organisation "
+                "absente du référentiel arrête l'enregistrement."
             ),
             action=(
                 "créer l'appel en statut 'recu' et rattacher son document source "

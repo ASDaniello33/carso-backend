@@ -107,6 +107,7 @@ NOMS_TOOLS: tuple[str, ...] = (
     "lire_image",
     "generer_document",
     "generer_document_professionnel",
+    "modifier_section_document",
     "generer_document_html",
     # Envoi d'un email au nom de CARSO à un contact **enregistré** (HITL :
     # approbation avant envoi, cf. ``approval_required`` du contrat).

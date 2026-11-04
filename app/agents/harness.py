@@ -202,9 +202,12 @@ def create_carso_deep_agent(
     interrupt_on = _politique_approbation(definition, tools, config)
     checkpointer = _checkpointer(config, interrupt_on)
 
-    from app.agents.registre_skills import resoudre_skills
+    from app.agents.registre_skills import SOURCE_SKILLS, resoudre_skills
 
-    skills_resolus = resoudre_skills(definition.skills, settings=settings)
+    # Validation stricte (nom inconnu, SKILL.md sans frontmatter) : un skill
+    # cassé fait échouer le montage, jamais un chargement silencieux.
+    resoudre_skills(definition.skills, settings=settings)
+    skills_sources = [SOURCE_SKILLS] if definition.skills else []
     kwargs: dict[str, Any] = {
         "name": definition.agent_id,
         "model": modele,
@@ -213,7 +216,8 @@ def create_carso_deep_agent(
             *config.extra_tools,
         ],
         "system_prompt": build_system_prompt(definition, extra=system_prompt_extra),
-        "backend": config.backend or _backend_fichiers(settings),
+        "backend": config.backend
+        or _backend_fichiers(settings, skills=definition.skills),
         "permissions": list(config.permissions) if config.permissions else None,
         "interrupt_on": interrupt_on or None,
         "response_format": response_format,
@@ -225,10 +229,12 @@ def create_carso_deep_agent(
         "context_schema": UserContext,
         "debug": config.debug,
     }
-    # SkillsMiddleware exige un backend filesystem. StateBackend suffit :
-    # les skills sont lus au chargement, pas écrits par l'agent.
-    if skills_resolus:
-        kwargs["skills"] = skills_resolus
+    # SkillsMiddleware attend des sources POSIX relatives au backend (chargées
+    # via ``ls`` + ``download_files``) : ``/skills/`` est la vue filtrée des
+    # skills déclarés (voir app/agents/backend_skills.py). Un chemin hôte
+    # absolu ne correspondait à aucune route et l'agent ne voyait aucun skill.
+    if skills_sources:
+        kwargs["skills"] = skills_sources
     # Ordre : le contexte d'abord (il précise le prompt avant que les outils
     # d'affichage ne soient fusionnés au tour modèle), puis la cohérence de
     # l'historique — en dernier, juste avant le fournisseur : un `ToolMessage`
@@ -290,7 +296,7 @@ class AgentRegistry:
 # --- internes ---------------------------------------------------------------
 
 
-def _backend_fichiers(settings: Settings | None):
+def _backend_fichiers(settings: Settings | None, *, skills: tuple[str, ...] = ()):
     """Backend de fichiers du harnais : état du graphe + storage CARSO routé.
 
     Correction du sandbox (refactor, docs/agents/REFACTOR-OUTILS-AGENTS.md §4) :
@@ -315,10 +321,21 @@ def _backend_fichiers(settings: Settings | None):
     chemin = Path(racine_storage)
     if not chemin.is_absolute():
         chemin = Path.cwd() / chemin
+    routes: dict[str, object] = {}
+    if skills:
+        from app.agents.backend_skills import BackendSkills
+        from app.agents.registre_skills import SOURCE_SKILLS, racine_skills
+
+        try:
+            routes[SOURCE_SKILLS] = BackendSkills(racine_skills(settings), skills)
+        except OSError:  # pragma: no cover - skills non montables
+            routes = {}
     try:
         chemin.mkdir(parents=True, exist_ok=True)
         fs = FilesystemBackend(root_dir=str(chemin), virtual_mode=True)
-        return CompositeBackend(default=StateBackend(), routes={"/storage/": fs})
+        return CompositeBackend(
+            default=StateBackend(), routes={"/storage/": fs, **routes}
+        )
     except OSError:  # pragma: no cover - storage non montable
         return StateBackend()
 

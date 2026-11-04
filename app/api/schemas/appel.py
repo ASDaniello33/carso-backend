@@ -10,13 +10,14 @@ from pydantic import BaseModel, ConfigDict, Field
 class AppelCreate(BaseModel):
     """Enregistrement humain d'un appel reçu (instruction/02 §B).
 
-    ``type`` distingue l'appel à proposition, l'appel à manifestation d'intérêt
-    et tout autre type d'appel reçu ; ``None`` retombe sur l'appel à
-    proposition (aucune déduction).
+    ``type`` est une donnée explicite, jamais déduite. Le vocabulaire est
+    **ouvert** (décision du 04/11) : les types canoniques et tout type saisi
+    par l'équipe (voir ``GET /appels/types`` pour la liste de ceux déjà
+    enregistrés). ``None`` retombe sur l'appel à proposition.
     """
 
     organisation_id: UUID
-    type: Literal["appel_a_proposition", "appel_a_manifestation_interet", "autre"] | None = None
+    type: str | None = Field(default=None, max_length=50)
     reference: str = Field(min_length=1, max_length=100)
     titre: str = Field(min_length=1, max_length=255)
     description: str | None = None
@@ -32,7 +33,7 @@ class AppelUpdate(BaseModel):
     """
 
     organisation_id: UUID | None = None
-    type: Literal["appel_a_proposition", "appel_a_manifestation_interet", "autre"] | None = None
+    type: str | None = Field(default=None, max_length=50)
     reference: str | None = Field(default=None, min_length=1, max_length=100)
     titre: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None

@@ -90,8 +90,10 @@ def test_contrat_skills_et_hitl() -> None:
         "analyze_document_reference",
         "importer_tableau_xlsx",
     } <= set(DEFINITION.tools)
-    # Corriger un document écrit une nouvelle version : même HITL que générer.
-    assert "corriger_document" in DEFINITION.approval_required
+    # 04/11 : la correction ciblée retouche un brouillon ``proposed`` (nouvelle
+    # version du même document) — plus d'approbation par appel, la décision
+    # humaine reste la validation du document (cf. matrice INC).
+    assert "corriger_document" not in DEFINITION.approval_required
 
 
 def test_preparer_lot_manuel_sur_appel_recu(session: Session) -> None:

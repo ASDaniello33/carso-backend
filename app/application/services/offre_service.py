@@ -15,7 +15,6 @@ générique.
 """
 
 from datetime import date, datetime
-from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -24,6 +23,7 @@ from app.application.dossier import dossier_autorise
 from app.application.dto import BudgetTotal, LigneBudgetInput, OffreUpdateInput
 from app.application.perimetre import Perimetre, perimetre_effectif
 from app.application.services import notifications_evenements as notifications
+from app.application.services.budget_service import BudgetService
 from app.application.trace import Decision, TraceContext
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.domain.enums import (
@@ -31,14 +31,12 @@ from app.domain.enums import (
     ActorType,
     DecisionApprobation,
     StatutAppel,
-    StatutBudget,
     StatutOffre,
     TypeAppel,
     TypeOffre,
     TypeProposition,
 )
 from app.domain.organization import Budget, LigneBudget, Lot, Offre
-from app.domain.rules import compute_budget_total, compute_cout_total
 from app.domain.state_machines import validate_transition
 from app.infrastructure.repositories import (
     BudgetRepository,
@@ -57,20 +55,21 @@ _SUFFIXES_TYPES = {
     TypeOffre.AUTRE.value: "AUTRE",
 }
 
-#: Types d'offre qu'un appel accepte (règle confirmée CARSO, 26/10).
-#: Un appel à proposition se répond par une offre technique **et** une offre
-#: financière ; une manifestation d'intérêt (ou tout autre type) par une offre
-#: « autre ». Le type n'est jamais déduit du document : il est contrôlé ici.
+#: Types d'offre acceptés pour **tout** type d'appel (règle confirmée CARSO,
+#: 04/11) : tout appel peut se répondre par une offre technique **et** une offre
+#: financière. ``AUTRE`` reste accepté — des offres « autre » existent (ex.
+#: manifestations d'intérêt) et restent lisibles/créables. Le type d'appel ne
+#: limite plus la réponse : la seule contrainte reste l'unicité ``(lot_id,
+#: type)``. Le type n'est jamais déduit du document.
 _TYPES_PAR_APPEL: dict[str, frozenset[str]] = {
-    TypeAppel.APPEL_A_PROPOSITION.value: frozenset(
-        {TypeOffre.OFFRE_TECHNIQUE.value, TypeOffre.OFFRE_FINANCIERE.value}
-    ),
+    type_appel.value: frozenset(t.value for t in TypeOffre)
+    for type_appel in TypeAppel
 }
 
 
 def types_offre_attendus(type_appel: str) -> frozenset[str]:
-    """Types d'offre autorisés pour ce type d'appel (défaut : ``autre``)."""
-    return _TYPES_PAR_APPEL.get(type_appel, frozenset({TypeOffre.AUTRE.value}))
+    """Types d'offre acceptés pour ce type d'appel (règle du 04/11 : tous)."""
+    return _TYPES_PAR_APPEL.get(type_appel, frozenset(t.value for t in TypeOffre))
 
 
 def _iso(valeur: date | None) -> str | None:
@@ -133,16 +132,9 @@ class OffreService:
             raise NotFoundError(f"Lot {lot_id} introuvable")
         appel = lot.appel
 
-        attendus = types_offre_attendus(appel.type)
-        if type not in attendus:
-            raise ValidationError(
-                "Ce type d'offre ne correspond pas à la nature de l'appel",
-                details={
-                    "type_appel": appel.type,
-                    "type_fourni": type,
-                    "types_attendus": sorted(attendus),
-                },
-            )
+        # Règle du 04/11 : le type d'appel ne limite plus les types d'offre —
+        # tout appel se répond en technique et/ou financière (et « autre »
+        # reste valide). Seule l'unicité (lot_id, type) contraint ci-dessous.
 
         # Un lot officiel (extraction approuvée ou saisie manuelle) ouvre les
         # offres. Seul un appel rejeté les bloque : le statut ``valide`` n'est
@@ -260,78 +252,30 @@ class OffreService:
         )
         return offre
 
+    # --- budgets : délégués à BudgetService (une seule règle de calcul) -----
+    # Les budgets ont leur propre service depuis que la chaîne de création a
+    # été fermée (création, lecture, reprise, export). Ces trois méthodes
+    # restent le point d'entrée historique (routes et tests existants).
     def ajouter_ligne_budget(
         self,
         budget_id: UUID,
         ligne: LigneBudgetInput,
     ) -> LigneBudget:
-        """Ajoute une ligne à un budget NON approuvé. ``cout_total`` recalculé
-        par la règle déterministe — jamais accepté de l'extérieur (règle 7)."""
-        budget = self._get_budget(budget_id)
-        if budget.statut == StatutBudget.APPROUVE.value:
-            msg = "Impossible de modifier un budget approuvé : créer une nouvelle version"
-            raise ConflictError(msg)
-        if budget.statut not in {StatutBudget.BROUILLON.value, StatutBudget.PROPOSE.value}:
-            msg = f"Statut budget incompatible: {budget.statut!r}"
-            raise ConflictError(msg)
-
-        entity = LigneBudget(
-            budget_id=budget_id,
-            categorie=ligne.categorie,
-            description=ligne.description,
-            unite=ligne.unite,
-            quantite=ligne.quantite,
-            cout_unitaire=ligne.cout_unitaire,
-            cout_total=compute_cout_total(ligne.quantite, ligne.cout_unitaire),
-        )
-        self.lignes.add(entity)
-        self._session.flush()  # id de la ligne avant la trace
-        self._trace.record_event(
-            actor_type=ActorType.HUMAIN.value,
-            action=ActionAudit.BUDGET_LIGNE_AJOUTEE.value,
-            entity_type="budget",
-            entity_id=budget.id,
-            after={"ligne_id": str(entity.id), "cout_total": str(entity.cout_total)},
-        )
-        return entity
+        """Ajoute une ligne à un budget NON approuvé (``cout_total`` recalculé)."""
+        return self._budgets().ajouter_ligne_budget(budget_id, ligne)
 
     def approuver_budget(self, budget_id: UUID, decision: Decision) -> Budget:
         """Décision humaine d'approbation d'un budget proposé."""
-        budget = self._get_budget(budget_id)
-        validate_transition("budget", budget.statut, StatutBudget.APPROUVE.value)
-        budget.statut = StatutBudget.APPROUVE
-        self._trace.record_decision(
-            entity_type="budget",
-            entity_id=budget.id,
-            proposal_type=TypeProposition.BUDGET.value,
-            decision=DecisionApprobation.APPROUVE.value,
-            proposed_by_agent=None,
-            decided_by=decision.decided_by,
-            reason=decision.reason,
-        )
-        return budget
+        return self._budgets().approuver_budget(budget_id, decision)
 
     def total_budget(self, budget_id: UUID) -> BudgetTotal:
         """Total recalculé d'un budget — budget d'une mission du périmètre."""
-        if self._perimetre.est_restreint:
-            budget = self._get_budget(budget_id)
-            dossier = dossier_autorise(self._session, self._perimetre)
-            if not (
-                (budget.offre_id and dossier.contient_offre(budget.offre_id))
-                or (budget.mission_id and budget.mission_id in self._perimetre.missions_autorisees)
-            ):
-                raise NotFoundError(f"Budget {budget_id} introuvable")
-        return self._calculer_total_budget(budget_id)
+        return self._budgets().total_budget(budget_id)
 
-    def _calculer_total_budget(self, budget_id: UUID) -> BudgetTotal:
-        """Total déterministe d'un budget, recalculé depuis les lignes."""
-        budget = self._get_budget(budget_id)
-        lignes = self.lignes.list_for_budget(budget_id)
-        total = compute_budget_total(
-            Decimal(str(ligne.cout_total)) for ligne in lignes
-        )
-        return BudgetTotal(
-            budget_id=budget_id, devise=budget.devise, total=total, nb_lignes=len(lignes)
+    def _budgets(self) -> BudgetService:
+        """Service budget du même périmètre et du même acteur."""
+        return BudgetService(
+            self._session, actor_id=self._trace.actor_id, perimetre=self._perimetre
         )
 
     def modifier(self, offre_id: UUID, entree: OffreUpdateInput) -> Offre:

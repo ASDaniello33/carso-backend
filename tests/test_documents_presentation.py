@@ -330,6 +330,58 @@ def test_pptx_bandeau_large_empile_sous_le_texte() -> None:
     assert _largeur_picture(rendu.octets) == pytest.approx(11.833, abs=0.05)
 
 
+def test_pptx_tableau_seul_colle_sous_le_titre() -> None:
+    """Un tableau sans texte ne laisse pas un tiers de diapositive vide au-dessus.
+
+    La position du tableau était un décalage fixe : une diapositive « titre +
+    tableau » ouvrait un grand blanc entre les deux (constaté à l'écran).
+    """
+    lignes = "".join(
+        f"<tr><td>Bootcamp {i}</td><td>Objectif</td><td class='num'>3 jours</td></tr>"
+        for i in range(1, 6)
+    )
+    deck = (
+        '<section class="slide"><h1>Le parcours : 5 bootcamps</h1>'
+        '<table class="data"><thead><tr><th>Bootcamp</th><th>Objectif</th>'
+        f"<th>Durée</th></tr></thead><tbody>{lignes}</tbody></table></section>"
+    )
+    rendu = rendre_professionnel(deck, "Deck", format="pptx")
+
+    presentation = _ouvrir(rendu.octets)
+    tableaux = [
+        forme
+        for slide in presentation.slides
+        for forme in slide.shapes
+        if getattr(forme, "has_table", False)
+    ]
+    assert len(tableaux) == 1
+    # Juste sous le filet du titre (CORPS_HAUT_IN), plus à mi-page.
+    assert tableaux[0].top / 914400 == pytest.approx(2.12, abs=0.05)
+
+
+def test_pptx_tableau_sous_un_texte_reste_colle_a_ce_texte() -> None:
+    """Avec du texte, le tableau suit sa hauteur réelle au lieu d'un blanc fixe."""
+    lignes = "".join(
+        f"<tr><td>Étape {i}</td><td class='num'>{i}</td></tr>" for i in range(1, 4)
+    )
+    deck = (
+        '<section class="slide"><h1>Planning</h1><p>Trois étapes.</p>'
+        '<table class="data"><thead><tr><th>Étape</th><th>Durée</th></tr></thead>'
+        f"<tbody>{lignes}</tbody></table></section>"
+    )
+    rendu = rendre_professionnel(deck, "Deck", format="pptx")
+
+    presentation = _ouvrir(rendu.octets)
+    tableau = next(
+        forme
+        for slide in presentation.slides
+        for forme in slide.shapes
+        if getattr(forme, "has_table", False)
+    )
+    assert 2.12 < tableau.top / 914400 < 3.4
+    assert (tableau.top + tableau.height) / 914400 <= 6.72
+
+
 def test_pptx_figure_haute_restee_en_colonne() -> None:
     """Figure carrée avec du texte : split 50/50 (une frise non, un schéma oui)."""
     carre = _SVG_BANDEAU.replace(

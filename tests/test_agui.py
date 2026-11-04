@@ -272,6 +272,78 @@ def test_silence_du_flux_n_est_pas_une_panne_reseau() -> None:
         assert "No streaming chunk" not in message
 
 
+class _MessageOutil:
+    """Message de graphe minimal (ToolMessage / AIMessage)."""
+
+    def __init__(self, type_: str, nom: str | None, contenu: str) -> None:
+        self.type = type_
+        self.name = nom
+        self.content = contenu
+
+
+def test_echec_d_outil_documentaire_est_nomme_dans_le_run_error() -> None:
+    """Un outil refusé puis un flux muet : l'erreur nomme l'outil, pas le réseau.
+
+    Constaté en recette : ``generer_document_professionnel`` refuse longtemps
+    une entrée (borne de corps, schéma), le modèle ré-essaie, le flux se tait —
+    et l'utilisateur lisait « modèle injoignable », sans rapport avec la cause.
+    """
+
+    class _Silence(type("StreamChunkTimeoutError", (Exception,), {})):  # type: ignore[misc]
+        pass
+
+    async def _flux(_entree):
+        yield _evenement("RUN_STARTED")
+        raise _Silence("No streaming chunk received for 300.0s (chunks_received=13331)")
+
+    messages = [
+        _MessageOutil("human", None, "Rédige l'offre technique"),
+        _MessageOutil("ai", "generer_document_professionnel", ""),
+        _MessageOutil(
+            "tool",
+            "generer_document_professionnel",
+            '{"ok": false, "error": {"code": "business_validation_error"}}',
+        ),
+    ]
+    pont = StreamingRunError(_InterneFlux(_flux))
+
+    async def _collecter() -> list:
+        return [e async for e in pont.run({"messages": messages})]
+
+    sortis = asyncio.run(_collecter())
+    message = _message_de(sortis[-1])
+    assert "generer_document_professionnel" in message
+    assert "injoignable" not in message
+    assert "silence du fournisseur" not in message
+
+
+def test_silence_apres_un_outil_reussi_garde_le_diagnostic_du_silence() -> None:
+    """Un outil réussi ne doit pas être accusé : c'est bien le flux qui s'est tu."""
+
+    async def _flux(_entree):
+        yield _evenement("RUN_STARTED")
+        raise type("StreamChunkTimeoutError", (Exception,), {}) (
+            "No streaming chunk received for 300.0s"
+        )
+
+    messages = [
+        _MessageOutil(
+            "tool",
+            "lire_document",
+            '{"ok": true, "nb_caracteres": 120}',
+        )
+    ]
+    pont = StreamingRunError(_InterneFlux(_flux))
+
+    async def _collecter() -> list:
+        return [e async for e in pont.run({"messages": messages})]
+
+    message = _message_de(asyncio.run(_collecter())[-1])
+    assert "silence du fournisseur" in message
+    assert "lire_document" in message
+    assert "injoignable" not in message
+
+
 def test_clone_du_pont_isole_par_requete() -> None:
     """``clone()`` traverse la chaîne de décorateurs (un état par requête SSE)."""
 

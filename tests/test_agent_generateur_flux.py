@@ -47,7 +47,6 @@ from app.application.services import (
 )
 from app.application.trace import Decision
 from app.core.config import get_settings
-from app.core.errors import ConflictError
 from app.domain.document import Document
 from app.domain.enums import (
     StatutAppel,
@@ -292,7 +291,22 @@ class TestReceptionAppel:
         assert sortie["ok"] is False
         assert sortie["error"]["code"] == "business_validation_error"
 
-    def test_type_inconnu_refuse(
+    def test_type_libre_accepte(
+        self, factory: sessionmaker[Session], organisation: Organisation, outils
+    ) -> None:
+        """Vocabulaire ouvert (04/11) : toute nature explicite est enregistrée."""
+        sortie = outils["enregistrer_appel"].invoke(
+            {
+                "organisation_id": str(organisation.id),
+                "reference": "AO-1",
+                "titre": "Appel",
+                "type": "Appel à candidature",
+            }
+        )
+        assert sortie["ok"] is True, sortie
+        assert sortie["type"] == "Appel à candidature"
+
+    def test_type_vide_refuse(
         self, factory: sessionmaker[Session], organisation: Organisation, outils
     ) -> None:
         sortie = outils["enregistrer_appel"].invoke(
@@ -300,11 +314,11 @@ class TestReceptionAppel:
                 "organisation_id": str(organisation.id),
                 "reference": "AO-1",
                 "titre": "Appel",
-                "type": "appel_invente",
+                "type": "   ",
             }
         )
         assert sortie["ok"] is False
-        assert "Type d'appel inconnu" in sortie["error"]["message"]
+        assert "vide" in sortie["error"]["message"]
         with factory() as session:
             assert session.scalars(select(Appel)).all() == []
 

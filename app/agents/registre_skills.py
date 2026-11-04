@@ -24,6 +24,11 @@ from app.agents.base import AgentDefinition
 from app.core.config import Settings, get_settings
 from app.core.errors import ValidationError as BusinessValidationError
 
+#: Racine virtuelle des skills dans le backend Deep Agents. Les skills sont
+#: lus par ``SkillsMiddleware`` via ``ls``/``download_files`` : la source doit
+#: être POSIX et relative au backend, jamais un chemin hôte.
+SOURCE_SKILLS = "/skills/"
+
 _NOM_FICHIER = "SKILL.md"
 _FRONTMATTER = "---"
 #: ``description:`` simple, ``>-``/``|-`` plié (le texte suit, indenté).
@@ -121,8 +126,9 @@ def bloc_skills(
             "## Skills disponibles",
             "",
             "Des guides spécialisés te sont déclarés : quand ta tâche relève du",
-            "domaine d'un skill, LIS son SKILL.md (les skills sont exposés par le",
-            "système de fichiers de Deep Agents) et applique ses recettes.",
+            "domaine d'un skill, LIS son fichier SKILL.md avec ton outil de",
+            f"lecture (chemin `{SOURCE_SKILLS}<nom>/SKILL.md`) et applique ses",
+            "recettes. Les skills sont en lecture seule.",
             "",
             *lignes,
         ]
@@ -177,6 +183,7 @@ def _description_pliee(bloc: str) -> str:
 
 
 __all__ = [
+    "SOURCE_SKILLS",
     "bloc_skills",
     "description_skill",
     "lister_skills",

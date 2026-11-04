@@ -962,6 +962,18 @@ class DocumentService:
         """Charge un document (lecture pure)."""
         return self._get(document_id)
 
+    def derniere_version(self, nom: str, type_document: str) -> Document | None:
+        """Version exploitable la plus récente d'un document nommé (lecture pure).
+
+        Sert à savoir si un dépôt **révise** un document existant (nouvelle
+        version) ou en crée un nouveau : la décision métier reste à l'appelant,
+        le service se contente de répondre « voici l'état courant ».
+        """
+        numero = self.documents.current_version(nom, type_document)
+        if numero == 0:
+            return None
+        return self.documents.find_version(nom, type_document, numero)
+
     def versions(self, document_id: UUID) -> list[Document]:
         """Historique complet des versions d'un document, plus récente d'abord."""
         courant = self._get(document_id)

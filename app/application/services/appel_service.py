@@ -45,6 +45,28 @@ _ENTITY = "appel"
 _META_KEY = "_meta"
 
 
+def normaliser_type_appel(entree: str | None) -> str | None:
+    """Normalise le type d'appel saisi — ``None`` si absent.
+
+    Le vocabulaire est **ouvert** (décision du 04/11) : les trois types
+    canoniques de ``TypeAppel`` et tout type saisi par l'équipe (la liste des
+    types déjà enregistrés se lit via :meth:`AppelService.types_connus`). Seuls
+    la non-vacuité et la limite de la colonne (``String(50)``) sont contrôlés —
+    jamais une liste fermée.
+    """
+    if entree is None:
+        return None
+    type_appel = entree.strip()
+    if not type_appel:
+        raise ValidationError("Le type d'appel fourni est vide")
+    if len(type_appel) > 50:
+        raise ValidationError(
+            "Le type d'appel ne peut pas dépasser 50 caractères",
+            details={"longueur": len(type_appel), "limite": 50},
+        )
+    return type_appel
+
+
 def _date_ou_rien(valeur: Any) -> date | None:
     """Accepte une ``date`` ou une chaîne ISO ; ignore le reste (pas d'invention)."""
     if isinstance(valeur, date) and not isinstance(valeur, datetime):
@@ -99,14 +121,12 @@ class AppelService:
                 details={"reference": reference},
             )
 
-        # Nature de l'appel : jamais devinée — un type inconnu est refusé, et
-        # l'absence retombe sur l'appel (cas historique dominant).
-        type_appel = entree.type or TypeAppel.APPEL_A_PROPOSITION.value
-        if type_appel not in {t.value for t in TypeAppel}:
-            raise ValidationError(
-                f"Type d'appel inconnu : {type_appel!r}",
-                details={"types_valides": sorted(t.value for t in TypeAppel)},
-            )
+        # Nature de l'appel : donnée explicite, jamais déduite. Le vocabulaire
+        # est ouvert (décision du 04/11) — l'absence retombe sur l'appel à
+        # proposition (cas historique dominant).
+        type_appel = (
+            normaliser_type_appel(entree.type) or TypeAppel.APPEL_A_PROPOSITION.value
+        )
 
         appel = Appel(
             organisation_id=entree.organisation_id,
@@ -354,6 +374,31 @@ class AppelService:
         """Tous les appels (référentiel interne, volume limité)."""
         return self.appels.list_all()
 
+    def types_connus(self) -> list[str]:
+        """Types d'appel disponibles à la saisie (vocabulaire ouvert).
+
+        Les trois types canoniques de ``TypeAppel`` d'abord, puis — dans l'ordre
+        alphabétique — chaque type distinct déjà porté par un appel en base.
+        La déduplication ignore la casse (« Appel à candidature » et
+        "appel à candidature" ne figurent qu'une fois) ; l'orthographe la plus
+        ancienne gagne. Un type « s'enregistre » en étant porté par un appel :
+        aucune table de référence dédiée aujourd'hui (décision du 04/11).
+        """
+        connus = [t.value for t in TypeAppel]
+        vus = {t.casefold() for t in connus}
+        en_base = (
+            self._session.execute(
+                select(Appel.type).distinct().order_by(Appel.type)
+            )
+            .scalars()
+            .all()
+        )
+        for valeur in en_base:
+            if valeur.casefold() not in vus:
+                vus.add(valeur.casefold())
+                connus.append(valeur)
+        return connus
+
     # --- internes ---------------------------------------------------------
 
     def _get(self, appel_id: UUID) -> Appel:
@@ -443,14 +488,11 @@ class AppelService:
             appel.titre = titre
             modifie = True
 
-        if entree.type is not None and entree.type != appel.type:
-            if entree.type not in {t.value for t in TypeAppel}:
-                raise ValidationError(
-                    f"Type d'appel inconnu : {entree.type!r}",
-                    details={"types_valides": sorted(t.value for t in TypeAppel)},
-                )
-            appel.type = entree.type
-            modifie = True
+        if entree.type is not None:
+            type_saisi = normaliser_type_appel(entree.type)
+            if type_saisi is not None and type_saisi != appel.type:
+                appel.type = type_saisi
+                modifie = True
 
         for nom in ("description", "date_reception", "date_limite"):
             valeur = getattr(entree, nom)

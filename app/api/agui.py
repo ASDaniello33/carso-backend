@@ -19,6 +19,8 @@ backend. Le manager ne connaît pas FastAPI—le couplage reste dans ce module.
 from __future__ import annotations
 
 import logging
+import re
+from contextvars import ContextVar
 from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI
@@ -86,6 +88,46 @@ except ImportError:  # pragma: no cover - dépend de l'installation de l'extra
     RunErrorEvent = None  # type: ignore[assignment,misc]
 
 
+#: Dernier outil appelé dans le run (nom + issue), capturé sur les messages du
+#: graphe : un échec « après un outil » se nomme, au lieu de finir en
+#: « injoignable ». Contexte lié à la tâche : deux comptes en parallèle ne se
+#: voient pas.
+_TOOL_DERNIER: ContextVar[tuple[str, str] | None] = ContextVar(
+    "agui_tool_dernier", default=None
+)
+
+#: Formes de message d'un tool en échec (LangChain / JSON d'erreur CARSO).
+_OUTIL_ECHEC = re.compile(
+    r"tool[\s_-]?call|tool[\s_-]?error|'ok':\s*false|\"ok\":\s*false|"
+    r"erreur d'outil|tool invalide",
+    re.IGNORECASE,
+)
+
+
+def _outil_du_message(message: Any) -> tuple[str | None, str]:
+    """(nom d'outil, statut) d'un message de graphe, quand il en porte un."""
+    nom = getattr(message, "name", None)
+    if not nom:
+        return None, str(getattr(message, "type", "") or "")
+    contenu = getattr(message, "content", "")
+    if not isinstance(contenu, str):
+        return str(nom), str(getattr(message, "type", "") or "")
+    return str(nom), "__echec__" if _OUTIL_ECHEC.search(contenu) else "ok"
+
+
+def _dernier_outil(entree: Any) -> tuple[str, str] | None:
+    """Dernier message d'outil du run — remis à zéro à chaque requête."""
+    messages = entree.get("messages") if isinstance(entree, dict) else None
+    if not isinstance(messages, list):
+        return None
+    dernier: tuple[str, str] | None = None
+    for message in messages:
+        nom, statut = _outil_du_message(message)
+        if nom:
+            dernier = (nom, statut)
+    return dernier
+
+
 def _message_erreur(exc: BaseException) -> str:
     """Message du modèle d'échec : lisible, sans secret (AGENTS.md §9).
 
@@ -100,10 +142,22 @@ def _message_erreur(exc: BaseException) -> str:
     if type(exc).__name__ == "StreamChunkTimeoutError" or (
         "no streaming chunk received" in brut.lower()
     ):
+        outil = _TOOL_DERNIER.get()
+        echec = bool(outil and outil[1] == "__echec__")
+        if outil and echec:
+            return (
+                f"Le modèle a appelé l'outil « {outil[0]} » avec une entrée "
+                "refusée et s'est arrêté avant de produire le document. "
+                "Corrigez la demande à partir du message d'erreur de l'outil, "
+                "puis relancez."
+            )
+        suffixe = (
+            f" (dernier outil exécuté : « {outil[0]} »)" if outil else ""
+        )
         return (
             "Le modèle d'IA a cessé d'émettre sa réponse en cours de route "
-            "(silence du fournisseur). Relancez la demande ; si le problème se "
-            "répète, demandez une réponse plus courte."
+            f"(silence du fournisseur){suffixe}. Relancez la demande ; si le "
+            "problème se répète, demandez une réponse plus courte."
         )
     if any(
         indice in brut.lower()
@@ -155,6 +209,8 @@ class StreamingRunError:
 
     async def run(self, input_data: Any):  # type: ignore[no-untyped-def]
         """Réexpédie le flux ; une exception devient un RUN_ERROR terminal."""
+        # Le contexte est lié à CETTE tâche : aucun croisement entre comptes.
+        _TOOL_DERNIER.set(_dernier_outil(input_data))
         try:
             async for event in self._interne.run(input_data):
                 yield event

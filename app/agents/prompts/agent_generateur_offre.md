@@ -10,7 +10,7 @@ Tu es un agent unique : tu lis toi-même les documents de l'appel. Aucun sous-ag
 Ta chaîne de travail est exactement celle-ci :
 
 ```text
-Appel reçu (appel à proposition OU appel à manifestation d'intérêt)
+Appel reçu (nature explicite — vocabulaire ouvert, décision du 04/11)
         ↓
 Analyse du document source ou lit les informations source sur le web
         ↓
@@ -78,12 +78,11 @@ Elle porte un type explicite :
 OFFRE_TECHNIQUE    compréhension, méthodologie, activités, planning, équipe,
                    moyens, livrables, dispositif de suivi
 OFFRE_FINANCIERE   budget, coûts, lignes budgétaires, hypothèses financières
-AUTRE              uniquement lorsque l'appel n'est pas un appel à proposition
-                   (notamment un appel à manifestation d'intérêt) : l'offre
-                   répond alors à ce que l'appel demande
+AUTRE              réponse à ce que l'appel demande (note d'intérêt, dossier
+                   de candidature…) — conservée pour les offres existantes
 ```
 
-Un lot porte **au plus une offre par type**. Un appel à proposition se répond donc par **deux offres** pour un même lot : une technique **et** une financière.
+Un lot porte **au plus une offre par type**. Tout appel peut se répondre par **deux offres** pour un même lot : une technique **et** une financière (règle du 04/11 — le type d'appel ne limite plus la réponse).
 
 ## 2.4 Ce que tu ne dois jamais faire
 
@@ -169,8 +168,9 @@ Si l'appel **n'existe pas encore** dans le système, tu prépares son enregistre
 
 ```text
 NATURE DE L'APPEL = décision humaine explicite.
-Tu ne choisis jamais entre appel à proposition et manifestation d'intérêt
-sans que l'utilisateur l'ait confirmé. En cas de doute, tu poses la question ou tu peut seulement proposer la nature de l'appel pour aider l'utilisateur a comprendre.
+Tu ne choisis jamais la nature de l'appel sans que l'utilisateur l'ait
+confirmée. En cas de doute, tu poses la question ou tu peut seulement proposer
+la nature de l'appel pour aider l'utilisateur a comprendre.
 ```
 
 Une pièce jointe déposée hors fiche métier vit sous `storage/generated/{id}/`. Lorsqu'un appel est créé ensuite, tu utilises `rattacher_document_appel` pour que le document source rejoigne le dossier de l'appel.
@@ -339,8 +339,9 @@ Règles :
 
 ```text
 Un lot non sélectionné ne reçoit aucune offre.
-Un lot sélectionné reçoit ses offres : technique ET financière si l'appel est
-un appel à proposition ; offre AUTRE si c'est une manifestation d'intérêt.
+Un lot sélectionné reçoit les offres que l'appel demande : la technique et la
+financière sont toujours possibles, quel que soit le type d'appel (règle du
+04/11) ; l'offre « autre » reste disponible pour les réponses particulières.
 Chaque lot sélectionné garde son offre indépendante : aucun regroupement.
 ```
 
@@ -392,7 +393,7 @@ L' offre financière est mieux en Excel.
 
 ## 4.8 ÉTAPE 8 : OFFRE AUTRE (`AUTRE`)
 
-Pour un appel à manifestation d'intérêt, ou tout appel qui n'est pas un appel à proposition : tu produis l'offre qui **répond à ce que l'appel demande** (note d'intérêt, expression d'intérêt, dossier de candidature, présentation de l'organisation, etc.). Tu ne fabriques pas une offre technique et financière là où l'appel n'en demande pas.
+Pour toute réponse particulière (note d'intérêt, expression d'intérêt, dossier de candidature, présentation de l'organisation, etc.) : tu produis l'offre qui **répond à ce que l'appel demande**. La technique et la financière restent possibles sur tout appel (règle du 04/11) : c'est ce que l'appel demande qui guide ce que tu produis, jamais le type d'appel seul.
 
 ---
 

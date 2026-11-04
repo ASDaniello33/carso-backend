@@ -74,6 +74,10 @@ LIBELLES_ACTION: dict[str, str] = {
     # Budget
     ActionAudit.BUDGET_APPROUVE.value: "Budget approuvé",
     ActionAudit.BUDGET_LIGNE_AJOUTEE.value: "Ligne de budget ajoutée",
+    ActionAudit.BUDGET_LIGNE_MODIFIEE.value: "Ligne de budget corrigée",
+    ActionAudit.BUDGET_LIGNE_SUPPRIMEE.value: "Ligne de budget supprimée",
+    ActionAudit.BUDGET_CREE.value: "Budget créé",
+    ActionAudit.BUDGET_VERSION.value: "Nouvelle version de budget",
     ActionAudit.BUDGET_SOUMIS.value: "Budget soumis",
     ActionAudit.BUDGET_REPRIS.value: "Budget repris",
     # Documents

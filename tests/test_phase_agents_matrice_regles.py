@@ -29,7 +29,6 @@ from __future__ import annotations
 import re
 from collections.abc import Iterator
 from datetime import date
-from uuid import UUID
 
 import pytest
 from sqlalchemy import create_engine, select
@@ -161,6 +160,12 @@ def test_outils_mutants_des_agents_actifs_sont_sous_hitl() -> None:
     Les corrections de documents proposés (``corriger_document``…) ne figurent
     pas ici : elles retouchent un brouillon **non officiel** — le document
     obtenu reste en ``proposed`` et traverse la validation humaine.
+
+    ``generer_document_professionnel`` ne figure pas non plus (03/11) : il
+    dépose un livrable en ``proposed`` et sa rédaction progressive (INC-105)
+    multiplie les appels par document long — une confirmation par appel
+    n'apporterait aucune décision supplémentaire, la validation humaine du
+    document restant le seul geste qui officialise quoi que ce soit.
     """
     attendus = {
         GENERATEUR_DEF.agent_id: (
@@ -219,35 +224,30 @@ def _appel_avec_lot_de_repli(session: Session, *, type_appel: str, reference: st
     return appel, lot
 
 
-def test_offre_d_une_ami_refuse_les_types_de_proposition(session: Session) -> None:
-    """AMI + offre technique : refusé — seule l'offre « autre » y répond."""
+def test_offre_d_une_ami_accepte_les_types_de_proposition(session: Session) -> None:
+    """Règle du 04/11 : une AMI se répond aussi en technique + financière."""
     appel, lot = _appel_avec_lot_de_repli(
         session, type_appel=TypeAppel.APPEL_A_MANIFESTATION_INTERET.value, reference="AMI-2026-01"
     )
     assert appel.type == TypeAppel.APPEL_A_MANIFESTATION_INTERET.value
 
-    with pytest.raises(ValidationError, match="nature de l'appel"):
-        _create_offer_draft(
+    for reference, type_offre in (
+        ("OFFRE-TECH-AMI", TypeOffre.OFFRE_TECHNIQUE.value),
+        ("OFFRE-FIN-AMI", TypeOffre.OFFRE_FINANCIERE.value),
+    ):
+        sortie = _create_offer_draft(
             session,
             {
                 "lot_id": str(lot.id),
-                "reference": "OFFRE-TECH-AMI",
-                "titre": "Offre technique",
-                "type": TypeOffre.OFFRE_TECHNIQUE.value,
+                "reference": reference,
+                "titre": "Offre",
+                "type": type_offre,
             },
         )
-    with pytest.raises(ValidationError, match="nature de l'appel"):
-        _create_offer_draft(
-            session,
-            {
-                "lot_id": str(lot.id),
-                "reference": "OFFRE-FIN-AMI",
-                "titre": "Offre financière",
-                "type": TypeOffre.OFFRE_FINANCIERE.value,
-            },
-        )
+        assert sortie["requires_approval"] is True
+        assert sortie["statut"] == "brouillon"
 
-    # La voie attendue d'une AMI : une offre « autre », en brouillon HITL.
+    # « Autre » reste valide (rétrocompatibilité des offres existantes).
     sortie = _create_offer_draft(
         session,
         {
@@ -261,21 +261,21 @@ def test_offre_d_une_ami_refuse_les_types_de_proposition(session: Session) -> No
     assert sortie["statut"] == "brouillon"
 
 
-def test_offre_d_un_appel_a_proposition_refuse_le_type_autre(session: Session) -> None:
-    """Un appel à proposition se répond en technique + financière, jamais autre."""
+def test_offre_d_un_appel_a_proposition_accepte_le_type_autre(session: Session) -> None:
+    """Règle du 04/11 : « autre » reste valide sur tout appel."""
     _, lot = _appel_avec_lot_de_repli(
         session, type_appel=TypeAppel.APPEL_A_PROPOSITION.value, reference="AP-2026-01"
     )
-    with pytest.raises(ValidationError, match="nature de l'appel"):
-        _create_offer_draft(
-            session,
-            {
-                "lot_id": str(lot.id),
-                "reference": "OFFRE-AUTRE-AP",
-                "titre": "Autre",
-                "type": TypeOffre.AUTRE.value,
-            },
-        )
+    sortie = _create_offer_draft(
+        session,
+        {
+            "lot_id": str(lot.id),
+            "reference": "OFFRE-AUTRE-AP",
+            "titre": "Autre",
+            "type": TypeOffre.AUTRE.value,
+        },
+    )
+    assert sortie["statut"] == "brouillon"
 
 
 def test_second_brouillon_du_meme_type_refuse(session: Session) -> None:

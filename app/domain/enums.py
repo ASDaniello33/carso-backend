@@ -433,6 +433,12 @@ class ActionAudit(StrEnum):
     DOCUMENT_DEPOT_ANNULE = "document.depot_annule"
     MODELE_DOCUMENT_ENREGISTRE = "modele_document.enregistre"
     BUDGET_LIGNE_AJOUTEE = "budget.ligne_ajoutee"
+    BUDGET_LIGNE_MODIFIEE = "budget.ligne_modifiee"
+    BUDGET_LIGNE_SUPPRIMEE = "budget.ligne_supprimee"
+    #: Création d'un budget (offre ou mission) : geste humain, sans Approbation.
+    BUDGET_CREE = "budget.cree"
+    #: Version suivante d'un budget approuvé (l'ancienne reste lisible).
+    BUDGET_VERSION = "budget.version"
     BUDGET_SOUMIS = "budget.soumis"
     BUDGET_REPRIS = "budget.repris"
     # Lot C1 — CRUD des entités jusqu'ici sans service (instruction/02).

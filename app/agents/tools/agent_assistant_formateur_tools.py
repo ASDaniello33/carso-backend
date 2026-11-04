@@ -68,6 +68,7 @@ NOMS_TOOLS: tuple[str, ...] = (
     "valider_document",
     "render_document",
     "corriger_document",
+    "modifier_section_document",
     "get_mission",
     "list_mission_sessions",
     "list_session_beneficiaires",

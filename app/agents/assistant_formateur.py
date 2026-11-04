@@ -45,9 +45,12 @@ DEFINITION = AgentDefinition(
     capabilities=(KIT_CAPABILITY, "web_search", "document_read", "document_propose"),
     tools=NOMS_TOOLS,
     collaboration=(),
+    # ``generer_document_professionnel`` n'est PAS sous approbation d'appel : il
+    # dépose un livrable en ``proposed`` (jamais officiel) et la rédaction
+    # progressive (INC-105) en fait plusieurs appels par document long — la
+    # décision humaine reste à la validation du document, pas à chaque appel.
     approval_required=(
         "generer_document",
-        "generer_document_professionnel",
         "generer_document_html",
         "fill_template",
         "import_beneficiaires",

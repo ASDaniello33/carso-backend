@@ -65,6 +65,68 @@ generer_document(document_spec)  structure IMPOSÉE : sections et provenances
 6. **Appeler l'outil**, puis **lire le résultat** (section 5) : corriger chaque
    avertissement et régénérer avant de présenter.
 
+## 2 bis. Document long : écris par SECTIONS (obligatoire au-delà de ~10 pages)
+
+Écrire tout le corps d'un document long dans les arguments d'un SEUL tool call
+produit une génération géante qui fait taire le fournisseur : le run meurt et
+l'outil n'est jamais exécuté. À l'inverse, multiplier les appels minuscules
+ressemble à une boucle pour l'utilisateur. La règle : **peu d'appels, chacun
+rempli au maximum utile**.
+
+1. `action="demarrer"` avec `titre`, `format`, `theme`, `orientation`,
+   `type_document` (+ `auteur`, ancre si réelle) — **sans** `contenu_html` — et
+   surtout **`plan`** : la liste des parties du document, un titre par appel
+   `section` à venir. Annonce ce plan à l'utilisateur avant de générer. L'outil
+   renvoie un `brouillon_id` et la première partie à écrire.
+2. `action="section"` avec `brouillon_id` et le HTML d'**une partie**
+   (`<h1>…</h1>` + son contenu), dans l'ordre du plan. Vise **le maximum de
+   contenu par appel** (jusqu'à 30 000 caractères par appel : plusieurs
+   sous-sections, plusieurs diapositives ou plusieurs pages dans une même
+   partie) pour garder un total de 3 à 5 appels sur un document ordinaire.
+   Chaque retour porte sa `progression` (« Partie 2/4 ») : le chat l'affiche
+   sous le nom de l'outil, l'utilisateur voit le document avancer.
+3. Une section à corriger ? `action="section"` avec `section_index` (numéro
+   1-based) : elle est **remplacée**, sans réécrire le reste.
+4. `action="finaliser"` avec `brouillon_id` (et `graphiques` s'il y a des
+   graphiques) : le moteur assemble, rend et dépose le document complet, et le
+   brouillon disparaît.
+
+Le retour de `finaliser` porte les mêmes `pages`/`avertissements` que
+`action="generer"` : lis les avertissements, corrige la section fautive par
+`section_index`, re-finalise. Ne redémarre un brouillon que si le plan change.
+
+Un livrable **redéposé** avec le même nom, le même type et le même
+rattachement ne lève pas de conflit : c'est une **nouvelle version** (v2, v3…),
+annoncée par `version` et `nouvelle_version_de` dans le retour. Ne renomme
+jamais un document pour contourner un conflit — corrige et redépose.
+
+## 2 ter. Corriger un document DÉJÀ DÉPOSÉ : par section, jamais en entier
+
+Une relecture remonte un montant, une phrase, une diapositive à changer. Ne
+régénère **pas** le document : `modifier_section_document` part de la source
+conservée au dépôt.
+
+1. `action="lister"` avec `document_id` → la liste des sections (index, titre,
+   taille). C'est ce numéro qui sert ensuite, jamais un numéro recompté à la main.
+2. `action="remplacer"` avec `section_index` + `contenu_html` (**une** partie :
+   `<h1>…</h1>` + son contenu ; deux titres = deux appels).
+   Pour insérer : `action="ajouter"` (après `section_index`, à la fin si omis) ;
+   pour retirer : `action="supprimer"`.
+3. Le document est re-rendu et déposé en **nouvelle version** (v2, v3…) : nom,
+   type et rattachement conservés, ancienne version intacte, statut `proposed`.
+   Le PDF jumeau suit. Puis `render_document` → `proposer_telechargement_document`.
+
+Un deck PPTX se corrige pareil : **une** `<section class="slide">` par
+appel. Un document importé (ou produit par `generer_document`) n'a pas de
+source : l'outil le dit et renvoie vers une nouvelle génération.
+
+## 2 quater. Deuxième dépôt du même livrable = nouvelle version
+
+Redéposer un document de même nom, même type et même rattachement (nouvelle
+itération, régénération complète) crée **v2, v3**… : ne renomme jamais le
+fichier en `_v2` pour contourner un conflit — la version est portée par le
+document, et c'est elle que l'interface affiche.
+
 ## 3. Composants disponibles
 
 ### Page de couverture (documents de 3 pages ou plus)

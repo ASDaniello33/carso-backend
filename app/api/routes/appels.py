@@ -1,7 +1,9 @@
 """Routes—appels (P1)—extraction proposée → décision humaine → lecture.
 
-Un appel est à proposition ou à manifestation d'intérêt : le type est une
-donnée, jamais le nom de l'entité.
+Le type d'appel est une donnée explicite, jamais le nom de l'entité. Son
+vocabulaire est **ouvert** (décision du 04/11) : ``GET /types`` liste les
+types disponibles (canoniques + déjà enregistrés), le formulaire accepte une
+saisie libre.
 
 Contrôleurs minces (instruction/09 §3)—validation d'entrée, appel du service
 dans la session transactionnelle de la requête, mapping de réponse. Aucune
@@ -68,6 +70,22 @@ def create_appel(
             date_limite=payload.date_limite,
         )
     )
+
+
+@router.get(
+    "/types",
+    response_model=list[str],
+    dependencies=[Depends(exiger_interne)],
+)
+def lister_types_appel(session: DbSession) -> list[str]:
+    """Types d'appel disponibles : canoniques + types déjà enregistrés.
+
+    Vocabulaire ouvert (décision du 04/11) : le formulaire propose ces types
+    et accepte une saisie libre, qui rejoint la liste dès qu'un appel la porte.
+    Déclaré AVANT ``/{appel_id}`` : sinon « types » serait mangé par le
+    paramètre de chemin et renverrait une 422 de parsing d'UUID.
+    """
+    return AppelService(session).types_connus()
 
 
 @router.get("/{appel_id}", response_model=AppelRead)

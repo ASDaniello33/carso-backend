@@ -14,6 +14,7 @@ aucun mock de la génération, du rendu ou de la validation.
 from __future__ import annotations
 
 import io
+import json
 from collections.abc import Iterator
 from datetime import date
 from pathlib import Path
@@ -28,7 +29,7 @@ from app.application.services import DocumentService
 from app.documents.storage import LocalDocumentStorage
 from app.domain.base import Base
 from app.domain.organization import Organisation
-from app.tools.documents import build_document_tools
+from app.tools.documents import BUDGET_STRUCTURE_CARACTERES, build_document_tools
 from app.tools.permissions import AgentIdentity, PermissionPolicy
 from tests.document_fixtures import build_docx_riche, build_reference_stylisee
 
@@ -460,6 +461,55 @@ def test_lecture_structuree_dune_reference_riche(
     assert sortie["format"] == "docx"
     assert sortie["hierarchie"]
     assert sortie["tableaux"]
+
+
+def test_structure_d_un_gros_document_reste_dans_le_budget(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """Un DOCX massif ne déverse pas 46 000 tokens dans le contexte du modèle.
+
+    Mesuré avant correction, sur un TDR réel de 2,3 Mo : **182 821 caractères**
+    pour un seul appel. Le tour suivant devenait si lourd que le fournisseur
+    cessait d'émettre (``StreamChunkTimeoutError``, 300 s de silence) — et
+    « Réessayer » rejouait la même requête, donc le même échec.
+
+    La structure doit rester une **carte** : budget tenu, comptages exacts,
+    coupe nommée dans ``limites``, et repère ``element`` intact sur chaque bloc
+    conservé pour que la lecture ciblée prenne le relais.
+    """
+    from docx import Document
+
+    gros = Document()
+    for index in range(220):
+        gros.add_heading(f"Chapitre {index} — lot {index % 7}", level=1)
+        gros.add_paragraph(_texte(60, index))
+    tampon = io.BytesIO()
+    gros.save(tampon)
+    tampon.seek(0)
+
+    document = service.enregistrer_document(
+        DocumentUploadInput(
+            type_document="template",
+            nom="gros_appel.docx",
+            stream=tampon,
+            created_by="test",
+            organisation_id=organisation.id,
+        )
+    )
+
+    sortie = _tools(service)["get_document_structure"].invoke(
+        {"document_id": str(document.id)}
+    )
+
+    assert len(json.dumps(sortie, ensure_ascii=False, default=str)) <= BUDGET_STRUCTURE_CARACTERES
+    # Les comptages restent exacts : la carte ne ment pas sur le document.
+    assert sortie["nb_elements"] == 440
+    assert sortie["nb_paragraphes"] == 440
+    assert sortie["unite_pagination"] == "elements"
+    # La coupe est nommée, jamais silencieuse.
+    assert sortie["limites"]
+    # Chaque bloc conservé garde son repère de lecture.
+    assert all("element" in bloc for bloc in sortie["hierarchie"])
 
 
 def _uuid(valeur: Any) -> Any:
