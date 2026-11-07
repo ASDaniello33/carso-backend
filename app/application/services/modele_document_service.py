@@ -26,7 +26,12 @@ from sqlalchemy.orm import Session
 
 from app.application.trace import TraceContext
 from app.core.errors import NotFoundError, ValidationError
-from app.domain.enums import ActionAudit, ActorType, TypeDocument
+from app.domain.enums import (
+    ActionAudit,
+    ActorType,
+    TypeDocument,
+    TypeModeleOrganisation,
+)
 from app.domain.execution import ModeleDocument
 from app.infrastructure.repositories import (
     DocumentRepository,
@@ -141,7 +146,17 @@ class ModeleDocumentService:
     # --- internes -----------------------------------------------------------
 
     def _valider_type(self, type_document: str) -> str:
-        valides = {type_.value for type_ in TypeDocument}
+        """Valide le type **métier** du modèle (union des deux vocabulaires).
+
+        ``TypeDocument`` couvre les modèles historiques (``offre``, ``cv``…) ;
+        ``TypeModeleOrganisation`` ajoute les actifs propres à une organisation
+        cliente (modèle d'offre par type, logo, instructions, charte). Une
+        valeur hors de ces deux vocabulaires est refusée—jamais normalisée en
+        silence vers « autre ».
+        """
+        valides = {type_.value for type_ in TypeDocument} | {
+            type_.value for type_ in TypeModeleOrganisation
+        }
         if type_document not in valides:
             msg = f"Type de document inconnu : {type_document!r}"
             raise ValidationError(msg, details={"types_valides": sorted(valides)})

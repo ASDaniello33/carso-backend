@@ -61,6 +61,10 @@ __all__ = [
     "GenererDocumentInput",
     "GenererDocumentHtmlInput",
     "GenererDocumentProfessionnelInput",
+    "GenererImageInput",
+    "GenererImageSvgInput",
+    "ComposerImageInput",
+    "VerifierImageSvgInput",
     "GraphiqueInput",
     "ImporterTableauInput",
     "SerieGraphiqueInput",
@@ -71,8 +75,16 @@ __all__ = [
     "PlageLueInput",
     "ChercherDocumentInput",
     "LireElementInput",
-    "ClonerDocumentInput",
-    "RemplirTemplateInput",
+    "ModeleRefInput",
+    "ListerModelesDocumentsInput",
+    "ObtenirStructureModeleInput",
+    "CopierModeleDocumentInput",
+    "ObtenirStructureDocumentInput",
+    "ModeleSegmentTexte",
+    "RemplacerElementModeleInput",
+    "RemplissageModeleInput",
+    "RemplirModeleInput",
+    "RevenirVersionDocumentInput",
     "ReferenceDocumentInput",
     "ValiderDocumentInput",
     "ModifierSectionDocumentInput",
@@ -84,6 +96,10 @@ __all__ = [
 TypeFormat = Literal["docx", "xlsx", "pdf"]
 
 #: Vocabulaire fermé des ancres métier réelles (doit rester aligné sur ``_ANCRES``).
+#: Ancres de la chaîne « copier le modèle puis l'éditer » : ce sont les seuls
+#: objets qui ont un dossier documentaire ET un périmètre d'accès pour la copie.
+ModeleAncre = Literal["offre", "mission", "session"]
+
 TypeAncre = Literal[
     "organisation",
     "appel",
@@ -165,6 +181,20 @@ _FORMAT_PPTX: tuple[str, str] = (
 )
 
 
+class ModeleRefInput(BaseModel):
+    """Référence d'un modèle d'organisation, pour en reprendre l'identité visuelle."""
+
+    organisation_id: UUID = Field(description="Organisation cliente propriétaire du modèle.")
+    type_document: str = Field(
+        min_length=1,
+        max_length=60,
+        description=(
+            "Type du MODÈLE dans le registre (ex. 'offre_technique', "
+            "'offre_financiere', 'rapport', 'fiche_technique')."
+        ),
+    )
+
+
 class GenererDocumentInput(BaseModel):
     """Entrée typée : format, nom, ancre optionnelle, contenu minimal générique.
 
@@ -177,6 +207,54 @@ class GenererDocumentInput(BaseModel):
     format: TypeFormat = Field(description="Format cible : 'docx' | 'xlsx' | 'pdf'.")
     nom_fichier: str = Field(
         description="Nom logique du document (extension ajoutée selon le format)."
+    )
+    html: str | None = Field(
+        default=None,
+        max_length=400_000,
+        description=(
+            "VOIE PRINCIPALE : corps du document en HTML sémantique. Le serveur "
+            "l'habille avec la feuille de style CARSO et le rend en DOCX ou PDF. "
+            "Structure attendue : <div class=\"document\"> puis des blocs : "
+            "<div class=\"h1\">…</div> (h1 à h6), <p class=\"p\">…</p>, "
+            "<ul class=\"liste\"><li>…</li></ul>, <table class=\"tableau\">, "
+            "<div class=\"encadre\">, <blockquote class=\"citation\">, "
+            "<div class=\"legende\">, <div class=\"saut-page\"></div>. En ligne : "
+            "<span class=\"bold\">, <span class=\"italic\">, "
+            "<span class=\"souligne\">, <span class=\"reference\">. Aucun « — » : "
+            "utiliser « - » ou une virgule. Images : <img src=\"https://…\"> (le "
+            "serveur la télécharge, la vérifie et l'embarque) — jamais un base64 "
+            "écrit à la main. Graphiques : <figure data-graphique=\"id\"></figure> "
+            "rempli par le paramètre `graphiques`."
+        ),
+    )
+    css: str | None = Field(
+        default=None,
+        max_length=40_000,
+        description=(
+            "CSS de l'agent, appliqué APRÈS la feuille CARSO : reprendre une "
+            "classe (.h2 { color: #7a1f1f }) ou en créer une. Les tailles en pt "
+            "sont alignées sur l'échelle du document (8, 9, 11, 13, 16, 20, 26) ; "
+            "préférer em pour rester relatif au corps choisi."
+        ),
+    )
+    auteur: str | None = Field(
+        default=None, max_length=160, description="Auteur inscrit dans les métadonnées."
+    )
+    graphiques: list[GraphiqueInput] | None = Field(
+        default=None,
+        description=(
+            "Graphiques dessinés par le serveur, ancrés dans le HTML par "
+            "<figure data-graphique=\"id\"></figure> (même contrat que "
+            "generer_document_professionnel). Ne jamais fabriquer une image de "
+            "graphique."
+        ),
+    )
+    illustrations: list[IllustrationInput] | None = Field(
+        default=None,
+        description=(
+            "Illustrations dessinées par le serveur, ancrées par "
+            "<figure data-illustration=\"id\"></figure>."
+        ),
     )
     type_document: str = Field(description="Vocabulaire TypeDocument (valide par le service).")
     ancre: TypeAncre | None = Field(
@@ -217,36 +295,10 @@ class GenererDocumentInput(BaseModel):
     document_spec: DocumentSpec | None = Field(
         default=None,
         description=(
-            "Document structuré — chemin attendu pour un vrai livrable. "
-            "Forme : {metadata: {titre (requis), sous_titre, reference, "
-            "organisation, destinataire, auteur, date_document (AAAA-MM-JJ), objet, "
-            "type_document}, blocs: [ ... ], sources: [{genre: document_source | "
-            "base_de_donnees | saisie_utilisateur | modele_reference | "
-            "information_derivee | hypothese, reference, precision}], "
-            "mise_en_page: {format: A4|Letter, orientation: portrait|paysage, "
-            "marges, couverture: {active, titre, sous_titre, logo_document_id, "
-            "champs: [{libelle, valeur}]}}}. "
-            "Chaque bloc porte un champ 'type' qui choisit sa forme : "
-            "titre {niveau: 1-4, texte} | paragraphe {texte, role: corps|chapeau|note} | "
-            "liste {items: [texte], numerotee, profondeur: 0-3} | "
-            "tableau {entete: [texte] OU entetes: [[cellule]], lignes: [[cellule]], "
-            "largeurs_mm: [float], alignements, total_ligne, repeter_entete} | "
-            "image {document_id ou chemin, largeur_mm, legende} | "
-            "encadre {genre: info|note|avertissement|succes, titre, texte} | "
-            "citation {texte, attribution} | paires {paires: [{libelle, valeur}], "
-            "colonnes: 1-3} | saut_de_page {}. "
-            "Une cellule de tableau est soit un texte ('Mois 1'), soit un objet "
-            "{texte, fusion_colonnes (entier ; 'fin' = jusqu'à la dernière colonne), "
-            "fusion_lignes, fond ('#RRGGBB'), gras, alignement: gauche|centre|droite, "
-            "couleur_texte}. RÈGLE DE TABLEAU : dès que les colonnes ont un sens, "
-            "fournir 'entete' (une ligne) ou 'entetes' (plusieurs lignes d'en-tête "
-            "fusionnées) ; sans en-tête déclaré la première ligne de 'lignes' est "
-            "une DONNÉE, jamais un titre de colonne. Une ligne de section pleine "
-            "largeur s'écrit [{texte': '...', 'fusion_colonnes': 'fin'}]. "
-            "Donnée absente : écrire '(à compléter)' dans le texte et marquer le "
-            "bloc {statut: inconnu|manquant|a_confirmer} — jamais d'invention ni "
-            "de blanc silencieux. Le modèle décrit QUOI écrire, le code choisit "
-            "COMMENT le mettre en forme. Fournir 'document_spec' OU 'titre'."
+            "HÉRITAGE : document structuré (metadata, mise_en_page, sources, "
+            "blocs) pour une structure imposée — offre technique/financière, "
+            "provenance des données. Le schéma des blocs est décrit plus bas. "
+            "Pour un document libre, utiliser `html`."
         ),
     )
     style: TypeStyle | None = Field(
@@ -257,6 +309,17 @@ class GenererDocumentInput(BaseModel):
             "est déjà renseigné."
         ),
     )
+    modele: ModeleRefInput | None = Field(
+        default=None,
+        description=(
+            "Modèle d'organisation dont reprendre l'identité visuelle (polices, "
+            "couleurs, marges, gabarit de page). Utile quand le modèle est un "
+            "PDF (aucune structure éditable) ou pour un livrable rendu par le "
+            "moteur CARSO. Pour modifier fidèlement le DOCX d'une organisation, "
+            "la chaîne dédiée est ``copier_modele_document`` puis "
+            "``remplacer_element_model`` / ``remplir_modele``."
+        ),
+    )
     valider: bool = Field(
         default=True,
         description=(
@@ -264,78 +327,6 @@ class GenererDocumentInput(BaseModel):
             "constats sont renvoyés dans ``validation`` et ``warnings`` — un "
             "livrable incomplet est signalé, jamais passé sous silence."
         ),
-    )
-
-
-class GenererDocumentHtmlInput(BaseModel):
-    """Entrée du tool ``generer_document_html`` : HTML + habillage cible.
-
-    Le HTML est un type **standard** que le modèle produit avec aisance, et
-    le CSS permet des styles très variés (couleurs, encadrés, images, tableaux
-    stylés) sans composer le ``DocumentSpec`` strict. C'est le chemin
-    **prioritaire** d'un document personnalisé ; la chaîne structurée reste
-    disponible pour les livrables à structure imposée (offres, fiches...).
-
-    Limites honnêtes, transmises au tool : pas de moteur bureautique sur le
-    serveur — le PDF est rendu par le moteur CARSO depuis une structure
-    extraite du HTML (contenu identique, mise en page réaliste, pas une copie
-    pixel du DOCX). Les fusions ``colspan``/``rowspan`` sont gérées : DOCX en
-    fusions réelles, PDF en grille aplatie (contenu identique).
-    """
-
-    format: Literal["docx", "pdf"] = Field(
-        description="Format cible : 'docx' (fidèle au HTML+CSS) ou 'pdf'."
-    )
-    html: str = Field(
-        min_length=1,
-        max_length=300_000,
-        description=(
-            "Page HTML complète (ou fragment) avec ses <style> et, si besoin, "
-            "des images data-URI ou http(s). Utiliser des styles inline ou une "
-            "balise <style> : le rendu respecte couleurs, polices, alignements, "
-            "bordures et fonds. Contenu des données : uniquement des informations "
-            "réelles issues de lectures (search_*, read_document) ou de "
-            "l'utilisateur — une donnée absente s'écrit '(à compléter)', jamais "
-            "une invention."
-        ),
-    )
-    nom_fichier: str = Field(
-        description="Nom logique du document (extension ajoutée selon le format)."
-    )
-    type_document: str = Field(
-        description=(
-            "Type de dépôt (vocabulaire FERMÉ, valeurs exactes) : 'offre', "
-            "'appel_proposition', 'cv', 'fiche_technique', 'fiche_presence', "
-            "'liste_beneficiaires', 'checklist', 'rapport', 'justificatif', "
-            "'budget', 'template', 'autre', 'non_classe'. "
-            "ATTENTION : les noms de profils ('offre_financiere', "
-            "'offre_technique') ne sont PAS des types — pour une offre "
-            "financière ou technique, utiliser 'offre'. "
-            "Les alias usuels sont convertis automatiquement (le retour porte "
-            "alors 'type_document_convertis')."
-        )
-    )
-    ancre: TypeAncre | None = Field(
-        default=None,
-        description=(
-            "Rattachement optionnel : 'organisation' | 'appel' | "
-            "'offre' | 'mission' | 'equipe' | 'session'. "
-            "Omettre si aucun objet métier n'est identifié — ne pas inventer."
-        ),
-    )
-    entity_id: UUID | None = Field(
-        default=None,
-        description=(
-            "UUID de l'objet métier d'ancrage, uniquement si l'ancre est réelle. "
-            "Ne jamais inventer d'identifiant."
-        ),
-    )
-    propose_par: str = Field(
-        description="Identifiant de l'agent proposant (ex. 'agent_generateur_offre')."
-    )
-    css: str | None = Field(
-        default=None,
-        description="CSS additionnel appliqué après le <style> du HTML (facultatif).",
     )
 
 
@@ -355,16 +346,20 @@ class SerieGraphiqueInput(BaseModel):
 
 
 class GraphiqueInput(BaseModel):
-    """Spec d'un graphique inséré dans un livrable professionnel (incrément 69).
+    """Spec d'un graphique de données (INC-123 : tous les outils de documents).
 
-    Le SVG est construit **par le moteur** — l'agent ne fournit que des données
+    Le SVG est construit **par le serveur** — l'agent ne fournit que des données
     et ne peut donc pas injecter de balise. Les valeurs doivent venir d'une
     lecture réelle (``search_*``, ``read_document``) ou de l'utilisateur : une
     donnée absente s'écrit « (à compléter) », jamais une invention.
 
-    L'insertion se fait par ancre : le corps HTML porte
-    ``<figure data-graphique="id"></figure>`` au même ``id``, et le moteur
-    remplace l'ancre par le graphique et sa légende.
+    Utilisable de deux façons :
+
+    - dans ``generer_document_professionnel`` / ``generer_document_html`` :
+      ``graphiques: {id: spec}`` + ancre ``<figure data-graphique="id">`` ;
+    - dans ``generer_document`` : bloc ``{"type": "graphique", "variante": …}``
+      du ``document_spec`` (mêmes champs, sans ``id`` : la position du bloc fait
+      l'emplacement).
     """
 
     id: str = Field(
@@ -421,8 +416,189 @@ class GraphiqueInput(BaseModel):
             "trimestre ». Sans légende, le titre est repris."
         ),
     )
+    total_reference: float | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "pie/donut uniquement : total de référence des pourcentages, quand le "
+            "total réel n'est pas la somme des parts affichées (frais imprévus, "
+            "autres postes). Par défaut : la somme des valeurs."
+        ),
+    )
+    afficher_valeurs: bool = Field(
+        default=False,
+        description=(
+            "pie/donut uniquement : écrire le montant de chaque part avant son "
+            "pourcentage dans la légende."
+        ),
+    )
     largeur: int = Field(default=640, ge=200, le=2400, description="Largeur en pixels.")
     hauteur: int = Field(default=400, ge=150, le=1600, description="Hauteur en pixels.")
+
+
+class ItemIllustrationInput(BaseModel):
+    """Un item d'illustration : un titre court, un texte court, une icône nommée."""
+
+    titre: str | None = Field(
+        default=None, max_length=40, description="Titre de l'item (court : la place est fixe)."
+    )
+    texte: str | None = Field(
+        default=None, max_length=80, description="Texte de l'item (court : deux lignes au plus)."
+    )
+    icone: str | None = Field(
+        default=None,
+        max_length=30,
+        description=(
+            "Icône au trait, par nom : 'personne', 'equipe', 'cible', 'calendrier', "
+            "'graphique', 'check', 'croix', 'livre', 'horloge', 'carte', 'prix', "
+            "'bouclier', 'ampoule', 'lien', 'dossier', 'mail', 'telephone', "
+            "'globe', 'fleche', 'etoile', 'alerte'. Une icône inconnue est refusée "
+            "avec la liste des noms valides."
+        ),
+    )
+
+
+class IllustrationInput(BaseModel):
+    """Spec d'une illustration de composition (INC-123).
+
+    L'agent choisit la **composition** et fournit des libellés courts ; la
+    géométrie, les espacements, les tailles et les couleurs du thème sont fixés
+    par le serveur. C'est la voie recommandée pour un visuel sans chiffres —
+    dessiner soi-même un schéma produit des chevauchements et du texte hors cadre.
+
+    Bornes d'items par composition (imposées par la mise en page) :
+    ``icones`` 2–4, ``etapes`` 2–5, ``cycle`` 2–5, ``pyramide`` 2–4, ``frise``
+    2–6, ``comparaison`` exactement 2.
+
+    Comme les graphiques : ``illustrations: {id: spec}`` + ancre
+    ``<figure data-illustration="id">`` (HTML), ou bloc
+    ``{"type": "illustration", "variante": …}`` du ``document_spec``.
+    """
+
+    id: str = Field(
+        min_length=1,
+        max_length=64,
+        description=(
+            "Identifiant d'ancrage unique. Le corps HTML doit porter "
+            "<figure data-illustration=\"ce-meme-id\"></figure> là où "
+            "l'illustration doit apparaître."
+        ),
+    )
+    type: Literal["icones", "etapes", "cycle", "pyramide", "frise", "comparaison"] = Field(
+        description=(
+            "'icones' : cartes d'atouts (2–4) ; 'etapes' : processus linéaire "
+            "(2–5) ; 'cycle' : boucle (2–5) ; 'pyramide' : niveaux (2–4) ; "
+            "'frise' : chronologie (2–6) ; 'comparaison' : deux colonnes (2)."
+        )
+    )
+    titre: str | None = Field(default=None, max_length=120)
+    items: list[ItemIllustrationInput] = Field(
+        min_length=1,
+        max_length=8,
+        description="Les items de la composition, dans l'ordre de lecture.",
+    )
+    legende: str | None = Field(
+        default=None, max_length=300, description="Légende de figure (figcaption)."
+    )
+
+
+class GenererDocumentHtmlInput(BaseModel):
+    """Entrée du tool ``generer_document_html`` : HTML + habillage cible.
+
+    Le HTML est un type **standard** que le modèle produit avec aisance, et
+    le CSS permet des styles très variés (couleurs, encadrés, images, tableaux
+    stylés) sans composer le ``DocumentSpec`` strict. C'est le chemin
+    **prioritaire** d'un document personnalisé ; la chaîne structurée reste
+    disponible pour les livrables à structure imposée (offres, fiches...).
+
+    Limites honnêtes, transmises au tool : pas de moteur bureautique sur le
+    serveur — le PDF est rendu par le moteur CARSO depuis une structure
+    extraite du HTML (contenu identique, mise en page réaliste, pas une copie
+    pixel du DOCX). Les fusions ``colspan``/``rowspan`` sont gérées : DOCX en
+    fusions réelles, PDF en grille aplatie (contenu identique).
+    """
+
+    format: Literal["docx", "pdf"] = Field(
+        description="Format cible : 'docx' (fidèle au HTML+CSS) ou 'pdf'."
+    )
+    html: str = Field(
+        min_length=1,
+        max_length=300_000,
+        description=(
+            "Page HTML complète (ou fragment) avec ses <style> et, si besoin, "
+            "des images data-URI ou http(s). Utiliser des styles inline ou une "
+            "balise <style> : le rendu respecte couleurs, polices, alignements, "
+            "bordures et fonds. Le <svg> est CONSERVÉ : il devient un PNG dans le "
+            "DOCX et un bloc image dans le PDF (il n'est plus supprimé). Pour des "
+            "figures dessinées par le serveur, préférer 'graphiques' / "
+            "'illustrations' avec une ancre <figure data-graphique|data-illustration>. "
+            "Contenu des données : uniquement des informations réelles issues de "
+            "lectures (search_*, read_document) ou de l'utilisateur — une donnée "
+            "absente s'écrit '(à compléter)', jamais une invention."
+        ),
+    )
+    nom_fichier: str = Field(
+        description="Nom logique du document (extension ajoutée selon le format)."
+    )
+    type_document: str = Field(
+        description=(
+            "Type de dépôt (vocabulaire FERMÉ, valeurs exactes) : 'offre', "
+            "'appel_proposition', 'cv', 'fiche_technique', 'fiche_presence', "
+            "'liste_beneficiaires', 'checklist', 'rapport', 'justificatif', "
+            "'budget', 'template', 'autre', 'non_classe'. "
+            "ATTENTION : les noms de profils ('offre_financiere', "
+            "'offre_technique') ne sont PAS des types — pour une offre "
+            "financière ou technique, utiliser 'offre'. "
+            "Les alias usuels sont convertis automatiquement (le retour porte "
+            "alors 'type_document_convertis')."
+        )
+    )
+    ancre: TypeAncre | None = Field(
+        default=None,
+        description=(
+            "Rattachement optionnel : 'organisation' | 'appel' | "
+            "'offre' | 'mission' | 'equipe' | 'session'. "
+            "Omettre si aucun objet métier n'est identifié — ne pas inventer."
+        ),
+    )
+    entity_id: UUID | None = Field(
+        default=None,
+        description=(
+            "UUID de l'objet métier d'ancrage, uniquement si l'ancre est réelle. "
+            "Ne jamais inventer d'identifiant."
+        ),
+    )
+    propose_par: str = Field(
+        description="Identifiant de l'agent proposant (ex. 'agent_generateur_offre')."
+    )
+    css: str | None = Field(
+        default=None,
+        description="CSS additionnel appliqué après le <style> du HTML (facultatif).",
+    )
+    graphiques: list[GraphiqueInput] | None = Field(
+        default=None,
+        max_length=12,
+        description=(
+            "Graphiques de DONNÉES (barres, courbes, camembert, anneau) : chaque "
+            "entrée porte un 'id' et remplace l'ancre <figure "
+            "data-graphique='ce-meme-id'> du HTML. Le graphique est dessiné par "
+            "le serveur et intégré au DOCX comme au PDF. À utiliser dès qu'un jeu "
+            "de chiffres réels gagne à être comparé visuellement. Pour une "
+            "illustration sans chiffres, utiliser 'illustrations' ; pour un "
+            "schéma libre, un <svg> dans 'html'."
+        ),
+    )
+    illustrations: list[IllustrationInput] | None = Field(
+        default=None,
+        max_length=12,
+        description=(
+            "Illustrations de composition (icônes, étapes, cycle, pyramide, "
+            "frise, comparaison) : chaque entrée porte un 'id' et remplace "
+            "l'ancre <figure data-illustration='ce-meme-id'> du HTML. Géométrie "
+            "et couleurs fixées par le serveur — l'agent ne fournit que des "
+            "libellés courts."
+        ),
+    )
 
 
 #: Borne d'une section en rédaction progressive : chaque appel de l'agent doit
@@ -515,11 +691,29 @@ class GenererDocumentProfessionnelInput(BaseModel):
             "de rogner le texte. "
             "CLASSEUR XLSX (format='xlsx') : chaque table.data (thead + lignes, "
             "classe 'num' sur les colonnes de chiffres) devient une feuille "
-            "stylée (en-tête figé, colonnes dimensionnées, lignes alternées) "
-            "nommée d'après le titre qui la précède ; les table.kpi alimentent "
-            "une feuille « Chiffres clés ». Un PDF jumeau est déposé pour "
-            "l'aperçu. SANS AUCUN TABLEAU, l'appel échoue : pour un document "
-            "texte, choisir pdf/docx."
+            "stylée (en-tête figé, colonnes dimensionnées, lignes alternées, "
+            "filtre, en-tête répété à l'impression) nommée d'après le titre qui "
+            "la précède ; les table.kpi alimentent une feuille « Chiffres clés ». "
+            "MISE EN FORME DE CELLULE (attributs explicites, rien n'est deviné) : "
+            "data-formule='=SUM(B3:B9)' (formule recalculée à l'ouverture du "
+            "classeur, JAMAIS calculée par le serveur : écris aussi la valeur en "
+            "texte pour que l'aperçu PDF soit juste) ; data-format='entier' | "
+            "'decimal' | 'pourcentage' (valeur en fraction, 0.125 = 12,5 %) | "
+            "'devise' | 'devise:MGA' | 'date' (AAAA-MM-JJ ou JJ/MM/AAAA) ; "
+            "data-align='gauche|centre|droite' ; data-gras='1' ; "
+            "data-fond='primaire|doux|ok|alerte' ; data-renvoi='1' ; "
+            "data-couleur='primaire|accent|ok|alerte|texte|gris|blanc' "
+            "(couleur de TEXTE : un rôle nommé, jamais un code couleur) ; "
+            "data-taille='12' (points, 8 à 20) ; "
+            "data-bordure='aucune|fine|moyenne|epaisse' avec "
+            "data-bordure-couleur='primaire|accent|ok|alerte|texte|gris|blanc|doux' "
+            "(bordure sur les quatre côtés de la cellule) ; "
+            "data-largeur='22' ; colspan/rowspan pour fusionner. Classes de "
+            "ligne : <tr class='total'> ou 'sous-total' (gras, fond doux, filet) "
+            "et 'alerte'. Une valeur non convertible reste du texte et remonte "
+            "en avertissement. Un PDF jumeau est déposé pour l'aperçu. SANS "
+            "AUCUN TABLEAU, l'appel échoue : pour un document texte, choisir "
+            "pdf/docx."
         ),
     )
     titre: str | None = Field(
@@ -1212,43 +1406,203 @@ class LireElementInput(BaseModel):
         return valeur
 
 
-class ClonerDocumentInput(BaseModel):
-    """Clone la structure d'une référence + contenu fourni → statut proposed."""
+class ListerModelesDocumentsInput(BaseModel):
+    """Découverte des modèles DOCX d'une organisation."""
 
-    reference_document_id: UUID
-    format: TypeFormat = Field(description="'docx' | 'xlsx' | 'pdf'.")
-    nom_fichier: str
-    type_document: str
-    ancre: TypeAncre | None = Field(
+    organisation_id: UUID = Field(description="Organisation propriétaire des modèles.")
+    type_document: str | None = Field(
         default=None,
-        description="Rattachement optionnel (voir generer_document).",
+        description="Filtrer sur un type de document (ex. 'modele_offre_technique').",
     )
-    entity_id: UUID | None = Field(
-        default=None,
-        description="UUID de l'objet métier, uniquement si l'ancre est réelle.",
-    )
-    propose_par: str
-    titre: str
-    paragraphes: list[str] | None = None
-    tableau: list[list[Any]] | None = None
 
 
-class RemplirTemplateInput(BaseModel):
-    """Remplit ``{{cle}}`` d'un template DOCX → statut proposed."""
+class ObtenirStructureModeleInput(BaseModel):
+    """Lecture des éléments réels d'un modèle, avant de le copier."""
 
-    template_document_id: UUID
-    valeurs: dict[str, str]
-    nom_fichier: str
-    type_document: str
-    ancre: TypeAncre | None = Field(
-        default=None,
-        description="Rattachement optionnel (voir generer_document).",
+    organisation_id: UUID = Field(description="Organisation propriétaire du modèle.")
+    modele_id: UUID | None = Field(
+        default=None, description="UUID du modèle ; sinon le modèle actif du type est pris."
     )
-    entity_id: UUID | None = Field(
+    type_document: str | None = Field(
         default=None,
-        description="UUID de l'objet métier, uniquement si l'ancre est réelle.",
+        description="Type de modèle, requis seulement si `modele_id` est absent.",
     )
-    propose_par: str
+
+
+class CopierModeleDocumentInput(BaseModel):
+    """Copie du modèle de l'organisation dans l'objet métier, prête à être éditée."""
+
+    ancre: ModeleAncre = Field(
+        description="Objet qui reçoit la copie : 'offre', 'mission' ou 'session'."
+    )
+    entity_id: UUID = Field(description="Identifiant de cet objet (réel, jamais inventé).")
+    modele_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Modèle à appliquer ; sinon le modèle actif du type de l'offre, ou "
+            "l'unique modèle de l'organisation (mission/session)."
+        ),
+    )
+    type_document: str | None = Field(
+        default=None,
+        description=(
+            "Type de DÉPÔT du document de travail ('offre' pour une offre ; "
+            "'fiche_technique', 'rapport', 'checklist'… pour une mission ou une "
+            "session). Défaut : 'offre' ou 'autre'."
+        ),
+    )
+    nom_fichier: str | None = Field(
+        default=None,
+        description="Nom du fichier de travail (sinon 'modele-<référence>.docx').",
+    )
+
+
+class ObtenirStructureDocumentInput(BaseModel):
+    """Éléments éditables de la copie de modèle en cours."""
+
+    ancre: ModeleAncre = Field(description="Objet qui porte la copie.")
+    entity_id: UUID = Field(description="Identifiant de cet objet.")
+
+
+class RevenirVersionDocumentInput(BaseModel):
+    """Restauration d'une version de l'historique d'une copie de modèle."""
+
+    ancre: ModeleAncre = Field(description="Objet dont la copie est corrigée.")
+    entity_id: UUID = Field(description="Identifiant de cet objet.")
+    version: int | None = Field(
+        default=None,
+        ge=1,
+        description=(
+            "Version à restaurer, lue dans `historique` de "
+            "`obtenir_structure_document` ou dans la réponse d'une édition. "
+            "Omettre pour annuler simplement la dernière édition."
+        ),
+    )
+
+
+class ModeleSegmentTexte(BaseModel):
+    """Morceau de texte avec sa mise en forme (facultative)."""
+
+    texte: str
+    gras: bool | None = None
+    italique: bool | None = None
+    souligne: bool | None = None
+    couleur: str | None = Field(default=None, description="Couleur hexadécimale, ex. '1F4E79'.")
+    taille_pt: float | None = None
+
+
+class RemplacerElementModeleInput(BaseModel):
+    """Remplacement du texte d'un ou plusieurs éléments, mise en forme gardée.
+
+    Deux formes, jamais mélangées :
+
+    - **un** élément : ``element_id`` + ``nouveau_element`` ;
+    - **plusieurs** en un seul appel (une seule version) : deux listes de même
+      longueur, ``elements`` et ``nouveaux_elements``.
+    """
+
+    ancre: ModeleAncre = Field(description="Objet dont la copie de modèle est éditée.")
+    entity_id: UUID = Field(description="Identifiant de cet objet.")
+    element_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=40,
+        description=(
+            "Identifiant lu dans `obtenir_structure_document` ou renvoyé par "
+            "`copier_modele_document` (ex. 'block_004'). Jamais inventé."
+        ),
+    )
+    nouveau_element: str | list[ModeleSegmentTexte] | None = Field(
+        default=None,
+        description=(
+            "Nouveau contenu de cet élément : texte simple, ou liste de "
+            "segments {texte, gras, italique, couleur, taille_pt} pour mixer "
+            "les styles. La police, la taille et le style du paragraphe du "
+            "modèle restent ceux du fichier."
+        ),
+    )
+    elements: list[str] | None = Field(
+        default=None,
+        max_length=40,
+        description=(
+            "Identifiants des éléments à remplacer, dans le même ordre que "
+            "`nouveaux_elements`. Un seul appel ⇒ une seule version du document."
+        ),
+    )
+    nouveaux_elements: list[str | list[ModeleSegmentTexte]] | None = Field(
+        default=None,
+        max_length=40,
+        description=(
+            "Nouveaux contenus, un par identifiant de `elements` (chaîne ou "
+            "segments de style). Les deux listes ont la même longueur."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _une_seule_forme(self) -> RemplacerElementModeleInput:
+        """Une forme à la fois, et des listes alignées."""
+        unique = self.element_id is not None or self.nouveau_element is not None
+        groupe = self.elements is not None or self.nouveaux_elements is not None
+        if unique and groupe:
+            raise ValueError(
+                "Choisir une seule forme : `element_id` + `nouveau_element`, "
+                "ou `elements` + `nouveaux_elements` (jamais les deux)."
+            )
+        if groupe:
+            if not self.elements or self.nouveaux_elements is None:
+                raise ValueError(
+                    "Fournir `elements` ET `nouveaux_elements`, deux listes de "
+                    "même longueur."
+                )
+            if len(self.elements) != len(self.nouveaux_elements):
+                raise ValueError(
+                    f"Listes désalignées : {len(self.elements)} élément(s) pour "
+                    f"{len(self.nouveaux_elements)} contenu(s)."
+                )
+        elif self.element_id is None or self.nouveau_element is None:
+            raise ValueError(
+                "Fournir `element_id` et `nouveau_element` (ou les deux listes)."
+            )
+        return self
+
+
+class RemplissageModeleInput(BaseModel):
+    """Un élément remplacé (ou complété) par du contenu HTML stylisé."""
+
+    element_id: str = Field(
+        min_length=1,
+        max_length=40,
+        description="Identifiant de l'élément à remplacer (jamais inventé).",
+    )
+    contenu_html: str = Field(
+        min_length=1,
+        description=(
+            "Contenu HTML stylisé : titres, paragraphes, listes <ul>/<ol>, "
+            "tableaux <table>, images en data URI base64 ("
+            "src='data:image/png;base64,…') et <svg> rasterisé automatiquement. "
+            "Aucun chemin de fichier local : l'image doit être embarquée."
+        ),
+    )
+    position: Literal["remplacer", "avant", "apres"] = Field(
+        default="remplacer",
+        description="Remplacer l'élément, ou insérer le contenu avant/après lui.",
+    )
+
+
+class RemplirModeleInput(BaseModel):
+    """Remplissages HTML d'une copie de modèle, en une seule version."""
+
+    ancre: ModeleAncre = Field(description="Objet dont la copie de modèle est éditée.")
+    entity_id: UUID = Field(description="Identifiant de cet objet.")
+    remplissages: list[RemplissageModeleInput] = Field(
+        min_length=1,
+        max_length=40,
+        description=(
+            "Un contenu par élément visé. Les identifiants viennent de "
+            "`obtenir_structure_document` ; ils ne changent pas d'un "
+            "remplissage à l'autre dans le même appel."
+        ),
+    )
 
 
 class ReferenceDocumentInput(BaseModel):
@@ -1399,6 +1753,183 @@ def _specs_graphiques(bruts: Any) -> dict[str, dict[str, Any]]:
     return specs
 
 
+def _specs_illustrations(bruts: Any) -> dict[str, dict[str, Any]]:
+    """Convertit les entrées du tool en specs de ``illustrations.render_illustration``.
+
+    Même rôle que ``_specs_graphiques`` : un seul point de traduction entre la
+    forme « outil » (items en liste) et la forme « moteur » où chaque spec est
+    rangée sous son identifiant d'ancre.
+
+    Raises:
+        ValidationError: identifiant d'illustration vide ou en double.
+    """
+    specs: dict[str, dict[str, Any]] = {}
+    for brut in bruts or []:
+        entree = brut if isinstance(brut, dict) else brut.model_dump()
+        identifiant = str(entree.get("id") or "").strip()
+        if not identifiant:
+            raise ValidationError("Chaque illustration doit porter un 'id' non vide.")
+        if identifiant in specs:
+            raise ValidationError(
+                f"Identifiant d'illustration en double : {identifiant!r}",
+                details={"ids": sorted(specs)},
+            )
+        specs[identifiant] = {
+            "type": entree.get("type"),
+            "titre": entree.get("titre") or "",
+            "legende": entree.get("legende") or "",
+            "items": [
+                item if isinstance(item, dict) else item.model_dump()
+                for item in entree.get("items") or []
+            ],
+        }
+    return specs
+
+
+def _designation_image(payload: dict[str, Any]) -> str:
+    """Libellé d'une image dans les avertissements (``Image`` par défaut)."""
+    libelle = str(payload.get("designation") or "").strip()
+    return libelle or "Image"
+
+
+class GenererImageInput(BaseModel):
+    """Une **image réelle** fournie en base64 par le modèle (INC-135).
+
+    Réservé au modèle qui sait réellement émettre des octets d'image. Un modèle
+    qui n'écrit que du texte passe par ``generer_image_svg`` plutôt que
+    d'inventer un base64.
+    """
+
+    nom_fichier: str = Field(
+        min_length=1,
+        max_length=200,
+        description="Nom du fichier image, sans extension (elle vient du format réel).",
+    )
+    base64: str = Field(
+        min_length=1,
+        description=(
+            "Contenu de l'image encodé en base64 (PNG, JPEG, GIF ou WebP), avec "
+            "ou sans préfixe data:image/...;base64,"
+        ),
+    )
+    type_document: str = Field(
+        default="autre",
+        max_length=40,
+        description=(
+            "Type documentaire du dépôt (``autre`` par défaut ; un type métier "
+            "réel s'il s'agit d'un logo d'offre, d'un justificatif...)."
+        ),
+    )
+    ancre: TypeAncre | None = Field(
+        default=None,
+        description="Ancre métier réelle qui range l'image sous l'objet concerné.",
+    )
+    entity_id: UUID | None = Field(
+        default=None, description="Identifiant de l'objet de l'ancre (UUID réel)."
+    )
+    designation: str | None = Field(
+        default=None,
+        max_length=120,
+        description="Libellé repris dans les avertissements (« Figure 2 »).",
+    )
+
+
+class GenererImageSvgInput(BaseModel):
+    """Une image **dessinée en SVG** par un modèle qui n'émet pas de binaire.
+
+    Le serveur nettoie le SVG (mêmes règles que tout SVG d'agent) puis le
+    rasterise en PNG : l'utilisateur reçoit une image, jamais du balisage.
+    """
+
+    nom_fichier: str = Field(
+        min_length=1,
+        max_length=200,
+        description="Nom du fichier image, sans extension (le PNG est ajouté).",
+    )
+    svg: str = Field(
+        min_length=1,
+        max_length=200_000,
+        description=(
+            "Balisage SVG complet d'un seul dessin (balise <svg> avec viewBox) : "
+            "formes, textes, dégradés. Aucune référence distante ni script."
+        ),
+    )
+    type_document: str = Field(default="autre", max_length=40)
+    ancre: TypeAncre | None = Field(
+        default=None, description="Ancre métier réelle (au plus une)."
+    )
+    entity_id: UUID | None = Field(default=None)
+    designation: str | None = Field(default=None, max_length=120)
+
+
+class ComposerImageInput(BaseModel):
+    """Une image **composée par le serveur** à partir d'un contenu (INC-136).
+
+    L'agent fournit le contenu (surtitre, titre, sous-titre, points, pied) et le
+    serveur applique sa mise en page : marges, hiérarchie typographique, palette
+    contrastée. C'est la voie recommandée — la qualité ne dépend plus de la
+    capacité du modèle à écrire un beau SVG.
+    """
+
+    nom_fichier: str = Field(
+        min_length=1,
+        max_length=200,
+        description="Nom du fichier image, sans extension (le PNG est ajouté).",
+    )
+    titre: str = Field(
+        min_length=1,
+        max_length=160,
+        description="Sujet de l'image, en quelques mots (6 à 10 maximum).",
+    )
+    surtitre: str | None = Field(
+        default=None,
+        max_length=60,
+        description="Étiquette courte en capitales au-dessus du titre (type, thème).",
+    )
+    sous_titre: str | None = Field(
+        default=None,
+        max_length=240,
+        description="Précision d'une ou deux lignes sous le titre.",
+    )
+    points: list[str] | None = Field(
+        default=None,
+        max_length=6,
+        description="Puces courtes (une idée par puce, 6 au plus).",
+    )
+    pied: str | None = Field(
+        default=None,
+        max_length=120,
+        description="Mention de bas de page : source, date, contact.",
+    )
+    gabarit: Literal["carte", "banniere", "bandeau", "affiche"] = Field(
+        default="carte", description="Format de l'image (carré, 16:9, bandeau, A4)."
+    )
+    palette: Literal["carso", "clair", "institutionnel", "sable"] = Field(
+        default="carso", description="Palette contrastée imposée par le serveur."
+    )
+    type_document: str = Field(default="autre", max_length=40)
+    ancre: TypeAncre | None = Field(
+        default=None, description="Ancre métier réelle (au plus une)."
+    )
+    entity_id: UUID | None = Field(default=None)
+    designation: str | None = Field(default=None, max_length=120)
+
+
+class VerifierImageSvgInput(BaseModel):
+    """Le **contrôle de design** d'un SVG, avant tout dépôt (INC-136).
+
+    Rasterise le SVG en mémoire et rend les défauts mesurables : texte hors
+    cadre, police trop petite, contraste insuffisant, image uniforme. Rien n'est
+    déposé : l'agent corrige puis appelle ``generer_image_svg``.
+    """
+
+    svg: str = Field(
+        min_length=1,
+        max_length=200_000,
+        description="SVG complet à contrôler (tel qu'il sera déposé).",
+    )
+
+
 def _type_depot(payload: dict[str, Any]) -> str:
     """Type de dépôt normalisé : alias converti, inconnu → erreur pédagogique.
 
@@ -1483,14 +2014,23 @@ def _format_depot(demande: Any) -> str:
     return fmt
 
 
-def _spec_depuis(payload: dict[str, Any]) -> Any:
+def _spec_depuis(payload: dict[str, Any]) -> tuple[Any, list[str]]:
     """Construit un ``DocumentSpec`` depuis l'entrée du modèle.
 
     Les erreurs de schéma sont reformulées en liste champ/problème : l'agent
     corrige précisément au lieu de deviner ce qui n'a pas plu.
+
+    Les images inline trop grandes sont réduites **ici**, avant que le spec
+    n'existe : c'est le seul point où l'agent fournit ses données, donc le seul
+    où la transformation peut être constatée et **signalée** (INC-134).
+
+    Returns:
+        Le spec validé et les phrases décrivant les images réduites (vide si
+        aucune ne dépassait les bornes utiles).
     """
     from pydantic import ValidationError as PydanticValidationError
 
+    from app.documents.images_inline import reduire_blocs
     from app.documents.styles import style_par_nom
 
     donnees = payload.get("document_spec")
@@ -1499,10 +2039,13 @@ def _spec_depuis(payload: dict[str, Any]) -> Any:
             "document_spec doit être un objet : {'metadata': {...}, 'blocs': [...]}"
         )
     donnees = dict(donnees)
+    reductions: list[str] = []
+    if "blocs" in donnees:
+        donnees["blocs"], reductions = reduire_blocs(donnees["blocs"])
     if payload.get("style") and not donnees.get("style"):
         donnees["style"] = style_par_nom(str(payload["style"])).model_dump()
     try:
-        return DocumentSpec.model_validate(donnees)
+        return DocumentSpec.model_validate(donnees), reductions
     except PydanticValidationError as erreur:
         problemes = [
             {"champ": ".".join(str(partie) for partie in detail["loc"]), "probleme": detail["msg"]}
@@ -1539,13 +2082,27 @@ def _contrat_validation(rapport: Any) -> dict[str, Any]:
 
 
 def _message_livrable(sortie: dict[str, Any], conforme: bool) -> str:
-    """Message de retour d'une génération structurée (ce qui reste à faire)."""
-    base = (
-        f"Document déposé en statut '{sortie.get('statut')}' "
-        f"(validation humaine requise). Étape suivante : appeler "
+    """Message de retour d'une génération structurée (ce qui reste à faire).
+
+    Un livrable déposé **sans ancre** reste sous ``generated/{id}/`` : le dire
+    explicitement, faute de quoi l'agent croit le document rangé dans un
+    dossier métier et n'essaie jamais de le rattacher.
+    """
+    suite = (
         "render_document puis afficher_apercu_document pour montrer le rendu, "
         "et proposer_telechargement_document pour le fichier."
     )
+    if sortie.get("non_classe"):
+        base = (
+            f"Document déposé en statut '{sortie.get('statut')}' sans "
+            f"rattachement métier (generated/{sortie.get('document_id')}). "
+            f"Validation humaine requise. Étape suivante : appeler {suite}"
+        )
+    else:
+        base = (
+            f"Document déposé en statut '{sortie.get('statut')}' "
+            f"(validation humaine requise). Étape suivante : appeler {suite}"
+        )
     if conforme:
         return base
     return (
@@ -1745,6 +2302,57 @@ def _plan_brouillon(etat: dict[str, Any]) -> list[str]:
     return [str(item) for item in (etat.get("meta") or {}).get("plan") or []]
 
 
+def _structure_feuilles_xlsx(chemin: Path) -> list[dict[str, Any]]:
+    """Feuilles d'un classeur : nom, dimensions, en-tête (best-effort).
+
+    Un classeur illisible ne fait pas échouer la lecture : l'aperçu borné reste
+    disponible et le message renvoie vers ``get_document_structure``. Les
+    valeurs de l'en-tête sont bornées comme le reste du retour.
+    """
+    from app.documents.inspection import inspecter_xlsx
+
+    try:
+        structure = inspecter_xlsx(chemin, niveau="resume")
+    except ValidationError:
+        return []
+    return [
+        {
+            "nom": feuille.get("nom"),
+            "lignes": feuille.get("nb_lignes"),
+            "colonnes": feuille.get("nb_colonnes"),
+            "plage": feuille.get("dimensions"),
+            "entete": (feuille.get("entete") or [])[:20],
+        }
+        for feuille in structure.get("feuilles") or []
+    ]
+
+
+def _sans_base64(valeur: Any) -> Any:
+    """Copie d'un dump **sans** les charges base64 (retour d'outil borné).
+
+    Le spec renvoyé à l'agent sert de point de départ aux corrections ciblées ;
+    une image inline de plusieurs mégaoctets n'a rien à y faire, le livrable
+    généré la contient déjà. L'avertissement du tool dit quoi renvoyer.
+    """
+    if isinstance(valeur, dict):
+        return {cle: _sans_base64(v) for cle, v in valeur.items() if cle != "base64"}
+    if isinstance(valeur, list):
+        return [_sans_base64(v) for v in valeur]
+    return valeur
+
+
+def _nombre_images_inline(valeur: Any) -> int:
+    """Nombre de charges base64 présentes dans un dump de spec (récursif)."""
+    if isinstance(valeur, dict):
+        return sum(
+            (1 if cle == "base64" and v else 0) + _nombre_images_inline(v)
+            for cle, v in valeur.items()
+        )
+    if isinstance(valeur, list):
+        return sum(_nombre_images_inline(v) for v in valeur)
+    return 0
+
+
 def build_document_tools(
     *,
     identite: AgentIdentity,
@@ -1855,15 +2463,256 @@ def build_document_tools(
             )
         return sortie
 
+    def _nom_image(nom: str, extension: str) -> str:
+        """Nom du fichier image : l'extension **réelle** remplace celle annoncée.
+
+        Un ``logo.svg`` fourni à ``generer_image_svg`` devient ``logo.png`` — le
+        dépôt n'écrit jamais un PNG sous un nom qui promet du vectoriel.
+        """
+        tige = Path(str(nom).strip())
+        if tige.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}:
+            tige = tige.with_suffix("")
+        return f"{tige}{extension}"
+
+    def _sortie_image(
+        sortie: dict[str, Any], image: Any, *, etiquette: str = "Image"
+    ) -> dict[str, Any]:
+        """Retour commun des tools d'image : fichier réel, taille, avertissements.
+
+        Le message dit **où cliquer ensuite** : une image déposée mais jamais
+        affichée serait un fichier que l'utilisateur ne voit pas.
+        """
+        sortie.update(
+            {
+                "format": image.extension,
+                "largeur_px": image.largeur,
+                "hauteur_px": image.hauteur,
+                "octets": image.octets_finis,
+                "avertissements": list(image.avertissements),
+            }
+        )
+        texte = (
+            f"{etiquette} déposée en statut '{sortie.get('statut')}' (validation "
+            f"humaine requise) : {image.largeur}×{image.hauteur} px, format "
+            f"{image.extension}, {image.octets_finis} octets."
+        )
+        if sortie.get("non_classe"):
+            texte += " Aucune ancre : rangée sous generated/{id}."
+        texte += (
+            " Pour que l'utilisateur la voie et la télécharge, appeler "
+            "afficher_image avec ce document_id."
+        )
+        sortie["message"] = texte
+        return sortie
+
+    def _generer_image(payload: dict[str, Any]) -> dict[str, Any]:
+        """Dépose une image **réelle** fournie en base64 (INC-135)."""
+        policy.require(identite.agent_id, "document_propose")
+        from app.documents.image_generee import depuis_base64
+
+        etiquette = _designation_image(payload)
+        image = depuis_base64(payload["base64"], designation=etiquette)
+        extension = f".{image.extension}"
+        depot = _deposer(
+            image.octets,
+            {
+                **payload,
+                "nom_fichier": _nom_image(payload["nom_fichier"], extension),
+            },
+            extension,
+        )
+        return _sortie_image(depot, image, etiquette=etiquette)
+
+    def _diagnostics_svg(image: Any) -> list[dict[str, str]]:
+        """Contrôle de design du SVG rendu (INC-136).
+
+        L'analyse porte sur le SVG **assaini** — celui qui a réellement été
+        rasterisé — et dans ses coordonnées d'origine (avant réduction), pour
+        que « hors cadre » veuille dire quelque chose.
+        """
+        from app.documents.controle_image import diagnostiquer
+        from app.documents.professionnel.rasterisation import taille_svg
+
+        if not getattr(image, "source_svg", None):
+            return []
+        # Les coordonnées des `<text>` sont celles du SVG, pas celles du PNG
+        # (rasterisé à l'échelle 2 puis réduit) : on mesure dans SON espace.
+        largeur, hauteur = taille_svg(image.source_svg)
+        constats = diagnostiquer(
+            image.source_svg,
+            largeur=int(largeur),
+            hauteur=int(hauteur),
+            png=image.octets,
+        )
+        return [constat.en_dict() for constat in constats]
+
+    def _bloquants(diagnostics: list[dict[str, str]]) -> list[dict[str, str]]:
+        return [diag for diag in diagnostics if diag.get("niveau") == "bloquant"]
+
+    def _verifier_image_svg(payload: dict[str, Any]) -> dict[str, Any]:
+        """Contrôle un SVG **sans le déposer** : la boucle de correction (INC-136)."""
+        policy.require(identite.agent_id, "document_propose")
+        from app.documents.image_generee import depuis_svg
+
+        image = depuis_svg(payload["svg"], designation="Image")
+        diagnostics = _diagnostics_svg(image)
+        bloquants = _bloquants(diagnostics)
+        sortie: dict[str, Any] = {
+            "largeur_px": image.largeur,
+            "hauteur_px": image.hauteur,
+            "octets": image.octets_finis,
+            "diagnostics": diagnostics,
+            "pret_a_deposer": not bloquants,
+        }
+        if bloquants:
+            sortie["message"] = (
+                f"{len(bloquants)} défaut(s) bloquant(s) : corriger le SVG puis "
+                "recontrôler. Rien n'a été déposé."
+            )
+        elif diagnostics:
+            sortie["message"] = (
+                "Aucun défaut bloquant. Les avertissements restants sont à "
+                "corriger si possible. Rien n'a été déposé : appeler "
+                "generer_image_svg quand le rendu convient."
+            )
+        else:
+            sortie["message"] = (
+                "Aucun défaut mesurable : le SVG peut être déposé avec "
+                "generer_image_svg, puis affiché."
+            )
+        return sortie
+
+    def _generer_image_svg(payload: dict[str, Any]) -> dict[str, Any]:
+        """Rasterise un SVG d'agent en PNG, le contrôle et le dépose (INC-135/136)."""
+        policy.require(identite.agent_id, "document_propose")
+        from app.documents.image_generee import depuis_svg
+
+        etiquette = _designation_image(payload)
+        image = depuis_svg(payload["svg"], designation=etiquette)
+        diagnostics = _diagnostics_svg(image)
+        extension = f".{image.extension}"
+        depot = _deposer(
+            image.octets,
+            {
+                **payload,
+                "nom_fichier": _nom_image(payload["nom_fichier"], extension),
+            },
+            extension,
+        )
+        sortie = _sortie_image(depot, image, etiquette=etiquette)
+        sortie["diagnostics"] = diagnostics
+        sortie["pret_a_afficher"] = not _bloquants(diagnostics)
+        if not sortie["pret_a_afficher"]:
+            sortie["message"] = (
+                f"{len(_bloquants(diagnostics))} défaut(s) de design bloquant(s) : "
+                "corriger le SVG, le recontrôler avec verifier_image_svg, puis "
+                "régénérer une version — et seulement ensuite l'afficher. "
+                + str(sortie.get("message", ""))
+            )
+        return sortie
+
+    def _composer_image(payload: dict[str, Any]) -> dict[str, Any]:
+        """Compose, contrôle et dépose une image depuis un contenu (INC-136)."""
+        policy.require(identite.agent_id, "document_propose")
+        from app.documents.composition_image import CompositionRefusee, composer_svg
+        from app.documents.image_generee import depuis_svg
+
+        etiquette = _designation_image(payload)
+        try:
+            svg = composer_svg(
+                titre=payload["titre"],
+                sous_titre=payload.get("sous_titre"),
+                surtitre=payload.get("surtitre"),
+                points=payload.get("points"),
+                pied=payload.get("pied"),
+                gabarit_nom=payload.get("gabarit"),
+                palette_nom=payload.get("palette"),
+            )
+        except CompositionRefusee as erreur:
+            # Erreur de contenu, pas panne : le modèle corrige son appel au tour
+            # suivant (même contrat que les autres refus de génération).
+            raise ValidationError(str(erreur)) from erreur
+        # Échelle 1 : la composition est déjà en pixels finaux (le × 2 de la
+        # rasterisation la ferait réduire ensuite, pour rien).
+        image = depuis_svg(svg, designation=etiquette, echelle=1.0)
+        diagnostics = _diagnostics_svg(image)
+        extension = f".{image.extension}"
+        depot = _deposer(
+            image.octets,
+            {
+                **payload,
+                "nom_fichier": _nom_image(payload["nom_fichier"], extension),
+            },
+            extension,
+        )
+        sortie = _sortie_image(depot, image, etiquette=etiquette)
+        sortie["gabarit"] = payload.get("gabarit") or "carte"
+        sortie["palette"] = payload.get("palette") or "carso"
+        sortie["diagnostics"] = diagnostics
+        return sortie
+
+    def _generer_libre(payload: dict[str, Any], fmt: str) -> dict[str, Any]:
+        """Corps HTML + classes CARSO → DOCX/PDF (INC-137).
+
+        C'est la voie par défaut de ``generer_document`` : le modèle écrit du
+        HTML (ce qu'il fait bien), le serveur tient la typographie, les images
+        et les figures. Aucune couverture ni sommaire imposés — d'où la
+        différence avec ``generer_document_professionnel``.
+        """
+        from app.documents.document_libre import rendre_document_libre
+
+        if fmt not in {"docx", "pdf"}:
+            raise ValidationError(
+                "Le mode HTML produit un DOCX ou un PDF (reçu "
+                f"'{fmt}'). Pour un classeur, utiliser importer_tableau_xlsx "
+                "ou un document_spec."
+            )
+        titre = str(payload.get("titre") or "Document")
+        rendu = rendre_document_libre(
+            payload["html"],
+            format=fmt,
+            css=payload.get("css"),
+            titre=titre,
+            auteur=str(payload.get("auteur") or ""),
+            graphiques=_specs_graphiques(payload.get("graphiques")) or None,
+            illustrations=_specs_illustrations(payload.get("illustrations")) or None,
+        )
+        extension, _mime = _FORMATS[rendu.format]
+        sortie = _deposer(rendu.octets, payload, extension)
+        sortie.update(
+            {
+                "format": rendu.format,
+                "modele": "html",
+                "graphiques": len(payload.get("graphiques") or []),
+                "illustrations": len(payload.get("illustrations") or []),
+                "avertissements": rendu.avertissements,
+            }
+        )
+        if rendu.pages:
+            sortie["pages"] = rendu.pages
+        avertissements = (
+            " " + " ".join(rendu.avertissements) if rendu.avertissements else ""
+        )
+        sortie["message"] = (
+            "Document HTML généré et déposé en statut 'proposed' : validation "
+            "humaine requise avant approbation. Appeler "
+            "proposer_telechargement_document pour offrir le téléchargement."
+            + avertissements
+        )
+        return sortie
+
     def _generer(payload: dict[str, Any]) -> dict[str, Any]:
         policy.require(identite.agent_id, "document_propose")
+        _refuser_generation_si_modele(payload)
         fmt = _format_depot(payload.get("format"))
+        if payload.get("html"):
+            return _generer_libre(payload, fmt)
         if payload.get("document_spec"):
             return _generer_structurer(payload, fmt)
         if not payload.get("titre"):
             raise ValidationError(
-                "Fournir 'document_spec' (document structuré, recommandé) ou "
-                "'titre' (génération simple : titre, paragraphes, tableau)."
+                "Fournir 'html' (voie recommandée : corps HTML + classes CARSO). "
+                "'document_spec' reste accepté pour une structure imposée."
             )
         extension, _mime = _FORMATS[fmt]
         from app.documents.generation import GenerateurDocument
@@ -1902,13 +2751,25 @@ def build_document_tools(
         return resultat
 
     def _generer_html(payload: dict[str, Any]) -> dict[str, Any]:
-        """HTML → DOCX (fidèle au HTML+CSS) ou PDF (moteur CARSO), dépôt HITL."""
+        """HTML → DOCX (fidèle au HTML+CSS) ou PDF (moteur CARSO), dépôt HITL.
+
+        Les figures (INC-123) suivent le même contrat que l'outil professionnel :
+        ``graphiques`` / ``illustrations`` remplissent les ancres
+        ``<figure data-graphique|data-illustration="id">`` du HTML. Un ``<svg>``
+        écrit directement dans le HTML est conservé (rasterisé pour Word, inséré
+        comme image dans le PDF) — il n'est plus supprimé en silence.
+        """
         policy.require(identite.agent_id, "document_propose")
+        _refuser_generation_si_modele(payload)
         from app.documents.generation_html import convertir_html_bytes
 
         fmt = str(payload["format"]).strip().lower()
         octets = convertir_html_bytes(
-            payload["html"], format=fmt, css=payload.get("css")
+            payload["html"],
+            format=fmt,
+            css=payload.get("css"),
+            graphiques=_specs_graphiques(payload.get("graphiques")) or None,
+            illustrations=_specs_illustrations(payload.get("illustrations")) or None,
         )
         extension, _mime = _FORMATS[fmt]
         sortie = _deposer(octets, payload, extension)
@@ -2036,6 +2897,10 @@ def build_document_tools(
         ``generer`` garde le corps complet pour un document court.
         """
         action = payload.get("action") or "generer"
+        if action == "generer":
+            # Le garde-fou porte sur le DÉBUT d'un document (une correction vise
+            # un document existant, pas une création).
+            _refuser_generation_si_modele(payload)
         if action == "demarrer":
             return _brouillon_demarrer(payload)
         if action == "section":
@@ -2052,10 +2917,27 @@ def build_document_tools(
         section : le dépôt, les avertissements et le message ne sont écrits
         qu'une fois.
         """
+        # Images inline (data-URI) : réduites **avant** la mise en page, pour
+        # que le DOCX/PPTX/PDF n'embarque pas une photo à la résolution du
+        # capteur. La transformation est annoncée avec les avertissements.
+        reduction: list[str] = []
+        corps = str(payload.get("contenu_html") or "")
+        if "data:image/" in corps:
+            from app.documents.images_inline import reduire_data_uri
+
+            reduit, reduction = reduire_data_uri(corps)
+            if reduction:
+                payload = {**payload, "contenu_html": reduit}
         sortie = _generer_professionnel(payload)
-        sortie["message"] = _message_livrable(
-            sortie, conforme=not sortie.get("avertissements")
-        )
+        # Conformité jugée sur les constats du moteur : réduire une image n'est
+        # pas un défaut de conformité, seulement une transformation à dire.
+        conforme = not sortie.get("avertissements")
+        if reduction:
+            sortie["avertissements"] = [
+                *reduction,
+                *(sortie.get("avertissements") or []),
+            ]
+        sortie["message"] = _message_livrable(sortie, conforme=conforme)
         _enregistrer_source(
             sortie,
             corps=str(payload.get("contenu_html") or ""),
@@ -2124,7 +3006,28 @@ def build_document_tools(
         """
         from app.documents.renderers import rendre
 
-        spec = _spec_depuis(payload)
+        spec, reductions = _spec_depuis(payload)
+        modele_utilise: dict[str, Any] | None = None
+        reference = payload.get("modele")
+        if reference:
+            # Identité visuelle d'un modèle d'organisation (INC-125) : les
+            # polices, couleurs, marges et le gabarit de page viennent du
+            # document du client. La structure, elle, reste celle du spec.
+            from app.documents.modeles import style_depuis_modele
+
+            if not isinstance(reference, dict):
+                reference = reference.model_dump()
+            modele, chemin = service_factory().obtenir_modele(
+                _uuid(reference.get("organisation_id"), "organisation_id"),
+                str(reference.get("type_document") or ""),
+            )
+            spec = spec.model_copy(update={"style": style_depuis_modele(chemin)})
+            modele_utilise = {
+                "id": str(modele.id),
+                "nom": modele.nom,
+                "version": modele.version,
+                "type_document": modele.type_document,
+            }
         rapport = None
         if payload.get("valider", True):
             rapport = _valider_spec(spec, payload.get("profil"))
@@ -2142,12 +3045,31 @@ def build_document_tools(
 
         sortie["documents"] = documents
         sortie["resume_document"] = spec.resume()
+        if modele_utilise is not None:
+            sortie["modele"] = modele_utilise
+        # Le spec **effectivement rendu** revient à l'agent : sans lui, une
+        # correction ciblée suivante n'aurait aucun point de départ (il ne
+        # pourrait que régénérer le document entier). Les images inline en
+        # base64 sont retirées du retour (poids) et leur absence est dite.
+        donnees_spec = spec.model_dump(mode="json")
+        images_inline = _nombre_images_inline(donnees_spec)
+        sortie["document_spec"] = _sans_base64(donnees_spec)
+        avertissements_images = [*reductions]
+        if images_inline:
+            avertissements_images.append(
+                f"{images_inline} image(s) inline (base64) non restituée(s) dans "
+                "``document_spec`` : le livrable généré les contient ; pour une "
+                "correction, renvoyer l'image avec le spec."
+            )
         if rapport is not None:
             sortie["validation"] = _contrat_validation(rapport)
             sortie["warnings"] = [
+                *avertissements_images,
                 *rapport.messages("erreur"),
                 *rapport.messages("avertissement"),
             ][:20]
+        elif avertissements_images:
+            sortie["warnings"] = avertissements_images
         sortie["message"] = _message_livrable(sortie, rapport is not None and rapport.ok)
         return sortie
 
@@ -2165,7 +3087,7 @@ def build_document_tools(
                 f"Niveau d'analyse inconnu : {payload.get('niveau')} (attendus : resume, complet)"
             )
         analyse = analyser_reference(chemin, niveau=niveau)
-        return {
+        sortie: dict[str, Any] = {
             "document_id": str(document.id),
             "nom": document.nom,
             "message": (
@@ -2175,10 +3097,28 @@ def build_document_tools(
             ),
             **analyse,
         }
+        if chemin.suffix.lower() == ".docx":
+            # Inventaire exploitable pour un remplissage fidèle (INC-125) : les
+            # placeholders à fournir, les titres à remplir et les styles de titre
+            # du client — sans quoi l'agent ne peut que redessiner à l'aveugle.
+            from app.documents.modeles import inventaire_modele
+
+            sortie["modele_documentaire"] = inventaire_modele(chemin)
+            sortie["message"] = (
+                "Plan, style et **structure de modèle** extraits. Pour modifier "
+                "fidèlement le DOCX d'une organisation : "
+                "``copier_modele_document`` (le fichier est copié tel quel dans "
+                "l'offre), puis ``remplacer_element_model`` / "
+                "``remplir_modele`` avec les `element_id` de "
+                "``obtenir_structure_document``. Le contenu de la référence "
+                "n'est jamais recopié."
+            )
+        return sortie
 
     def _verifier(payload: dict[str, Any]) -> dict[str, Any]:
         policy.require(identite.agent_id, "document_read")
-        spec = _spec_depuis(payload)
+        # Validation seule : rien n'est inséré, donc rien à réduire ni à signaler.
+        spec, _reductions = _spec_depuis(payload)
         portees = payload.get("portees")
         if portees is not None and not isinstance(portees, list):
             raise ValidationError("portees doit être une liste : structure, contenu, style")
@@ -2243,21 +3183,26 @@ def build_document_tools(
         policy.require(identite.agent_id, "document_propose")
         from app.documents.repair import appliquer_patch
 
-        spec = _spec_depuis(payload)
+        spec, reductions = _spec_depuis(payload)
         corrige, journal = appliquer_patch(spec, payload["operations"])
         rapport = None
         if payload.get("valider", True):
             rapport = _valider_spec(corrige, payload.get("profil"))
         validation = _contrat_validation(rapport) if rapport is not None else None
-        avertissements = (
-            [
-                constat.message
-                for constat in rapport.findings
-                if constat.gravite != "info"
-            ][:10]
-            if rapport is not None
-            else []
-        )
+        avertissements = [
+            # Une image inline ajoutée pendant la correction est réduite comme
+            # à la génération : la transformation est dite, pas silencieuse.
+            *reductions,
+            *(
+                [
+                    constat.message
+                    for constat in rapport.findings
+                    if constat.gravite != "info"
+                ][:10]
+                if rapport is not None
+                else []
+            ),
+        ][:12]
 
         fmt = _format_depot(payload.get("format") or "docx")
         document_id = payload.get("document_id")
@@ -2310,6 +3255,7 @@ def build_document_tools(
             }
         if validation is not None:
             resultat["validation"] = validation
+        if validation is not None or avertissements:
             resultat["warnings"] = avertissements
         return resultat
 
@@ -2412,21 +3358,37 @@ def build_document_tools(
             }
         extrait = service.extraire_texte(document_id, max_chars=APERCU_EXTRACTION)
         apercu = extrait.texte[:APERCU_TEXTE]
-        return {
-            **sortie,
-            "texte_lisible": True,
-            "nb_caracteres": extrait.nb_caracteres,
-            "nb_pages": extrait.nb_pages,
-            "nb_feuilles": extrait.nb_feuilles,
-            "apercu_tronque": extrait.tronque or len(apercu) < len(extrait.texte),
-            "apercu_texte": apercu,
-            "message": (
-                "Aperçu borné du DÉBUT du document (tableaux compris pour un "
-                "DOCX). Pour un contenu précis : chercher_dans_document "
-                "(mot-clé) puis lire_element_document avec hit['relire'] ; "
-                "read_document_range pour une plage d'éléments."
-            ),
-        }
+        sortie.update(
+            {
+                "texte_lisible": True,
+                "nb_caracteres": extrait.nb_caracteres,
+                "nb_pages": extrait.nb_pages,
+                "nb_feuilles": extrait.nb_feuilles,
+                "apercu_tronque": extrait.tronque or len(apercu) < len(extrait.texte),
+                "apercu_texte": apercu,
+                "message": (
+                    "Aperçu borné du DÉBUT du document (tableaux compris pour un "
+                    "DOCX). Pour un contenu précis : chercher_dans_document "
+                    "(mot-clé) puis lire_element_document avec hit['relire'] ; "
+                    "read_document_range pour une plage d'éléments."
+                ),
+            }
+        )
+        if extension == "xlsx":
+            # Un classeur se lit par feuilles, lignes et en-tête — pas comme un
+            # texte continu : la structure est rendue avec l'aperçu.
+            sortie["structure_feuilles"] = _structure_feuilles_xlsx(chemin)
+            sortie["message"] = (
+                "Classeur Excel : ``structure_feuilles`` décrit chaque feuille "
+                "(nom, lignes, colonnes, plage, en-tête). Ensuite : "
+                "``get_document_structure`` pour le détail, "
+                "``chercher_dans_document`` pour localiser une ligne, puis "
+                "``read_document_range`` / ``lire_element_document`` sur les "
+                "lignes utiles — jamais le classeur entier. ``apercu_texte`` "
+                "est borné et rend les valeurs mises en cache (formules non "
+                "recalculées)."
+            )
+        return sortie
 
     def _lire_image(payload: dict[str, Any]) -> dict[str, Any]:
         """Rend une image **visible** au modèle (bloc ``image_url``).
@@ -2498,7 +3460,13 @@ def build_document_tools(
             structure = inspecter_xlsx(chemin)
         else:
             raise ValidationError(f"Inspection non supportée pour {document.nom}")
-        return {"document_id": str(document.id), "nom": document.nom, **structure}
+        # Le transport vers le modèle est borné (``_borner_structure``) : une
+        # carte de 80 000 caractères faisait cesser l'émission du fournisseur au
+        # tour suivant. L'inspection elle-même reste complète (API et aperçu
+        # humain gardent toute la structure).
+        return _borner_structure(
+            {"document_id": str(document.id), "nom": document.nom, **structure}
+        )
 
     def _lire_plage(payload: dict[str, Any]) -> dict[str, Any]:
         """Lit une ou plusieurs plages d'un document (docx, pdf, xlsx).
@@ -2880,52 +3848,183 @@ def build_document_tools(
             ),
         }
 
-    def _cloner(payload: dict[str, Any]) -> dict[str, Any]:
-        policy.require(identite.agent_id, "document_propose")
-        from app.documents.cloning import cloner_docx, cloner_pdf, cloner_xlsx
+    def _refuser_generation_si_modele(payload: dict[str, Any]) -> None:
+        """Interdit un document neuf quand un modèle doit être copié puis édité.
 
-        fmt = str(payload["format"]).strip().lower()
-        if fmt not in _FORMATS:
-            raise ValidationError(
-                f"Format inconnu : {payload['format']} (attendus : {', '.join(sorted(_FORMATS))})"
-            )
-        extension, _mime = _FORMATS[fmt]
-        service = service_factory()
-        _nom, chemin = service.telecharger(
-            _uuid(payload["reference_document_id"], "reference_document_id")
+        Règle CARSO portée par le service, pas par le prompt : un document
+        rattaché à une offre, une mission ou une session dont l'organisation a
+        un modèle ne se génère pas — il se copie (``copier_modele_document``)
+        et s'édite. Sans ancre, le document est autonome et rien ne change.
+        """
+        from app.application.services.moteur_documentaire_service import ANCRES_MODELE
+
+        ancre = payload.get("ancre")
+        entity_id = payload.get("entity_id")
+        if str(ancre or "") not in ANCRES_MODELE or not entity_id:
+            # Une ancre ``organisation`` (ou aucune ancre) ne reçoit pas de copie
+            # de modèle : la chaîne modèle ne s'y applique pas.
+            return
+        _moteur_documentaire().exiger_copie_modele(
+            str(ancre),
+            _uuid(entity_id, "entity_id"),
+            type_document=payload.get("type_document"),
         )
-        if fmt == "docx":
-            octets = cloner_docx(
-                chemin,
-                titre=payload.get("titre") or "",
-                paragraphes=payload.get("paragraphes"),
-            )
-        elif fmt == "xlsx":
-            octets = cloner_xlsx(
-                chemin,
-                titre_feuille=payload.get("titre") or "Feuille",
-                lignes=payload.get("tableau") or [],
-            )
+
+    def _moteur_documentaire() -> Any:
+        """Moteur documentaire sur la session de l'appel (jamais une autre)."""
+        from app.application.services.moteur_documentaire_service import (
+            MoteurDocumentaireService,
+        )
+
+        service = service_factory()
+        return MoteurDocumentaireService(
+            service.session,
+            document_service=service,
+            actor_id=identite.agent_id,
+        )
+
+    def _lister_modeles(payload: dict[str, Any]) -> dict[str, Any]:
+        """Liste les modèles DOCX d'une organisation, sans ouvrir aucun fichier."""
+        policy.require(identite.agent_id, "document_read")
+        moteur = _moteur_documentaire()
+        modeles = moteur.lister(
+            _uuid(payload["organisation_id"], "organisation_id"),
+            type_document=payload.get("type_document") or None,
+        )
+        return {
+            "modeles": modeles,
+            "nombre": len(modeles),
+            "message": (
+                "Choisir le modèle attendu par son `modele_id`, puis appeler "
+                "copier_modele_document avec `ancre` + `entity_id` : la copie du "
+                "modèle est le document qui sera édité. Aucun modèle pour "
+                "l'organisation : le document se produit avec "
+                "generer_document_professionnel."
+            ),
+        }
+
+    def _structure_modele(payload: dict[str, Any]) -> dict[str, Any]:
+        """Éléments réels d'un modèle : ce que l'agent pourra remplacer."""
+        policy.require(identite.agent_id, "document_read")
+        moteur = _moteur_documentaire()
+        organisation_id = _uuid(payload["organisation_id"], "organisation_id")
+        modele_id = payload.get("modele_id")
+        if modele_id:
+            cible = _uuid(modele_id, "modele_id")
         else:
-            octets = cloner_pdf(
-                chemin,
-                titre=payload.get("titre") or "",
-                paragraphes=payload.get("paragraphes"),
-            )
-        return _deposer(octets, payload, extension)
+            type_document = payload.get("type_document")
+            if not type_document:
+                raise ValidationError(
+                    "Fournir `modele_id`, ou `type_document` pour prendre le "
+                    "modèle actif de ce type."
+                )
+            cible = moteur.modele_actif(organisation_id, str(type_document)).id
+        return moteur.structure_modele(organisation_id, cible)
 
-    def _remplir(payload: dict[str, Any]) -> dict[str, Any]:
+    def _copier_modele(payload: dict[str, Any]) -> dict[str, Any]:
+        """Copie le modèle tel quel dans l'objet métier : c'est la base à éditer."""
         policy.require(identite.agent_id, "document_propose")
-        from app.documents.cloning import remplir_template_docx
-
-        service = service_factory()
-        _nom, chemin = service.telecharger(
-            _uuid(payload["template_document_id"], "template_document_id")
+        moteur = _moteur_documentaire()
+        ancre = str(payload["ancre"])
+        entity_id = _uuid(payload["entity_id"], "entity_id")
+        modele_id = payload.get("modele_id")
+        document, modele, elements = moteur.copier_modele_dans_objet(
+            ancre,
+            entity_id,
+            modele_id=_uuid(modele_id, "modele_id") if modele_id else None,
+            type_document=payload.get("type_document") or None,
+            nom_fichier=payload.get("nom_fichier") or None,
         )
-        if chemin.suffix.lower() != ".docx":
-            raise ValidationError("fill_template n'accepte que des templates DOCX")
-        octets = remplir_template_docx(chemin, payload.get("valeurs") or {})
-        return _deposer(octets, payload, ".docx")
+        return {
+            "ancre": ancre,
+            "entity_id": str(entity_id),
+            "document_id": str(document.id),
+            "nom": document.nom,
+            "version": document.version,
+            "statut": document.statut,
+            "modele": {
+                "modele_id": str(modele.id),
+                "nom": modele.nom,
+                "version": modele.version,
+                "type_document": modele.type_document,
+            },
+            "nombre_elements": len(elements),
+            "elements": [element.resume() for element in elements],
+            "message": (
+                "Le modèle de l'organisation a été **copié tel quel** dans "
+                "l'offre : couverture, en-tête, pied, logo, styles et textes "
+                "fixes sont ceux du client. Éditer maintenant cet exemplaire "
+                "avec `remplacer_element_model` (texte, style conservé) ou "
+                "`remplir_modele` (HTML stylisé + images base64), puis relire "
+                "la structure. Le document n'est jamais reconstruit."
+            ),
+        }
+
+    def _structure_document(payload: dict[str, Any]) -> dict[str, Any]:
+        """Éléments éditables de la copie en cours, avec leurs identifiants."""
+        policy.require(identite.agent_id, "document_read")
+        moteur = _moteur_documentaire()
+        return moteur.structure_document(
+            str(payload["ancre"]), _uuid(payload["entity_id"], "entity_id")
+        )
+
+    def _remplacer_element(payload: dict[str, Any]) -> dict[str, Any]:
+        """Remplace le texte d'un ou plusieurs éléments : une seule version."""
+        policy.require(identite.agent_id, "document_propose")
+        moteur = _moteur_documentaire()
+
+        def _contenu(valeur: Any) -> Any:
+            """Segments Pydantic → dictionnaires (le moteur attend des dicts)."""
+            if isinstance(valeur, list):
+                return [
+                    segment if isinstance(segment, dict) else segment.model_dump()
+                    for segment in valeur
+                ]
+            return valeur
+
+        if payload.get("elements"):
+            remplacements = [
+                {"element_id": str(element), "nouveau_element": _contenu(contenu)}
+                for element, contenu in zip(
+                    payload["elements"], payload["nouveaux_elements"], strict=True
+                )
+            ]
+        else:
+            remplacements = [
+                {
+                    "element_id": str(payload["element_id"]),
+                    "nouveau_element": _contenu(payload["nouveau_element"]),
+                }
+            ]
+        return moteur.remplacer_elements(
+            str(payload["ancre"]),
+            _uuid(payload["entity_id"], "entity_id"),
+            remplacements,
+        )
+
+    def _remplir_modele(payload: dict[str, Any]) -> dict[str, Any]:
+        """Insère du contenu HTML stylisé dans la copie du modèle."""
+        policy.require(identite.agent_id, "document_propose")
+        moteur = _moteur_documentaire()
+        remplissages = [
+            item if isinstance(item, dict) else item.model_dump()
+            for item in payload["remplissages"]
+        ]
+        return moteur.remplir(
+            str(payload["ancre"]),
+            _uuid(payload["entity_id"], "entity_id"),
+            remplissages,
+        )
+
+    def _revenir_version(payload: dict[str, Any]) -> dict[str, Any]:
+        """Restaure une version de l'historique (défaut : la précédente)."""
+        policy.require(identite.agent_id, "document_propose")
+        moteur = _moteur_documentaire()
+        return moteur.revenir_version(
+            str(payload["ancre"]),
+            _uuid(payload["entity_id"], "entity_id"),
+            payload.get("version"),
+        )
 
     def _modifier_section(payload: dict[str, Any]) -> dict[str, Any]:
         """Corrige **une** section du livrable rendu, sans le réécrire entier.
@@ -3066,6 +4165,7 @@ def build_document_tools(
         d'outil dans le chat — l'utilisateur voit avancer le document au lieu de
         croire à une boucle. Sans plan, la progression reste un simple compteur.
         """
+        _refuser_generation_si_modele(payload)
         from app.documents.brouillons import ouvrir
 
         meta = {
@@ -3204,18 +4304,31 @@ def build_document_tools(
         TypedTool(
             name="generer_document",
             description=(
-                "Génère un livrable et le dépose comme PROPOSITION (validation "
-                "humaine obligatoire). Deux usages : "
-                "(1) ``document_spec`` — le document structuré complet "
-                "(métadonnées, sections, tableaux, images, provenances) : c'est le "
-                "chemin attendu pour une offre, un rapport ou une fiche, le code "
-                "se charge de la mise en forme professionnelle (couverture, "
-                "en-tête, pagination, styles) ; "
-                "(2) ``titre`` + ``paragraphes`` + ``tableau`` — dépôt rapide d'un "
-                "contenu simple. "
-                "Fournir soit l'un, soit l'autre. Le retour contient "
-                "``validation`` (structure/contenu/style) et ``warnings`` : lire "
-                "ces constats et corriger avant de présenter le document. "
+                "Génère un livrable DOCX ou PDF LIBRE et le dépose comme "
+                "PROPOSITION (validation humaine obligatoire). "
+                "VOIE PRINCIPALE : ``html`` — le corps du document en HTML "
+                "sémantique, habillé par la feuille de style CARSO : "
+                "``<div class=\"h1\">`` à ``h6``, ``<p class=\"p\">``, "
+                "``<span class=\"bold|italic|souligne|reference\">``, "
+                "``<ul class=\"liste\">``, ``<table class=\"tableau\">``, "
+                "``<div class=\"encadre|avertissement|citation|legende\">``, "
+                "``<div class=\"saut-page\">``. ``css`` reprend ou redéfinit une "
+                "classe (couleur, police, taille en ``em``) : la liberté porte "
+                "sur la mise en forme, le serveur garantit l'uniforme (tailles "
+                "en pt alignées sur 8, 9, 11, 13, 16, 20, 26). "
+                "Figures : ``graphiques`` / ``illustrations`` + "
+                "``<figure data-graphique=\"id\">`` — le serveur dessine le SVG, "
+                "ne jamais coller une image de graphique. "
+                "Images : ``<img src=\"https://…\">`` — le serveur la télécharge, "
+                "vérifie, réduit et embarque ; base64 interdit (trop lourd), un "
+                "lien mort laisse un repère visible et un avertissement. "
+                "Aucun « — » : utiliser « - » ou une virgule. "
+                "Héritage : ``document_spec`` (document structuré) et "
+                "``titre``/``paragraphes``/``tableau`` restent acceptés pour les "
+                "appels existants ; pour un nouveau document, écrire du HTML. "
+                "Le retour contient ``format``, ``modele``, ``pages`` (PDF) et "
+                "``avertissements`` (tailles alignées, images écartées, tirets) : "
+                "les lire avant de présenter le document. "
                 "Rattachement : une ancre métier réelle classe le fichier sous "
                 "l'objet ; une ancre absente le range sous generated/{id} "
                 "(non classé) — ne jamais inventer d'UUID. "
@@ -3241,17 +4354,22 @@ def build_document_tools(
         TypedTool(
             name="generer_document_professionnel",
             description=(
-                "GÉNÉRATION PRIORITAIRE d'un livrable DOCX, PDF, PPTX ou XLSX : écris le "
-                "**corps** du document en HTML avec les classes du thème "
+                "Génération d'un livrable DOCX, PDF, PPTX ou XLSX **sans modèle** : "
+                "écris le **corps** du document en HTML avec les classes du thème "
                 "(cover, toc, lead, table.kpi, table.data, callout, table.layout, "
                 "badge, page-break, signature) et le moteur se charge du design — "
                 "thème professionnel injecté (couverture pleine page, en-tête, "
                 "pied 'n / N', sommaire aux numéros de page CALCULÉS, styles Word "
                 "natifs pour un DOCX). Le fichier est déposé comme PROPOSITION "
                 "(validation humaine obligatoire). "
-                "À utiliser par DÉFAUT pour tout document DOCX/PDF : rapports, "
-                "offres, notes, comptes rendus, propositions, courriers, CV, "
-                "fiches personnalisées. "
+                "RÉSERVÉ AUX DOCUMENTS QU'AUCUN MODÈLE NE COUVRE (note interne, "
+                "lettre, compte rendu, rapport, CV) : dès que l'organisation a "
+                "déposé un modèle pour l'objet visé, l'appel est REFUSÉ — il faut "
+                "copier le modèle (`copier_modele_document`) puis l'éditer "
+                "(`remplacer_element_model`, `remplir_modele`). Un document "
+                "d'offre ne se produit jamais à neuf quand un modèle existe : "
+                "son design, ses styles, son logo et ses mentions sont ceux du "
+                "client. "
                 "PRÉSENTATION : format='pptx' rend un deck 16:9 natif "
                 "(vraies formes, tableaux et images PowerPoint, notes "
                 "présentateur, thème appliqué) à partir du même ``contenu_html`` : "
@@ -3261,14 +4379,21 @@ def build_document_tools(
                 "dont le texte déborderait (message « scinde la diapositive ») "
                 "plutôt que de le rogner. "
                 "CLASSEUR : format='xlsx' rend chaque table.data en feuille Excel "
-                "stylée (thème, en-tête figé, filtre automatique) : exige au moins "
-                "un tableau. "
+                "stylée (thème, en-tête figé, filtre automatique, formules "
+                "data-formule, formats de nombres data-format, styles de cellule "
+                "data-gras/data-fond/data-align, couleur de texte data-couleur, "
+                "taille data-taille, bordure data-bordure/data-bordure-couleur, "
+                "fusions colspan/rowspan) : exige au moins un tableau. "
                 "Graphiques de DONNÉES via le paramètre ``graphiques`` (ancre "
                 "<figure data-graphique='id'></figure>) ; SCHÉMAS et "
                 "ILLUSTRATIONS en écrivant toi-même un <svg> inline dans "
                 "``contenu_html`` (organigramme, flèches, cycle, frise, "
                 "diagramme) : il est nettoyé, rendu vectoriel en PDF et "
-                "converti en image en DOCX. "
+                "converti en image en DOCX. IMAGES BITMAP : "
+                "<img src='data:image/png;base64,...'> dans ``contenu_html`` — "
+                "embarquées (aucun accès réseau au rendu) ; une image dont le "
+                "côté dépasse 1600 px ou le poids 1 Mio est réduite "
+                "automatiquement et signalée dans ``avertissements``. "
                 "NE PAS écrire de <style> ni de CSS en ligne : le thème est "
                 "injecté (un <style> est supprimé et signalé en avertissement). "
                 "Autres voies : ``generer_document_html`` pour un document "
@@ -3542,23 +4667,190 @@ def build_document_tools(
             tags=("documents", "lecture"),
         ),
         TypedTool(
-            name="clone_document_structure",
+            name="copier_modele_document",
             description=(
-                "Clone la structure d'un document de référence et y place un "
-                "contenu fourni. Déposé en statut 'proposed' (HITL)."
+                "Copie le modèle DOCX de l'organisation **tel quel** dans un objet "
+                "métier (`ancre` = offre, mission ou session + `entity_id`) : "
+                "c'est le document qui sera édité ensuite. "
+                "Renvoie `document_id`, la version et la liste des éléments "
+                "(identifiants `block_001`…, texte, style). Les styles, la "
+                "numérotation, les en-têtes, les pieds, le logo et les textes "
+                "fixes du client sont donc conservés par construction. À appeler "
+                "quand `lister_modeles_documents` trouve un modèle ; s'il n'y en "
+                "a aucun, utiliser `generer_document_professionnel` (ne jamais "
+                "inventer de gabarit). Relancer l'outil sur le même objet renvoie "
+                "la copie en cours, sans empiler de doublon."
             ),
-            handler=_cloner,
-            input_schema=ClonerDocumentInput,
-            tags=("documents", "generation"),
+            handler=_copier_modele,
+            input_schema=CopierModeleDocumentInput,
+            tags=("documents", "generation", "modele"),
         ),
         TypedTool(
-            name="fill_template",
+            name="obtenir_structure_document",
             description=(
-                "Remplit les placeholders {{cle}} d'un template DOCX. "
-                "Déposé en statut 'proposed' (HITL)."
+                "Relit la copie de modèle d'un objet (`ancre` + `entity_id`) : éléments avec leur "
+                "`element_id`, leur texte actuel, leur style, leur niveau de titre "
+                "et leurs images, plus l'`historique` des versions (numéro, "
+                "nature du geste, courante). Lecture seule, à appeler AVANT "
+                "d'éditer, APRÈS un lot d'éditions (les identifiants sont "
+                "recalculés à chaque modification) et avant de restaurer une "
+                "version précise avec `revenir_version_document`."
             ),
-            handler=_remplir,
-            input_schema=RemplirTemplateInput,
-            tags=("documents", "generation"),
+            handler=_structure_document,
+            input_schema=ObtenirStructureDocumentInput,
+            tags=("documents", "modele", "lecture"),
+        ),
+        TypedTool(
+            name="remplacer_element_model",
+            description=(
+                "Remplace le TEXTE d'éléments existants de la copie, **sans "
+                "changer leur mise en forme** : style de paragraphe, police, "
+                "alignement, retrait et interligne du modèle sont conservés. "
+                "Un élément (`element_id` + `nouveau_element`) OU plusieurs en un "
+                "seul appel (`elements` + `nouveaux_elements`, deux listes de "
+                "même longueur) : le lot ne produit qu'UNE version, inutile "
+                "d'appeler l'outil une fois par ligne. Chaque contenu est une "
+                "chaîne ou une liste de segments {texte, gras, italique, "
+                "souligne, couleur, taille_pt}. Un tableau ou un paragraphe "
+                "portant une image est refusé (utiliser `remplir_modele`) : "
+                "aucune image n'est supprimée en silence."
+            ),
+            handler=_remplacer_element,
+            input_schema=RemplacerElementModeleInput,
+            tags=("documents", "generation", "modele"),
+        ),
+        TypedTool(
+            name="remplir_modele",
+            description=(
+                "Remplit un ou plusieurs éléments de la copie avec du **HTML "
+                "stylisé** : titres, paragraphes, listes <ul>/<ol>, tableaux, "
+                "images en data URI base64 et <svg> (rasterisé). Les éléments "
+                "visés sont remplacés (ou complétés avec `position: avant|apres`), "
+                "le reste du modèle est intact. Une seule version est créée pour "
+                "tout l'appel : fournir les identifiants lus ensemble. À utiliser "
+                "pour rédiger les sections ; `remplacer_element_model` reste la "
+                "voie courte pour un titre ou une ligne."
+            ),
+            handler=_remplir_modele,
+            input_schema=RemplirModeleInput,
+            tags=("documents", "generation", "modele"),
+        ),
+        TypedTool(
+            name="revenir_version_document",
+            description=(
+                "Restaure une version de l'historique d'une copie de modèle : son "
+                "contenu redevient le document de travail, déposé comme NOUVELLE "
+                "version (rien n'est supprimé ni écrasé, l'historique reste "
+                "complet). `version` omise ⇒ annule la dernière édition ; "
+                "`version` fournie ⇒ revient à cette version précise, lue dans "
+                "`historique` de `obtenir_structure_document`. À utiliser quand "
+                "un lot (`remplir_modele` / `remplacer_element_model`) a abîmé le "
+                "document : revenir à l'état sain voulu, relire la structure, "
+                "puis refaire le lot. Une version inconnue est refusée avec la "
+                "liste des versions disponibles."
+            ),
+            handler=_revenir_version,
+            input_schema=RevenirVersionDocumentInput,
+            tags=("documents", "generation", "modele"),
+        ),
+        TypedTool(
+            name="lister_modeles_documents",
+            description=(
+                "Liste les modèles DOCX d'une organisation (registre, toutes "
+                "versions) : nom, type, version, statuts. À appeler en PREMIER "
+                "quand l'utilisateur parle d'un « modèle », d'un « gabarit » ou "
+                "d'un document imposé par un client. Liste vide ⇒ aucun modèle : "
+                "produire le document avec `generer_document_professionnel`, "
+                "jamais avec un gabarit inventé. Lecture seule."
+            ),
+            handler=_lister_modeles,
+            input_schema=ListerModelesDocumentsInput,
+            tags=("documents", "modele", "lecture"),
+        ),
+        TypedTool(
+            name="obtenir_structure_modele",
+            description=(
+                "Renvoie les ÉLÉMENTS réels d'un modèle DOCX : identifiants "
+                "(`block_001`…), texte, style, niveau de titre, images, tableaux, "
+                "plus les zones (en-tête, pied, format) et les `{{clé}}` "
+                "éventuels. Analyse le fichier s'il ne l'est pas encore (lecture "
+                "déterministe, aucun contenu inventé). Sert à choisir le modèle et "
+                "à préparer le plan de remplissage ; le fichier n'est jamais "
+                "modifié. Lecture seule."
+            ),
+            handler=_structure_modele,
+            input_schema=ObtenirStructureModeleInput,
+            tags=("documents", "modele", "lecture"),
+        ),
+        TypedTool(
+            name="generer_image",
+            description=(
+                "Dépose une IMAGE RÉELLE produite par le modèle : son contenu "
+                "arrive en base64 (PNG, JPEG, GIF ou WebP, avec ou sans préfixe "
+                "data:image/...;base64,). Le serveur reconnaît le format à la "
+                "signature binaire, réduit l'image aux bornes d'insertion (côté "
+                "≤ 1600 px, poids ≤ 1 Mio) et le dit dans `avertissements` ; une "
+                "image animée n'est jamais aplatie. Le fichier est déposé comme "
+                "PROPOSITION (validation humaine obligatoire) et le retour donne "
+                "`document_id`, dimensions, format et poids. NE JAMAIS inventer "
+                "un base64 : si ton modèle n'émet pas d'octets d'image, appelle "
+                "`generer_image_svg`. Pour que l'utilisateur la voie et la "
+                "télécharge, appeler ensuite `afficher_image`."
+            ),
+            handler=_generer_image,
+            input_schema=GenererImageInput,
+            tags=("documents", "generation", "image"),
+        ),
+        TypedTool(
+            name="generer_image_svg",
+            description=(
+                "Dessine une image en SVG puis la dépose en PNG : le chemin des "
+                "modèles qui n'émettent que du texte. Fournir un SVG complet "
+                "(`<svg viewBox=...>` avec formes, textes, dégradés) ; il est "
+                "nettoyé (aucun script, aucun `href` distant, `style` filtré), "
+                "rasterisé en PNG, réduit aux bornes d'insertion et déposé comme "
+                "PROPOSITION. Le retour donne `document_id`, dimensions, poids et "
+                "`avertissements` (rasterisation, réduction éventuelle). Pour que "
+                "l'utilisateur la voie et la télécharge, appeler ensuite "
+                "`afficher_image`. Une image à partir d'octets réels se dépose "
+                "avec `generer_image`."
+            ),
+            handler=_generer_image_svg,
+            input_schema=GenererImageSvgInput,
+            tags=("documents", "generation", "image"),
+        ),
+        TypedTool(
+            name="composer_image",
+            description=(
+                "VOIE RECOMMANDÉE pour une image CARSO : tu fournis le CONTENU "
+                "(surtitre, titre, sous-titre, points, pied) et le serveur compose "
+                "le visuel — marges, hiérarchie typographique, palette contrastée, "
+                "gabarit 1:1 (`carte`), 16:9 (`banniere`), bandeau ou A4 "
+                "(`affiche`). Aucun balisage à écrire : le résultat est propre et "
+                "reproductible. L'image est déposée en PROPOSITION (validation "
+                "humaine) et le retour donne `document_id`, dimensions et "
+                "`diagnostics` (défauts mesurés). Appeler ensuite `afficher_image`. "
+                "N'invente aucun texte : ce qui doit figurer sur l'image vient de "
+                "la demande ou des données consultées."
+            ),
+            handler=_composer_image,
+            input_schema=ComposerImageInput,
+            tags=("documents", "generation", "image"),
+        ),
+        TypedTool(
+            name="verifier_image_svg",
+            description=(
+                "CONTRÔLE un SVG avant de le livrer : rasterise en mémoire et "
+                "renvoie les défauts mesurables — `texte_hors_cadre`, "
+                "`texte_trop_petit`, `contraste_insuffisant`, `image_vide`, "
+                "`palette_trop_riche`, `fond_transparent` — avec un niveau "
+                "(`bloquant` / `avertissement` / `conseil`) et un correctif. "
+                "RIEN n'est déposé : c'est la boucle de correction d'un SVG écrit "
+                "à la main (corriger → revérifier → `generer_image_svg`). Un "
+                "`pret_a_deposer: false` interdit d'afficher l'image en l'état."
+            ),
+            handler=_verifier_image_svg,
+            input_schema=VerifierImageSvgInput,
+            tags=("documents", "generation", "image", "controle"),
         ),
     ]

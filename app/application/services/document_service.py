@@ -45,7 +45,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from math import ceil
 from pathlib import Path
-from typing import BinaryIO
+from typing import Any, BinaryIO
 from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Session
@@ -125,6 +125,16 @@ _ANCHORS: dict[str, str] = {
     "mission_id": "missions",
     "equipe_id": "equipes",
     "session_id": "sessions",
+}
+
+#: Nom public d'ancre → colonne FK (INC-124 : scripts ancrés).
+CHAMP_PAR_ANCRE: dict[str, str] = {
+    "organisation": "organisation_id",
+    "appel": "appel_id",
+    "offre": "offre_id",
+    "mission": "mission_id",
+    "equipe": "equipe_id",
+    "session": "session_id",
 }
 
 _META_KEY = "proposed_by_agent"
@@ -261,6 +271,17 @@ class DocumentService:
         self._supports = SupportFormationRepository(session)
         self._corbeille_jours = reglages.documents_corbeille_jours
         self._trace = TraceContext(session, actor_id=actor_id)
+
+    @property
+    def session(self) -> Session:
+        """Session transactionnelle partagée avec les services qui le composent.
+
+        Le moteur documentaire (INC-128) a besoin de la **même** transaction que
+        le service de documents : il lit le registre des modèles et dépose ses
+        livrables. Exposer la session évite de la faire passer en douce par un
+        attribut privé, sans ouvrir un second accès en écriture au référentiel.
+        """
+        return self._session
 
     # --- dépôt et versioning ------------------------------------------------
 
@@ -973,6 +994,188 @@ class DocumentService:
         if numero == 0:
             return None
         return self.documents.find_version(nom, type_document, numero)
+
+    # --- Livrables d'agent et dossiers d'ancre (INC-124) ---------------------
+
+    def deposer_livrable(self, entree: DocumentUploadInput) -> Document:
+        """Dépose un livrable d'agent, en **révisant** s'il existe déjà.
+
+        Même nom, même type et même ancre ⇒ **nouvelle version** du document
+        existant (règle déjà appliquée par les tools de génération) ; sinon un
+        nouveau document naît, en ``proposed``. Le service reste le **seul**
+        écrivain de l'arborescence officielle — un script d'agent n'y écrit
+        jamais directement (AGENTS.md §2.5 et §7).
+
+        Returns:
+            Le document déposé (ou la nouvelle version).
+
+        Raises:
+            ValidationError: type de document inconnu, nom invalide, contenu
+                refusé par la validation de fichier.
+        """
+        ancre = self._resoudre_ancre(entree)
+        if ancre.scope == _SCOPE_GENERE:
+            # Sans ancre, le rangement est ``generated/{id}`` et le type réel
+            # ``non_classe`` : il n'y a pas de famille de versions à réviser.
+            return self.enregistrer_document(entree)
+        type_reel = self._valider_type(entree.type_document)
+        nom = sanitize_filename(entree.nom)
+        existant = self.derniere_version(nom, type_reel)
+        if (
+            existant is not None
+            and existant.statut
+            not in (StatutDocument.ARCHIVED.value, StatutDocument.SUPPRIME.value)
+            and self._memes_ancres(existant, ancre)
+        ):
+            return self.remplacer_document(existant.id, entree)
+        return self.enregistrer_document(entree)
+
+    def _memes_ancres(self, document: Document, ancre: DocumentAnchor) -> bool:
+        """Vrai si le document porte **exactement** l'ancre demandée.
+
+        Un document homonyme rangé ailleurs n'est jamais révisé : deux objets
+        métier différents gardent chacun leur livrable.
+        """
+        for champ in _ANCHORS:
+            attendu = ancre.entity_id if champ == ancre.champ else None
+            if getattr(document, champ) != attendu:
+                return False
+        return True
+
+    def dossier_de_l_ancre(self, ancre: str, entity_id: UUID) -> Path:
+        """Dossier de stockage d'un objet métier, vérifié (existence + périmètre).
+
+        C'est le dossier que lit un script ancré, et le parent de son dossier de
+        travail temporaire. Aucun chemin n'est fabriqué depuis une entrée libre :
+        le scope vient de ``_ANCHORS`` et l'identifiant est un UUID validé.
+
+        Args:
+            ancre: nom public de l'ancre (``organisation``, ``appel``, ``offre``,
+                ``mission``, ``equipe``, ``session``).
+            entity_id: UUID de l'objet métier.
+
+        Returns:
+            Le dossier du scope métier (créé par les dépôts, pas ici).
+
+        Raises:
+            ValidationError: ancre inconnue, ou stockage sans racine de fichier.
+            NotFoundError: objet inexistant ou hors périmètre du compte.
+        """
+        champ = CHAMP_PAR_ANCRE.get(str(ancre or "").strip().lower())
+        if champ is None:
+            raise ValidationError(
+                f"Ancre inconnue : {ancre!r}",
+                details={"ancres_disponibles": sorted(CHAMP_PAR_ANCRE)},
+            )
+        if not self._ancre_existe(champ, entity_id):
+            raise NotFoundError(f"{ancre} {entity_id} introuvable")
+        self._exiger_ancre_autorisee(champ, entity_id)
+        # Un **dossier** de scope (2 segments) n'est pas un chemin de fichier :
+        # ``resolve_within_root`` exige ``{scope}/{id}/{fichier}``. Le scope vient
+        # d'une table fermée et l'identifiant est un UUID, la vérification de
+        # confinement reste faite après résolution.
+        return self._dossier_scope(_ANCHORS[champ], entity_id)
+
+    def dossier_organisation_de_l_ancre(
+        self, ancre: str, entity_id: UUID
+    ) -> Path | None:
+        """Dossier de l'**organisation émettrice** d'une ancre (ses modèles).
+
+        Un script d'offre ou de mission doit pouvoir lire les modèles du client
+        sans accéder aux autres dossiers. La remontée est explicite :
+        offre/session/mission → … → appel → organisation. Une équipe n'a pas
+        d'organisation : ``None`` (rien de plus n'est lisible).
+
+        Returns:
+            Le dossier ``organisations/{id}``, ou ``None`` si l'organisation
+            émettrice n'est pas déterminable (prestation directe sans appel).
+        """
+        organisation_id = self._organisation_de_l_ancre(ancre, entity_id)
+        if organisation_id is None:
+            return None
+        return self._dossier_scope("organisations", organisation_id)
+
+    def _dossier_scope(self, scope: str, entity_id: UUID) -> Path:
+        """Dossier ``{scope}/{id}`` — construit, puis vérifié confiné à la racine."""
+        racine = self._racine_stockage().resolve()
+        dossier = (racine / scope / str(entity_id)).resolve()
+        if not dossier.is_relative_to(racine):
+            raise ValidationError(
+                "Dossier d'ancre hors de la racine du stockage",
+                details={"scope": scope},
+            )
+        return dossier
+
+    def _organisation_de_l_ancre(self, ancre: str, entity_id: UUID) -> UUID | None:
+        """Organisation émettrice d'un objet métier (``None`` si indéterminable)."""
+        from app.infrastructure.repositories.appel import LotRepository
+
+        nom = str(ancre or "").strip().lower()
+        if nom == "organisation":
+            return entity_id
+        if nom == "appel":
+            appel = self._appels.get(entity_id)
+            return appel.organisation_id if appel is not None else None
+        if nom == "offre":
+            offre = self._offres.get(entity_id)
+            if offre is None or offre.appel_id is None:
+                return None
+            appel = self._appels.get(offre.appel_id)
+            return appel.organisation_id if appel is not None else None
+        if nom == "mission":
+            mission = self._missions.get(entity_id)
+            if mission is None or mission.lot_id is None:
+                return None
+            lot = LotRepository(self._session).get(mission.lot_id)
+            if lot is None or lot.appel_id is None:
+                return None
+            appel = self._appels.get(lot.appel_id)
+            return appel.organisation_id if appel is not None else None
+        if nom == "session":
+            session_formation = self._sessions.get(entity_id)
+            if session_formation is None:
+                return None
+            return self._organisation_de_l_ancre("mission", session_formation.mission_id)
+        # Une équipe n'est rattachée à aucune organisation dans le modèle.
+        return None
+
+    def obtenir_modele(
+        self, organisation_id: UUID, type_document: str
+    ) -> tuple[Any, Path]:
+        """Modèle **actif** d'une organisation et son fichier (INC-125).
+
+        Le modèle vient du registre ``modeles_documents`` (une version active par
+        couple organisation/type). Le fichier est téléchargé par le service :
+        aucun chemin disque n'est fabriqué par l'appelant.
+
+        Args:
+            organisation_id: organisation cliente propriétaire du modèle.
+            type_document: type du modèle (``offre_technique``, ``rapport``…).
+
+        Returns:
+            Le couple ``(modèle, chemin du fichier)``.
+
+        Raises:
+            NotFoundError: aucun modèle actif pour ce couple — le message dit
+                quoi enregistrer (le tool le transmet à l'agent).
+        """
+        from app.application.services.modele_document_service import ModeleDocumentService
+
+        modele = ModeleDocumentService(self._session).resoudre_modele_actif(
+            organisation_id, type_document
+        )
+        _nom, chemin = self.telecharger(modele.document_template_id)
+        return modele, chemin
+
+    def _racine_stockage(self) -> Path:
+        """Racine physique du stockage (refus explicite si le stockage n'en a pas)."""
+        racine = getattr(self.storage, "root", None)
+        if racine is None:
+            raise ValidationError(
+                "Le stockage configuré n'expose pas de racine de fichiers : "
+                "les dossiers d'ancre ne peuvent pas être résolus."
+            )
+        return Path(racine)
 
     def versions(self, document_id: UUID) -> list[Document]:
         """Historique complet des versions d'un document, plus récente d'abord."""

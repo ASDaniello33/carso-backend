@@ -137,11 +137,28 @@ _LECTURE_SEULE = (
 
 
 def test_agents_lecture_seule_n_ont_aucun_outil_de_mutation() -> None:
-    """Généraliste, statistique et personnel : lecture, rien d'autre."""
-    for definition in (GENERALISTE_DEF, STAT_DEF, PERSONNEL_DEF):
+    """Généraliste et statistique : lecture, rien d'autre.
+
+    L'agent **personnel** est sorti de cette boucle (INC-118) : son contrat
+    déclare désormais ``generer_document_professionnel`` et ``corriger_document``
+    pour que le compte obtienne son livrable — toujours en ``proposed``. Il reste
+    vérifié juste en dessous, sur la même règle, exceptions nommées.
+    """
+    for definition in (GENERALISTE_DEF, STAT_DEF):
         for nom in definition.tools:
             autorise = nom.startswith(_LECTURE_SEULE) or nom in (
+                # Livrables déposés en proposition : thème CARSO et voie HTML
+                # libre — le statistique produit rapports et tableaux de bord.
+                "generer_document",
                 "generer_document_professionnel",
+                # Images (INC-135) : un fichier déposé en **proposition**, comme
+                # le livrable documentaire — aucune donnée métier n'est écrite.
+                "generer_image",
+                "generer_image_svg",
+                # INC-136 : mise en page serveur (dépôt en proposition) et
+                # contrôle de design, qui ne dépose **rien** du tout.
+                "composer_image",
+                "verifier_image_svg",
                 "importer_tableau_xlsx",
             )
             assert autorise, (
@@ -154,18 +171,52 @@ def test_agents_lecture_seule_n_ont_aucun_outil_de_mutation() -> None:
         assert not any(c.startswith("document_approve") for c in definition.capabilities)
 
 
+def test_agent_personnel_ne_porte_que_des_documents_en_proposition() -> None:
+    """Agent personnel : livrables ``proposed`` et script confiné, aucune mutation.
+
+    Les deux seules exceptions à la règle lecture seule sont nommées : la
+    génération/correction documentaire (statut ``proposed``, validation humaine)
+    et ``run_python_script`` (espace du compte, garde d'audit). Tout autre outil
+    hors préfixes de lecture serait une régression.
+    """
+    exceptions = {
+        "generer_document",
+        "generer_document_professionnel",
+        "corriger_document",
+        # Images (INC-135) : dépôt en proposition, même statut que le livrable.
+        "generer_image",
+        "generer_image_svg",
+        # INC-136 : composition par le serveur (proposition) et contrôle, qui ne
+        # dépose rien.
+        "composer_image",
+        "verifier_image_svg",
+        "run_python_script",
+    }
+    for nom in PERSONNEL_DEF.tools:
+        autorise = nom.startswith(_LECTURE_SEULE) or nom in exceptions
+        assert autorise, (
+            f"{PERSONNEL_DEF.agent_id}: le tool {nom!r} sort du périmètre "
+            "lecture seule + livrables en proposition"
+        )
+    assert not any(c.startswith("document_approve") for c in PERSONNEL_DEF.capabilities)
+    # La surface lecture seule partagée ne doit pas se propager : le généraliste
+    # et le statisticien ne reçoivent pas les livrables par effet de bord.
+    for definition in (GENERALISTE_DEF, STAT_DEF):
+        assert "corriger_document" not in definition.tools
+
+
 def test_outils_mutants_des_agents_actifs_sont_sous_hitl() -> None:
     """Tout tool qui écrit une donnée métier est déclaré ``approval_required``.
 
-    Les corrections de documents proposés (``corriger_document``…) ne figurent
-    pas ici : elles retouchent un brouillon **non officiel** — le document
-    obtenu reste en ``proposed`` et traverse la validation humaine.
+    Les outils de **génération de documents** ne figurent pas ici (INC-105 pour
+    la voie professionnelle, INC-113 pour ``corriger_document``, INC-123 pour
+    tous les autres) : ils déposent un livrable **non officiel** — le document
+    obtenu reste en ``proposed`` et traverse la validation humaine. Une
+    confirmation par appel n'apporterait aucune décision supplémentaire, et
+    elle interrompt plusieurs fois la rédaction progressive d'un document long.
 
-    ``generer_document_professionnel`` ne figure pas non plus (03/11) : il
-    dépose un livrable en ``proposed`` et sa rédaction progressive (INC-105)
-    multiplie les appels par document long — une confirmation par appel
-    n'apporterait aucune décision supplémentaire, la validation humaine du
-    document restant le seul geste qui officialise quoi que ce soit.
+    Ce qui reste sous HITL est ce qui écrit une donnée **métier** : appel, lot,
+    offre, affectation, email sortant, import de bénéficiaires.
     """
     attendus = {
         GENERATEUR_DEF.agent_id: (
@@ -181,6 +232,13 @@ def test_outils_mutants_des_agents_actifs_sont_sous_hitl() -> None:
             "create_assignment_proposal",
             "propose_equipe_update",
             "propose_mission_update",
+            # Budgets de mission (Phase 2 §5) : toute écriture budgétaire
+            # modifie des données réelles — HITL avant exécution.
+            "creer_budget_mission",
+            "ajouter_ligne_budget",
+            "modifier_ligne_budget",
+            "retirer_ligne_budget",
+            "soumettre_budget",
             "envoyer_email",
         ),
         ASSISTANT_DEF.agent_id: ("import_beneficiaires",),

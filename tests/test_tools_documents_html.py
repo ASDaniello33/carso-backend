@@ -382,11 +382,16 @@ def test_la_grille_du_tableau_n_est_pas_derivee_une_fois_par_cellule(
 
 def test_type_document_alias_profil_est_converti(
     service: DocumentService,
+    organisation: Organisation,
 ) -> None:
-    """'offre_financiere' (profil) → type 'offre' : plus d'échec tool call."""
+    """'offre_financiere' (profil) → type 'offre' : plus d'échec tool call.
+
+    Le document est **ancré** (organisation) : sans ancre, le service range le
+    dépôt sous ``non_classe`` par conception — ce que ce test ne mesurait pas.
+    """
     outil = _tools(service)["generer_document_html"]
     sortie = outil.invoke(
-        _payload(None, type_document="offre_financiere")
+        _payload(organisation, type_document="offre_financiere")
     )
     assert sortie["statut"] == "proposed"
     assert sortie["type_document"] == "offre"
@@ -409,3 +414,113 @@ def test_type_document_inconnu_renvoie_une_erreur_pedagogique(
     details = sortie["error"].get("details", {})
     assert "offre" in details.get("types_valides", [])
     assert "profil" in details.get("suggestion", "")
+
+
+# --- Figures SVG et ancres (INC-123) ------------------------------------------
+
+
+def _images_du_docx(octets: bytes) -> list[str]:
+    import zipfile
+
+    with zipfile.ZipFile(io.BytesIO(octets)) as archive:
+        return [n for n in archive.namelist() if n.startswith("word/media/")]
+
+
+def test_generer_document_html_conserve_le_svg_du_document(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """Le `<svg>` écrit dans le HTML ne disparaît plus du DOCX (défaut INC-123)."""
+    html = (
+        "<html><body><h1>Schéma</h1>"
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" '
+        'width="200" height="60"><rect width="200" height="60" fill="#EEF"/>'
+        '<text x="8" y="34" font-size="13">Dispositif</text></svg>'
+        "</body></html>"
+    )
+    sortie = _tools(service)["generer_document_html"].invoke(
+        _payload(organisation, html=html, nom_fichier="schema")
+    )
+    assert sortie["ok"] is True
+    _nom, chemin = service.telecharger(UUID(sortie["document_id"]))
+    assert len(_images_du_docx(chemin.read_bytes())) == 1
+
+
+def test_generer_document_html_remplit_les_ancres_de_figures(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """`graphiques` + `illustrations` remplissent les ancres, comme le professionnel."""
+    html = (
+        "<html><body><h1>Rapport</h1><p>Chiffres :</p>"
+        '<figure data-graphique="ca"></figure>'
+        '<figure data-illustration="dem"></figure>'
+        "</body></html>"
+    )
+    sortie = _tools(service)["generer_document_html"].invoke(
+        _payload(
+            organisation,
+            html=html,
+            nom_fichier="rapport_figures",
+            graphiques=[
+                {
+                    "id": "ca",
+                    "type": "bar",
+                    "labels": ["T1", "T2"],
+                    "series": [{"nom": "2026", "valeurs": [10, 20]}],
+                    "legende": "Figure 1 – CA",
+                }
+            ],
+            illustrations=[
+                {
+                    "id": "dem",
+                    "type": "etapes",
+                    "items": [{"titre": "A"}, {"titre": "B"}],
+                    "legende": "Figure 2 – Démarche",
+                }
+            ],
+        )
+    )
+    assert sortie["ok"] is True
+    _nom, chemin = service.telecharger(UUID(sortie["document_id"]))
+    assert len(_images_du_docx(chemin.read_bytes())) == 2
+
+
+def test_generer_document_accepte_un_bloc_graphique(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """`generer_document` (spec structuré) dessine le graphique demandé."""
+    sortie = _tools(service)["generer_document"].invoke(
+        {
+            "format": "docx",
+            "nom_fichier": "offre_illustree",
+            "type_document": "offre",
+            "ancre": "organisation",
+            "entity_id": str(organisation.id),
+            "propose_par": IDENTITE.agent_id,
+            "document_spec": {
+                "metadata": {"titre": "Offre illustrée"},
+                "blocs": [
+                    {"type": "titre", "niveau": 1, "texte": "Résultats"},
+                    {
+                        "type": "graphique",
+                        "variante": "line",
+                        "labels": ["2024", "2025"],
+                        "series": [{"nom": "Sessions", "valeurs": [12, 18]}],
+                        "legende": "Figure 1 – Sessions",
+                    },
+                    {
+                        "type": "image",
+                        "svg": (
+                            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" '
+                            'width="120" height="40"><rect width="120" height="40" '
+                            'fill="#eee"/></svg>'
+                        ),
+                        "legende": "Figure 2 – Schéma",
+                    },
+                ],
+            },
+        }
+    )
+    assert sortie["ok"] is True, sortie
+    _nom, chemin = service.telecharger(UUID(sortie["document_id"]))
+    # Le DOCX porte le graphique et le SVG (tous deux rasterisés par resvg).
+    assert len(_images_du_docx(chemin.read_bytes())) == 2

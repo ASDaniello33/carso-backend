@@ -96,8 +96,16 @@ DEFINITION = AgentDefinition(
         # Une pièce jointe image (scan, capture) se lit en la **voyant** : le
         # texte extrait d'une image n'existe pas.
         "lire_image",
-        # Génération d'un livrable : déposé en proposition, jamais approuvé.
+        # Génération d'un livrable à thème CARSO : déposé en proposition,
+        # jamais approuvé. La voie HTML libre (`generer_document`) reste aux
+        # agents producteurs (générateur, RH, assistant, statistique, personnel).
         "generer_document_professionnel",
+        # Image (INC-135) : l'image réelle en base64 quand le modèle en émet,
+        # sinon un SVG rasterisé — même dépôt en proposition, affichage en chat.
+        "generer_image",
+        "generer_image_svg",
+        "composer_image",
+        "verifier_image_svg",
         "query_analytics",
         "langsearch_web_search",
         # Lecture d'une page trouvée (``app.tools.web``) : le contenu est lu, pas

@@ -189,3 +189,32 @@ def test_une_cle_d_execution_ne_casse_pas_la_construction(cle: str) -> None:
     contexte = UserContext(**{cle: "valeur"})
 
     assert contexte.cles_execution == (cle,)
+
+def test_un_refus_sans_id_d_appel_reste_une_reponse_valide() -> None:
+    """Un appel sans id ne doit pas faire échouer le run au moment du refus.
+
+    ``ToolMessage`` refuse ``tool_call_id=None`` : sans id de secours, le refus
+    d'un outil hors contrat levait une ``ValidationError`` Pydantic au lieu de
+    rendre la raison au modèle.
+    """
+    garde = UserContext(
+        role="formateur",
+        est_interne=False,
+        utilisateur_id="u-1",
+        outils_autorises=frozenset({"query_analytics"}),
+    )
+    middleware = ContexteUtilisateurMiddleware()
+    runtime = SimpleNamespace(context=UserContext(**CLES_DU_FIL))
+    jeton = poser_contexte_utilisateur(garde)
+    try:
+        demande = SimpleNamespace(
+            runtime=runtime, tool_call={"name": "proposer_affectation", "id": None}
+        )
+
+        reponse = middleware.wrap_tool_call(demande, lambda request: "exécuté")
+
+        assert isinstance(reponse, ToolMessage)
+        assert "Accès refusé" in reponse.content
+        assert isinstance(reponse.tool_call_id, str) and reponse.tool_call_id
+    finally:
+        retablir_contexte_utilisateur(jeton)

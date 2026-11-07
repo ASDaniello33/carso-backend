@@ -49,6 +49,8 @@ DEFINITION = AgentDefinition(
                 # Recherche web et lecture de pages : la même surface de lecture
                 # externe que les autres agents (jamais une capacité de plus).
                 "web_search",
+                # Scripts confinés dans l'espace de travail du compte (INC-116).
+                "script_python",
                 # Email sortant vers un contact **enregistré** (HITL avant envoi).
                 CAPACITE_EMAIL,
             }
@@ -59,20 +61,29 @@ DEFINITION = AgentDefinition(
         "document_read",
         "document_propose",
         "web_search",
+        "script_python",
         CAPACITE_EMAIL,
     ),
     tools=NOMS_TOOLS,
     collaboration=(),
-    # ``generer_document_professionnel`` n'est PAS sous approbation d'appel : il
-    # dépose un livrable en ``proposed`` (jamais officiel) et la rédaction
-    # progressive (INC-105) en fait plusieurs appels par document long — la
-    # décision humaine reste à la validation du document, pas à chaque appel.
+    # Les outils de génération de documents (``generer_document``,
+    # ``generer_document_html``) ne sont PAS sous approbation d'appel (INC-123) :
+    # ils déposent un livrable en ``proposed``, jamais officiel — la décision
+    # humaine reste la validation du document. Les écritures métier ci-dessous
+    # restent sous HITL : elles modifient des données réelles.
     approval_required=(
         "create_assignment_proposal",
         "propose_equipe_update",
         "propose_mission_update",
-        "generer_document",
-        "generer_document_html",
+        # Budgets de mission : toute écriture budgétaire (créer, ajouter/
+        # modifier/supprimer une ligne, soumettre) modifie des données réelles
+        # — HITL avant exécution, comme les autres écritures de l'agent. Le
+        # montant final reste approuvé par le circuit budget du service.
+        "creer_budget_mission",
+        "ajouter_ligne_budget",
+        "modifier_ligne_budget",
+        "retirer_ligne_budget",
+        "soumettre_budget",
         # Un email envoyé ne se rappelle pas : approbation humaine **avant**
         # l'exécution, comme toute écriture sensible de l'agent.
         "envoyer_email",
@@ -177,10 +188,14 @@ class AgentRH:
         return reponse
 
     def deep_tools(self) -> tuple[Any, ...]:
-        from app.agents.outillage import tools_documents_pour
+        from app.agents.outillage import tools_documents_pour, tools_scripts_pour
 
         extras = tools_documents_pour(self.definition, self._session_factory)
-        extras = extras + self._extra_tools
+        # Script ancré (INC-124) : un livrable produit sous une mission/équipe
+        # est déposé en ``proposed`` dans la même transaction.
+        extras = extras + self._extra_tools + tools_scripts_pour(
+            self.definition, session_factory=self._session_factory
+        )
         return construire_tools_rh(
             self.definition, self._session_factory, extra_tools=extras
         )

@@ -94,6 +94,18 @@ def test_contrat_skills_et_hitl() -> None:
     # version du même document) — plus d'approbation par appel, la décision
     # humaine reste la validation du document (cf. matrice INC).
     assert "corriger_document" not in DEFINITION.approval_required
+    # INC-123 : AUCUN outil de génération de documents n'est sous HITL d'appel —
+    # le livrable naît ``proposed`` et reste à valider par un humain.
+    for nom in (
+        "generer_document",
+        "generer_document_html",
+        "generer_document_professionnel",
+        "copier_modele_document",
+        "remplir_modele",
+        "modifier_section_document",
+        "corriger_document",
+    ):
+        assert nom not in DEFINITION.approval_required, nom
 
 
 def test_preparer_lot_manuel_sur_appel_recu(session: Session) -> None:
@@ -120,8 +132,11 @@ def test_preparer_lot_valide_brouillon(session: Session) -> None:
     assert reponse["offre"]["statut"] == "brouillon"
     noms = {t.name for t in agent.deep_tools()}
     assert {"get_lot", "create_offer_draft", "get_document_template"} <= noms
-    assert "fill_template" in noms
-    assert "clone_document_structure" in noms
+    assert "copier_modele_document" in noms
+    assert "remplir_modele" in noms
+    assert "remplacer_element_model" in noms
+    # Les voies parallèles ne sont plus exposées.
+    assert not {"fill_template", "clone_document_structure"} & noms
     assert "get_document_structure" in noms
     # Surface de recherche externe identique à celle de tous les agents
     # (12/10) : recherche fédérée, lecture de pages, recherche média.

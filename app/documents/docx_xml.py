@@ -25,11 +25,17 @@ from app.core.errors import ValidationError
 from app.documents.styles import MM_PAR_POUCE
 
 __all__ = [
+    "alignement_vertical_cellule",
     "bordures_tableau",
     "champ_numero_page",
+    "champ_sommaire",
+    "debut_numerotation",
     "espacement_paragraphe",
     "filet_haut_paragraphe",
+    "hauteur_ligne",
     "largeurs_colonnes",
+    "maj_champs_a_ouverture",
+    "marges_cellule",
     "mise_en_page_fixe",
     "ombrer_cellule",
     "repetition_entete",
@@ -106,9 +112,14 @@ def _emu(millimetres: float) -> int:
 
 
 def bordures_tableau(
-    tableau: Any, *, couleur: str, taille_pt: float
+    tableau: Any, *, couleur: str, taille_pt: float, motif: str = "single"
 ) -> None:
-    """Trace les filets du tableau (extérieur et intérieurs)."""
+    """Trace les filets du tableau (extérieur et intérieurs).
+
+    ``motif="nil"`` les **supprime** : c'est la seule façon fiable d'obtenir un
+    tableau sans filets dans Word et LibreOffice (une épaisseur de 0 est
+    interprétée comme un filet fin par certains lecteurs).
+    """
     tbl_pr = tableau._tbl.tblPr
     for existant in tbl_pr.findall(_qn("w:tblBorders")):
         tbl_pr.remove(existant)
@@ -116,7 +127,7 @@ def bordures_tableau(
     for cote in ("top", "left", "bottom", "right", "insideH", "insideV"):
         bordure = _element(
             cote,
-            val="single",
+            val=motif,
             sz=str(max(2, int(round(taille_pt * _SZ_PAR_POINT)))),
             space="0",
             color=couleur.lstrip("#").upper(),
@@ -189,6 +200,79 @@ def champ_numero_page(paragraph: Any) -> None:
     run.append(texte)
     fld.append(run)
     paragraph._p.append(fld)
+
+
+def marges_cellule(cellule: Any, *, marge_mm: float) -> None:
+    """Padding intérieur d'une cellule (``w:tcMar``), sur les quatre côtés."""
+    tc_pr = cellule._tc.get_or_add_tcPr()
+    for existant in tc_pr.findall(_qn("w:tcMar")):
+        tc_pr.remove(existant)
+    marges = _element("tcMar")
+    for cote in ("top", "left", "bottom", "right"):
+        marges.append(
+            _element(cote, w=str(_twips(marge_mm)), type="dxa")
+        )
+    tc_pr.append(marges)
+
+
+def alignement_vertical_cellule(cellule: Any, valeur: str) -> None:
+    """Aligne verticalement le contenu d'une cellule (``w:vAlign``)."""
+    tc_pr = cellule._tc.get_or_add_tcPr()
+    for existant in tc_pr.findall(_qn("w:vAlign")):
+        tc_pr.remove(existant)
+    tc_pr.append(_element("vAlign", val=valeur))
+
+
+def hauteur_ligne(ligne: Any, *, hauteur_mm: float) -> None:
+    """Hauteur **minimale** d'une ligne de tableau (``w:trHeight``).
+
+    ``hRule="atLeast"`` : une cellule dont le texte dépasse grandit au lieu
+    d'être rognée — une hauteur fixe tronquerait le contenu.
+    """
+    tr_pr = ligne._tr.get_or_add_trPr()
+    for existant in tr_pr.findall(_qn("w:trHeight")):
+        tr_pr.remove(existant)
+    tr_pr.append(_element("trHeight", val=str(_twips(hauteur_mm)), hRule="atLeast"))
+
+
+def champ_sommaire(paragraph: Any, *, niveaux: int = 3, avec_pages: bool = True) -> None:
+    """Insère le champ Word ``TOC`` (table des matières calculée).
+
+    Le champ est un ``w:fldSimple`` : Word le remplit à l'ouverture (voir
+    ``maj_champs_a_ouverture``), LibreOffice sur demande. Aucun numéro de page
+    n'est écrit ici — un DOCX n'est pas paginé avant rendu.
+    """
+    instruction = f' TOC \\o "1-{max(1, min(4, niveaux))}" \\h \\z \\u '
+    if not avec_pages:
+        instruction = instruction.replace(" \\h \\z \\u ", " \\n ")
+    fld = _element("fldSimple")
+    fld.set(_qn("w:instr"), instruction)
+    run = _element("r")
+    texte = _element("t")
+    texte.text = "Sommaire"
+    run.append(texte)
+    fld.append(run)
+    paragraph._p.append(fld)
+
+
+def debut_numerotation(section: Any, *, numero: int) -> None:
+    """Fixe le numéro de la première page (``w:pgNumType w:start``)."""
+    sect_pr = section._sectPr
+    for existant in sect_pr.findall(_qn("w:pgNumType")):
+        sect_pr.remove(existant)
+    sect_pr.append(_element("pgNumType", start=str(max(0, int(numero)))))
+
+
+def maj_champs_a_ouverture(document: Any) -> None:
+    """Demande au lecteur de recalculer les champs (sommaire, numéros) à l'ouverture.
+
+    Sans ``w:updateFields``, Word affiche le sommaire tel qu'il a été enregistré —
+    c'est-à-dire vide, puisque le serveur n'a pas paginé le document.
+    """
+    reglages = document.settings.element
+    for existant in reglages.findall(_qn("w:updateFields")):
+        reglages.remove(existant)
+    reglages.insert(0, _element("updateFields", val="true"))
 
 
 def _qn(chemin: str) -> str:

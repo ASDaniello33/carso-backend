@@ -31,14 +31,29 @@ def test_deep_tools_apercu_seulement() -> None:
     session = sessionmaker(bind=engine)()
     try:
         agent = build_assistant(session)
-        noms = {t.name for t in agent.deep_tools()}
+        outils = agent.deep_tools()
+        noms = {t.name for t in outils}
     finally:
         session.close()
         engine.dispose()
+    # Aucun doublon : un tool fourni deux fois fait échouer le montage du graphe
+    # (422 « Tool fourni deux fois »), ce qui bloquait tout le chat.
+    assert len(noms) == len(outils)
+    assert [t.name for t in outils].count("run_python_script") == 1
+    # Chaîne modèle ancrée sur la mission ou la session (INC-129) : l'organisme
+    # impose souvent sa fiche technique, sa liste de présence ou son rapport.
+    assert {
+        "lister_modeles_documents",
+        "obtenir_structure_modele",
+        "copier_modele_document",
+        "obtenir_structure_document",
+        "remplacer_element_model",
+        "remplir_modele",
+    } <= noms
     assert "preview_import_beneficiaires" in noms
     assert "inspect_beneficiaires_xlsx" in noms
     assert "generer_document" in noms
-    assert "fill_template" in noms
+    assert "generer_document_html" in noms
     # Surface de recherche externe identique à celle de tous les agents
     # (12/10) : recherche fédérée, lecture de pages, recherche média.
     assert {

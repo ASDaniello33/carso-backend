@@ -46,12 +46,28 @@ fil déjà cassé redevient utilisable au tour suivant — sans migration ni pur
 **Ce qui n'est pas touché.** Un historique sain revient **inchangé** (le
 middleware n'appelle alors pas ``override``). Les noms des outils frontend ne
 sont jamais réécrits : ils sont le contrat d'affichage passé par le client.
+
+**Ids d'appels absents (constat du 06/11).** ``AIMessage`` accepte
+``tool_calls=[{"id": None, …}]`` — certains fournisseurs OpenAI-compatibles
+émettent des appels sans identifiant — mais ``ToolMessage`` refuse ``None``::
+
+    1 validation error for ToolMessage
+    tool_call_id
+      Input should be a valid string [type=string_type, input_value=None…]
+
+Le run entier échoue alors au premier outil exécuté. Le complément d'id
+(:func:`completer_identifiants`) est donc appliqué à trois endroits : l'état au
+début du run (fil checkpointé ou messages fusionnés par le client), la requête
+du modèle (dernier filet), et la **réponse** du modèle — sinon ``ToolNode``
+construit son ``ToolMessage`` avec ``None``. Un id déclaré n'est jamais réécrit.
 """
 
 from __future__ import annotations
 
 import logging
+import uuid
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import Any
 
 try:  # pragma: no cover - dépend de l'extra agents
@@ -75,6 +91,84 @@ REPONSE_ABSENTE = (
     "appel et ne le relance pas de ta propre initiative ; demande confirmation à "
     "l'utilisateur si son résultat est nécessaire."
 )
+
+#: Préfixe des ids d'appels complétés par CARSO : permet de distinguer un id
+#: fabriqué d'un id fournisseur, sans jamais réécrire ce dernier.
+PREFIXE_APPEL = "call_"
+
+
+def _identifiant_neuf() -> str:
+    return f"{PREFIXE_APPEL}{uuid.uuid4().hex[:24]}"
+
+
+def identifiant_appel(declaration: Any) -> str:
+    """Id exploitable pour un appel d'outil : déclaré s'il existe, sinon neuf.
+
+    ``ToolMessage`` exige une chaîne non ``None`` **et** le fournisseur exige
+    l'id exact de l'appel : on ne réutilise donc un id que s'il est déjà une
+    chaîne non vide. Utilisé comme dernier filet par les réponses de refus.
+    """
+    if isinstance(declaration, dict):
+        ident = declaration.get("id")
+        if isinstance(ident, str) and ident.strip():
+            return ident
+    return _identifiant_neuf()
+
+
+def _completer_appels(appels: Sequence[Any]) -> tuple[list[Any], int]:
+    """Appels dont chacun porte un id non vide ; compte les ids ajoutés."""
+    complets: list[Any] = []
+    ajoutes = 0
+    for appel in appels:
+        if isinstance(appel, dict):
+            ident = appel.get("id")
+            if isinstance(ident, str) and ident.strip():
+                complets.append(appel)
+                continue
+            complets.append({**appel, "id": _identifiant_neuf()})
+            ajoutes += 1
+            continue
+        complets.append(appel)
+    return complets, ajoutes
+
+
+def completer_identifiants(message: Any) -> tuple[Any, int]:
+    """Message assistant dont chaque appel d'outil porte un id non vide.
+
+    Returns:
+        ``(message, ids_ajoutes)`` — le message **lui-même** si aucun id ne
+        manquait, sinon une copie (même ``id`` de message, contenu intact).
+    """
+    if AIMessage is None or not isinstance(message, AIMessage):
+        return message, 0
+    mises: dict[str, Any] = {}
+    total = 0
+    for nom in ("tool_calls", "invalid_tool_calls"):
+        appels = getattr(message, nom, None) or []
+        complets, ajoutes = _completer_appels(appels)
+        if ajoutes:
+            mises[nom] = complets
+            total += ajoutes
+    if not total:
+        return message, 0
+    return message.model_copy(update=mises), total
+
+
+def completer_identifiants_sequence(messages: Sequence[Any]) -> tuple[list[Any], int]:
+    """Complète les ids d'appels d'une liste, en préservant l'identité.
+
+    Returns:
+        ``(messages, ids_ajoutes)`` ; les messages inchangés sont **les mêmes
+        objets** que ceux de l'entrée, ce qui permet de ne rien réécrire en
+        aval quand aucun id ne manquait.
+    """
+    complets: list[Any] = []
+    total = 0
+    for message in messages:
+        repare, ajoutes = completer_identifiants(message)
+        complets.append(repare)
+        total += ajoutes
+    return complets, total
 
 
 def _appels(message: Any) -> list[dict[str, Any]]:
@@ -109,9 +203,11 @@ def assainir_sequence_outils(messages: Sequence[Any]) -> list[Any]:
         l'entrée (hors réponses synthétiques). L'appelant peut donc comparer par
         identité pour ne rien réécrire quand rien ne change.
     """
-    liste = list(messages)
     if AIMessage is None or ToolMessage is None:  # pragma: no cover - extra absent
-        return liste
+        return list(messages)
+    # 0. Un appel sans id ne peut pas recevoir de réponse : on en fabrique un
+    #    avant de raisonner sur les paires (``ToolMessage`` refuse ``None``).
+    liste, _ = completer_identifiants_sequence(list(messages))
 
     # 1. Ce que chaque message assistant a demandé (l'appel fait foi).
     declarations: dict[str, str] = {}
@@ -195,15 +291,57 @@ class HistoriqueOutilsCoherentMiddleware(_AgentMiddleware):
             return request
         return request.override(messages=propre)
 
+    @staticmethod
+    def _reponse_complete(reponse: Any) -> Any:
+        """Réponse du modèle dont chaque appel porte un id (sinon ToolNode casse).
+
+        Le gestionnaire rend un ``ModelResponse`` (dataclass ``result`` + sortie
+        structurée), pas un ``AIMessage`` : réparer seulement ce dernier laissait
+        passer l'appel sans id, et ``ToolNode`` levait
+        ``tool_call_id … input_value=None``.
+        """
+        resultat = getattr(reponse, "result", None)
+        if isinstance(resultat, list):
+            repares, ajoutes = completer_identifiants_sequence(resultat)
+            if not ajoutes:
+                return reponse
+            _logger.info("Appels d'outils sans id complétés : %d", ajoutes)
+            return replace(reponse, result=repares)
+        repare, ajoutes = completer_identifiants(reponse)
+        if ajoutes:
+            _logger.info("Appels d'outils sans id complétés : %d", ajoutes)
+        return repare
+
+    def _etat_complet(self, state: Any) -> dict[str, Any] | None:
+        """État du fil rendu conforme (checkpoint ou messages fusionnés)."""
+        messages = state.get("messages") if isinstance(state, dict) else None
+        if not messages:
+            return None
+        repares, ajoutes = completer_identifiants_sequence(messages)
+        if not ajoutes:
+            return None
+        _logger.info("Historique : %d appel(s) d'outil sans id complété(s)", ajoutes)
+        return {"messages": repares}
+
+    def before_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
+        return self._etat_complet(state)
+
+    async def abefore_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
+        return self._etat_complet(state)
+
     def wrap_model_call(self, request: Any, handler: Any) -> Any:
-        return handler(self._coherent(request))
+        return self._reponse_complete(handler(self._coherent(request)))
 
     async def awrap_model_call(self, request: Any, handler: Any) -> Any:
-        return await handler(self._coherent(request))
+        return self._reponse_complete(await handler(self._coherent(request)))
 
 
 __all__ = [
+    "PREFIXE_APPEL",
     "REPONSE_ABSENTE",
     "HistoriqueOutilsCoherentMiddleware",
     "assainir_sequence_outils",
+    "completer_identifiants",
+    "completer_identifiants_sequence",
+    "identifiant_appel",
 ]

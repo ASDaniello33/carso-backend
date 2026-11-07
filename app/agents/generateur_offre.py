@@ -72,6 +72,8 @@ DEFINITION = AgentDefinition(
                 "web_search",
                 "document_read",
                 "document_propose",
+                # Scripts confinés dans l'espace de travail du compte (INC-116).
+                "script_python",
             }
         )
     ),
@@ -83,6 +85,7 @@ DEFINITION = AgentDefinition(
         "web_search",
         "document_read",
         "document_propose",
+        "script_python",
     ),
     tools=NOMS_TOOLS,
     collaboration=(
@@ -91,23 +94,19 @@ DEFINITION = AgentDefinition(
             task_types=frozenset({"propose_team_assignment"}),
         ),
     ),
-    # ``generer_document_professionnel`` n'est PAS sous approbation d'appel : il
-    # dépose un livrable en ``proposed`` (jamais officiel) et la rédaction
-    # progressive (INC-105) en fait plusieurs appels par document long — la
-    # décision humaine reste à la validation du document, pas à chaque appel.
+    # AUCUN outil de génération de documents n'est sous approbation d'appel
+    # (INC-105 pour le professionnel, INC-113 pour ``corriger_document``,
+    # INC-123 pour tous les autres) : chaque génération dépose un livrable en
+    # ``proposed`` (jamais officiel), et la décision humaine qui officialise
+    # reste la VALIDATION DU DOCUMENT — une confirmation par appel n'ajoute
+    # aucune décision, elle interrompt une rédaction progressive plusieurs fois
+    # par livrable. Retirés ici : ``generer_document``,
+    # ``generer_document_html``.
     approval_required=(
         "enregistrer_appel",
         "rattacher_document_appel",
         "submit_rfp_extraction",
         "create_offer_draft",
-        "fill_template",
-        "generer_document",
-        "generer_document_html",
-        # ``corriger_document`` n'est PAS sous approbation d'appel (04/11) : une
-        # correction ciblée retouche un brouillon ``proposed`` en une nouvelle
-        # version du même document — la validation humaine reste celle du
-        # document, comme pour ``generer_document_professionnel`` (03/11).
-        "clone_document_structure",
         "propose_lot_update",
         "propose_appel_update",
         # Placer la zone d'un lot écrit un lieu : décision humaine.
@@ -507,10 +506,14 @@ class AgentGenerateurOffre:
 
     def deep_tools(self) -> tuple[Any, ...]:
         from app.agents.collaboration_registre import tools_collaboration_generateur
-        from app.agents.outillage import tools_documents_pour
+        from app.agents.outillage import tools_documents_pour, tools_scripts_pour
 
         extras = tools_documents_pour(self.definition, self._session_factory)
         extras = extras + tools_collaboration_generateur(self._session_factory)
+        # Script ancré (INC-124) : produit un livrable sous l'appel / l'offre.
+        extras = extras + tools_scripts_pour(
+            self.definition, session_factory=self._session_factory
+        )
         return construire_tools_generateur_offre(
             self.definition, self._session_factory, extra_tools=extras
         )

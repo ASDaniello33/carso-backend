@@ -304,3 +304,67 @@ class ModeleDocumentRead(BaseModel):
     statut: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+# --- Moteur documentaire (INC-128) -------------------------------------------
+
+
+class ModeleDocumentDetailRead(ModeleDocumentRead):
+    """Modèle avec son analyse et sa configuration — lecture d'un seul modèle.
+
+    La liste reste volontairement légère (``ModeleDocumentRead``) : une analyse
+    de document complet n'a rien à faire dans chaque ligne d'un tableau.
+    """
+
+    statut_analyse: str = "non_analyse"
+    statut_validation: str = "brouillon"
+    document_instrumente_id: UUID | None = None
+    analyse: dict[str, Any] | None = None
+    configuration: dict[str, Any] | None = None
+    schema_generation: dict[str, Any] | None = None
+
+
+class ModeleConfigurationInput(BaseModel):
+    """Configuration de modèle envoyée par l'écran d'analyse (brouillon)."""
+
+    nom: str = Field(default="", max_length=255)
+    type_document: str | None = Field(default=None, max_length=50)
+    champs: list[dict[str, Any]] = Field(default_factory=list, max_length=500)
+    notes: str | None = Field(default=None, max_length=4000)
+
+
+class ModeleGenerationInput(BaseModel):
+    """Demande de génération depuis un modèle validé."""
+
+    valeurs: dict[str, Any] = Field(
+        description=(
+            "Valeurs par clé de champ : texte, liste de segments "
+            "({texte, gras, italique, couleur, taille_pt}) ou liste d'objets "
+            "pour une ligne répétable."
+        )
+    )
+    nom_fichier: str = Field(min_length=1, max_length=255)
+    type_document: str = Field(
+        description="Type de DÉPÔT du livrable (vocabulaire documentaire)."
+    )
+    propose_par: str | None = Field(default=None, max_length=100)
+    appel_id: UUID | None = None
+    offre_id: UUID | None = None
+
+
+class ModeleGenerationRead(BaseModel):
+    """Livrable produit : identité documentaire + journal du rendu."""
+
+    document_id: UUID
+    nom: str
+    statut: str
+    version: int
+    champs_remplaces: list[str] = Field(default_factory=list)
+    champs_conserves: list[str] = Field(default_factory=list)
+    champs_supprimes: list[str] = Field(default_factory=list)
+    lignes: dict[str, int] = Field(default_factory=dict)
+    blocs_conserves: list[str] = Field(default_factory=list)
+    avertissements: list[str] = Field(default_factory=list)
+    validation_ok: bool
+    validation_visuelle: str
+    validation_erreurs: list[str] = Field(default_factory=list)

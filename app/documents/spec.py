@@ -23,15 +23,19 @@ Propriétés de ce module :
 
 from __future__ import annotations
 
+import base64
+import binascii
 import re
 from collections.abc import Sequence
 from datetime import date
 from typing import Annotated, Any, Literal, NamedTuple
+from unicodedata import category, normalize
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.core.errors import ValidationError
+from app.documents.images import OCTETS_MAX
 from app.documents.styles import (
     FORMATS_MM,
     DocumentStyle,
@@ -50,8 +54,13 @@ __all__ = [
     "Couverture",
     "DocumentSpec",
     "Encadre",
+    "Espacement",
+    "Forme",
     "Geometrie",
+    "Graphique",
+    "Illustration",
     "Image",
+    "ItemIllustration",
     "Liste",
     "Metadonnees",
     "MiseEnPage",
@@ -59,6 +68,9 @@ __all__ = [
     "Paires",
     "Paragraphe",
     "SautDePage",
+    "Segment",
+    "SerieGraphique",
+    "Sommaire",
     "Source",
     "Tableau",
     "Titre",
@@ -144,12 +156,74 @@ class Titre(_BlocBase):
     texte: str = Field(min_length=1, max_length=300)
 
 
+class Segment(BaseModel):
+    """Fragment de texte d'un paragraphe ou d'une cellule (INC-130).
+
+    Le spec garde **un** texte par bloc pour les cas simples ; ce fragment sert
+    quand une partie seulement de la phrase change de forme (un mot en gras, un
+    montant en couleur, une mention surlignée). Le style du bloc reste la base :
+    un champ laissé à ``None`` n'est pas modifié, il n'y a donc pas de valeur
+    implicite inventée.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    texte: str = Field(min_length=1, max_length=5000)
+    gras: bool | None = None
+    italique: bool | None = None
+    souligne: bool | None = None
+    barre: bool | None = None
+    surligne: Literal[
+        "jaune", "vert", "cyan", "magenta", "rouge", "bleu", "gris", "noir"
+    ] | None = Field(
+        default=None,
+        description=(
+            "Marqueur de texte (surlignage Word). Uniquement ces huit teintes : "
+            "ce sont celles que Word affiche de façon fiable."
+        ),
+    )
+    couleur: str | None = Field(default=None, pattern=_HEX)
+    police: str | None = Field(default=None, min_length=1, max_length=80)
+    taille_pt: float | None = Field(default=None, gt=4, le=72)
+
+
 class Paragraphe(_BlocBase):
-    """Paragraphe de corps, de chapeau (accroche) ou de note."""
+    """Paragraphe de corps, de chapeau (accroche) ou de note.
+
+    Deux formes exclusives : ``texte`` (une seule graphie) ou ``runs`` (fragments
+    stylés). Les champs de mise en forme sont des **surcharges** du rôle : ce
+    qui n'est pas renseigné garde le style du document.
+    """
 
     type: Literal["paragraphe"] = "paragraphe"
-    texte: str = Field(min_length=1, max_length=20000)
+    texte: str = Field(default="", max_length=20000)
+    runs: list[Segment] | None = Field(
+        default=None,
+        max_length=200,
+        description=(
+            "Fragments stylés, dans l'ordre de lecture : {texte, gras, italique, "
+            "souligne, barre, surligne, couleur, police, taille_pt}. Exclusif "
+            "avec ``texte``."
+        ),
+    )
     role: Literal["corps", "chapeau", "note"] = "corps"
+    alignement: Literal["gauche", "centre", "droite", "justifie"] | None = None
+    espace_avant_pt: float | None = Field(default=None, ge=0, le=120)
+    espace_apres_pt: float | None = Field(default=None, ge=0, le=120)
+    interligne: float | None = Field(default=None, ge=0.8, le=3.0)
+    retrait_mm: float | None = Field(default=None, ge=0, le=100)
+    retrait_premiere_ligne_mm: float | None = Field(default=None, ge=-50, le=100)
+    police: str | None = Field(default=None, min_length=1, max_length=80)
+    taille_pt: float | None = Field(default=None, gt=4, le=72)
+    couleur: str | None = Field(default=None, pattern=_HEX)
+
+    @model_validator(mode="after")
+    def _contenu_unique(self) -> Paragraphe:
+        if self.runs and self.texte.strip():
+            raise ValueError("Paragraphe : fournir 'texte' OU 'runs', pas les deux.")
+        if not self.runs and not self.texte.strip():
+            raise ValueError("Paragraphe : 'texte' ou 'runs' est requis.")
+        return self
 
 
 class Liste(_BlocBase):
@@ -189,6 +263,32 @@ class Cellule(BaseModel):
     alignement: Literal["gauche", "centre", "droite"] | None = None
     couleur_texte: str | None = Field(default=None, pattern=_HEX)
     taille_pt: float | None = Field(default=None, gt=4, le=24)
+    italique: bool | None = None
+    souligne: bool | None = None
+    runs: list[Segment] | None = Field(
+        default=None,
+        max_length=60,
+        description="Fragments stylés de la cellule (exclusif avec ``texte``).",
+    )
+    marge_interne_mm: float | None = Field(
+        default=None,
+        ge=0,
+        le=10,
+        description="Marge intérieure de la cellule (padding), en mm.",
+    )
+    alignement_vertical: Literal["haut", "centre", "bas"] | None = None
+
+    @model_validator(mode="after")
+    def _contenu_cellule(self) -> Cellule:
+        if self.runs and self.texte:
+            raise ValueError("Cellule : fournir 'texte' OU 'runs', pas les deux.")
+        return self
+
+    def texte_complet(self) -> str:
+        """Texte de la cellule, fragments assemblés si elle en contient."""
+        if self.runs:
+            return "".join(segment.texte for segment in self.runs)
+        return self.texte
 
     @field_validator("fusion_colonnes")
     @classmethod
@@ -252,6 +352,28 @@ class Tableau(_BlocBase):
     total_ligne: int | None = Field(
         default=None,
         description="Index (0-based) d'une ligne de total, mise en évidence.",
+    )
+    marges_cellules_mm: float | None = Field(
+        default=None,
+        ge=0,
+        le=10,
+        description="Padding intérieur appliqué à toutes les cellules (mm).",
+    )
+    bordures: Literal["aucune", "fine", "moyenne", "epaisse"] | None = Field(
+        default=None,
+        description="Filets du tableau : 'aucune' les supprime, sinon épaisseur.",
+    )
+    couleur_bordures: str | None = Field(default=None, pattern=_HEX)
+    couleur_entete: str | None = Field(
+        default=None,
+        pattern=_HEX,
+        description="Trame des lignes d'en-tête (sauf cellule au fond explicite).",
+    )
+    bandes_alternees: bool | None = Field(
+        default=None, description="Lignes de données alternées, surcharge le style."
+    )
+    hauteur_lignes_mm: float | None = Field(
+        default=None, gt=0, le=100, description="Hauteur minimale des lignes (mm)."
     )
 
     @field_validator("lignes")
@@ -391,7 +513,7 @@ class Tableau(_BlocBase):
     def cellules_texte(self) -> list[str]:
         """Tous les textes des cellules, en-tête(s) compris."""
         return [
-            cellule.texte
+            cellule.texte_complet()
             for ligne in self.lignes_toutes()
             for cellule in ligne
         ]
@@ -405,19 +527,118 @@ def _normaliser_cellules(ligne: Sequence[CelluleRef]) -> list[Cellule]:
     ]
 
 
+def format_image(octets: bytes) -> str | None:
+    """Extension d'après la **signature** des octets (jamais d'après un nom).
+
+    Une image inline est une donnée non fiable : son format se lit dans ses
+    premiers octets. Un contenu non reconnu est refusé à la construction du
+    spec, pas au moment d'insérer une image cassée dans un livrable.
+    """
+    if octets.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if octets.startswith(b"\xff\xd8\xff"):
+        return "jpg"
+    if octets[:6] in (b"GIF87a", b"GIF89a"):
+        return "gif"
+    if octets[:4] == b"RIFF" and octets[8:12] == b"WEBP":
+        return "webp"
+    return None
+
+
 class Image(_BlocBase):
-    """Image référencée : par document enregistré **ou** par chemin logique confiné.
+    """Image référencée : par document enregistré, chemin logique confiné, SVG **ou** base64.
 
     Aucun chemin disque absolu n'est accepté dans un spec : la résolution passe
     par le stockage (``app.documents.assets``), donc pas de traversée possible.
+
+    Quatre sources possibles, **exclusives** :
+
+    - ``document_id``—un document déjà enregistré (stockage contrôlé) ;
+    - ``chemin``—un chemin logique relatif au stockage (traversée refusée) ;
+    - ``svg``—un SVG écrit par l'agent (INC-123) : assaini puis rendu par
+      ``app.documents.figures``, en vectoriel pour le HTML et en PNG pour les
+      formats qui ne lisent pas le SVG (DOCX, PDF du spec, XLSX) ;
+    - ``base64``—une image inline (INC-133) : aucun fichier, aucun fournisseur.
+      Les tools de génération la **réduisent avant insertion** quand elle
+      dépasse les bornes utiles (INC-134) et signalent la transformation.
     """
 
     type: Literal["image"] = "image"
     document_id: UUID | None = None
     chemin: str | None = Field(default=None, max_length=400)
+    svg: str | None = Field(
+        default=None,
+        max_length=200_000,
+        description=(
+            "SVG inline (schéma, organigramme, illustration dessinée) — assaini "
+            "avant rendu. Exclusif avec document_id et chemin."
+        ),
+    )
+    base64: str | None = Field(
+        default=None,
+        max_length=12_000_000,
+        description=(
+            "Image inline en base64 (PNG, JPEG, GIF, WebP), avec ou sans préfixe "
+            "``data:image/...;base64,`` — le moteur la décode et l'insère. "
+            "Exclusif avec document_id, chemin et svg."
+        ),
+    )
     largeur_mm: float = Field(default=120.0, gt=0, le=500)
     legende: str | None = Field(default=None, max_length=300)
     alt: str | None = Field(default=None, max_length=300)
+
+    @model_validator(mode="after")
+    def _source_unique(self) -> Image:
+        """Une seule source : deux références feraient douter de la vraie."""
+        sources = [
+            nom
+            for nom, valeur in (
+                ("document_id", self.document_id),
+                ("chemin", self.chemin),
+                ("svg", self.svg),
+                ("base64", self.base64),
+            )
+            if valeur
+        ]
+        if len(sources) > 1:
+            raise ValueError(
+                "Image : une seule source acceptée (document_id, chemin, svg ou "
+                f"base64), reçu {sources}"
+            )
+        return self
+
+    @field_validator("base64")
+    @classmethod
+    def _base64_valide(cls, valeur: str | None) -> str | None:
+        """Vérifie le base64 **à la construction** : l'erreur arrive tôt.
+
+        Le préfixe ``data:image/...;base64,`` est retiré : le spec garde la
+        charge utile seule, et le format réel est celui des octets décodés —
+        jamais celui qu'un nom de fichier prétendrait.
+        """
+        if valeur is None:
+            return None
+        propre = "".join(valeur.split())
+        if propre[:5].lower() == "data:":
+            _, _, propre = propre.partition(",")
+            propre = "".join(propre.split())
+        if not propre:
+            raise ValueError("Image base64 vide")
+        try:
+            octets = base64.b64decode(propre, validate=True)
+        except (binascii.Error, ValueError) as erreur:
+            raise ValueError(
+                "Image base64 illisible : encodage base64 invalide"
+            ) from erreur
+        if len(octets) > OCTETS_MAX:
+            raise ValueError(
+                f"Image base64 trop lourde ({len(octets)} octets) : maximum {OCTETS_MAX}"
+            )
+        if format_image(octets) is None:
+            raise ValueError(
+                "Image base64 non reconnue : formats acceptés PNG, JPEG, GIF, WebP"
+            )
+        return propre
 
     @field_validator("chemin")
     @classmethod
@@ -429,7 +650,6 @@ class Image(_BlocBase):
             raise ValueError("Chemin d'image non relatif (traversée refusée)")
         return propre
 
-
 class Encadre(_BlocBase):
     """Encadré mis en évidence (information, note, avertissement, succès)."""
 
@@ -437,6 +657,28 @@ class Encadre(_BlocBase):
     genre: Literal["info", "note", "avertissement", "succes"] = "info"
     titre: str | None = Field(default=None, max_length=200)
     texte: str = Field(min_length=1, max_length=5000)
+
+    def libelle_affiche(self, defaut: str | None = None) -> str | None:
+        """Libellé à écrire avant le texte, ``None`` s'il figure déjà dedans.
+
+        Les encadrés réels commencent souvent par leur propre libellé
+        (« Note : … », « Information manquante : … ») : le répéter donnerait
+        « Note — Note : … ». La comparaison ignore casse, accents et
+        ponctuation, mais exige une frontière de mot (« Info » ne masque pas
+        « Informations »).
+        """
+        libelle = (self.titre or defaut or "").strip()
+        if not libelle:
+            return None
+        if _cle_libelle(self.texte).startswith(f"{_cle_libelle(libelle)} "):
+            return None
+        return libelle
+
+
+def _cle_libelle(texte: str) -> str:
+    """Forme comparable d'un libellé : sans accent, casse, ni ponctuation."""
+    sans_accent = "".join(c for c in normalize("NFD", texte) if category(c) != "Mn")
+    return re.sub(r"[^a-z0-9]+", " ", sans_accent.casefold()).strip()
 
 
 class Citation(_BlocBase):
@@ -464,15 +706,223 @@ class Paires(_BlocBase):
     colonnes: int = Field(default=1, ge=1, le=3)
 
 
+class SerieGraphique(BaseModel):
+    """Une série nommée d'un graphique à axes (bar/line)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    nom: str = Field(min_length=1, max_length=60)
+    valeurs: list[float] = Field(min_length=1, max_length=60)
+
+
+class Graphique(_BlocBase):
+    """Graphique de données (INC-123) : le serveur dessine, l'agent donne les chiffres.
+
+    Le SVG est construit par ``app.documents.figures`` (``render_chart``) : un
+    libellé ne peut ni fermer une balise ni injecter de script, et la palette et
+    les graduations sont fixes — même document, mêmes octets.
+
+    Deux familles, donc deux formes :
+
+    - ``bar``/``line`` exigent ``series`` (une série = un nom + une valeur par
+      label) ;
+    - ``pie``/``donut`` exigent ``valeurs`` (une par label, toutes ≥ 0).
+
+    ``legende`` devient la légende de figure imprimée sous le graphique ; sans
+    elle, l'agent a un graphique sans intitulé — permis, jamais inventé.
+    """
+
+    type: Literal["graphique"] = "graphique"
+    variante: Literal["bar", "line", "pie", "donut"] = Field(
+        default="bar",
+        description=(
+            "'bar' : barres groupées (comparer des séries par catégorie) ; "
+            "'line' : courbes (évolution) ; 'pie' : camembert ; 'donut' : anneau."
+        ),
+    )
+    titre: str | None = Field(default=None, max_length=200)
+    labels: list[str] = Field(min_length=1, max_length=60)
+    series: list[SerieGraphique] | None = Field(default=None, max_length=8)
+    valeurs: list[float] | None = Field(default=None, max_length=60)
+    y_label: str | None = Field(default=None, max_length=40)
+    legende: str | None = Field(default=None, max_length=300)
+    largeur_px: int = Field(default=640, ge=200, le=2400)
+    hauteur_px: int = Field(default=400, ge=150, le=1600)
+    largeur_mm: float = Field(default=160.0, gt=0, le=500)
+    total_reference: float | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "pie/donut : total de référence des pourcentages, quand le total réel "
+            "n'est pas la somme des parts affichées (frais imprévus, autres "
+            "postes). Par défaut : la somme des valeurs."
+        ),
+    )
+    afficher_valeurs: bool = Field(
+        default=False,
+        description=(
+            "pie/donut : écrire les montants dans la légende, avant le pourcentage."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _options_de_camembert(self) -> Graphique:
+        """Les options de pourcentage ne valent que pour un camembert/anneau."""
+        if self.variante in ("bar", "line") and (
+            self.total_reference is not None or self.afficher_valeurs
+        ):
+            raise ValueError(
+                "Graphique bar/line : 'total_reference' et 'afficher_valeurs' ne "
+                "concernent que les variantes 'pie' et 'donut'."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _donnees_de_la_variante(self) -> Graphique:
+        """Chaque variante exige sa forme de données — refus explicite sinon."""
+        if self.variante in ("bar", "line"):
+            if not self.series:
+                raise ValueError(
+                    f"Graphique {self.variante} : 'series' est requis "
+                    "([{nom, valeurs}], une valeur par label)."
+                )
+            for serie in self.series:
+                if len(serie.valeurs) != len(self.labels):
+                    raise ValueError(
+                        f"Graphique : la série {serie.nom!r} a {len(serie.valeurs)} "
+                        f"valeur(s) pour {len(self.labels)} label(s) — il en faut autant."
+                    )
+            if self.valeurs:
+                raise ValueError(
+                    "Graphique bar/line : utiliser 'series', pas 'valeurs' "
+                    "(réservé à pie/donut)."
+                )
+        else:
+            if not self.valeurs:
+                raise ValueError(
+                    f"Graphique {self.variante} : 'valeurs' est requis (une par label, ≥ 0)."
+                )
+            if len(self.valeurs) != len(self.labels):
+                raise ValueError(
+                    f"Graphique : {len(self.valeurs)} valeur(s) pour "
+                    f"{len(self.labels)} label(s) — il en faut autant."
+                )
+            if self.series:
+                raise ValueError(
+                    "Graphique pie/donut : utiliser 'valeurs', pas 'series'."
+                )
+        return self
+
+
+class ItemIllustration(BaseModel):
+    """Un item d'illustration : un titre court, un texte court, une icône nommée."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    titre: str | None = Field(default=None, max_length=40)
+    texte: str | None = Field(default=None, max_length=80)
+    icone: str | None = Field(default=None, max_length=30)
+
+
+class Illustration(_BlocBase):
+    """Illustration de composition (INC-123) : géométrie et couleurs serveur.
+
+    L'agent choisit une **composition** et fournit des libellés courts ; les
+    espacements, tailles de police et couleurs du thème sont fixés par le
+    serveur (``illustrations.render_illustration``). C'est la voie qui évite les
+    schémas dessinés à la main (coordonnées qui se chevauchent, texte qui
+    déborde) — erreur de design la plus coûteuse du produit.
+    """
+
+    type: Literal["illustration"] = "illustration"
+    variante: Literal[
+        "icones", "etapes", "cycle", "pyramide", "frise", "comparaison"
+    ] = Field(
+        default="etapes",
+        description=(
+            "Composition : 'icones' (cartes d'atouts), 'etapes' (processus "
+            "linéaire), 'cycle' (boucle), 'pyramide' (niveaux), 'frise' "
+            "(chronologie), 'comparaison' (deux colonnes)."
+        ),
+    )
+    titre: str | None = Field(default=None, max_length=120)
+    items: list[ItemIllustration] = Field(min_length=1, max_length=8)
+    legende: str | None = Field(default=None, max_length=300)
+    largeur_mm: float = Field(default=160.0, gt=0, le=500)
+
+
 class SautDePage(_BlocBase):
     """Saut de page explicite."""
 
     type: Literal["saut_de_page"] = "saut_de_page"
 
 
+class Sommaire(_BlocBase):
+    """Table des matières paginée (champ Word ``TOC``), pas une liste recopiée.
+
+    Le champ est calculé par le lecteur à partir des styles de titre : Word le
+    remplit à l'ouverture (``w:updateFields``), LibreOffice sur demande. Les
+    numéros de page ne peuvent pas être écrits par le serveur — un DOCX n'a pas
+    de pagination avant rendu, et l'inventer produirait un sommaire faux.
+    """
+
+    type: Literal["sommaire"] = "sommaire"
+    titre: str | None = Field(default="Sommaire", max_length=120)
+    niveaux: int = Field(default=3, ge=1, le=4)
+    avec_numeros_de_page: bool = True
+
+
+class Forme(_BlocBase):
+    """Élément graphique de mise en page (bandeau, filet, étiquette).
+
+    Ces formes sont dessinées par le serveur en SVG puis rendues comme les
+    figures : l'agent choisit une intention et un texte, jamais des coordonnées.
+    """
+
+    type: Literal["forme"] = "forme"
+    variante: Literal["bandeau", "separateur", "etiquette"] = Field(
+        default="bandeau",
+        description=(
+            "'bandeau' : plaque pleine avec un titre ; 'separateur' : filet "
+            "horizontal ; 'etiquette' : pastille arrondie courte."
+        ),
+    )
+    texte: str | None = Field(default=None, max_length=200)
+    couleur: str = Field(default="#1F4E79", pattern=_HEX)
+    fond: str | None = Field(default=None, pattern=_HEX)
+    largeur_mm: float | None = Field(default=None, gt=0, le=500)
+    hauteur_mm: float | None = Field(default=None, gt=0, le=200)
+
+    @model_validator(mode="after")
+    def _texte_du_bandeau(self) -> Forme:
+        if self.variante != "separateur" and not (self.texte or "").strip():
+            raise ValueError(f"Forme {self.variante} : 'texte' est requis.")
+        return self
+
+
+class Espacement(_BlocBase):
+    """Blanc vertical explicite entre deux blocs (respiration de la page)."""
+
+    type: Literal["espacement"] = "espacement"
+    hauteur_mm: float = Field(gt=0, le=100)
+
+
 #: Union discriminée : le champ ``type`` sélectionne le modèle concret.
 Bloc = Annotated[
-    Titre | Paragraphe | Liste | Tableau | Image | Encadre | Citation | Paires | SautDePage,
+    Titre
+    | Paragraphe
+    | Liste
+    | Tableau
+    | Image
+    | Graphique
+    | Illustration
+    | Encadre
+    | Citation
+    | Paires
+    | SautDePage
+    | Sommaire
+    | Forme
+    | Espacement,
     Field(discriminator="type"),
 ]
 
@@ -482,10 +932,15 @@ _BLOCS_PAR_TYPE: dict[str, type[BaseModel]] = {
     "liste": Liste,
     "tableau": Tableau,
     "image": Image,
+    "graphique": Graphique,
+    "illustration": Illustration,
     "encadre": Encadre,
     "citation": Citation,
     "paires": Paires,
     "saut_de_page": SautDePage,
+    "sommaire": Sommaire,
+    "forme": Forme,
+    "espacement": Espacement,
 }
 
 
@@ -558,6 +1013,12 @@ class MiseEnPage(BaseModel):
     entete_texte: str | None = Field(default=None, max_length=200)
     pied_texte: str | None = Field(default=None, max_length=200)
     numero_de_page: bool | None = None
+    numero_de_page_debut: int | None = Field(
+        default=None,
+        ge=0,
+        le=9999,
+        description="Numéro de la première page (la couverture compte comme 1).",
+    )
     mention_proposition: str | None = Field(
         default="Document proposé — non officiel avant validation humaine.",
         max_length=300,
@@ -674,7 +1135,13 @@ class DocumentSpec(BaseModel):
 
 def _textes_du_bloc(bloc: Bloc) -> list[str]:
     """Tous les textes visibles d'un bloc (pour recherche et comptage)."""
-    if isinstance(bloc, (Titre, Paragraphe, Citation)):
+    if isinstance(bloc, (Titre, Citation)):
+        return [bloc.texte]
+    if isinstance(bloc, Paragraphe):
+        # Les fragments d'un même paragraphe forment **un** texte : les séparer
+        # ferait croire à deux paragraphes dans ``texte_brut()``.
+        if bloc.runs:
+            return ["".join(segment.texte for segment in bloc.runs)]
         return [bloc.texte]
     if isinstance(bloc, Encadre):
         return [texte for texte in (bloc.titre, bloc.texte) if texte]
@@ -687,8 +1154,19 @@ def _textes_du_bloc(bloc: Bloc) -> list[str]:
         return textes
     if isinstance(bloc, Image):
         return [texte for texte in (bloc.legende, bloc.alt) if texte]
+    if isinstance(bloc, Graphique):
+        return [texte for texte in (bloc.titre, bloc.legende) if texte]
+    if isinstance(bloc, Illustration):
+        textes = [texte for texte in (bloc.titre, bloc.legende) if texte]
+        for item in bloc.items:
+            textes.extend(texte for texte in (item.titre, item.texte) if texte)
+        return textes
     if isinstance(bloc, Paires):
         return [f"{paire.libelle} : {paire.valeur}" for paire in bloc.paires]
+    if isinstance(bloc, Sommaire):
+        return [bloc.titre] if bloc.titre else []
+    if isinstance(bloc, Forme):
+        return [bloc.texte] if bloc.texte else []
     return []
 
 

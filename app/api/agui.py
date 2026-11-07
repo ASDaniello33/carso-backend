@@ -33,6 +33,7 @@ from app.agents.manager import get_runtime_manager
 from app.api.agui_historique import HistoriqueArgumentsSains
 from app.api.agui_ids import AgentFluxIdsUniques
 from app.api.agui_interrupt_orphelin import PurgeInterruptOrphelin
+from app.api.agui_resume_interne import ResumeInterneMasque
 from app.api.deps import CurrentUser, get_current_user
 from app.api.permissions import agents_autorises, garde_agui
 from app.api.schemas.agent_runtime import HitlReponseItem, HitlScenarioItem
@@ -357,6 +358,12 @@ def _ajouter_endpoint(
                 enable_legacy_on_interrupt_event=False,
             )
             agent.graph = graph
+            # Au plus près de l'agent : le résumé de session du middleware de
+            # summarisation (``lc_source="summarization"``) est un appel de
+            # modèle **interne**, diffusé dans le même nœud que la réponse. Sans
+            # ce filtre, il apparaît en tête de la bulle de l'assistant
+            # (voir app/api/agui_resume_interne.py).
+            agent = ResumeInterneMasque(agent)
             # Les providers réutilisent call_0 / call_1 d'un tour à l'autre.
             # On réécrit uniquement les ids d'appels d'outils (hors reprise
             # HITL ancien canal) : les ids de messages appartiennent au

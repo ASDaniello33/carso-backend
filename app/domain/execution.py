@@ -23,10 +23,11 @@ Règles métier confirmées avec CARSO :
 from __future__ import annotations
 
 from datetime import date, time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from sqlalchemy import Date, Float, ForeignKey, Index, String, Text, Time, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.base import Base, TimestampMixin, UuidPkMixin
@@ -421,7 +422,35 @@ class ModeleDocument(Base, UuidPkMixin, TimestampMixin):
     version: Mapped[int] = mapped_column(default=1, nullable=False, server_default="1")
     statut: Mapped[str | None] = mapped_column(String(50))
 
+    # --- Moteur documentaire (INC-128) -------------------------------------
+    # L'analyse structurelle, la configuration validée et le schéma de
+    # génération vivent **avec la version du modèle** : une nouvelle version du
+    # fichier produit une nouvelle ligne, et les livrables déjà générés gardent
+    # la leur. Aucun ``server_default`` JSONB (propre à PostgreSQL) : la valeur
+    # par défaut est portée par Python, comme partout ailleurs dans le modèle.
+    analyse: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    configuration: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    schema_generation: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    #: Copie technique ancrée (``w:sdt carso:*``) : un Document, jamais un
+    #: chemin disque. Le fichier d'origine reste intact et fait foi.
+    document_instrumente_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("documents.id", ondelete="SET NULL")
+    )
+    statut_analyse: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="non_analyse", server_default="non_analyse"
+    )
+    statut_validation: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="brouillon", server_default="brouillon"
+    )
+
     organisation: Mapped[Organisation | None] = relationship(
         "Organisation", back_populates="modeles_documents"
     )
-    document_template: Mapped[Document] = relationship("Document")
+    # Deux références vers ``documents`` désormais (original + copie ancrée) :
+    # chaque relation doit nommer sa clé, sinon SQLAlchemy ne peut pas choisir.
+    document_template: Mapped[Document] = relationship(
+        "Document", foreign_keys=[document_template_id]
+    )
+    document_instrumente: Mapped[Document | None] = relationship(
+        "Document", foreign_keys=[document_instrumente_id]
+    )

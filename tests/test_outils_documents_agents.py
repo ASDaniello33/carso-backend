@@ -45,8 +45,6 @@ OUTILS_PRODUCTION = (
     "generer_document",
     "generer_document_professionnel",
     "generer_document_html",
-    "clone_document_structure",
-    "fill_template",
     "valider_document",
     "render_document",
     "corriger_document",

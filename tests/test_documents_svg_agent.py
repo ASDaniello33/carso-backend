@@ -181,6 +181,41 @@ def test_assainissement_conserve_les_references_internes():
     assert 'id="fleche"' in corps and 'id="fond"' in corps
 
 
+def test_style_dun_svg_conserve_le_remplissage_et_la_police():
+    """Regression mesuree : ``style="fill:#fff"`` etait retire -> figure invisible.
+
+    L'agent vient du HTML ; il style ses formes en ``style`` beaucoup plus
+    naturellement qu'en attributs de presentation. Le retirer laissait du texte
+    blanc sur fond blanc (une figure « qui n'apparait pas »).
+    """
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60">'
+        '<rect width="200" height="60" style="fill:#1E3A5F;stroke:#2563EB"/>'
+        '<text x="10" y="30" style="fill:#ffffff;font-family:Arial;font-size:13px">'
+        "Direction</text></svg>"
+    )
+    corps = preparer(f"<h1>T</h1>{svg}").corps
+
+    assert "fill:#1E3A5F" in corps
+    assert "stroke:#2563EB" in corps
+    assert "fill:#ffffff" in corps
+    assert "font-size:13px" in corps
+
+
+def test_style_dun_svg_ne_porte_pas_la_mise_en_page_ni_une_url():
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
+        '<rect width="4" height="4" style="fill:#fff;display:none;'
+        'background:url(http://exemple.invalid/x.png)"/>'
+        "</svg>"
+    )
+    corps = preparer(f"<h1>T</h1>{svg}").corps
+
+    assert "fill:#fff" in corps
+    assert "display" not in corps
+    assert "url(" not in corps and "exemple.invalid" not in corps
+
+
 def test_le_texte_alteratif_nest_pas_un_placeholder():
     """Le titre du SVG ne doit pas être pris pour un `[placeholder]` à corriger."""
     constats = verifier(figure(SVG_ORGANIGRAMME))
@@ -290,6 +325,14 @@ def test_width_height_declares_priment_sur_le_viewbox():
            'width="200" height="200"><rect width="1" height="1"/></svg>')
     image = _image_convertie(f"<h1>T</h1>{svg}")
     assert (image["width"], image["height"]) == ("200", "200")
+
+
+def test_unites_css_ne_font_pas_perdre_le_viewbox():
+    """``width="100%"`` ne se lit pas en px : le ratio du viewBox doit rester."""
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 160" '
+           'width="100%"><rect width="1" height="1"/></svg>')
+    image = _image_convertie(f"<h1>T</h1>{svg}")
+    assert (image["width"], image["height"]) == ("400", "160")
 
 
 def test_viewbox_sert_de_taille_quand_rien_nest_declare():
@@ -471,3 +514,4 @@ def test_tool_depose_un_document_avec_schema(service: DocumentService):
     assert sortie["statut"] == "proposed"  # règle 6 [C] : jamais approuvé par un agent
     assert sortie["documents"]["format"] == "docx"
     assert "graphiques" not in sortie  # aucun graphique déclaré : rien à rapporter
+

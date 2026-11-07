@@ -20,8 +20,10 @@ décision humaine (zone *proposal*, ``Decision``) et le tool est déclaré dans
 
 from __future__ import annotations
 
+import base64
 import json
 from datetime import date
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
@@ -60,11 +62,12 @@ from app.application.services import (
 )
 from app.application.services.appel_service import normaliser_type_appel
 from app.core.config import get_settings
-from app.core.errors import ValidationError
+from app.core.errors import NotFoundError, ValidationError
 from app.domain.document import Document
 from app.domain.enums import StatutAppel, TypeDocument
 from app.domain.execution import Lieu
 from app.domain.organization import Appel, Lot
+from app.infrastructure.repositories import DocumentRepository
 
 AGENT_ID = "agent_generateur_offre"
 TASK_TYPE = "preparer_offre"
@@ -84,6 +87,10 @@ NOMS_TOOLS: tuple[str, ...] = (
     "get_lot",
     "get_organization",
     "get_document_template",
+    # Modèles et actifs de l'organisation cliente (INC-116) : modèle d'offre,
+    # logo, instructions de rédaction, charte. Lecture seule, jamais inventés.
+    "lister_modeles_organisation",
+    "lire_modele_organisation",
     "create_offer_draft",
     "list_lots",
     "list_appel_documents",
@@ -103,14 +110,32 @@ NOMS_TOOLS: tuple[str, ...] = (
     "generer_document",
     "generer_document_professionnel",
     "generer_document_html",
+    # Images (INC-135) : logo ou figure réelle en base64, sinon dessin SVG
+    # rasterisé — même dépôt en proposition, affichage par ``afficher_image``.
+    "generer_image",
+    "generer_image_svg",
+    "composer_image",
+    "verifier_image_svg",
     "valider_document",
     "render_document",
     "corriger_document",
     "modifier_section_document",
     "analyze_document_reference",
     "importer_tableau_xlsx",
-    "fill_template",
-    "clone_document_structure",
+    # Consolidation de tableaux (budget d'offre, annexes) dans SON espace.
+    "run_python_script",
+    # Chaîne modèle (INC-129) : découvrir le modèle, lire ses éléments, copier
+    # le fichier dans l'offre, puis éditer la copie (texte à style conservé ou
+    # HTML stylisé avec images base64). Jamais de régénération.
+    "lister_modeles_documents",
+    "obtenir_structure_modele",
+    "copier_modele_document",
+    "obtenir_structure_document",
+    "remplacer_element_model",
+    "remplir_modele",
+
+    # Un lot a abîmé la copie : revenir au dernier état sain, puis refaire.
+    "revenir_version_document",
     "get_document_structure",
     "read_document_range",
     "chercher_dans_document",
@@ -158,6 +183,24 @@ class OrganisationIdInput(BaseModel):
 class TemplateInput(BaseModel):
     organisation_id: UUID
     type_document: str = Field(default=TypeDocument.OFFRE.value)
+
+
+class ListeModelesInput(BaseModel):
+    """Modèles déposés par une organisation (INC-116)."""
+
+    organisation_id: UUID
+    type_document: str | None = Field(
+        default=None,
+        max_length=50,
+        description="Filtre facultatif : 'modele_offre_technique', 'logo', "
+        "'instructions_redaction', 'charte_graphique'…",
+    )
+
+
+class ModeleIdInput(BaseModel):
+    """Un modèle précis, tel que listé pour l'organisation."""
+
+    modele_id: UUID
 
 
 class OffreBrouillonInput(BaseModel):
@@ -367,6 +410,112 @@ def _get_template(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
         "document_template_id": str(modele.document_template_id),
         "type_document": modele.type_document,
     }
+
+
+#: Au-delà, une image n'est pas renvoyée en data-URI (le prompt deviendrait
+#: énorme) : l'agent est invité à la traiter autrement.
+_TAILLE_MAX_IMAGE = 1_500_000
+
+
+def _modele_vers_dict(modele: Any, document: Document | None) -> dict[str, Any]:
+    """Métadonnées d'un modèle — jamais un chemin disque."""
+    return {
+        "id": str(modele.id),
+        "nom": modele.nom,
+        "type_document": modele.type_document,
+        "version": modele.version,
+        "statut": modele.statut,
+        "document_id": str(modele.document_template_id),
+        "fichier": document.nom if document is not None else None,
+        "mime_type": document.mime_type if document is not None else None,
+        "taille_octets": document.taille_octets if document is not None else None,
+        "version_document": document.version if document is not None else None,
+    }
+
+
+def _lister_modeles_organisation(
+    session: Session, payload: dict[str, Any]
+) -> dict[str, Any]:
+    """Tous les modèles d'une organisation, éventuellement filtrés par type.
+
+    Aucun repli : une organisation sans modèle renvoie une liste vide et un
+    message explicite — l'agent ne doit jamais présenter un gabarit inexistant.
+    """
+    organisation_id = UUID(str(payload["organisation_id"]))
+    type_filtre = (payload.get("type_document") or "").strip() or None
+    modeles = ModeleDocumentService(session).lister(organisation_id)
+    if type_filtre is not None:
+        modeles = [m for m in modeles if m.type_document == type_filtre]
+    documents = DocumentRepository(session)
+    elements = [
+        _modele_vers_dict(modele, documents.get(modele.document_template_id))
+        for modele in modeles
+    ]
+    return {
+        "organisation_id": str(organisation_id),
+        "nb_modeles": len(elements),
+        "modeles": elements,
+        "message": (
+            "Aucun modèle déposé pour cette organisation"
+            if not elements
+            else "Modèles disponibles (la version la plus haute est la plus récente)."
+        ),
+    }
+
+
+def _lire_modele_organisation(
+    session: Session, payload: dict[str, Any]
+) -> dict[str, Any]:
+    """Contenu d'un modèle : texte extrait, ou data-URI pour une image.
+
+    Un modèle d'offre ou des instructions se **lisent** ; un logo se restitue
+    comme image utilisable dans ``contenu_html`` (``data_uri``), plafonné pour
+    ne pas noyer le contexte. Le contenu vient du fichier déposé : rien n'est
+    reformulé ni inventé ici.
+    """
+    modele = ModeleDocumentService(session).obtenir(UUID(str(payload["modele_id"])))
+    document = DocumentRepository(session).get(modele.document_template_id)
+    if document is None:
+        raise NotFoundError(
+            f"Fichier du modèle {modele.id} introuvable",
+            details={"modele_id": str(modele.id)},
+        )
+    resultat = _modele_vers_dict(modele, document)
+    mime = (document.mime_type or "").lower()
+    if mime.startswith("image/"):
+        taille = int(document.taille_octets or 0)
+        if taille > _TAILLE_MAX_IMAGE:
+            resultat["data_uri"] = None
+            resultat["message"] = (
+                "Image trop volumineuse pour être transmise "
+                f"({taille} octets) : ne l'intègre pas au document."
+            )
+            return resultat
+        nom, chemin = DocumentService(session, actor_id=AGENT_ID).telecharger(
+            document.id
+        )
+        _ = nom
+        octets = Path(chemin).read_bytes()
+        resultat["data_uri"] = (
+            f"data:{mime};base64,{base64.b64encode(octets).decode('ascii')}"
+        )
+        resultat["texte"] = None
+        resultat["message"] = (
+            "Logo transmis en data-URI : place-le dans un <img src=…> du contenu."
+        )
+        return resultat
+
+    extraction = DocumentService(session, actor_id=AGENT_ID).extraire_texte(
+        document.id, max_chars=12_000
+    )
+    resultat["texte"] = extraction.texte
+    resultat["tronque"] = extraction.tronque
+    resultat["data_uri"] = None
+    resultat["message"] = (
+        "Contenu lu depuis le fichier déposé par l'organisation : réutilise les "
+        "exigences réelles, sans les inventer ni les compléter."
+    )
+    return resultat
 
 
 def _list_lots(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
@@ -681,7 +830,7 @@ def construire_tools_generateur_offre(
     """Tools du générateur : kit CRUD borné (écritures HITL) + documents + A2A.
 
     Les tools de collaboration (``request_agent_task`` /
-    ``get_agent_task_result``) et documentaires (``fill_template``…) sont
+    ``get_agent_task_result``) et documentaires (``remplir_modele``…) sont
     ajoutés par l'appelant via ``extra_tools`` — le harnais applique
     l'allow-list du contrat.
     """
@@ -771,6 +920,24 @@ def construire_tools_generateur_offre(
         description="Modèle de document actif de l'organisation (404 si absent).",
         input_schema=TemplateInput,
         run=_get_template,
+    ))
+    kit.enregistrer(OperationSpec(
+        name="lister_modeles_organisation",
+        description=(
+            "Modèles déposés par une organisation cliente (modèle d'offre, "
+            "logo, instructions de rédaction, charte) — métadonnées, lecture seule."
+        ),
+        input_schema=ListeModelesInput,
+        run=_lister_modeles_organisation,
+    ))
+    kit.enregistrer(OperationSpec(
+        name="lire_modele_organisation",
+        description=(
+            "Lit le contenu d'un modèle d'organisation : texte extrait, ou "
+            "data-URI pour une image (logo). Lecture seule."
+        ),
+        input_schema=ModeleIdInput,
+        run=_lire_modele_organisation,
     ))
     kit.enregistrer(OperationSpec(
         name="list_lots",
@@ -874,11 +1041,10 @@ def construire_tools_generateur_offre(
         run=rechercher_documents,
     ))
 
-    from app.tools.recherche_video import attacher_recherche_video
-    from app.tools.web import attacher_outils_web
-
     from app.agents.tools.agent_lieux_tools import construire_tools_lieux
     from app.agents.tools.connaissances import outils_connaissance_pour
+    from app.tools.recherche_video import attacher_recherche_video
+    from app.tools.web import attacher_outils_web
 
     return attacher_recherche_video(
         definition,

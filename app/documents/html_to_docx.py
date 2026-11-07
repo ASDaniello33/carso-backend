@@ -44,13 +44,6 @@ try:
 except ImportError:  # pragma: no cover
     _HAS_PIL = False
 
-try:
-    import requests
-    _HAS_REQUESTS = True
-except ImportError:  # pragma: no cover
-    _HAS_REQUESTS = False
-
-
 __all__ = [
     "ConversionHtmlError",
     "html_string_to_docx_bytes",
@@ -771,13 +764,14 @@ def _load_image_source(src, base_dir):
             return None
     parsed = urlparse(src)
     if parsed.scheme in ("http", "https"):
-        if not _HAS_REQUESTS:
-            return None
+        # Téléchargement **contrôlé** (INC-137) : schéma, adresse réseau (pas de
+        # SSRF vers le réseau interne), taille plafonnée et signature d'image
+        # vérifiée. Un convertisseur ne doit pas être un proxy ouvert.
+        from app.documents.images_distantes import ImageDistanteRefusee, recuperer_image
+
         try:
-            resp = requests.get(src, timeout=10)
-            resp.raise_for_status()
-            return BytesIO(resp.content)
-        except Exception:
+            return BytesIO(recuperer_image(src).octets)
+        except ImageDistanteRefusee:
             return None
     path = src
     if not os.path.isabs(path) and base_dir:

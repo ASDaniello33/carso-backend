@@ -469,6 +469,8 @@ def test_catalogue_aligne_sur_les_hooks_client() -> None:
         "afficher_tableau_donnees",
         "page_actuelle",
         "proposer_telechargement_document",
+        # Images générées (INC-135) : aperçu + téléchargement de l'image déposée.
+        "afficher_image",
         "afficher_synthese_lecture",
         "afficher_resultats_web",
         "afficher_lots_appel",

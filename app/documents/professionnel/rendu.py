@@ -135,13 +135,16 @@ def _rendre_classeur(
     avertissements.extend(verifier(contenu_html, format="xlsx", orientation="portrait"))
 
     with tempfile.TemporaryDirectory(prefix="carso_gendoc_") as dossier:
+        constats: list[str] = []
         chemin = rendre_xlsx(
             corps,
             Path(dossier) / f"{_NOM_INTERNE}.xlsx",
             theme=theme,
             titre=titre,
             auteur=auteur,
+            avertissements=constats,
         )
+        avertissements.extend(constats)
         octets = Path(chemin).read_bytes()
 
     # Le PDF jumeau rend le classeur prévisualisable (render_document ne rend

@@ -41,10 +41,17 @@ __all__ = [
     "taille_svg",
 ]
 
-#: Motif du ``viewBox`` : c'est lui qui décide de la taille de sortie.
-_RE_VIEWBOX = re.compile(
-    r'viewBox\s*=\s*"\s*([-\d.eE]+)[\s,]+([-\d.eE]+)[\s,]+([\d.eE]+)[\s,]+([\d.eE]+)\s*"'
-)
+#: Valeur d'attribut SVG : guillemets doubles **ou** simples. Les deux écritures
+#: sont légales et resvg honore les deux — une garde qui n'en lit qu'une seule se
+#: contourne par un simple changement de guillemets (voir ``_valeur_attribut``).
+_RE_VALEUR_ATTRIBUT = r'''(?:"([^"]*)"|'([^']*)')'''
+
+#: Nombre SVG : décimal, signé, ou en notation scientifique (``9e4``).
+_RE_NOMBRE_SVG = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?")
+
+#: Balise racine ``<svg …>`` : seule elle porte la taille du document. Chercher
+#: ``width`` dans tout le fichier tombait sur le premier ``<rect width=…>``.
+_RE_BALISE_RACINE = re.compile(r"<svg\b[^>]*>", re.IGNORECASE)
 
 #: Plafond de sortie : au-delà, le PNG devient énorme sans gain de netteté.
 MAX_PIXELS = 4000
@@ -56,17 +63,57 @@ class RasterisationIndisponible(RuntimeError):
     """Le SVG n'a pas pu être converti en PNG (dépendance absente ou SVG invalide)."""
 
 
-def _dimension_attribut(svg: str, attribut: str) -> float | None:
-    """Lit ``width``/``height`` en pixels, si présent et plausible."""
-    motif = re.compile(r"\b" + attribut + r'\s*=\s*"\s*([\d.]+)\s*(?:px)?\s*"')
-    correspondance = motif.search(svg or "")
+def _balise_racine(svg: str) -> str:
+    """Balise d'ouverture ``<svg …>`` (chaîne vide si absente)."""
+    correspondance = _RE_BALISE_RACINE.search(svg or "")
+    return correspondance.group(0) if correspondance else ""
+
+
+def _valeur_attribut(svg: str, nom: str) -> str | None:
+    """Valeur brute d'un attribut SVG, **quel que soit** le type de guillemets.
+
+    Une lecture limitée aux guillemets doubles laissait passer un SVG déclarant
+    ``width='44000' height='51200'`` : la taille retombait sur 640×400, la garde
+    de plafond était satisfaite, et resvg rendait réellement 88 000 × 102 400 px
+    à l'échelle 2 — soit 36 Go de pixmap, allocation qui a tué le processus
+    backend (INC-135, suivi).
+    """
+    motif = re.compile(
+        r"\b" + re.escape(nom) + r"\s*=\s*" + _RE_VALEUR_ATTRIBUT, re.IGNORECASE
+    )
+    correspondance = motif.search(_balise_racine(svg))
     if not correspondance:
         return None
-    try:
-        valeur = float(correspondance.group(1))
-    except ValueError:
+    valeur = correspondance.group(1)
+    if valeur is None:
+        valeur = correspondance.group(2)
+    return valeur
+
+
+def _viewbox(svg: str) -> tuple[float, float] | None:
+    """Largeur/hauteur du ``viewBox`` (``0 0 640 400``), si présentes et plausibles."""
+    brut = _valeur_attribut(svg, "viewBox")
+    if not brut:
         return None
-    return valeur if valeur > 0 and math.isfinite(valeur) else None
+    nombres: list[float] = []
+    for nombre in _RE_NOMBRE_SVG.findall(brut):
+        try:
+            nombres.append(float(nombre))
+        except ValueError:
+            return None
+    if len(nombres) < 4:
+        return None
+    largeur, hauteur = nombres[2], nombres[3]
+    if not (math.isfinite(largeur) and math.isfinite(hauteur)):
+        return None
+    if largeur <= 0 or hauteur <= 0:
+        return None
+    return largeur, hauteur
+
+
+def _dimension_attribut(svg: str, attribut: str) -> float | None:
+    """Lit ``width``/``height`` en pixels, si présent et plausible."""
+    return dimension_px(_valeur_attribut(svg, attribut))
 
 
 def dimension_px(valeur: object) -> float | None:
@@ -93,11 +140,9 @@ def taille_svg(svg: str) -> tuple[float, float]:
     écrits à la main (tests, graphiques futurs). Une dimension illisible retombe
     sur la taille par défaut plutôt que d'échouer sur un détail d'analyse.
     """
-    correspondance = _RE_VIEWBOX.search(svg or "")
-    if correspondance:
-        largeur, hauteur = float(correspondance.group(3)), float(correspondance.group(4))
-        if largeur > 0 and hauteur > 0:
-            return largeur, hauteur
+    boite = _viewbox(svg)
+    if boite is not None:
+        return boite
     return (
         _dimension_attribut(svg, "width") or 640.0,
         _dimension_attribut(svg, "height") or 400.0,
@@ -133,6 +178,13 @@ def rasteriser_svg(
 ) -> bytes:
     """Convertit un SVG en PNG (octets), via ``resvg-py``.
 
+    La taille de sortie est **imposée** à ``largeur × échelle`` par
+    ``largeur × hauteur`` explicites : ``zoom`` laissait resvg choisir d'après la
+    taille déclarée dans le fichier et allouer le pixmap correspondant, sans
+    plafond (un SVG de 44 000 × 51 200 px à l'échelle 2 demandait 36 Go et tuait
+    le processus). Avec ``width``/``height``, l'allocation est bornée par
+    ``MAX_PIXELS`` quel que soit le contenu du SVG.
+
     Args:
         svg: document SVG produit par le moteur (``graphiques.py``).
         echelle: multiplicateur de taille (2.0 ⇒ net à l'impression).
@@ -151,7 +203,9 @@ def rasteriser_svg(
         raise ValidationError("Rasterisation demandée sur un SVG vide ou invalide.")
 
     largeur, hauteur = taille_svg(svg)
-    if largeur * echelle > MAX_PIXELS or hauteur * echelle > MAX_PIXELS:
+    cible_largeur = max(1, round(largeur * echelle))
+    cible_hauteur = max(1, round(hauteur * echelle))
+    if cible_largeur > MAX_PIXELS or cible_hauteur > MAX_PIXELS:
         raise RasterisationIndisponible(
             f"Graphique trop grand pour la rasterisation : {largeur:.0f} × {hauteur:.0f} px "
             f"à l'échelle {echelle} dépasse {MAX_PIXELS} px."
@@ -160,7 +214,12 @@ def rasteriser_svg(
     resvg_py = _moteur()
     try:
         octets = bytes(
-            resvg_py.svg_to_bytes(svg_string=svg, zoom=echelle, background=fond)
+            resvg_py.svg_to_bytes(
+                svg_string=svg,
+                width=cible_largeur,
+                height=cible_hauteur,
+                background=fond,
+            )
         )
     except Exception as erreur:  # noqa: BLE001 - la cause réelle est transmise
         raise RasterisationIndisponible(

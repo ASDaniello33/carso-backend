@@ -337,8 +337,12 @@ class TestRefus:
             )
 
     def test_champ_de_bloc_inconnu(self) -> None:
+        # ``police`` est un vrai champ de paragraphe depuis l'INC-130 : le refus
+        # porte sur un champ qui n'existe pour aucun bloc.
         with pytest.raises(ValidationError, match="Champ inconnu"):
-            appliquer_patch(_spec(), [{"type": "bloc", "bloc": 2, "champs": {"police": "Arial"}}])
+            appliquer_patch(
+                _spec(), [{"type": "bloc", "bloc": 2, "champs": {"champ_inexistant": 1}}]
+            )
 
     def test_metadonnee_inconnue(self) -> None:
         with pytest.raises(ValidationError, match="Champ inconnu"):

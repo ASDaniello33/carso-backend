@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse
 from app.api.deps import AdminUser, CurrentUser, DbSession
 from app.api.schemas.auth import (
     ActivationCreate,
+    AdministrateurCreate,
     CodeReinitialisationCreate,
     ConfirmationReinitialisationCreate,
     DemandeReinitialisationCreate,
@@ -204,6 +205,30 @@ def activer(
         user_id,
         admin_id=admin.id,
         role=payload.role if payload is not None else None,
+    )
+
+
+@router.post(
+    "/utilisateurs/administrateurs",
+    response_model=UtilisateurRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def creer_administrateur(
+    payload: AdministrateurCreate,
+    admin: AdminUser,
+    session: DbSession,
+) -> Utilisateur:
+    """Crée un compte administrateur (page Paramètres, administrateur seulement).
+
+    Le compte est actif immédiatement et n'appartient pas au vivier ; le mot de
+    passe initial est choisi par le créateur et communiqué hors système.
+    """
+    return UtilisateurService(session, actor_id=str(admin.id)).creer_administrateur(
+        email=payload.email,
+        nom=payload.nom,
+        prenom=payload.prenom,
+        mot_de_passe=payload.mot_de_passe,
+        admin_id=admin.id,
     )
 
 

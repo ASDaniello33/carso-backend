@@ -44,10 +44,24 @@ DEFINITION = AgentDefinition(
     prompt=PROMPT,
     policy=PermissionPolicy(
         allowed_capabilities=frozenset(
-            {KIT_CAPABILITY, "web_search", "document_read", "document_propose"}
+            {
+                KIT_CAPABILITY,
+                "web_search",
+                "document_read",
+                "document_propose",
+                # Scripts confinés dans l'espace de travail du compte (INC-116) :
+                # le calcul reste déterministe, aucune donnée métier n'est écrite.
+                "script_python",
+            }
         )
     ),
-    capabilities=(KIT_CAPABILITY, "web_search", "document_read", "document_propose"),
+    capabilities=(
+        KIT_CAPABILITY,
+        "web_search",
+        "document_read",
+        "document_propose",
+        "script_python",
+    ),
     tools=(
         # Lieux : chercher une adresse, calculer un trajet (lecture seule).
         "rechercher_lieu",
@@ -65,8 +79,17 @@ DEFINITION = AgentDefinition(
         # qui n'existe pas.
         "lire_image",
         # Livrable (rapport, synthèse) : déposé en proposition, jamais approuvé.
+        "generer_document",
         "generer_document_professionnel",
+        # Image (INC-135) : graphique fourni en base64, sinon dessiné en SVG et
+        # rasterisé ; même dépôt en proposition, affichage par ``afficher_image``.
+        "generer_image",
+        "generer_image_svg",
+        "composer_image",
+        "verifier_image_svg",
         "importer_tableau_xlsx",
+        # Traitements statistiques ponctuels (CSV/XLSX) dans SON espace de travail.
+        "run_python_script",
         "search_organisations",
         "search_appels",
         "search_lots",
@@ -139,11 +162,19 @@ class AgentStatistique:
         return reponse
 
     def deep_tools(self) -> tuple[Any, ...]:
-        return construire_tools_statistique(
+        from app.agents.outillage import tools_scripts_pour
+
+        outils = construire_tools_statistique(
             self.definition,
             self._session_factory,
             read_document_tool=self._read_document_tool,
         )
+        # Script ancré (INC-124) : le statisticien peut produire un classeur
+        # rattaché à une mission ou une session, déposé en ``proposed``.
+        scripts = tools_scripts_pour(
+            self.definition, session_factory=self._session_factory
+        )
+        return tuple(outils) + scripts
 
     def build_agent(
         self, *, runtime: Any | None = None, system_prompt_extra: str | None = None

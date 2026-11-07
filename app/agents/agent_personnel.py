@@ -48,6 +48,29 @@ AGENT_ID = "agent_personnel"
 #: Nom du tool de lecture documentaire (fourni par ``app.tools.documents``).
 READ_DOCUMENT_TOOL = "read_document"
 
+#: Tools documentaires de l'agent personnel, **en proposition** uniquement.
+#:
+#: INC-118 : le compte demandait un livrable et l'agent répondait que l'outil
+#: n'existait pas — il n'était déclaré à aucun contrat. Il l'est désormais ici,
+#: et à lui seul : la liste lecture seule partagée avec le généraliste
+#: (``NOMS_TOOLS``) est **réduite** de ces noms avant d'être réutilisée, pour
+#: qu'aucun autre agent lecture seule n'hérite du tool par effet de bord.
+TOOLS_DOCUMENTS_PROPOSE: tuple[str, ...] = (
+    "generer_document",
+    "generer_document_professionnel",
+    "corriger_document",
+    # Images (INC-135) : même dépôt en proposition, le compte peut les retirer.
+    "generer_image",
+    "generer_image_svg",
+    "composer_image",
+    "verifier_image_svg",
+)
+
+#: Surface de lecture commune moins les tools de documentation ci-dessus.
+NOMS_TOOLS_LECTURE_SEULE: tuple[str, ...] = tuple(
+    nom for nom in NOMS_TOOLS if nom not in TOOLS_DOCUMENTS_PROPOSE
+)
+
 DEFINITION = AgentDefinition(
     agent_id=AGENT_ID,
     display_name="Agent Personnel",
@@ -58,14 +81,33 @@ DEFINITION = AgentDefinition(
     ),
     policy=PermissionPolicy(
         allowed_capabilities=frozenset(
-            {KIT_CAPABILITY, "web_search", "document_read", "document_propose"}
+            {
+                KIT_CAPABILITY,
+                "web_search",
+                "document_read",
+                "document_propose",
+                # Scripts confinés dans l'espace de travail du compte (INC-116) :
+                # aucune donnée métier n'est écrite, seuls des fichiers locaux.
+                "script_python",
+            }
         )
     ),
-    capabilities=(KIT_CAPABILITY, "web_search", "document_read", "document_propose"),
+    capabilities=(
+        KIT_CAPABILITY,
+        "web_search",
+        "document_read",
+        "document_propose",
+        "script_python",
+    ),
     # Surface de lecture partagée avec le généraliste : recherche métier bornée,
-    # agrégations nommées, lecture documentaire, lecture de pages web. Le
-    # compte peut en retirer (configuration) ; le contrat, jamais.
-    tools=NOMS_TOOLS,
+    # agrégations nommées, lecture documentaire, lecture de pages web — plus les
+    # livrables en proposition et le script confiné. Le compte peut en retirer
+    # (configuration) ; le contrat, jamais.
+    tools=(
+        *NOMS_TOOLS_LECTURE_SEULE,
+        *TOOLS_DOCUMENTS_PROPOSE,
+        "run_python_script",
+    ),
     collaboration=(),
     prompt=prompt.PERSONNEL_SYSTEM_PROMPT,
     output_schema_name="PersonnelAnswer",
@@ -131,14 +173,33 @@ class AgentPersonnel:
         )
 
     def deep_tools(self) -> tuple[Any, ...]:
-        """Tools exposés au modèle : mêmes opérations lecture seule, définitions du compte."""
+        """Tools exposés au modèle : lectures du kit, documents, espace de travail.
+
+        Les tools documentaires sont assemblés par ``tools_documents_pour`` et
+        filtrés sur le contrat : l'agent personnel reçoit ainsi
+        ``generer_document_professionnel`` (proposition) sans câblage ad hoc.
+        """
+        from app.agents.outillage import tools_documents_pour, tools_scripts_pour
         from app.infrastructure.database import SessionLocal
 
-        return construire_tools_generaliste(
+        fabrique = self._session_factory or SessionLocal
+        outils = construire_tools_generaliste(
             self.definition,
-            self._session_factory or SessionLocal,
+            fabrique,
             read_document_tool=self._read_document_tool,
         )
+        deja = {tool.name for tool in outils}
+        documents = [
+            tool
+            for tool in tools_documents_pour(self.definition, fabrique)
+            if tool.name not in deja
+        ]
+        # Espace de travail personnel : le script tourne dans le dossier du
+        # compte, jamais dans un dossier partagé (INC-116). La session est
+        # fournie pour que le mode **ancré** (INC-124) puisse déposer un
+        # livrable quand l'utilisateur désigne une mission ou une session.
+        scripts = tools_scripts_pour(self.definition, session_factory=fabrique)
+        return tuple(outils) + tuple(documents) + scripts
 
 
 def build_agent_personnel(
@@ -158,7 +219,9 @@ def build_agent_personnel(
 __all__ = [
     "AGENT_ID",
     "DEFINITION",
+    "NOMS_TOOLS_LECTURE_SEULE",
     "READ_DOCUMENT_TOOL",
+    "TOOLS_DOCUMENTS_PROPOSE",
     "AgentPersonnel",
     "build_agent_personnel",
 ]

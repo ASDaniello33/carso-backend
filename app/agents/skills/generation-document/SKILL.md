@@ -41,7 +41,14 @@ avec numéros de page **calculés**.
 ### Quel outil choisir
 
 ```text
-generer_document_professionnel   PAR DÉFAUT pour tout docx/pdf/pptx : thème CARSO,
+copier le modèle puis l'éditer  MODÈLE D'UNE ORGANISATION : son fichier est
+                                 copié tel quel dans l'objet métier (style,
+                                 logo, en-tête, couverture conservés), puis
+                                 modifié (texte à style gardé, ou HTML + images
+                                 base64). Voie PRIORITAIRE dès qu'un modèle
+                                 existe (skill docx-officiels ; outils exacts
+                                 dans le bloc « modèle d'une organisation »).
+generer_document_professionnel   PAR DÉFAUT **sans modèle** : thème CARSO,
                                  couverture, sommaire numéroté, avertissements.
                                  format="pptx" = présentation 16:9 native (deck).
 generer_document_html            document LIBRE : l'utilisateur impose un design
@@ -49,6 +56,16 @@ generer_document_html            document LIBRE : l'utilisateur impose un design
 generer_document(document_spec)  structure IMPOSÉE : sections et provenances
                                  obligatoires (offre technique/financière).
 ```
+
+### Un modèle existe ? Il fait loi
+
+Si l'organisation impose son document, tu ne produis **pas** un document au
+thème CARSO « équivalent » : tu fais remplir **son** fichier (copie, puis zones
+de contenu). Un livrable joli mais redessiné est un livrable non conforme.
+Cherche le modèle, lis ses éléments, copie son fichier dans l'objet métier,
+puis modifie cette copie — la procédure et les outils exacts sont dans le skill
+`docx-officiels` et le bloc « modèle d'une organisation ». Aucun modèle ⇒
+`generer_document_professionnel`, en le disant.
 
 ## 2. Méthode (à suivre à chaque fois)
 
@@ -214,6 +231,17 @@ ne sont pas intégrées (avertissement explicite).
 Pour insérer un graphique à partir de chiffres réels : écris une **ancre vide** à
 l'endroit voulu, puis déclare les données dans le paramètre `graphiques` du tool.
 
+> **Les trois voies ci-dessous valent pour TOUS les outils de génération**
+> (INC-123). L'outil change la façon de les déclarer, jamais le résultat :
+>
+> | Outil | Graphique | Illustration | SVG libre |
+> |---|---|---|---|
+> | `generer_document_professionnel` / `generer_document_html` | paramètre `graphiques` + ancre `<figure data-graphique>` | paramètre `illustrations` + ancre `<figure data-illustration>` | `<svg>` inline |
+> | `generer_document` (`document_spec`) | bloc `{"type": "graphique", "variante": …}` | bloc `{"type": "illustration", "variante": …}` | bloc `{"type": "image", "svg": "…"}` |
+>
+> Le rendu suit le format : vectoriel en HTML, PNG en DOCX/PDF, image ancrée
+> dans un classeur XLSX.
+
 ```html
 <h2>1. Résultats</h2>
 <p>Le CA 2026 dépasse l'objectif de 8 %.</p>
@@ -243,6 +271,40 @@ l'endroit voulu, puis déclare les données dans le paramètre `graphiques` du t
 | Valeurs | Issues d'une lecture (`search_*`, `read_document`) ou de l'utilisateur : jamais inventées ; en barres, les négatives sont acceptées (axe zéro tracé) |
 | PDF / DOCX | PDF : graphique **vectoriel** (net à l'impression). DOCX : converti en PNG haute résolution automatiquement |
 | Placement | L'ancre se place APRÈS le paragraphe qui commente le graphique ; chaque figure porte sa `legende` (figcaption) |
+
+### Modifier le modèle d'une organisation (INC-129)
+
+Quand un client impose **son** modèle (offre, rapport, CV, courrier), ne le
+redessine pas et ne le régénère pas : copie-le, puis réécris ses éléments.
+
+```text
+1. lister les modèles de l'organisation   → identifiant, nom, version
+2. lire les éléments du modèle            → element_id, texte, style
+3. copier le fichier dans l'objet métier  → la copie devient le document
+4. modifier la copie :
+     élément : "1. Contexte de l'intervention"
+     section : "<p>Le client souhaite…</p><ul><li>…</li></ul>"
+     figure  : "<p><img src=\"data:image/png;base64,…\"/></p>"
+5. relire les éléments de la copie        ← identifiants recalculés
+```
+
+| Règle | Détail |
+|---|---|
+| Aucun placeholder | Les modèles réels n'ont pas de `{{clé}}` : on réécrit des textes, des titres et des tableaux existants |
+| Style préservé | le remplacement de texte garde le style du paragraphe et reprend la mise en forme du premier run ; pour mixer les styles, fournir des segments |
+| HTML | le remplissage accepte `h1`-`h6`, `p`, `ul`/`ol`, `table` (fusions), `img` en data URI base64 et `<svg>` (rasterisé) |
+| Images | Base64 uniquement : aucun chemin local, aucune URL supposée accessible |
+| Identifiants | Toujours lus, jamais inventés ; ils changent après chaque édition |
+| Versions | Chaque édition crée une version ; le document reste `proposed` |
+| Modèle PDF | Pas de structure éditable : `generer_document` avec `modele: {organisation_id, type_document}` (identité visuelle seulement) |
+
+### Livrable produit par script, rattaché à l'objet (INC-124)
+
+Un script peut produire un fichier **sous** le dossier métier et le faire
+déposer : ajoute `ancre` + `entity_id`, et déclare chaque fichier dans `livrables`.
+Le script tourne dans un dossier de travail supprimé après l'appel ; il lit le
+dossier de l'objet et les modèles de l'organisation. Code de sortie ≠ 0 ⇒ rien
+n'est déposé. Sans `ancre`, le script reste dans ton espace personnel.
 
 ### Schémas et illustrations (SVG écrit par toi)
 

@@ -99,11 +99,86 @@ PERSONNEL_SYSTEM_PROMPT = charger_prompt("agent_personnel")
 #: de l'agent (recherche web, base de connaissance).
 BLOC_RECHERCHE_WEB = charger_prompt("blocs/recherche_web")
 BLOC_BASE_CONNAISSANCE = charger_prompt("blocs/base_connaissance")
+#: Bloc « documents et fichiers » : injecté aux agents qui disposent d'au moins
+#: un outil documentaire (lecture, création ou modification).
+BLOC_DOCUMENTS_ET_FICHIERS = charger_prompt("blocs/documents_et_fichiers")
+#: Bloc « génération de documents » : injecté **uniquement** aux agents qui
+#: peuvent produire un livrable. Séparé du bloc de lecture pour qu'un agent
+#: seulement lecteur (généraliste, statisticien) ne reçoive pas de mode d'emploi
+#: d'outils qu'il n'a pas — cause directe d'appels d'outils inexistants.
+BLOC_GENERATION_DOCUMENTS = charger_prompt("blocs/generation_documents")
+#: Bloc « éditer le modèle d'une organisation » : injecté **seulement** aux
+#: agents qui portent la chaîne copier/éditer. Décrire cette chaîne à un agent
+#: qui ne l'a pas, c'est lui faire promettre un geste impossible.
+BLOC_MODELE_ORGANISATION = charger_prompt("blocs/modele_organisation")
+#: Bloc « espace de travail » : injecté aux agents qui portent
+#: ``run_python_script`` (INC-116) — où écrire, ce qui persiste, ce qui est refusé.
+BLOC_ESPACE_TRAVAIL = charger_prompt("blocs/espace_travail")
+
+#: Outils qui signalent un agent capable de lire, créer ou modifier un document
+#: métier — condition d'injection du bloc ci-dessus.
+TOOLS_DOCUMENTS: frozenset[str] = frozenset(
+    {
+        "lire_document",
+        "read_document",
+        "get_document_structure",
+        "read_document_range",
+        "chercher_dans_document",
+        "lire_element_document",
+        "generer_document",
+        "generer_document_professionnel",
+        "modifier_section_document",
+        "corriger_document",
+        "copier_modele_document",
+        "obtenir_structure_document",
+        "remplacer_element_model",
+        "remplir_modele",
+        "revenir_version_document",
+        "importer_tableau_xlsx",
+        "analyser_reference_document",
+        "analyze_document_reference",
+    }
+)
+
+#: Outils qui signalent un agent capable de **produire** un livrable — condition
+#: d'injection du bloc de génération (routes, fidélité aux modèles, pièges).
+TOOLS_GENERATION: frozenset[str] = frozenset(
+    {
+        "generer_document",
+        "generer_document_professionnel",
+        "generer_document_html",
+        "copier_modele_document",
+        "remplacer_element_model",
+        "remplir_modele",
+        "revenir_version_document",
+        "corriger_document",
+        "modifier_section_document",
+        "run_python_script",
+    }
+)
+
+#: Outils qui ouvrent la route « modèle du client » — découverte, structure,
+#: copie du fichier dans l'offre puis édition de la copie.
+TOOLS_MODELE_ORGANISATION: frozenset[str] = frozenset(
+    {
+        "lister_modeles_documents",
+        "obtenir_structure_modele",
+        "copier_modele_document",
+        "obtenir_structure_document",
+        "remplacer_element_model",
+        "remplir_modele",
+        "revenir_version_document",
+    }
+)
 
 
 __all__ = [
     "ASSISTANT_FORMATEUR_SYSTEM_PROMPT",
     "BLOC_BASE_CONNAISSANCE",
+    "BLOC_DOCUMENTS_ET_FICHIERS",
+    "BLOC_ESPACE_TRAVAIL",
+    "BLOC_GENERATION_DOCUMENTS",
+    "BLOC_MODELE_ORGANISATION",
     "BLOC_RECHERCHE_WEB",
     "DOSSIER_PROMPTS",
     "GENERALISTE_SYSTEM_PROMPT",
@@ -111,6 +186,9 @@ __all__ = [
     "PERSONNEL_SYSTEM_PROMPT",
     "RH_SYSTEM_PROMPT",
     "STATISTIQUE_SYSTEM_PROMPT",
+    "TOOLS_DOCUMENTS",
+    "TOOLS_GENERATION",
+    "TOOLS_MODELE_ORGANISATION",
     "charger_prompt",
     "chemin_prompt",
     "prompts_agents",

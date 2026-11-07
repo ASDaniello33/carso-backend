@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -42,9 +43,10 @@ from app.agents.tools.agent_generaliste_tools import (
     rechercher_offres,
     rechercher_sessions,
 )
-from app.application.dto import AffectationProposee
+from app.application.dto import AffectationProposee, LigneBudgetInput
 from app.application.services import (
     AffectationService,
+    BudgetService,
     DocumentService,
     EquipeService,
     MissionService,
@@ -91,6 +93,16 @@ NOMS_TOOLS: tuple[str, ...] = (
     "create_assignment_proposal",
     "propose_equipe_update",
     "propose_mission_update",
+    # Budgets de mission (Phase 2 §5) : créer, ajuster, soumettre. Écritures
+    # sous HITL ; les montants sont TOUJOURS recalculés côté serveur (règle
+    # 7 [C]) et un budget approuvé n'est modifiable que par nouvelle version.
+    "lister_budgets_mission",
+    "lire_budget",
+    "creer_budget_mission",
+    "ajouter_ligne_budget",
+    "modifier_ligne_budget",
+    "retirer_ligne_budget",
+    "soumettre_budget",
     "search_organisations",
     "search_appels",
     "search_lots",
@@ -109,6 +121,18 @@ NOMS_TOOLS: tuple[str, ...] = (
     "generer_document_professionnel",
     "modifier_section_document",
     "generer_document_html",
+    # Image (INC-135) : organigramme ou figure fournie en base64, sinon en SVG
+    # rasterisé ; affichée et téléchargeable par ``afficher_image``.
+    "generer_image",
+    "generer_image_svg",
+    "composer_image",
+    "verifier_image_svg",
+    # Un modèle de document existant se lit (structure, plan) avant d'être
+    # repris : la chaîne « copier le modèle dans une offre » appartient au
+    # générateur d'offre, elle s'ancre sur une offre.
+    "analyze_document_reference",
+    # Traitement documentaire en série (CV, fiches) dans SON espace de travail.
+    "run_python_script",
     # Envoi d'un email au nom de CARSO à un contact **enregistré** (HITL :
     # approbation avant envoi, cf. ``approval_required`` du contrat).
     "envoyer_email",
@@ -192,6 +216,52 @@ class MissionUpdateInput(BaseModel):
         default=None, description="Référence d'un lieu existant (jamais un texte libre)."
     )
     description: str | None = Field(default=None, max_length=4000)
+
+
+class MissionBudgetInput(BaseModel):
+    """Porteur d'un budget côté RH : la **mission** seule.
+
+    Le budget d'une offre appartient au dossier de l'offre (offre financière) :
+    l'exécution budgétise la mission, et la reprise d'un budget d'offre reste
+    un acte de service contrôlé (``reprendre_pour_mission``), pas un tool.
+    """
+
+    mission_id: UUID
+    devise: str | None = Field(default=None, min_length=1, max_length=8)
+
+
+class BudgetIdInput(BaseModel):
+    budget_id: UUID
+
+
+class LigneBudgetToolInput(BaseModel):
+    """Saisie d'une ligne de budget par l'agent (règle 7 [C]).
+
+    ``cout_total`` n'existe **pas** dans ce contrat : un champ de ce nom fourni
+    par le modèle est ignoré — le serveur calcule ``quantite × cout_unitaire``.
+    Montants négatifs refusés (une dépense n'est pas un avoir).
+    """
+
+    budget_id: UUID
+    categorie: str = Field(min_length=1, max_length=120)
+    quantite: Decimal = Field(ge=0)
+    cout_unitaire: Decimal = Field(ge=0)
+    description: str | None = Field(default=None, max_length=400)
+    unite: str | None = Field(default=None, max_length=40)
+
+
+class LigneBudgetModifInput(LigneBudgetToolInput):
+    """Correction d'une ligne existante (même calcul déterministe)."""
+
+    ligne_id: UUID
+
+
+class LigneBudgetSuppressionInput(BaseModel):
+    """Retrait d'une ligne : budget **et** ligne sont référencés (jamais
+    une ligne devinée dans le budget courant)."""
+
+    budget_id: UUID
+    ligne_id: UUID
 
 
 class EnvoyerEmailInput(BaseModel):
@@ -495,6 +565,172 @@ def _propose_mission_update(session: Session, payload: dict[str, Any]) -> dict[s
     }
 
 
+# --- Budgets de mission (Phase 2 §5, service BudgetService) ------------------
+# Toute écriture passe par le service : calcul déterministe, machine à états
+# (brouillon → proposé → approuvé), verrou du budget approuvé, AuditEvent
+# dans la transaction courante. L'agent n'écrit jamais une ligne directement.
+
+
+def _lister_budgets(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Budgets d'une mission, version la plus récente d'abord (lecture)."""
+    entree = MissionBudgetInput.model_validate(payload)
+    resumes = BudgetService(session, actor_id=AGENT_ID).lister_budgets_mission(
+        entree.mission_id
+    )
+    return {
+        "mission_id": str(entree.mission_id),
+        "nb_budgets": len(resumes),
+        "budgets": [
+            {
+                "budget_id": str(resume.budget_id),
+                "offre_id": str(resume.offre_id) if resume.offre_id else None,
+                "devise": resume.devise,
+                "statut": resume.statut,
+                "version": resume.version,
+                "total": float(resume.total),
+                "nb_lignes": resume.nb_lignes,
+            }
+            for resume in resumes
+        ],
+    }
+
+
+def _lire_budget(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Détail d'un budget : entête, lignes ordonnées, total recalculé."""
+    entree = BudgetIdInput.model_validate(payload)
+    detail = BudgetService(session, actor_id=AGENT_ID).lire_budget(entree.budget_id)
+    return {
+        "budget_id": str(detail.budget_id),
+        "offre_id": str(detail.offre_id) if detail.offre_id else None,
+        "mission_id": str(detail.mission_id) if detail.mission_id else None,
+        "devise": detail.devise,
+        "statut": detail.statut,
+        "version": detail.version,
+        "total": float(detail.total),
+        "lignes": [
+            {
+                "ligne_id": str(ligne.id),
+                "categorie": ligne.categorie,
+                "description": ligne.description,
+                "unite": ligne.unite,
+                "quantite": float(ligne.quantite),
+                "cout_unitaire": float(ligne.cout_unitaire),
+                "cout_total": float(ligne.cout_total),
+                "ordre": ligne.ordre,
+            }
+            for ligne in detail.lignes
+        ],
+    }
+
+
+def _creer_budget_mission(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Crée le budget (brouillon) de la mission — un seul par mission."""
+    entree = MissionBudgetInput.model_validate(payload)
+    service = BudgetService(session, actor_id=AGENT_ID)
+    budget = service.creer_budget(mission_id=entree.mission_id, devise=entree.devise)
+    return {
+        "budget_id": str(budget.id),
+        "mission_id": str(entree.mission_id),
+        "devise": budget.devise,
+        "statut": budget.statut,
+        "version": budget.version,
+        "requires_approval": True,
+        "message": (
+            "Budget créé en brouillon, sans ligne. Ajouter des lignes puis le "
+            "soumettre : aucun montant n'est officiel tant que le budget n'est "
+            "pas approuvé."
+        ),
+    }
+
+
+def _ajouter_ligne_budget(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Ajoute une ligne : ``cout_total`` recalculé par le service (règle 7)."""
+    entree = LigneBudgetToolInput.model_validate(payload)
+    ligne = BudgetService(session, actor_id=AGENT_ID).ajouter_ligne_budget(
+        entree.budget_id,
+        LigneBudgetInput(
+            categorie=entree.categorie,
+            description=entree.description,
+            unite=entree.unite,
+            quantite=entree.quantite,
+            cout_unitaire=entree.cout_unitaire,
+        ),
+    )
+    return {
+        "budget_id": str(entree.budget_id),
+        "ligne_id": str(ligne.id),
+        "categorie": ligne.categorie,
+        "quantite": float(ligne.quantite),
+        "cout_unitaire": float(ligne.cout_unitaire),
+        "cout_total": float(ligne.cout_total),
+        "requires_approval": True,
+        "message": "Ligne ajoutée (coût total recalculé côté serveur).",
+    }
+
+
+def _modifier_ligne_budget(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Corrige une ligne existante (même calcul déterministe)."""
+    entree = LigneBudgetModifInput.model_validate(payload)
+    ligne = BudgetService(session, actor_id=AGENT_ID).modifier_ligne_budget(
+        entree.budget_id,
+        entree.ligne_id,
+        LigneBudgetInput(
+            categorie=entree.categorie,
+            description=entree.description,
+            unite=entree.unite,
+            quantite=entree.quantite,
+            cout_unitaire=entree.cout_unitaire,
+        ),
+    )
+    return {
+        "budget_id": str(entree.budget_id),
+        "ligne_id": str(ligne.id),
+        "categorie": ligne.categorie,
+        "quantite": float(ligne.quantite),
+        "cout_unitaire": float(ligne.cout_unitaire),
+        "cout_total": float(ligne.cout_total),
+        "requires_approval": True,
+        "message": "Ligne modifiée (coût total recalculé côté serveur).",
+    }
+
+
+def _retirer_ligne_budget(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Retire une ligne d'un budget non approuvé (geste tracé).
+
+    Le nom du tool est ``retirer_ligne_budget`` : la suppression de ligne est
+    un **ajustement de contenu** (service : « retire une ligne »), pas un geste
+    de cycle de vie — la matrice réserve « supprimer » aux gestes humains de
+    mission/session. L'événement d'audit reste ``budget_ligne_supprimee``.
+    """
+    entree = LigneBudgetSuppressionInput.model_validate(payload)
+    BudgetService(session, actor_id=AGENT_ID).supprimer_ligne_budget(
+        entree.budget_id, entree.ligne_id
+    )
+    return {
+        "budget_id": str(entree.budget_id),
+        "ligne_id": str(entree.ligne_id),
+        "requires_approval": True,
+        "message": "Ligne supprimée du budget (geste tracé dans l'audit).",
+    }
+
+
+def _soumettre_budget(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """``brouillon → proposé`` : le budget entre en file de décision humaine."""
+    entree = BudgetIdInput.model_validate(payload)
+    service = BudgetService(session, actor_id=AGENT_ID)
+    budget = service.soumettre_budget(entree.budget_id)
+    total = service.total_budget(budget.id)
+    return {
+        "budget_id": str(budget.id),
+        "statut": budget.statut,
+        "devise": budget.devise,
+        "total": float(total.total),
+        "nb_lignes": total.nb_lignes,
+        "requires_approval": True,
+        "message": "Budget soumis : sa décision d'approbation reste humaine.",
+    }
+
+
 @dataclass(frozen=True, slots=True)
 class ContactEmail:
     """Contact destinataire **résolu en base** (jamais une adresse libre)."""
@@ -764,6 +1000,84 @@ def construire_tools_rh(
         mutation=True,
         run=_propose_mission_update,
     ))
+    # --- Budgets de mission (Phase 2 §5) -----------------------------------
+    # Lecture : lister/lire. Écritures (créer, lignes, soumettre) : toutes
+    # sous HITL (``approval_required`` du contrat). Un budget approuvé est
+    # verrouillé par le service : une révision = nouvelle version, jamais une
+    # réécriture des montants validés.
+    kit.enregistrer(OperationSpec(
+        name="lister_budgets_mission",
+        description=(
+            "Budgets d'une mission (versions, statuts, totaux recalculés), la "
+            "version la plus récente d'abord. À lire avant toute écriture."
+        ),
+        input_schema=MissionBudgetInput,
+        run=_lister_budgets,
+    ))
+    kit.enregistrer(OperationSpec(
+        name="lire_budget",
+        description=(
+            "Détail d'un budget : lignes ordonnées (catégorie, quantité, coût "
+            "unitaire, coût total) et total recalculé."
+        ),
+        input_schema=BudgetIdInput,
+        run=_lire_budget,
+    ))
+    kit.enregistrer(OperationSpec(
+        name="creer_budget_mission",
+        description=(
+            "Crée le budget (brouillon) d'une mission. Un seul budget par "
+            "mission : une révision passe par une nouvelle version, jamais par "
+            "un second budget. Aucun montant n'est officiel tant que le budget "
+            "n'est pas approuvé."
+        ),
+        input_schema=MissionBudgetInput,
+        mutation=True,
+        run=_creer_budget_mission,
+    ))
+    kit.enregistrer(OperationSpec(
+        name="ajouter_ligne_budget",
+        description=(
+            "Ajoute une ligne à un budget brouillon ou proposé : catégorie "
+            "(obligatoire), description, unité, quantité et coût unitaire (≥ 0). "
+            "Le coût total est TOUJOURS recalculé côté serveur : jamais fourni "
+            "par l'agent."
+        ),
+        input_schema=LigneBudgetToolInput,
+        mutation=True,
+        run=_ajouter_ligne_budget,
+    ))
+    kit.enregistrer(OperationSpec(
+        name="modifier_ligne_budget",
+        description=(
+            "Corrige une ligne de budget non approuvé (même recalcul "
+            "déterministe du coût total)."
+        ),
+        input_schema=LigneBudgetModifInput,
+        mutation=True,
+        run=_modifier_ligne_budget,
+    ))
+    kit.enregistrer(OperationSpec(
+        name="retirer_ligne_budget",
+        description=(
+            "Retire une ligne d'un budget non approuvé (geste tracé). Le "
+            "budget et la ligne sont référencés par identifiant."
+        ),
+        input_schema=LigneBudgetSuppressionInput,
+        mutation=True,
+        run=_retirer_ligne_budget,
+    ))
+    kit.enregistrer(OperationSpec(
+        name="soumettre_budget",
+        description=(
+            "Soumet un budget (brouillon → proposé) : il entre en file de "
+            "décision humaine. Un budget sans ligne est refusé — jamais un "
+            "chiffrage vide."
+        ),
+        input_schema=BudgetIdInput,
+        mutation=True,
+        run=_soumettre_budget,
+    ))
     # Autres tables : lecture seule (matrice validée).
     kit.enregistrer(OperationSpec(
         name="search_organisations",
@@ -827,11 +1141,10 @@ def construire_tools_rh(
         run=_envoyer_email,
     ))
 
-    from app.tools.recherche_video import attacher_recherche_video
-    from app.tools.web import attacher_outils_web
-
     from app.agents.tools.agent_lieux_tools import construire_tools_lieux
     from app.agents.tools.connaissances import outils_connaissance_pour
+    from app.tools.recherche_video import attacher_recherche_video
+    from app.tools.web import attacher_outils_web
 
     return attacher_recherche_video(
         definition,
@@ -875,7 +1188,12 @@ __all__ = [
     "NOMS_TOOLS",
     "TASK_TYPE",
     "AssignmentProposalInput",
+    "BudgetIdInput",
     "DisponibiliteInput",
     "EnvoyerEmailInput",
+    "LigneBudgetModifInput",
+    "LigneBudgetSuppressionInput",
+    "LigneBudgetToolInput",
+    "MissionBudgetInput",
     "construire_tools_rh",
 ]

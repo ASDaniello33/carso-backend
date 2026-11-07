@@ -486,10 +486,14 @@ class ContexteUtilisateurMiddleware(_AgentMiddleware):
         """Réponse d'outil refusée : le modèle reçoit une raison, pas un crash."""
         from langchain_core.messages import ToolMessage
 
+        from app.agents.historique_outils import identifiant_appel
+
         appel = getattr(request, "tool_call", None) or {}
+        # Un appel sans id (certains fournisseurs) ferait échouer la
+        # construction du ToolMessage et donc le run entier.
         return ToolMessage(
             content=refus_outil(outil),
-            tool_call_id=appel.get("id", "") if isinstance(appel, dict) else "",
+            tool_call_id=identifiant_appel(appel),
             status="error",
         )
 

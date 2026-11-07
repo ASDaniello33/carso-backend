@@ -1,0 +1,42 @@
+{
+  "source": "var\\storage\\carso\\generated\\500759bd-608d-4127-a0b2-04ddf6768b44\\rapport_budgetaire_mission_ami_fid_59_v5.docx",
+  "mots_origine": 493,
+  "mots_reproduction": 479,
+  "couverture_lexicale": 0.972,
+  "titres_origine": 22,
+  "titres_reproduction": 22,
+  "titres_identiques": 22,
+  "tableaux_origine": 22,
+  "tableaux_reproduction": 12,
+  "images_origine": 2,
+  "images_reproduction": 0,
+  "graphiques_regeneres": 2,
+  "puces_origine": 15,
+  "puces_reproduction": 15,
+  "blocs_par_type": {
+    "Sommaire": 1,
+    "Titre": 22,
+    "Paragraphe": 12,
+    "Tableau": 12,
+    "Encadre": 7,
+    "Graphique": 2,
+    "Liste": 3
+  },
+  "entetes_de_tableau_identiques": 12,
+  "champs_du_texte_manquants": [
+    "(fonds",
+    "(siege",
+    "afficher",
+    "champs",
+    "clic",
+    "client",
+    "developpement)",
+    "droit",
+    "fid,",
+    "mettre",
+    "periode",
+    "puis",
+    "sommaire.",
+    "»"
+  ]
+}

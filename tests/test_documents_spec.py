@@ -60,8 +60,10 @@ class TestSpec:
     def test_bloc_par_type(self) -> None:
         bloc = bloc_par_type({"type": "tableau", "entete": ["A"], "lignes": [["1"]]})
         assert isinstance(bloc, Tableau)
+        # ``graphique`` est un type connu depuis l'INC-123 : l'inconnu doit être
+        # un type qui n'existe pas, pas un type qu'on vient d'ajouter.
         with pytest.raises(ValidationError, match="inconnu"):
-            bloc_par_type({"type": "graphique"})
+            bloc_par_type({"type": "hologramme"})
 
     def test_niveau_titre_borne(self) -> None:
         with pytest.raises(PydanticValidationError):

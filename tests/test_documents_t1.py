@@ -65,10 +65,15 @@ def test_cloner_docx_et_template(tmp_path: Path) -> None:
 
 def test_script_imports_deny() -> None:
     verifier_imports("import json\nprint(1)")
+    # Le script est un outil d'exécution : un module absent de la liste
+    # indicative reste admis, la garde d'exécution en décide.
+    verifier_imports("import pandas")
     with pytest.raises(PermissionDeniedError):
         verifier_imports("import os\nos.system('dir')")
     with pytest.raises(PermissionDeniedError):
         verifier_imports("import subprocess")
+    with pytest.raises(PermissionDeniedError):
+        verifier_imports("import requests")
     with pytest.raises(ValidationError):
         verifier_imports("def (")
 

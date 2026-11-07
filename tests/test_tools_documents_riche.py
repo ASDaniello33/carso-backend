@@ -179,6 +179,39 @@ def test_generation_structurer_produit_docx_et_pdf(
     assert principal.storage_path == jumeau.storage_path.replace(".pdf", ".docx")
 
 
+def test_generation_structurer_ne_renvoie_pas_l_image_base64(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """Le spec renvoyé sert aux corrections : il ne ré-embarque pas l'image."""
+    outil = _tools(service)["generer_document"]
+    spec = _offre_spec()
+    spec["blocs"].append(
+        {
+            "type": "image",
+            "base64": (
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAE"
+                "hQGAhKmMIQAAAABJRU5ErkJggg=="
+            ),
+            "largeur_mm": 40,
+            "legende": "Capture",
+        }
+    )
+    sortie = outil.invoke(
+        {
+            "format": "docx",
+            "nom_fichier": "note_avec_capture",
+            "type_document": "offre",
+            "ancre": "organisation",
+            "entity_id": str(organisation.id),
+            "propose_par": IDENTITE.agent_id,
+            "document_spec": spec,
+        }
+    )
+
+    assert "base64" not in str(sortie["document_spec"])
+    assert any("inline" in message for message in sortie["warnings"])
+
+
 def test_generation_structurer_signale_les_erreurs_de_validation(
     service: DocumentService, organisation: Organisation
 ) -> None:
@@ -516,3 +549,46 @@ def _uuid(valeur: Any) -> Any:
     from uuid import UUID
 
     return UUID(str(valeur))
+
+def test_generer_document_accepte_le_spec_riche(service: DocumentService) -> None:
+    """INC-130 : sommaire, fragments, forme, espacement et tableau riche passent l'outil."""
+    outils = _tools(service)
+    spec = {
+        "metadata": {"titre": "Offre technique — lot 2", "reference": "CARSO-2026-101"},
+        "mise_en_page": {"numero_de_page": True, "numero_de_page_debut": 2},
+        "blocs": [
+            {"type": "sommaire"},
+            {"type": "forme", "variante": "bandeau", "texte": "Contexte"},
+            {"type": "titre", "texte": "Contexte"},
+            {
+                "type": "paragraphe",
+                "alignement": "justifie",
+                "runs": [
+                    {"texte": "Le "},
+                    {"texte": "CARSO", "gras": True},
+                    {"texte": " intervient "},
+                    {"texte": "depuis 2019", "surligne": "jaune"},
+                ],
+            },
+            {"type": "espacement", "hauteur_mm": 4},
+            {
+                "type": "tableau",
+                "entete": ["Phase", "Montant"],
+                "lignes": [["Préparation", "4 000,00"], ["Exécution", "9 500,00"]],
+                "marges_cellules_mm": 1.5,
+                "bordures": "aucune",
+                "couleur_entete": "#1F4E79",
+            },
+        ],
+    }
+    resultat = outils["generer_document"].invoke(
+        {
+            "format": "docx",
+            "nom_fichier": "offre_riche.docx",
+            "type_document": "offre",
+            "propose_par": "agent_generateur_offre",
+            "document_spec": spec,
+        }
+    )
+    assert resultat["ok"] is True, resultat
+    assert resultat["document_id"]

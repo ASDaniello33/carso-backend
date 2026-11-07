@@ -83,8 +83,18 @@ NOMS_TOOLS: tuple[str, ...] = (
     # Vision : un scan de tableau se lit dans l'image, pas dans un texte absent.
     "lire_image",
     # Rapport/synthèse : livrable déposé en proposition (aucune donnée modifiée).
+    # Livrable : document libre en HTML, ou thème CARSO — toujours ``proposed``.
+    "generer_document",
     "generer_document_professionnel",
+    # Image (INC-135) : graphique ou figure fournie en base64, sinon en SVG
+    # rasterisé ; affichée et téléchargeable par ``afficher_image``.
+    "generer_image",
+    "generer_image_svg",
+    "composer_image",
+    "verifier_image_svg",
     "importer_tableau_xlsx",
+    # Traitements statistiques ponctuels (CSV/XLSX) dans SON espace de travail.
+    "run_python_script",
     "search_organisations",
     "search_appels",
     "search_lots",
@@ -237,10 +247,9 @@ def construire_tools_statistique(
         outils = (*outils, read_document_tool)
 
     from app.agents.tools.agent_lieux_tools import construire_tools_lieux
+    from app.agents.tools.connaissances import outils_connaissance_pour
     from app.tools.recherche_video import attacher_recherche_video
     from app.tools.web import attacher_outils_web
-
-    from app.agents.tools.connaissances import outils_connaissance_pour
 
     return attacher_recherche_video(
         definition,

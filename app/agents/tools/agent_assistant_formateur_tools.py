@@ -45,11 +45,13 @@ NOMS_TOOLS: tuple[str, ...] = (
     # --- documents : lire, comprendre, écrire, vérifier ---------------------
     # « Tous les outils de manipulation de documents » (demande 04/10) : la
     # lecture (fiche, structure, plage, tableau XLSX, référence de style),
-    # l'écriture (generer_document_professionnel PRIORITAIRE pour docx/pdf,
-    # generer_document_html pour un document LIBRE, generer_document, clone,
-    # fill_template) puis le contrôle (valider_document, render_document,
-    # corriger_document). Les capacités ``document_read`` et ``document_propose``
-    # du contrat couvrent exactement ce périmètre.
+    # l'écriture (generer_document_professionnel quand aucun modèle ne
+    # s'applique, generer_document_html pour un document LIBRE, generer_document)
+    # puis le contrôle (valider_document, render_document, corriger_document).
+    # Les capacités ``document_read`` et ``document_propose`` du contrat couvrent
+    # exactement ce périmètre. Un modèle de l'organisation se copie d'abord
+    # (``copier_modele_document``, ancre mission/session comprise) : le moteur
+    # refuse la génération libre dès qu'une copie ou un modèle s'applique.
     "lire_document",
     "read_document",
     "get_document_structure",
@@ -59,14 +61,34 @@ NOMS_TOOLS: tuple[str, ...] = (
     # Une fiche ou une liste photographiée se lit dans l'image.
     "lire_image",
     "importer_tableau_xlsx",
+    # Traitement documentaire en série dans SON espace de travail (INC-116) :
+    # le tool est construit par ``tools_scripts_pour``.
+    "run_python_script",
     "analyze_document_reference",
     "generer_document",
     "generer_document_professionnel",
     "generer_document_html",
-    "clone_document_structure",
-    "fill_template",
+    # Images (INC-135) : une figure réelle en base64, sinon un SVG rasterisé ;
+    # affichées et téléchargeables par ``afficher_image``.
+    "generer_image",
+    "generer_image_svg",
+    "composer_image",
+    "verifier_image_svg",
+    # Chaîne « copier le modèle puis l'éditer » (INC-129) : un organisme impose
+    # souvent sa fiche technique, sa liste de présence ou son rapport. La copie
+    # s'ancre sur la mission ou la session ouverte.
+    "lister_modeles_documents",
+    "obtenir_structure_modele",
+    "copier_modele_document",
+    "obtenir_structure_document",
+    "remplacer_element_model",
+    "remplir_modele",
     "valider_document",
     "render_document",
+
+    # Retour arrière d'un lot qui a abîmé la copie : le dernier état sain
+    # redevient le document de travail, sans écraser l'historique.
+    "revenir_version_document",
     "corriger_document",
     "modifier_section_document",
     "get_mission",
@@ -432,7 +454,11 @@ def construire_tools_assistant_formateur(
     extras = (
         tuple(extra_tools)
         + tools_documents_pour(definition, session_factory)
-        + tools_scripts_pour(definition)
+        # Une seule source pour le script ancré : ``deep_tools`` ne doit pas
+        # l'ajouter en plus, sinon le montage refuse un tool fourni deux fois
+        # (422 « Tool fourni deux fois »), et la version sans session perdait
+        # le mode ancré.
+        + tools_scripts_pour(definition, session_factory=session_factory)
     )
     from app.agents.tools.agent_lieux_tools import construire_tools_lieux
     from app.agents.tools.connaissances import outils_connaissance_pour

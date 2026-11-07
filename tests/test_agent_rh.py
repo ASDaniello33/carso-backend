@@ -324,7 +324,9 @@ def test_envoyer_email_est_sous_interruption_du_harnais(
     # Les autres écritures sensibles de l'agent restent couvertes (approbation
     # seule, pas de correction d'arguments).
     assert politique["create_assignment_proposal"] is True
-    assert politique["generer_document"] is True
+    # La génération de documents n'est plus une interruption d'appel (INC-123) :
+    # le livrable naît ``proposed`` et la validation humaine du document tranche.
+    assert "generer_document" not in politique
 
 
 def test_envoyer_email_capacite_verifiee_a_la_construction(

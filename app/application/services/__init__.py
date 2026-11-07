@@ -8,6 +8,7 @@ from app.application.services.agent_personnel_service import AgentPersonnelServi
 from app.application.services.agent_runtime_service import AgentRuntimeService
 from app.application.services.appel_service import AppelService
 from app.application.services.beneficiaire_service import BeneficiaireService
+from app.application.services.budget_service import BudgetService
 from app.application.services.connaissance_service import ConnaissanceService
 from app.application.services.document_service import DocumentService
 from app.application.services.equipe_service import EquipeService
@@ -46,6 +47,7 @@ __all__ = [
     "AgentRuntimeService",
     "AppelService",
     "BeneficiaireService",
+    "BudgetService",
     "ConnaissanceService",
     "DocumentService",
     "EquipeService",

@@ -43,11 +43,17 @@ from app.documents.spec import (
     Couverture,
     DocumentSpec,
     Encadre,
+    Espacement,
+    Forme,
+    Graphique,
+    Illustration,
     Image,
     Liste,
     Paires,
     Paragraphe,
     SautDePage,
+    Segment,
+    Sommaire,
     Tableau,
     Titre,
 )
@@ -255,7 +261,9 @@ class _RenduPdf:
             geometrie.marges.haut_mm,
             geometrie.marges.droite_mm,
         )
-        self.pdf.set_auto_page_break(auto=True, margin=geometrie.marges.bas_mm)
+        self.pdf.set_auto_page_break(
+            auto=True, margin=max(geometrie.marges.bas_mm, self._reserve_pied_mm())
+        )
         self.pdf.set_display_mode("fullwidth")
         self.pdf.alias_nb_pages()
         self._police_unifiee = self._enregistrer_police_optionnelle()
@@ -264,6 +272,29 @@ class _RenduPdf:
     def largeur_utile(self) -> float:
         """Largeur imprimable en millimètres."""
         return self.geometrie.largeur_utile_mm()
+
+    def _pied_visible(self) -> bool:
+        """Un pied est-il écrit sur les pages courantes ?"""
+        numero = (
+            self.spec.mise_en_page.numero_de_page
+            if self.spec.mise_en_page.numero_de_page is not None
+            else self.style.pied.numero_page
+        )
+        return bool((self._pied.texte or "").strip() or numero)
+
+    def _reserve_pied_mm(self) -> float:
+        """Hauteur réservée en bas de page pour ne jamais écrire sur le pied.
+
+        Le pied est posé à ``max(10, marge basse - 6)`` du bas, avec son filet
+        juste au-dessus : le contenu doit donc s'arrêter au-dessus de cette
+        ligne, sinon le dernier paragraphe vient toucher le filet (constaté sur
+        une pièce réelle, INC-131).
+        """
+        marge = self.geometrie.marges.bas_mm
+        if not self._pied_visible():
+            return marge
+        hauteur_pied = _hauteur_ligne(self._pied.comme_style_texte())
+        return max(10.0, marge - 6.0) + hauteur_pied + 2.0
 
     # --- En-tête / pied de page (appelés par fpdf2) --------------------------
 
@@ -298,7 +329,10 @@ class _RenduPdf:
             else self.style.pied.numero_page
         )
         if numero:
-            compteur = f"Page {self.pdf.page_no()} / {{nb}}"
+            page = self.pdf.page_no()
+            debut = self.spec.mise_en_page.numero_de_page_debut
+            numero_affiche = debut + page - 1 if debut is not None and page > 0 else page
+            compteur = f"Page {numero_affiche} / {{nb}}"
             texte = f"{texte}   {compteur}".strip() if texte else compteur
         if not texte:
             return
@@ -432,7 +466,11 @@ class _RenduPdf:
                         "espace_apres_pt": tokens.espace_apres_pt + 3.0,
                     }
                 )
-            self._ecrire_marque(tokens, bloc.texte, bloc.statut)
+            tokens = _tokens_paragraphe(bloc, tokens)
+            if bloc.runs:
+                self._ecrire_runs(tokens, bloc.runs, bloc.statut)
+            else:
+                self._ecrire_marque(tokens, bloc.texte, bloc.statut)
             return
         if isinstance(bloc, Liste):
             self._liste(bloc)
@@ -441,7 +479,15 @@ class _RenduPdf:
             self._tableau(bloc)
             return
         if isinstance(bloc, Image):
+            if bloc.svg:
+                self._figure(bloc.svg, bloc.legende, bloc.largeur_mm, centrer=True)
+                return
             self._image(bloc, centrer=True)
+            return
+        if isinstance(bloc, (Graphique, Illustration)):
+            # Figure du serveur (INC-123) : rasterisée, le PDF du spec ne
+            # dépend donc pas d'un navigateur (reportlab ne lit pas le SVG).
+            self._figure(bloc, bloc.legende, bloc.largeur_mm, centrer=True)
             return
         if isinstance(bloc, Encadre):
             self._encadre(bloc)
@@ -462,7 +508,75 @@ class _RenduPdf:
         if isinstance(bloc, SautDePage):
             self.ajouter_page()
             return
+        if isinstance(bloc, Sommaire):
+            self._sommaire(bloc)
+            return
+        if isinstance(bloc, Forme):
+            from app.documents.figures import svg_forme
+
+            largeur = bloc.largeur_mm or self.largeur_utile
+            self._figure(
+                svg_forme(bloc, largeur_mm=largeur),
+                None,
+                largeur,
+                centrer=bloc.largeur_mm is None,
+            )
+            return
+        if isinstance(bloc, Espacement):
+            self.pdf.ln(bloc.hauteur_mm)
+            return
         raise GenerationError(f"Type de bloc non rendable : {type(bloc).__name__}")
+
+    def _ecrire_runs(
+        self, tokens: StyleTexte, runs: list[Segment], statut: str
+    ) -> None:
+        """Écrit un paragraphe composé de fragments stylés.
+
+        Chaque fragment porte ses propres graisse, italique, soulignement, taille,
+        police et couleur ; ce qu'il ne déclare pas vient du rôle du paragraphe.
+        L'alignement reste celui du paragraphe (``write`` n'aligne pas un flux
+        fragment par fragment).
+        """
+        if tokens.espace_avant_pt:
+            self.pdf.ln(tokens.espace_avant_pt * _PT_VERS_MM)
+        hauteur = _hauteur_ligne(tokens)
+        texte_entier = "".join(segment.texte for segment in runs)
+        for segment in runs:
+            gras = tokens.gras if segment.gras is None else segment.gras
+            italique = tokens.italique if segment.italique is None else segment.italique
+            style = ("B" if gras else "") + ("I" if italique else "")
+            if segment.souligne:
+                style += "U"
+            famille = self._famille(segment.police or tokens.police)
+            taille = segment.taille_pt or tokens.taille_pt
+            try:
+                self.pdf.set_font(famille, style, taille)
+            except Exception:  # pragma: no cover - police sans variante soulignée
+                self.pdf.set_font(famille, style.replace("U", ""), taille)
+            self.pdf.set_text_color(*couleur_rgb(segment.couleur or tokens.couleur))
+            self.pdf.write(hauteur, texte_pdf(segment.texte))
+        ajout = "" if MARQUEUR_RE.search(texte_entier) else _marqueur(statut)
+        if ajout:
+            self.pdf.write(hauteur, f" {ajout}")
+        self.pdf.ln(hauteur)
+        if tokens.espace_apres_pt:
+            self.pdf.ln(tokens.espace_apres_pt * _PT_VERS_MM)
+
+    def _sommaire(self, bloc: Sommaire) -> None:
+        """Sommaire du PDF : les titres réels, dans l'ordre, sans page inventée.
+
+        fpdf2 ne connaît la page d'un titre qu'après coup : les numéros sont donc
+        absents du PDF (le DOCX, lui, porte un vrai champ ``TOC`` paginé).
+        """
+        if bloc.titre:
+            self._ecrire(self.style.titre_niveau(2), bloc.titre)
+        for titre in self.spec.blocs:
+            if not isinstance(titre, Titre) or titre.niveau > bloc.niveaux:
+                continue
+            self._ecrire(
+                self.style.corps.model_copy(update={"espace_apres_pt": 2.0}),
+                f"{'    ' * (titre.niveau - 1)}{titre.texte}",
+            )
 
     # --- Helpers d'écriture --------------------------------------------------
 
@@ -548,8 +662,15 @@ class _RenduPdf:
         corps = StyleTexte(
             police=self.style.corps.police, taille_pt=tokens.taille_pt, interligne=1.15
         )
-        padding = max(0.7, tokens.marge_interne_pt * 0.55)
+        padding = max(
+            0.7,
+            bloc.marges_cellules_mm
+            if bloc.marges_cellules_mm is not None
+            else tokens.marge_interne_pt * 0.55,
+        )
         hauteurs = self._hauteurs_tableau(grille, largeurs, corps, padding)
+        if bloc.hauteur_lignes_mm:
+            hauteurs = [max(hauteur, bloc.hauteur_lignes_mm) for hauteur in hauteurs]
         for index_ligne, rangees in enumerate(grille):
             en_entete = index_ligne < nb_entete
             decalage = index_ligne - nb_entete
@@ -557,7 +678,14 @@ class _RenduPdf:
             alternance = bool(tokens.bandes_alternees and not total and decalage % 2 == 1)
             if self.pdf.get_y() + hauteurs[index_ligne] > self._limite_tableau():
                 self.pdf.add_page()
-                if nb_entete and bloc.repeter_entete and tokens.repeter_entete:
+                # Inutile — et faux — de répéter l'en-tête quand la ligne qui
+                # déclenche le saut EST une ligne d'en-tête : elle s'écrit juste après.
+                if (
+                    nb_entete
+                    and bloc.repeter_entete
+                    and tokens.repeter_entete
+                    and index_ligne >= nb_entete
+                ):
                     for index_entete in range(nb_entete):
                         self._ligne_tableau(
                             bloc,
@@ -618,13 +746,17 @@ class _RenduPdf:
         """Hauteur nécessaire à une cellule (texte mesuré à sa largeur fusionnée)."""
         largeur = sum(largeurs[placee.colonne : placee.colonne + placee.colonnes])
         return (
-            self._hauteur_texte(corps, placee.cellule.texte, max(4.0, largeur - 2 * padding))
+            self._hauteur_texte(
+                corps, placee.cellule.texte_complet(), max(4.0, largeur - 2 * padding)
+            )
             + 2 * padding
         )
 
     def _limite_tableau(self) -> float:
-        """Ordonnée au-delà de laquelle une ligne de tableau part sur une nouvelle page."""
-        return self.pdf.h - self.geometrie.marges.bas_mm - 6.0
+        """Ordonnée au-delà de laquelle une ligne part sur une nouvelle page."""
+        return self.pdf.h - max(
+            self.geometrie.marges.bas_mm + 2.0, self._reserve_pied_mm()
+        )
 
     def _ligne_tableau(
         self,
@@ -656,10 +788,22 @@ class _RenduPdf:
                     else hauteurs[placee.ligne]
                 )
                 fond = _fond_effectif(placee.cellule, en_entete, total, alternance, tokens)
+                if en_entete and bloc.couleur_entete and placee.cellule.fond is None:
+                    fond = bloc.couleur_entete
                 if fond:
                     self.pdf.set_fill_color(*couleur_rgb(fond))
-                if fond or tokens.bordures:
-                    self.pdf.rect(x, y, largeur, hauteur, style="DF" if fond else "D")
+                filets = bool(tokens.bordures) and bloc.bordures != "aucune"
+                if bloc.couleur_bordures:
+                    self.pdf.set_draw_color(*couleur_rgb(bloc.couleur_bordures))
+                if fond or filets:
+                    # Une trame seule ne dessine pas de filets (style "F").
+                    self.pdf.rect(
+                        x,
+                        y,
+                        largeur,
+                        hauteur,
+                        style="DF" if (fond and filets) else ("F" if fond else "D"),
+                    )
                 couleur = placee.cellule.couleur_texte or (
                     tokens.entete_couleur if en_entete else self.style.corps.couleur
                 )
@@ -678,7 +822,7 @@ class _RenduPdf:
                 self.pdf.multi_cell(
                     largeur - 2 * padding,
                     hauteur_ligne,
-                    texte_pdf(placee.cellule.texte),
+                    texte_pdf(placee.cellule.texte_complet()),
                     align=_ALIGNEMENTS[_alignement_effectif(placee, bloc)],
                 )
         finally:
@@ -688,7 +832,7 @@ class _RenduPdf:
     def _encadre(self, bloc: Encadre) -> None:
         """Encadré : texte tramé dans un rectangle bordé (même esprit que le DOCX)."""
         tokens = self.style.encadre(bloc.genre)
-        libelle = bloc.titre or tokens.libelle
+        libelle = bloc.libelle_affiche(tokens.libelle)
         corps = StyleTexte(
             police=self.style.corps.police,
             taille_pt=self.style.corps.taille_pt,
@@ -697,6 +841,10 @@ class _RenduPdf:
         hauteur = self._hauteur_texte(corps, bloc.texte, self.largeur_utile - 6.0)
         if libelle:
             hauteur += _hauteur_ligne(corps)
+        # L'encadré est dessiné à une ordonnée calculée : sans ce garde, il
+        # chevauche le pied de page au lieu de passer à la page suivante.
+        if self.pdf.get_y() + hauteur + 5.0 > self._limite_tableau():
+            self.pdf.add_page()
         x = self.geometrie.marges.gauche_mm
         y = self.pdf.get_y()
         self.pdf.set_fill_color(*couleur_rgb(tokens.fond))
@@ -751,9 +899,40 @@ class _RenduPdf:
                 details={"document_id": str(bloc.document_id or ""), "chemin": bloc.chemin},
             )
         octets, nom = contenu
+        self._pose_image(octets, nom, bloc.largeur_mm, bloc.legende, centrer=centrer)
+
+    def _figure(
+        self,
+        figure: Graphique | Illustration | str,
+        legende: str | None,
+        largeur_mm: float,
+        *,
+        centrer: bool,
+    ) -> None:
+        """Insère une figure SVG (graphique, illustration, schéma) dans le PDF.
+
+        ``reportlab`` ne lit pas le SVG : la figure est rasterisée par
+        ``resvg-py``, exactement comme pour le DOCX (même taille, même rendu).
+        """
+        from app.documents.figures import png_depuis_svg, svg_depuis_bloc
+
+        svg = figure if isinstance(figure, str) else svg_depuis_bloc(figure)
+        octets, _largeur_px, _hauteur_px = png_depuis_svg(svg)
+        self._pose_image(octets, "figure.png", largeur_mm, legende, centrer=centrer)
+
+    def _pose_image(
+        self,
+        octets: bytes,
+        nom: str,
+        largeur_mm: float,
+        legende: str | None,
+        *,
+        centrer: bool,
+    ) -> None:
+        """Pose des octets d'image et sa légende (chemin commun image/figure)."""
         flux = io.BytesIO(octets)
         self._flux.append(flux)
-        largeur = min(bloc.largeur_mm, self.largeur_utile)
+        largeur = min(largeur_mm, self.largeur_utile)
         x = (
             self.geometrie.marges.gauche_mm + (self.largeur_utile - largeur) / 2
             if centrer
@@ -764,7 +943,7 @@ class _RenduPdf:
         except Exception as erreur:
             raise ValidationError(f"Image illisible : {nom}") from erreur
         self.pdf.ln(2)
-        if bloc.legende:
+        if legende:
             self._ecrire(
                 StyleTexte(
                     taille_pt=8.5,
@@ -773,7 +952,7 @@ class _RenduPdf:
                     alignement="centre",
                     espace_apres_pt=4.0,
                 ),
-                bloc.legende,
+                legende,
             )
 
     # --- Utilitaires internes ------------------------------------------------
@@ -866,6 +1045,24 @@ def _tokens_zone(style: DocumentStyle, spec: DocumentSpec, *, entete: bool) -> S
     if entete and not zone.texte and spec.mise_en_page.mention_proposition:
         return zone.model_copy(update={"texte": spec.mise_en_page.mention_proposition})
     return zone
+
+
+def _tokens_paragraphe(bloc: Paragraphe, tokens: StyleTexte) -> StyleTexte:
+    """Surcharges typographiques d'un paragraphe (mêmes règles que le DOCX)."""
+    changements = {
+        champ: getattr(bloc, champ)
+        for champ in (
+            "alignement",
+            "police",
+            "taille_pt",
+            "couleur",
+            "interligne",
+            "espace_avant_pt",
+            "espace_apres_pt",
+        )
+        if getattr(bloc, champ) is not None
+    }
+    return tokens.model_copy(update=changements) if changements else tokens
 
 
 def _alignement_effectif(placee: Any, bloc: Tableau) -> str:

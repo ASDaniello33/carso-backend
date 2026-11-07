@@ -98,9 +98,15 @@ NOMS_TOOLS: tuple[str, ...] = (
     READ_DOCUMENT_TOOL,
     # Vision : une image déposée se lit en la voyant (scan, capture).
     "lire_image",
-    # Livrable : la même génération que les autres agents, déposée en
-    # proposition. Le compte peut la retirer de son agent personnel.
+    # Livrable : la génération à thème CARSO seulement — la voie HTML libre
+    # (`generer_document`) appartient aux agents producteurs, pas au consultant.
     "generer_document_professionnel",
+    # Image (INC-135) : l'image réelle en base64 quand le modèle en émet, sinon
+    # un SVG rasterisé — même dépôt en proposition, même affichage en chat.
+    "generer_image",
+    "generer_image_svg",
+    "composer_image",
+    "verifier_image_svg",
     "query_analytics",
     "langsearch_web_search",
     # Lecture d'une page trouvée : le contexte manquant d'un résultat (bareme,
@@ -460,6 +466,20 @@ def construire_tools_generaliste(
     outils = list(kit.construire())
     if read_document_tool is not None:
         outils.append(read_document_tool)
+    # Les tools documentaires déclarés au contrat ne sortent pas du kit : sans
+    # cet assemblage, ``read_document``, ``lire_image`` et les générations
+    # (``generer_document_professionnel``, ``generer_image``…) figuraient au
+    # contrat sans exister pour le modèle — même défaut que l'agent personnel
+    # avant INC-118, constaté à l'écran en INC-135 (« l'outil n'est pas
+    # disponible dans mes outils »).
+    from app.agents.outillage import tools_documents_pour
+
+    vus = {outil.name for outil in outils}
+    for outil in tools_documents_pour(definition, session_factory):
+        if outil.name in vus:
+            continue
+        vus.add(outil.name)
+        outils.append(outil)
     # Tools de lieux partagés par tous les agents du catalogue (recherche
     # d'adresse + itinéraire) — filtrés par le contrat de l'agent.
     from app.agents.tools.agent_lieux_tools import construire_tools_lieux

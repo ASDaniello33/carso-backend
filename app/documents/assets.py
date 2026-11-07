@@ -18,6 +18,7 @@ image manquante silencieuse dans un livrable.
 
 from __future__ import annotations
 
+import base64
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Protocol
@@ -25,7 +26,7 @@ from uuid import UUID
 
 from app.core.errors import ValidationError
 from app.documents.paths import resolve_within_root
-from app.documents.spec import Image
+from app.documents.spec import Image, format_image
 
 __all__ = ["FournisseurImages", "ImagesDisque", "ImagesMemoire", "resoudre_image"]
 
@@ -99,7 +100,7 @@ class ImagesDisque:
                 )
             return chemin.read_bytes(), chemin.name
         raise ValidationError(
-            "Bloc image sans référence (ni document_id ni chemin)",
+            "Bloc image sans référence (document_id, chemin ou base64 attendu)",
             details={"largeur_mm": image.largeur_mm},
         )
 
@@ -112,6 +113,11 @@ def resoudre_image(
     Le renderer n'a pas à connaître la politique de résolution : il demande, il
     obtient des octets ou ``None``.
     """
+    if image.base64:
+        # Image fournie avec le spec : aucun fournisseur, aucun fichier, donc
+        # aucun chemin disque à confiner — le format vient des octets décodés.
+        octets = base64.b64decode(image.base64, validate=True)
+        return octets, f"image.{format_image(octets) or 'png'}"
     if fournisseur is None:
         return None
     return fournisseur.lire(image)

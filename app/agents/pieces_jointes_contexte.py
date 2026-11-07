@@ -232,13 +232,13 @@ def _consigne_lecture(document: Any) -> str:
             "lit les images, appuie-toi sur elle directement (la décrire, en "
             "extraire ce qui est lisible). N'appelle pas `read_document_range`, "
             "`lire_element_document` ni "
-            "`read_document_text` sur une image : elle n'a pas de plage à lire et "
+            "`lire_document` sur une image : elle n'a pas de plage à lire et "
             "aucun OCR n'est fait ici. Si tu ne peux pas la voir, dis-le."
         )
     return (
         "Ne redemande pas cet identifiant. Si l'extrait suffit, réponds. "
         "Sinon lis la suite avec tes outils de lecture "
-        "(read_document_text, read_document_range, lire_element_document, "
+        "(lire_document, read_document_range, lire_element_document, "
         "lire_document) : un DOCX se lit par éléments (paragraphes et tableaux), "
         "jamais par « pages »."
     )
@@ -344,7 +344,7 @@ Lorsqu'un utilisateur joint un fichier à ce tour, tu reçois déjà :
 - un **extrait borné** du texte (pas le fichier entier, jamais les octets).
 L'identifiant est dans ce contexte. **Ne le redemande jamais.**
 Si l'extrait suffit, réponds. Sinon lis la suite avec tes outils de lecture
-(`read_document_text`, `read_document_range`, `lire_element_document`,
+(`lire_document`, `read_document_range`, `lire_element_document`,
 `lire_document`). Un DOCX n'a pas de pages—lis-le par **éléments**
 (paragraphes **et** tableaux).
 S'il s'agit d'une **image**—si ton modèle lit les images, appuie-toi sur elle

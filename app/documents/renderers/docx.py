@@ -53,11 +53,17 @@ from app.documents.spec import (
     Couverture,
     DocumentSpec,
     Encadre,
+    Espacement,
+    Forme,
+    Graphique,
+    Illustration,
     Image,
     Liste,
     Paires,
     Paragraphe,
     SautDePage,
+    Segment,
+    Sommaire,
     Tableau,
     Titre,
 )
@@ -72,6 +78,21 @@ _ALIGNEMENTS = {
     "justifie": "JUSTIFY",
 }
 
+#: Motif de surlignage (vocabulaire du spec → constante Word).
+_SURLIGNAGES = {
+    "jaune": "YELLOW",
+    "vert": "BRIGHT_GREEN",
+    "cyan": "TURQUOISE",
+    "magenta": "PINK",
+    "rouge": "RED",
+    "bleu": "BLUE",
+    "gris": "GRAY_25",
+    "noir": "BLACK",
+}
+
+#: Épaisseurs de filets des tableaux (points), alignées sur le vocabulaire du spec.
+_EPAISSEURS = {"aucune": 0.0, "fine": 0.5, "moyenne": 0.75, "epaisse": 1.5}
+
 
 class _Libs(NamedTuple):
     """Points d'entrée python-docx utilisés par le renderer (imports groupés)."""
@@ -82,6 +103,7 @@ class _Libs(NamedTuple):
     RGBColor: Any
     alignements: Any
     orientations: Any
+    surlignages: Any
 
 
 def _libs() -> _Libs:
@@ -95,7 +117,7 @@ def _libs() -> _Libs:
 
         docx = require_library("docx")
         from docx.enum.section import WD_ORIENT
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_COLOR_INDEX
         from docx.shared import Mm, Pt, RGBColor
     except CarsoError as erreur:
         raise GenerationError(str(erreur)) from erreur
@@ -106,6 +128,7 @@ def _libs() -> _Libs:
         RGBColor=RGBColor,
         alignements=WD_ALIGN_PARAGRAPH,
         orientations=WD_ORIENT,
+        surlignages=WD_COLOR_INDEX,
     )
 
 
@@ -134,6 +157,9 @@ def rendre_docx(spec: DocumentSpec, *, images: FournisseurImages | None = None) 
             _rendre_couverture(document, libs, spec, style, couverture, images)
         for bloc in spec.blocs:
             _rendre_bloc(document, libs, bloc, spec, style, images)
+        if any(isinstance(bloc, Sommaire) for bloc in spec.blocs):
+            # Un sommaire n'a de contenu qu'une fois les champs recalculés.
+            xml.maj_champs_a_ouverture(document)
 
         buffer = io.BytesIO()
         document.save(buffer)
@@ -173,6 +199,9 @@ def _configurer_page(
     section.bottom_margin = libs.Mm(geometrie.marges.bas_mm)
     # Une couverture ne porte ni en-tête ni pied de page : elle reste sobre.
     section.different_first_page_header_footer = avec_couverture
+    debut = spec.mise_en_page.numero_de_page_debut
+    if debut is not None:
+        xml.debut_numerotation(section, numero=debut)
 
 
 def _configurer_entete_pied(
@@ -363,13 +392,23 @@ def _rendre_bloc(
                     "espace_apres_pt": tokens.espace_apres_pt + 4.0,
                 }
             )
-        paragraphe = _ajouter_paragraphe(document, libs, bloc.texte, tokens=tokens)
+        tokens = _tokens_paragraphe(bloc, tokens)
+        paragraphe = _ajouter_paragraphe(
+            document, libs, bloc.texte, tokens=tokens, runs=bloc.runs
+        )
+        if bloc.retrait_mm is not None:
+            paragraphe.paragraph_format.left_indent = libs.Mm(bloc.retrait_mm)
+        if bloc.retrait_premiere_ligne_mm is not None:
+            paragraphe.paragraph_format.first_line_indent = libs.Mm(
+                bloc.retrait_premiere_ligne_mm
+            )
+        texte_marque = bloc.texte or "".join(segment.texte for segment in bloc.runs or [])
         _ajouter_marqueur(
             paragraphe,
             libs,
             tokens,
             bloc.statut,
-            deja_marque=MARQUEUR_RE.search(bloc.texte),
+            deja_marque=MARQUEUR_RE.search(texte_marque),
         )
         return
 
@@ -382,7 +421,30 @@ def _rendre_bloc(
         return
 
     if isinstance(bloc, Image):
+        if bloc.svg:
+            # SVG écrit par l'agent (INC-123) : Word ne le lit pas, resvg le
+            # convertit. L'assainissement est fait par ``figures``.
+            _inserer_figure(
+                document,
+                libs,
+                bloc.svg,
+                bloc.legende,
+                bloc.largeur_mm,
+                centrer=True,
+            )
+            return
         _inserer_image(document, libs, bloc, images, centrer=True)
+        return
+
+    if isinstance(bloc, (Graphique, Illustration)):
+        _inserer_figure(
+            document,
+            libs,
+            bloc,
+            bloc.legende,
+            bloc.largeur_mm,
+            centrer=True,
+        )
         return
 
     if isinstance(bloc, Encadre):
@@ -411,7 +473,48 @@ def _rendre_bloc(
         document.add_page_break()
         return
 
+    if isinstance(bloc, Sommaire):
+        _rendre_sommaire(document, libs, bloc, style)
+        return
+
+    if isinstance(bloc, Forme):
+        from app.documents.figures import svg_forme
+
+        largeur = bloc.largeur_mm or spec.geometrie().largeur_utile_mm()
+        _inserer_figure(
+            document,
+            libs,
+            svg_forme(bloc),
+            None,
+            largeur,
+            centrer=bloc.largeur_mm is None,
+        )
+        return
+
+    if isinstance(bloc, Espacement):
+        # Blanc vertical exact : un paragraphe vide dont l'interligne vaut la
+        # hauteur demandée (``line_spacing`` en points → ``w:lineRule="exact"``).
+        paragraphe = document.add_paragraph()
+        paragraphe.paragraph_format.space_before = libs.Pt(0)
+        paragraphe.paragraph_format.space_after = libs.Pt(0)
+        paragraphe.paragraph_format.line_spacing = libs.Pt(bloc.hauteur_mm * 72.0 / 25.4)
+        return
+
     raise GenerationError(f"Type de bloc non rendable : {type(bloc).__name__}")
+
+
+def _rendre_sommaire(
+    document: Any, libs: _Libs, bloc: Sommaire, style: DocumentStyle
+) -> None:
+    """Sommaire : intitulé stylé puis champ Word ``TOC`` (paginé par le lecteur)."""
+    if bloc.titre:
+        titre = document.add_paragraph()
+        titre.add_run(bloc.titre)
+        _appliquer(titre, libs, style.titre_niveau(2))
+    champ = document.add_paragraph()
+    xml.champ_sommaire(
+        champ, niveaux=bloc.niveaux, avec_pages=bloc.avec_numeros_de_page
+    )
 
 
 def _rendre_liste(document: Any, libs: _Libs, bloc: Liste, style: DocumentStyle) -> None:
@@ -461,32 +564,53 @@ def _rendre_tableau(
             )
 
     # 2) Contenu et style, aux seules positions d'ancrage.
+    bandes = (
+        bloc.bandes_alternees
+        if bloc.bandes_alternees is not None
+        else tokens.bandes_alternees
+    )
     for index_ligne, rangees in enumerate(grille):
         ligne_docx = table.rows[index_ligne]
         en_entete = index_ligne < nb_entete
         index_donnee = index_ligne - nb_entete
         total = bloc.total_ligne is not None and index_donnee == bloc.total_ligne
-        alternance = bool(tokens.bandes_alternees and index_donnee % 2 == 1 and not total)
+        alternance = bool(bandes and index_donnee % 2 == 1 and not total)
         if en_entete and tokens.repeter_entete and bloc.repeter_entete:
             xml.repetition_entete(ligne_docx)
+        if bloc.hauteur_lignes_mm:
+            xml.hauteur_ligne(ligne_docx, hauteur_mm=bloc.hauteur_lignes_mm)
         for placee in rangees:
             cellule = table.cell(placee.ligne, placee.colonne)
             cellule.text = ""
-            run = cellule.paragraphs[0].add_run(placee.cellule.texte)
-            _styler_run(
-                run,
-                libs,
-                StyleTexte(
-                    police=style.corps.police,
-                    taille_pt=placee.cellule.taille_pt or tokens.taille_pt,
-                    gras=gras_cellule(
-                        placee.cellule, en_entete=en_entete, total=total, tokens=tokens
-                    ),
-                    couleur=couleur_cellule(
-                        placee.cellule, en_entete=en_entete, style=style, tokens=tokens
-                    ),
+            paragraphe_cellule = cellule.paragraphs[0]
+            tokens_cellule = StyleTexte(
+                police=style.corps.police,
+                taille_pt=placee.cellule.taille_pt or tokens.taille_pt,
+                gras=gras_cellule(
+                    placee.cellule, en_entete=en_entete, total=total, tokens=tokens
+                ),
+                italique=bool(placee.cellule.italique),
+                couleur=couleur_cellule(
+                    placee.cellule, en_entete=en_entete, style=style, tokens=tokens
                 ),
             )
+            if placee.cellule.runs:
+                for segment in placee.cellule.runs:
+                    _styler_run(
+                        paragraphe_cellule.add_run(segment.texte),
+                        libs,
+                        tokens_cellule,
+                        segment,
+                    )
+            else:
+                _styler_run(
+                    paragraphe_cellule.add_run(placee.cellule.texte),
+                    libs,
+                    tokens_cellule,
+                )
+            if placee.cellule.souligne:
+                for run in paragraphe_cellule.runs:
+                    run.font.underline = True
             fond = fond_cellule(
                 placee.cellule,
                 en_entete=en_entete,
@@ -494,15 +618,41 @@ def _rendre_tableau(
                 alternance=alternance,
                 tokens=tokens,
             )
+            if en_entete and bloc.couleur_entete and placee.cellule.fond is None:
+                fond = bloc.couleur_entete
             if fond:
                 xml.ombrer_cellule(cellule, fond)
+            if bloc.marges_cellules_mm is not None or placee.cellule.marge_interne_mm:
+                xml.marges_cellule(
+                    cellule,
+                    marge_mm=tokens_padding(bloc, placee),
+                )
+            if placee.cellule.alignement_vertical:
+                xml.alignement_vertical_cellule(
+                    cellule, _VERTICAUX[placee.cellule.alignement_vertical]
+                )
             _aligner_cellule(cellule, libs, bloc, placee)
 
     xml.mise_en_page_fixe(table)
     xml.largeurs_colonnes(table, bloc.largeurs_mm or _largeurs_par_defaut(spec, nb_colonnes))
-    if tokens.bordures:
+    if bloc.bordures == "aucune":
         xml.bordures_tableau(
-            table, couleur=tokens.bordure_couleur, taille_pt=tokens.bordure_taille_pt
+            table,
+            couleur=bloc.couleur_bordures or tokens.bordure_couleur,
+            taille_pt=0.0,
+            motif="nil",
+        )
+    elif bloc.bordures:
+        xml.bordures_tableau(
+            table,
+            couleur=bloc.couleur_bordures or tokens.bordure_couleur,
+            taille_pt=_EPAISSEURS[bloc.bordures],
+        )
+    elif tokens.bordures:
+        xml.bordures_tableau(
+            table,
+            couleur=bloc.couleur_bordures or tokens.bordure_couleur,
+            taille_pt=tokens.bordure_taille_pt,
         )
     document.add_paragraph()
 
@@ -514,7 +664,7 @@ def _rendre_encadre(document: Any, libs: _Libs, bloc: Encadre, style: DocumentSt
     cellule = table.cell(0, 0)
     cellule.text = ""
     paragraphe = cellule.paragraphs[0]
-    libelle = bloc.titre or tokens.libelle
+    libelle = bloc.libelle_affiche(tokens.libelle)
     if libelle:
         run = paragraphe.add_run(f"{libelle} — ")
         _styler_run(
@@ -601,18 +751,58 @@ def _inserer_image(
             details={"document_id": str(bloc.document_id or ""), "chemin": bloc.chemin},
         )
     octets, nom = contenu
+    _inserer_octets_image(
+        document, libs, octets, nom, bloc.largeur_mm, bloc.legende, centrer=centrer
+    )
+
+
+def _inserer_figure(
+    document: Any,
+    libs: _Libs,
+    figure: Graphique | Illustration | str,
+    legende: str | None,
+    largeur_mm: float,
+    *,
+    centrer: bool,
+) -> None:
+    """Insère une figure SVG (graphique, illustration ou schéma) dans le DOCX.
+
+    Word ne lit pas le SVG : la figure est rasterisée par ``resvg-py`` (aucun
+    navigateur requis). Une rasterisation impossible lève ``GenerationError``
+    avec la consigne d'installation — jamais un document privé de sa figure.
+    """
+    from app.documents.figures import png_depuis_svg, svg_depuis_bloc
+
+    svg = figure if isinstance(figure, str) else svg_depuis_bloc(figure)
+    octets, _largeur_px, _hauteur_px = png_depuis_svg(svg)
+    _inserer_octets_image(
+        document, libs, octets, "figure.png", largeur_mm, legende, centrer=centrer
+    )
+
+
+def _inserer_octets_image(
+    document: Any,
+    libs: _Libs,
+    octets: bytes,
+    nom: str,
+    largeur_mm: float,
+    legende: str | None,
+    *,
+    centrer: bool,
+) -> None:
+    """Pose une image centrée et sa légende (chemin commun image/figure)."""
     try:
         paragraphe = document.add_paragraph()
-        paragraphe.add_run().add_picture(io.BytesIO(octets), width=libs.Mm(bloc.largeur_mm))
+        paragraphe.add_run().add_picture(io.BytesIO(octets), width=libs.Mm(largeur_mm))
     except Exception as erreur:
         raise ValidationError(f"Image illisible : {nom}") from erreur
     if centrer:
         _aligner(paragraphe, libs, "centre")
-    if bloc.legende:
+    if legende:
         _ajouter_paragraphe(
             document,
             libs,
-            bloc.legende,
+            legende,
             tokens=StyleTexte(
                 taille_pt=8.5,
                 italique=True,
@@ -624,13 +814,50 @@ def _inserer_image(
 
 
 def _ajouter_paragraphe(
-    document: Any, libs: _Libs, texte: str, tokens: StyleTexte | None = None
+    document: Any,
+    libs: _Libs,
+    texte: str,
+    tokens: StyleTexte | None = None,
+    runs: list[Segment] | None = None,
 ) -> Any:
-    """Ajoute un paragraphe stylé à partir des tokens."""
+    """Ajoute un paragraphe stylé (texte simple ou fragments stylés)."""
     paragraphe = document.add_paragraph()
-    paragraphe.add_run(texte)
-    _appliquer(paragraphe, libs, tokens)
+    _appliquer_paragraphe(paragraphe, libs, tokens)
+    if runs:
+        for segment in runs:
+            run = paragraphe.add_run(segment.texte)
+            if tokens is not None:
+                _styler_run(run, libs, tokens, segment)
+        return paragraphe
+    run = paragraphe.add_run(texte)
+    if tokens is not None:
+        _styler_run(run, libs, tokens)
     return paragraphe
+
+
+def _tokens_paragraphe(bloc: Paragraphe, tokens: StyleTexte) -> StyleTexte:
+    """Applique les surcharges typographiques du bloc sur son rôle."""
+    changements = {
+        champ: getattr(bloc, champ)
+        for champ in (
+            "alignement",
+            "police",
+            "taille_pt",
+            "couleur",
+            "interligne",
+            "espace_avant_pt",
+            "espace_apres_pt",
+        )
+        if getattr(bloc, champ) is not None
+    }
+    return tokens.model_copy(update=changements) if changements else tokens
+
+
+def tokens_padding(bloc: Tableau, placee: Any) -> float:
+    """Padding effectif d'une cellule : le sien, sinon celui du tableau."""
+    if placee.cellule.marge_interne_mm is not None:
+        return placee.cellule.marge_interne_mm
+    return bloc.marges_cellules_mm or 0.0
 
 
 def _ajouter_marqueur(
@@ -667,6 +894,18 @@ def _appliquer(
     """Applique un rôle typographique (alignement, espacement, police)."""
     if tokens is None:
         return
+    _appliquer_paragraphe(paragraphe, libs, tokens)
+    cible = run if run is not None else (paragraphe.runs[0] if paragraphe.runs else None)
+    if cible is not None:
+        _styler_run(cible, libs, tokens)
+
+
+def _appliquer_paragraphe(
+    paragraphe: Any, libs: _Libs, tokens: StyleTexte | None
+) -> None:
+    """Applique alignement et espacements d'un paragraphe (sans toucher aux runs)."""
+    if tokens is None:
+        return
     _aligner(paragraphe, libs, tokens.alignement)
     xml.espacement_paragraphe(
         paragraphe,
@@ -674,23 +913,45 @@ def _appliquer(
         apres_pt=tokens.espace_apres_pt,
         interligne=tokens.interligne,
     )
-    cible = run if run is not None else (paragraphe.runs[0] if paragraphe.runs else None)
-    if cible is not None:
-        _styler_run(cible, libs, tokens)
 
 
-def _styler_run(run: Any, libs: _Libs, tokens: StyleTexte) -> None:
-    """Applique police, taille, graisse, italique et couleur à un run."""
-    run.font.name = tokens.police
-    run.font.size = libs.Pt(tokens.taille_pt)
-    run.font.bold = tokens.gras
-    run.font.italic = tokens.italique
-    run.font.color.rgb = libs.RGBColor(*couleur_rgb(tokens.couleur))
+def _styler_run(
+    run: Any, libs: _Libs, tokens: StyleTexte, segment: Segment | None = None
+) -> None:
+    """Applique le rôle typographique, puis les surcharges d'un fragment.
+
+    Un fragment ne modifie que ce qu'il déclare : un mot en gras dans un
+    paragraphe normal reste dans la police et la couleur du paragraphe.
+    """
+    police = (segment.police if segment and segment.police else tokens.police)
+    taille = segment.taille_pt if segment and segment.taille_pt else tokens.taille_pt
+    gras = tokens.gras if segment is None or segment.gras is None else segment.gras
+    italique = (
+        tokens.italique if segment is None or segment.italique is None else segment.italique
+    )
+    couleur = (segment.couleur if segment and segment.couleur else tokens.couleur)
+    run.font.name = police
+    run.font.size = libs.Pt(taille)
+    run.font.bold = gras
+    run.font.italic = italique
+    run.font.color.rgb = libs.RGBColor(*couleur_rgb(couleur))
+    if segment is None:
+        return
+    if segment.souligne is not None:
+        run.font.underline = segment.souligne
+    if segment.barre is not None:
+        run.font.strike = segment.barre
+    if segment.surligne:
+        run.font.highlight_color = getattr(libs.surlignages, _SURLIGNAGES[segment.surligne])
 
 
 def _aligner(paragraphe: Any, libs: _Libs, alignement: str) -> None:
     """Applique un alignement de paragraphe."""
     paragraphe.alignment = getattr(libs.alignements, _ALIGNEMENTS[alignement])
+
+
+#: Alignement vertical du spec → valeur OOXML (``w:vAlign``).
+_VERTICAUX = {"haut": "top", "centre": "center", "bas": "bottom"}
 
 
 def _aligner_cellule(cellule: Any, libs: _Libs, bloc: Tableau, placee: Any) -> None:

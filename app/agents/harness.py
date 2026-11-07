@@ -33,11 +33,22 @@ from typing import Any
 from app.agents.annuaire import bloc_annuaire
 from app.agents.base import AgentDefinition
 from app.agents.contexte import ContexteUtilisateurMiddleware, UserContext
+from app.agents.exclusion_outils import ExclusionOutilsMiddleware
 from app.agents.frontend_tools_catalogue import bloc_outils_frontend
 from app.agents.historique_outils import HistoriqueOutilsCoherentMiddleware
 from app.agents.page_courante import BLOC_PAGE_COURANTE
 from app.agents.pieces_jointes_contexte import BLOC_PIECES_JOINTES
-from app.agents.prompt import BLOC_BASE_CONNAISSANCE, BLOC_RECHERCHE_WEB
+from app.agents.prompt import (
+    BLOC_BASE_CONNAISSANCE,
+    BLOC_DOCUMENTS_ET_FICHIERS,
+    BLOC_ESPACE_TRAVAIL,
+    BLOC_GENERATION_DOCUMENTS,
+    BLOC_MODELE_ORGANISATION,
+    BLOC_RECHERCHE_WEB,
+    TOOLS_DOCUMENTS,
+    TOOLS_GENERATION,
+    TOOLS_MODELE_ORGANISATION,
+)
 from app.agents.providers import AgentConfigurationError, build_chat_model
 from app.core.config import Settings, get_settings
 from app.core.errors import ValidationError as BusinessValidationError
@@ -130,11 +141,38 @@ def build_system_prompt(definition: AgentDefinition, *, extra: str | None = None
     connaissance = (
         BLOC_BASE_CONNAISSANCE if "search_knowledge_base" in outils else ""
     )
+    # Règle unique documents/fichiers : seulement pour un agent qui a au moins
+    # un outil documentaire — un contrat sans outil n'en reçoit pas le mode d'emploi.
+    documents = (
+        BLOC_DOCUMENTS_ET_FICHIERS if TOOLS_DOCUMENTS.intersection(outils) else ""
+    )
+    # Génération : seulement pour un agent qui peut réellement produire un
+    # livrable (INC-125). Un agent purement lecteur ne reçoit pas le mode
+    # d'emploi de `remplir_modele` ou de `generer_document` — c'est
+    # ainsi qu'on évite les appels d'outils inexistants.
+    generation = (
+        BLOC_GENERATION_DOCUMENTS if TOOLS_GENERATION.intersection(outils) else ""
+    )
+    # Route « modèle d'organisation » : seulement pour qui peut réellement le
+    # remplir — sinon l'agent décrit un geste qu'il ne peut pas exécuter.
+    modele_organisation = (
+        BLOC_MODELE_ORGANISATION
+        if TOOLS_MODELE_ORGANISATION.intersection(outils)
+        else ""
+    )
+    # Espace de travail : seulement pour un agent qui peut réellement exécuter un
+    # script (INC-116) — annoncer un dossier sans outil serait un mode d'emploi
+    # impossible à suivre.
+    espace_travail = BLOC_ESPACE_TRAVAIL if "run_python_script" in outils else ""
     parties = [
         definition.prompt.strip() or definition.description.strip(),
         _CADRE_CARSO,
         BLOC_PIECES_JOINTES,
         BLOC_PAGE_COURANTE,
+        documents,
+        generation,
+        modele_organisation,
+        espace_travail,
         recherche,
         connaissance,
         skills,
@@ -240,13 +278,15 @@ def create_carso_deep_agent(
     # l'historique — en dernier, juste avant le fournisseur : un `ToolMessage`
     # orphelin ou un `tool_calls` sans réponse fait rejeter la requête entière
     # (voir app/agents/historique_outils.py).
-    middleware: list[Any] = [
-        ContexteUtilisateurMiddleware(),
-        HistoriqueOutilsCoherentMiddleware(),
-    ]
+    middleware: list[Any] = [ContexteUtilisateurMiddleware()]
     affichage = _middleware_frontend(definition.agent_id)
     if affichage is not None:
         middleware.append(affichage)
+    # Exclusion des outils intégrés hors contrat (``grep``) : après les
+    # middlewares qui ajoutent des outils (fichiers Deep Agents, affichage).
+    middleware.append(ExclusionOutilsMiddleware())
+    # Cohérence de l'historique en dernier, juste avant le fournisseur.
+    middleware.append(HistoriqueOutilsCoherentMiddleware())
     kwargs["middleware"] = middleware
     return create_deep_agent(**kwargs)
 

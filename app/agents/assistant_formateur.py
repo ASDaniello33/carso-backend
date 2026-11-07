@@ -39,22 +39,32 @@ DEFINITION = AgentDefinition(
     prompt=PROMPT,
     policy=PermissionPolicy(
         allowed_capabilities=frozenset(
-            {KIT_CAPABILITY, "web_search", "document_read", "document_propose"}
+            {
+                KIT_CAPABILITY,
+                "web_search",
+                "document_read",
+                "document_propose",
+                # Scripts confinés dans l'espace de travail du compte (INC-116).
+                "script_python",
+            }
         )
     ),
-    capabilities=(KIT_CAPABILITY, "web_search", "document_read", "document_propose"),
+    capabilities=(
+        KIT_CAPABILITY,
+        "web_search",
+        "document_read",
+        "document_propose",
+        "script_python",
+    ),
     tools=NOMS_TOOLS,
     collaboration=(),
-    # ``generer_document_professionnel`` n'est PAS sous approbation d'appel : il
-    # dépose un livrable en ``proposed`` (jamais officiel) et la rédaction
-    # progressive (INC-105) en fait plusieurs appels par document long — la
-    # décision humaine reste à la validation du document, pas à chaque appel.
-    approval_required=(
-        "generer_document",
-        "generer_document_html",
-        "fill_template",
-        "import_beneficiaires",
-    ),
+    # Aucun outil de génération de documents n'est sous approbation d'appel
+    # (INC-123) : une génération dépose un livrable en ``proposed``, jamais
+    # officiel — la décision humaine reste la validation du document. Retirés
+    # ici : ``generer_document``, ``generer_document_html``.
+    # ``import_beneficiaires`` reste sous HITL : c'est une écriture de données
+    # métier (des bénéficiaires réels), pas un livrable.
+    approval_required=("import_beneficiaires",),
     output_schema_name="ApercuImport",
     # ``generation-document`` : la méthode et les composants HTML du générateur
     # professionnel (le tool prioritaire docx/pdf de cet agent).
@@ -174,8 +184,16 @@ class AgentAssistantFormateur:
         return reponse
 
     def deep_tools(self) -> tuple[Any, ...]:
+        """Tools de l'assistant : métier, documents, script **ancré** (INC-124).
+
+        ``run_python_script`` est monté **par le constructeur** (mode ancré :
+        livrables déposés sous la mission ou la session, statut ``proposed``).
+        Ne pas l'ajouter ici aussi : le montage refuse un tool fourni deux fois.
+        """
         return construire_tools_assistant_formateur(
-            self.definition, self._session_factory, extra_tools=self._extra_tools
+            self.definition,
+            self._session_factory,
+            extra_tools=self._extra_tools,
         )
 
     def build_agent(

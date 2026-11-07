@@ -357,8 +357,17 @@ def pie_chart(
     hauteur: int = 360,
     donut: bool = False,
     description: str = "",
+    total_reference: float | None = None,
+    afficher_valeurs: bool = False,
 ) -> str:
-    """Camembert (ou anneau) avec légende et pourcentages."""
+    """Camembert (ou anneau) avec légende et pourcentages.
+
+    ``total_reference`` fixe le dénominateur des pourcentages : une pièce réelle
+    exprime ses parts par rapport au total général (frais imprévus compris)
+    alors que les parts affichées n'en couvrent qu'une partie. Sans référence,
+    le dénominateur est la somme des valeurs. ``afficher_valeurs`` ajoute le
+    montant de chaque part avant son pourcentage dans la légende.
+    """
     if not labels or len(labels) != len(valeurs):
         raise ValidationError(
             "Camembert : labels et values doivent avoir la même taille (non nulle), "
@@ -370,6 +379,13 @@ def pie_chart(
     total = sum(vals)
     if total <= 0:
         raise ValidationError("La somme des valeurs du camembert doit être > 0.")
+    base = (
+        _num(total_reference, "total de référence")
+        if total_reference is not None
+        else total
+    )
+    if base <= 0:
+        raise ValidationError("Le total de référence du camembert doit être > 0.")
 
     parties = _open_svg(largeur, hauteur, titre, description)
     haut = 48 if titre else 16
@@ -381,7 +397,7 @@ def pie_chart(
         if v == 0:
             continue
         couleur = PALETTE[i % len(PALETTE)]
-        pourcentage = v / total * 100
+        pourcentage = v / base * 100
         bulle = f"<title>{_esc(label)} : {_fmt(v)} ({pourcentage:.1f} %)</title>"
         if v == total:  # une seule part : cercle complet
             parties.append(
@@ -419,9 +435,12 @@ def pie_chart(
             f'<rect x="{lx:.1f}" y="{yy - 10:.1f}" width="12" height="12" rx="2" '
             f'fill="{couleur}"/>'
         )
+        montant = f"{_fmt(v)} (" if afficher_valeurs else ""
+        fermeture = ")" if afficher_valeurs else ""
         parties.append(
             f'<text x="{lx + 18:.1f}" y="{yy:.1f}" font-size="12" fill="#333">'
-            f"{_esc(_tronquer(str(label), 22))} — {v / total * 100:.1f} %</text>"
+            f"{_esc(_tronquer(str(label), 22))} — {montant}"
+            f"{v / base * 100:.1f} %{fermeture}</text>"
         )
 
     parties.append("</svg>")
@@ -476,4 +495,6 @@ def render_chart(spec: Mapping[str, Any]) -> str:
         hauteur=hauteur,
         donut=type_graphique == "donut",
         description=description,
+        total_reference=spec.get("total_reference"),
+        afficher_valeurs=bool(spec.get("afficher_valeurs")),
     )

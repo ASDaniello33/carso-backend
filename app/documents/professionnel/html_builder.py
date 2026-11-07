@@ -57,6 +57,24 @@ BALISES_SVG_INTERDITES = [
     "set",
 ]
 
+#: Propriétés CSS qu'un ``style`` d'attribut peut porter **dans un SVG**.
+#: Écrire ``style="font-family:Arial;font-size:13px"`` est la façon naturelle
+#: de styler un schéma (l'agent vient du HTML) : le retirer laissait des figures
+#: invisibles (``fill:#fff`` perdu, donc du texte blanc sur fond blanc).
+#: Allowlist stricte : aucune propriété ne peut charger quoi que ce soit
+#: (``url(`` est refusé sur toute propriété hors des deux admises).
+_COULEUR_CSS = r"(?:#[0-9a-f]{3,8}|[a-z]+|rgba?\([^)]*\)|hsla?\([^)]*\)|none|currentcolor)"
+_STYLE_SVG_AUTORISE = {
+    "fill": re.compile("^" + _COULEUR_CSS + "$", re.I),
+    "stroke": re.compile("^" + _COULEUR_CSS + "$", re.I),
+    "stroke-width": re.compile(r"^\d+(?:\.\d+)?(?:px|pt)?$", re.I),
+    "opacity": re.compile(r"^(?:0|1|0?\.\d+)$"),
+    "stroke-opacity": re.compile(r"^(?:0|1|0?\.\d+)$"),
+    "fill-opacity": re.compile(r"^(?:0|1|0?\.\d+)$"),
+    "font-family": re.compile(r"^[\w\s,\-]+" + chr(34) + r"?\b[\w\s,\-]*$"),
+    "font-size": re.compile(r"^\d+(?:\.\d+)?(?:px|pt|%)?$", re.I),
+}
+
 #: Références admises dans un SVG : une ancre interne (`#id`, marqueurs,
 #: dégradés) ou une image raster embarquée. Toute URL (http, file, data:text…)
 #: est retirée : Chromium irait la chercher **côté serveur** au moment du rendu.
@@ -150,7 +168,10 @@ def _assainir_svg(svg: Tag) -> None:
       et hors raster embarqué) : Chromium irait les chercher côté serveur au
       moment du rendu (AGENTS.md §7 et §9) ;
     - les attributs d'événement (repassés ici pour que la règle SVG tienne
-      seule, sans dépendre de l'ordre du nettoyage).
+      seule, sans dépendre de l'ordre du nettoyage) ;
+    - ``style`` **filtré**, jamais supprimé : ``_STYLE_SVG_AUTORISE`` garde le
+      remplissage, la police et la taille, et retire tout le reste (mise en
+      page, ``url(…)``, expression).
     """
     for balise in svg.find_all(BALISES_SVG_INTERDITES):
         balise.decompose()
@@ -159,11 +180,73 @@ def _assainir_svg(svg: Tag) -> None:
             nom = attribut.lower()
             if nom.startswith("on"):
                 del balise[attribut]
+            elif nom == "style":
+                filtre = _filtrer_style_svg(str(balise[attribut]))
+                if filtre:
+                    balise[attribut] = filtre
+                else:
+                    del balise[attribut]
             elif nom in ("href", "xlink:href"):
                 if not _RE_REF_SVG.match(str(balise[attribut]).strip()):
                     del balise[attribut]
             elif _RE_PAINT_EXTERNE.search(str(balise[attribut])):
                 del balise[attribut]
+
+
+def assainir_svg(fragment: str) -> str:
+    """Nettoie un SVG **écrit par un agent** et rend son balisage (INC-123).
+
+    Point d'entrée public de ``_assainir_svg`` pour les chemins qui ne passent
+    pas par ``preparer`` : un bloc ``image.svg`` d'un ``DocumentSpec``, un SVG
+    isolé fourni à un renderer. Le nettoyage est **le même** que celui du moteur
+    professionnel — c'est la condition pour que le SVG libre soit accepté
+    partout sans multiplier les règles.
+
+    Args:
+        fragment: balisage SVG (un ou plusieurs ``<svg>``).
+
+    Returns:
+        Le balisage nettoyé des ``<svg>`` trouvés, sans le conteneur.
+
+    Raises:
+        ValidationError: aucun ``<svg>`` dans le fragment fourni.
+    """
+    soup = BeautifulSoup(fragment or "", "html.parser")
+    racines = soup.find_all("svg")
+    if not racines:
+        raise ValidationError(
+            "SVG attendu : aucune balise <svg> dans le contenu fourni."
+        )
+    for racine in racines:
+        # Le <title> d'un SVG est son nom accessible : il reste (comme dans
+        # ``preparer``), le reste du HTML ré-embarqué part.
+        for balise in racine.find_all(BALISES_INTERDITES):
+            if balise.name == "title":
+                continue
+            balise.decompose()
+        for commentaire in racine.find_all(string=lambda s: isinstance(s, Comment)):
+            commentaire.extract()
+        _assainir_svg(racine)
+    return "".join(str(racine) for racine in racines)
+
+
+def _filtrer_style_svg(style: str) -> str:
+    """Conserve les seules déclarations SVG admises d'un ``style`` d'attribut.
+
+    Laisse la partie vide si aucune déclaration ne survit : l'appelant retire
+    alors l'attribut plutôt que de garder un ``style=""`` inutile.
+    """
+    gardees: list[str] = []
+    for declaration in style.split(";"):
+        propriete, _, valeur = declaration.partition(":")
+        propriete = propriete.strip().lower()
+        motif = _STYLE_SVG_AUTORISE.get(propriete)
+        if motif is None:
+            continue
+        valeur = valeur.strip()
+        if motif.match(valeur):
+            gardees.append(f"{propriete}:{valeur}")
+    return ";".join(gardees)
 
 
 def preparer(contenu: str) -> DocumentPrepare:
@@ -366,6 +449,24 @@ def injecter_illustrations(
 # ---------------------------------------------------------------------------
 
 
+#: Alias publics (INC-123) — la conversion HTML→DOCX/PDF du spec réutilise
+#: exactement le nettoyage et la sérialisation du moteur professionnel, plutôt
+#: que d'en écrire une seconde version qui divergerait.
+def assainir_svg_tag(trace: Tag) -> None:
+    """Nettoie en place un ``<svg>`` déjà parsé (alias public de ``_assainir_svg``)."""
+    _assainir_svg(trace)
+
+
+def svg_pour_rasterisation(trace: Tag) -> str:
+    """Sérialise un ``<svg>`` parsé **pour resvg** (casse XML restaurée, xmlns)."""
+    return _svg_pour_xml(trace)
+
+
+def taille_logique_svg(trace: Tag, xml: str) -> tuple[float, float]:
+    """Taille d'affichage d'un ``<svg>`` en pixels (width/height puis viewBox)."""
+    return _taille_logique_svg(trace, xml)
+
+
 def compter_svg(corps: str) -> int:
     """Nombre de SVG inline d'un corps — pour **annoncer** une omission."""
     return len(BeautifulSoup(corps or "", "html.parser").find_all("svg"))
@@ -382,9 +483,18 @@ def _taille_logique_svg(trace: Tag, xml: str) -> tuple[float, float]:
     été rendu 3 fois plus grand en DOCX qu'en PDF.
     """
     largeur, hauteur = dimension_px(trace.get("width")), dimension_px(trace.get("height"))
+    largeur_vb, hauteur_vb = taille_svg(xml)
     if largeur is not None and hauteur is not None:
         return largeur, hauteur
-    return taille_svg(xml)
+    # ``dimension_px`` ne lit que des px : ``width="100%"`` ou ``width="15cm"``
+    # (fréquent quand un outil exporte un schéma) faisait alors mesurer l'image
+    # sur le viewBox seul, sans le ratio pourtant déclaré par l'agent.
+    ratio = (largeur_vb / hauteur_vb) if hauteur_vb else 1.0
+    if largeur is not None and ratio:
+        return largeur, largeur / ratio
+    if hauteur is not None:
+        return hauteur * ratio, hauteur
+    return largeur_vb, hauteur_vb
 
 
 def _libelle_svg(trace: Tag) -> str:

@@ -167,6 +167,7 @@ class _Redacteur:
         self.libs = libs
         self.style = style
         self.largeurs: dict[int, float] = {}
+        self._images: list[Any] = []
 
     # --- Écriture ------------------------------------------------------------
 
@@ -224,6 +225,47 @@ class _Redacteur:
                 end_column=colonne + fusion_colonnes - 1,
             )
         self._mesurer(colonne, valeur, fusion_colonnes)
+
+    def image(
+        self, ligne: int, colonne: int, octets: bytes, largeur_mm: float
+    ) -> float:
+        """Ancre une image (figure) dans une cellule et réserve sa place.
+
+        Les images d'Excel **flottent** au-dessus des cellules : sans réserver la
+        hauteur, la figure recouvrirait le texte qui la suit. La hauteur de ligne
+        est donc posée, et l'appelant avance d'autant.
+
+        Returns:
+            La hauteur occupée en points (pour avancer les lignes suivantes).
+
+        Raises:
+            GenerationError: Pillow absent (nécessaire pour dimensionner).
+        """
+        flux = io.BytesIO(octets)
+        try:
+            from PIL import Image as PILImage
+        except ImportError as erreur:  # pragma: no cover - dépend du déploiement
+            raise GenerationError(
+                "Figure non insérée dans le classeur : Pillow n'est pas installé "
+                "(pip install pillow)."
+            ) from erreur
+        from openpyxl.drawing.image import Image as ImageOpenpyxl
+
+        with PILImage.open(io.BytesIO(octets)) as pil:
+            ratio = pil.height / pil.width if pil.width else 0.5
+        # Convention 96 dpi du HTML : la largeur demandée en mm devient des pixels.
+        largeur_px = largeur_mm * 96 / 25.4
+        hauteur_px = largeur_px * ratio
+        image = ImageOpenpyxl(flux)
+        image.width, image.height = largeur_px, hauteur_px
+        self.onglet.add_image(image, f"{self.libs.get_column_letter(colonne)}{ligne}")
+        # 1 px = 0,75 pt ; +4 pt de respiration sous la figure.
+        hauteur_pt = hauteur_px * 0.75 + 4
+        self.onglet.row_dimensions[ligne].height = max(
+            self.onglet.row_dimensions[ligne].height or 0, hauteur_pt
+        )
+        self._images.append(image)  # référence gardée : openpyxl écrit à la sauvegarde
+        return hauteur_pt
 
     def largeur_imposee(self, colonne: int, millimetres: float) -> None:
         """Largeur **déclarée** d'une colonne (``largeurs_mm`` du tableau)."""
@@ -344,12 +386,44 @@ def _ecrire_bloc(redacteur: _Redacteur, bloc: Any, ligne: int) -> int:
             texte = f"{texte} — {bloc.attribution}"
         redacteur.ecrire(ligne, 1, texte, tokens=style.citation, fusion_colonnes=2)
     elif isinstance(bloc, sp.Image):
+        if bloc.svg:
+            # SVG écrit par l'agent (INC-123) : rasterisé puis ancré dans la feuille.
+            return _ecrire_figure(redacteur, bloc, ligne)
         mention = "image non reportée dans le classeur"
         if bloc.legende:
             mention = f"{mention} : {bloc.legende}"
         redacteur.ecrire(ligne, 1, f"({mention})", tokens=style.citation, fusion_colonnes=2)
+    elif isinstance(bloc, (sp.Graphique, sp.Illustration)):
+        return _ecrire_figure(redacteur, bloc, ligne)
     # `saut_de_page` n'a pas d'équivalent dans un tableur : ignoré.
     return ligne + 1 + _LIGNES_AIR
+
+
+def _ecrire_figure(redacteur: _Redacteur, bloc: Any, ligne: int) -> int:
+    """Ancre une figure (graphique, illustration, SVG agent) dans la feuille.
+
+    Le classeur reçoit une **image** PNG ancrée à la cellule du bloc : lisible
+    partout, mais non recalculable dans Excel (limite documentée — un graphique
+    natif openpyxl serait un autre incrément). La légende est écrite sous la
+    figure, comme dans un livrable.
+    """
+    from app.documents.figures import png_depuis_svg, svg_depuis_bloc
+
+    octets, _largeur_px, _hauteur_px = png_depuis_svg(svg_depuis_bloc(bloc))
+    hauteur_pt = redacteur.image(ligne, 1, octets, bloc.largeur_mm)
+    # Nombre de lignes occupées par la figure (hauteur par défaut Excel ≈ 15 pt).
+    lignes = max(1, int(-(-hauteur_pt // 15)))
+    ligne_suivante = ligne + lignes
+    if bloc.legende:
+        redacteur.ecrire(
+            ligne_suivante,
+            1,
+            bloc.legende,
+            tokens=redacteur.style.citation,
+            fusion_colonnes=2,
+        )
+        ligne_suivante += 1
+    return ligne_suivante + _LIGNES_AIR
 
 
 def _ecrire_sources(redacteur: _Redacteur, spec: sp.DocumentSpec, ligne: int) -> int:

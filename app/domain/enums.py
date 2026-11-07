@@ -264,6 +264,27 @@ class TypeDocument(StrEnum):
     NON_CLASSE = "non_classe"
 
 
+class TypeModeleOrganisation(StrEnum):
+    """Nature d'un modèle déposé par une organisation cliente (INC-116).
+
+    Distinct de ``TypeDocument`` (qui décrit la nature du fichier déposé) : un
+    modèle est **un fichier** (``Document`` de type ``template``) dont ce
+    vocabulaire dit à quoi il sert. Le registre ``modeles_documents`` accepte
+    l'union des deux vocabulaires—les lignes existantes restent valides.
+
+    Aucun modèle n'est appliqué par défaut : un type absent échoue
+    explicitement (jamais de gabarit inventé).
+    """
+
+    MODELE_OFFRE_TECHNIQUE = "modele_offre_technique"
+    MODELE_OFFRE_FINANCIERE = "modele_offre_financiere"
+    MODELE_OFFRE_AUTRE = "modele_offre_autre"
+    LOGO = "logo"
+    INSTRUCTIONS_REDACTION = "instructions_redaction"
+    CHARTE_GRAPHIQUE = "charte_graphique"
+    AUTRE = "autre"
+
+
 class ActorType(StrEnum):
     """Type d'acteur d'un AuditEvent."""
 
@@ -479,6 +500,7 @@ class ActionAudit(StrEnum):
     PARTICIPATION_MODIFIEE = "participation.modifiee"
     UTILISATEUR_INSCRIT = "utilisateur.inscrit"
     UTILISATEUR_ACTIVE = "utilisateur.active"
+    UTILISATEUR_ADMIN_CREE = "utilisateur.admin_cree"
     UTILISATEUR_REFUSE = "utilisateur.refuse"
     UTILISATEUR_SUSPENDU = "utilisateur.suspendu"
     UTILISATEUR_REACTIVE = "utilisateur.reactive"

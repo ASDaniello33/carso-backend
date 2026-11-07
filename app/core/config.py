@@ -2,7 +2,7 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -461,11 +461,31 @@ class Settings(BaseSettings):
     # <storage_root>/_scripts — jamais le disque hôte entier.
     scripts_root: str = Field(
         default="",
-        description="Racine sandbox des scripts Python d'agent.",
+        description="Racine sandbox historique des scripts Python d'agent.",
     )
-    scripts_timeout_seconds: int = Field(default=30, ge=1, le=120)
+    # Espaces de travail **par compte** (INC-116) : chaque exécution de script
+    # se fait dans ``workdirs_root/user-<uuid>`` ; les fichiers y persistent.
+    # Vide = <storage_root>/../workdirs (ex. backend/var/storage/workdirs) —
+    # jamais un dossier partagé entre comptes.
+    workdirs_root: str = Field(
+        default="",
+        description="Racine des espaces de travail par compte (workdirs).",
+    )
+    scripts_timeout_seconds: int = Field(default=120, ge=1, le=600)
     scripts_max_output_bytes: int = Field(default=80_000, ge=1)
-    scripts_max_source_chars: int = Field(default=20_000, ge=1)
+    scripts_max_source_chars: int = Field(default=60_000, ge=1)
+    # Niveau de confiance accordé au modèle pour écrire ses scripts (INC-118).
+    # ``standard`` : l'agent ne peut mettre en forme et analyser que des
+    # données ; ``eleve`` : il peut en plus structurer un **utilitaire** (écrire
+    # dans un dossier de travail, renommer, refuser explicitement). Aucun niveau
+    # ne lève les interdits : réseaux, sous-processus, secrets, fichiers hors de
+    # l'espace du compte, arrêt/redémarrage de l'application restent refusés à
+    # l'exécution par la garde d'audit. Le niveau est un réglage d'exploitation,
+    # jamais un réglage de compte.
+    scripts_confiance: Literal["standard", "eleve"] = Field(
+        default="eleve",
+        description="SCRIPTS_CONFIANCE : standard | eleve.",
+    )
 
     # --- Authentification humaine (Lot AUTH) --------------------------------
     auth_secret: SecretStr | None = Field(

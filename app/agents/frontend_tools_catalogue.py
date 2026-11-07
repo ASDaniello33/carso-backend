@@ -160,9 +160,25 @@ OUTILS_FRONTEND: tuple[OutilFrontend, ...] = (
         ),
         agents=TOUS_LES_AGENTS_UI,
         usage=(
-            "Après generer_document_professionnel / generer_document_html / "
-            "generer_document / fill_template / clone_document_structure, offrir "
-            "le téléchargement. Ne pas inventer d'identifiant."
+            "Après une génération (generer_document_professionnel, "
+            "generer_document_html, generer_document) ou l'édition d'une copie "
+            "de modèle, offrir le téléchargement. Ne pas inventer d'identifiant."
+        ),
+    ),
+    OutilFrontend(
+        name="afficher_image",
+        description=(
+            "Affiche dans le fil une image déjà déposée (produite par "
+            "generer_image ou generer_image_svg) et propose son téléchargement. "
+            "L'image est lue depuis le document : l'agent ne fournit aucun "
+            "contenu binaire, seulement l'identifiant réel."
+        ),
+        agents=TOUS_LES_AGENTS_UI,
+        usage=(
+            "Dès qu'une image vient d'être déposée (generer_image / "
+            "generer_image_svg) : afficher son document_id pour que "
+            "l'utilisateur la voie et puisse la télécharger. Ne pas inventer "
+            "d'identifiant."
         ),
     ),
     OutilFrontend(
@@ -527,6 +543,19 @@ class PayloadPageActuelle(BaseModel):
     """
 
     model_config = ConfigDict(extra="forbid")
+
+
+class PayloadImage(BaseModel):
+    """Arguments de ``afficher_image`` (INC-135) — même contrat que le hook."""
+
+    document_id: str = Field(
+        description=(
+            "UUID du document image déjà déposé (generer_image ou "
+            "generer_image_svg). Ne pas inventer."
+        ),
+    )
+    nom: str | None = Field(default=None, description="Nom affiché et téléchargé.")
+    legende: str | None = Field(default=None, description="Légende sous l'image.")
 
 
 class PayloadTelechargement(BaseModel):
@@ -1053,6 +1082,7 @@ SCHEMAS_FRONTEND: dict[str, type[BaseModel]] = {
     "afficher_tableau_donnees": PayloadTableau,
     "afficher_resultats_web": PayloadResultatsWeb,
     "proposer_telechargement_document": PayloadTelechargement,
+    "afficher_image": PayloadImage,
     "poser_questionnaire": PayloadQuestionnaire,
     "afficher_synthese_lecture": PayloadSynthese,
     "afficher_lots_appel": PayloadLots,

@@ -71,6 +71,24 @@ class ReinitialisationMotDePasseCreate(BaseModel):
     nouveau_mot_de_passe: str = Field(min_length=8, max_length=200)
 
 
+class AdministrateurCreate(BaseModel):
+    """Création directe d'un compte administrateur (page Paramètres).
+
+    Décision validée : l'administrateur créé ici n'appartient pas au vivier
+    (aucune fiche Équipes) et son mot de passe initial est choisi par le
+    créateur, puis communiqué hors système — même règle que la réinitialisation
+    (la valeur n'est ni renvoyée par l'API ni tracée). Le rôle n'est pas un
+    paramètre : il est fixé à ``administrateur``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    email: str = Field(min_length=3, max_length=255)
+    nom: str = Field(min_length=1, max_length=100)
+    prenom: str = Field(min_length=1, max_length=100)
+    mot_de_passe: str = Field(min_length=8, max_length=200)
+
+
 class LoginCreate(BaseModel):
     email: str = Field(min_length=3, max_length=255)
     mot_de_passe: str = Field(min_length=1, max_length=200)
@@ -127,3 +145,7 @@ class UtilisateurRead(BaseModel):
     created_at: datetime
     #: Avatar personnel (chemin logique, scope ``chat``) — incrément 24.
     photo_profil_chemin: str | None = None
+    #: Rôle prévu par la fiche Équipes liée, pour une demande en attente :
+    #: l'écran de validation le préremplit (l'administrateur peut le changer).
+    #: ``None`` sur un compte qui n'est pas une demande en attente.
+    role_souhaite: str | None = None

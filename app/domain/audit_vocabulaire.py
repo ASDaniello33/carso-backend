@@ -139,6 +139,7 @@ LIBELLES_ACTION: dict[str, str] = {
     # Comptes
     ActionAudit.UTILISATEUR_INSCRIT.value: "Compte inscrit",
     ActionAudit.UTILISATEUR_ACTIVE.value: "Compte activé",
+    ActionAudit.UTILISATEUR_ADMIN_CREE.value: "Compte administrateur créé",
     ActionAudit.UTILISATEUR_REFUSE.value: "Compte refusé",
     ActionAudit.UTILISATEUR_SUSPENDU.value: "Compte suspendu",
     ActionAudit.UTILISATEUR_REACTIVE.value: "Compte réactivé",

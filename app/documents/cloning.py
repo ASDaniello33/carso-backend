@@ -2,7 +2,9 @@
 
 Réaliste : on copie ce qui est fiable sans moteur de rendu propriétaire.
 
-- DOCX : styles de paragraphe de la référence + contenu fourni.
+- DOCX : la **référence sert de base** (styles, numérotation, sections,
+  en-têtes et pieds conservés) ; le corps est vidé puis rempli du contenu fourni
+  (INC-125 : auparavant un document neuf ne gardait que la taille de page).
 - XLSX : noms de feuilles + largeurs de colonnes de la 1re ligne + données.
 - PDF : on ne clone pas les polices embarquées ; on produit un PDF neuf
   (fpdf2) avec le contenu fourni. Limite documentée, pas un mensonge.
@@ -27,30 +29,40 @@ __all__ = ["cloner_docx", "cloner_xlsx", "cloner_pdf", "remplir_template_docx"]
 _PLACEHOLDER = re.compile(r"\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}")
 
 
+def _vider_corps(document: Any) -> None:
+    """Retire le corps du document en gardant sections, en-têtes et pieds.
+
+    ``sectPr`` porte la mise en page (format, marges, en-têtes/pieds) : il reste
+    en place. Tout le reste (paragraphes et tableaux du corps) part, pour que le
+    contenu fourni s'installe dans le **modèle**, pas dans un document neuf.
+    """
+    body = document.element.body
+    for enfant in list(body):
+        if enfant.tag.endswith("sectPr"):
+            continue
+        body.remove(enfant)
+
+
 def cloner_docx(reference: Path, *, titre: str, paragraphes: list[str] | None) -> bytes:
-    """Nouveau DOCX : styles de la référence, contenu fourni."""
+    """DOCX produit **dans** la référence : ses styles, entêtes et pieds restent.
+
+    Avant l'INC-125, un document **neuf** était créé : seules la taille de page et
+    le style « Normal » du document par défaut survivaient — les styles, la
+    numérotation, les en-têtes, les pieds et la couverture du modèle étaient
+    perdus. La base est désormais le fichier de référence lui-même.
+    """
     docx = require_library("docx")
     try:
-        source = docx.Document(str(reference))
-    except Exception as exc:
+        cible = docx.Document(str(reference))
+    except Exception as exc:  # noqa: BLE001 - la cause réelle est transmise
         raise ValidationError("DOCX de référence illisible") from exc
 
-    cible = docx.Document()
-    # Reprendre les dimensions de page de la 1re section (réaliste, pas WYSIWYG).
-    if source.sections and cible.sections:
-        src, dst = source.sections[0], cible.sections[0]
-        dst.page_width = src.page_width
-        dst.page_height = src.page_height
-        dst.left_margin = src.left_margin
-        dst.right_margin = src.right_margin
-        dst.top_margin = src.top_margin
-        dst.bottom_margin = src.bottom_margin
+    styles_source = {style.name for style in cible.styles}
+    _vider_corps(cible)
 
-    styles_source = {s.name for s in source.styles}
-    style_titre = "Title" if "Title" in styles_source else None
     try:
         cible.add_heading(titre, level=0)
-    except Exception:
+    except Exception:  # pragma: no cover - style Title absent du modèle
         cible.add_paragraph(titre)
 
     for texte in paragraphes or []:
@@ -58,9 +70,8 @@ def cloner_docx(reference: Path, *, titre: str, paragraphes: list[str] | None) -
         if "Normal" in styles_source:
             try:
                 paragraphe.style = cible.styles["Normal"]
-            except Exception:
+            except (KeyError, ValueError):  # pragma: no cover
                 pass
-        _ = style_titre  # conservé pour extension future (Heading 1, etc.)
 
     buffer = io.BytesIO()
     cible.save(buffer)

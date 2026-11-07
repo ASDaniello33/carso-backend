@@ -278,15 +278,25 @@ def _valider_blocs_structure(spec: DocumentSpec) -> list[Finding]:
                         emplacement={"bloc": index},
                     )
                 )
-        if isinstance(bloc, Image) and bloc.document_id is None and not bloc.chemin:
+        if (
+            isinstance(bloc, Image)
+            and bloc.document_id is None
+            and not bloc.chemin
+            and not bloc.svg
+        ):
+            # « Référence » inclut le SVG inline (INC-123) : une image dessinée
+            # par l'agent a bien une source, elle n'est pas un bloc vide.
             findings.append(
                 Finding(
                     code="S007",
                     gravite="erreur",
                     portee="structure",
-                    message=f"Image {index} sans référence (ni document ni chemin).",
+                    message=f"Image {index} sans référence (ni document, ni chemin, ni SVG).",
                     emplacement={"bloc": index},
-                    conseil="Référencer un document existant ou un chemin du stockage.",
+                    conseil=(
+                        "Référencer un document existant, un chemin du stockage "
+                        "ou fournir un SVG."
+                    ),
                 )
             )
         if isinstance(bloc, (Paragraphe, Titre, Encadre)) and not bloc.texte.strip():

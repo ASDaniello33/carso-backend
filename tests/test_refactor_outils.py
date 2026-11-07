@@ -194,7 +194,10 @@ def test_ecritures_hitl_declarees() -> None:
     assert "propose_equipe_update" in RH_DEF.approval_required
     assert "propose_mission_update" in RH_DEF.approval_required
     assert "import_beneficiaires" in ASS_DEF.approval_required
-    assert "generer_document" in ASS_DEF.approval_required
+    # La génération de documents n'est plus sous HITL d'appel (INC-123) : elle
+    # dépose un livrable ``proposed``, la validation humaine du document est le
+    # seul geste qui officialise.
+    assert "generer_document" not in ASS_DEF.approval_required
     assert "create_offer_draft" in GENO_DEF.approval_required
     assert "propose_lot_update" in GENO_DEF.approval_required
     assert "propose_appel_update" in GENO_DEF.approval_required

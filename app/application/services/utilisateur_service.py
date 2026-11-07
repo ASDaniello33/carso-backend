@@ -367,6 +367,59 @@ class UtilisateurService:
         notifications.notifier_compte_active(self._session, user)
         return user
 
+    def creer_administrateur(
+        self,
+        *,
+        email: str,
+        nom: str,
+        prenom: str,
+        mot_de_passe: str,
+        admin_id: UUID,
+    ) -> Utilisateur:
+        """Crée directement un compte administrateur (page Paramètres).
+
+        Décision validée : l'administrateur créé ici n'appartient pas au vivier
+        (``equipe_id`` nul), il est actif immédiatement, et son mot de passe
+        initial est choisi par le créateur puis communiqué hors système — comme
+        la réinitialisation. La valeur n'entre ni dans la réponse API, ni dans
+        l'audit (AGENTS.md §9).
+
+        Raises:
+            ValidationError: identité incomplète ou mot de passe trop court.
+            ConflictError: un compte porte déjà cet email.
+        """
+        email_n = email.lower().strip()
+        nom_propre = nom.strip()
+        prenom_propre = prenom.strip()
+        if not email_n or not nom_propre or not prenom_propre:
+            raise ValidationError("Email, nom et prénom sont obligatoires")
+        if len(mot_de_passe) < 8:
+            raise ValidationError(
+                "Le mot de passe doit compter au moins 8 caractères"
+            )
+        if self.utilisateurs.get_by_email(email_n) is not None:
+            raise ConflictError("Un compte existe déjà pour cet email")
+        user = Utilisateur(
+            email=email_n,
+            nom=nom_propre,
+            prenom=prenom_propre,
+            password_hash=hasher_mot_de_passe(mot_de_passe),
+            role=RoleUtilisateur.ADMINISTRATEUR.value,
+            statut=StatutUtilisateur.ACTIF.value,
+            approved_at=datetime.now(UTC),
+            approved_by=admin_id,
+        )
+        self.utilisateurs.add(user)
+        self._session.flush()
+        self._trace.record_event(
+            actor_type=ActorType.HUMAIN.value,
+            action=ActionAudit.UTILISATEUR_ADMIN_CREE.value,
+            entity_type=_ENTITY,
+            entity_id=user.id,
+            after={"email": email_n, "role": user.role, "statut": user.statut},
+        )
+        return user
+
     def refuser(self, user_id: UUID) -> Utilisateur:
         """Refuse une demande d'inscription : le compte pending est retiré.
 
@@ -402,8 +455,13 @@ class UtilisateurService:
         return user
 
     def lister_demandes(self) -> list[Utilisateur]:
-        """File d'attente : toutes les demandes d'inscription en attente."""
-        return list(
+        """File d'attente : demandes en attente, avec le rôle prévu par la fiche.
+
+        ``role_souhaite`` est dérivé de ``Equipe.role_compte`` (jamais inventé) :
+        l'écran de validation le préremplit, au lieu de retomber sur
+        « collaborateur » — ce défaut écrasait le rôle choisi dans Équipes.
+        """
+        demandes = list(
             self._session.scalars(
                 select(Utilisateur)
                 .where(
@@ -413,6 +471,29 @@ class UtilisateurService:
                 .order_by(Utilisateur.created_at.asc())
             )
         )
+        self._renseigner_roles_souhaites(demandes)
+        return demandes
+
+    def _renseigner_roles_souhaites(self, demandes: list[Utilisateur]) -> None:
+        """Attache à chaque demande le rôle porté par sa fiche Équipes.
+
+        Attribut **transitoire** lu par ``UtilisateurRead`` (``from_attributes``) :
+        rien n'est persisté sur le compte, la fiche reste la source de vérité.
+        """
+        identifiants = [demande.equipe_id for demande in demandes if demande.equipe_id]
+        roles: dict[UUID, str | None] = {}
+        if identifiants:
+            roles = dict(
+                self._session.execute(
+                    select(Equipe.id, Equipe.role_compte).where(
+                        Equipe.id.in_(identifiants)
+                    )
+                ).all()
+            )
+        for demande in demandes:
+            demande.role_souhaite = (  # type: ignore[attr-defined]
+                roles.get(demande.equipe_id) if demande.equipe_id else None
+            )
 
     def suspendre(self, user_id: UUID) -> Utilisateur:
         user = self._get(user_id)

@@ -159,15 +159,30 @@ def build_xlsx(
         lignes: lignes brutes ; la première ligne est l'en-tête.
 
     Raises:
-        GenerationError: openpyxl indisponible ou échec de construction.
+        GenerationError: openpyxl indisponible (repli) ou échec de construction.
+
+    Repli sans dépendance : sans ``openpyxl`` (extra non installé, ou exécution
+    de script où elle est bloquée), le classeur est écrit par
+    ``xlsx_tables`` avec la bibliothèque standard — même thème, même en-tête,
+    mêmes bandes. Une table de fiches ne dépend donc plus d'un paquet natif.
     """
     from app.documents.renderers.xlsx import rendre_tableur
 
-    return rendre_tableur(
-        titre_feuille=titre_feuille,
-        lignes=[list(ligne) for ligne in lignes],
-        style=CARSO_DEFAUT,
-    )
+    table = [list(ligne) for ligne in lignes]
+    try:
+        return rendre_tableur(
+            titre_feuille=titre_feuille,
+            lignes=table,
+            style=CARSO_DEFAUT,
+        )
+    except GenerationError:
+        from app.documents.xlsx_tables import classeur_depuis_table
+
+        return classeur_depuis_table(
+            titre_feuille=titre_feuille,
+            lignes=table,
+            style=CARSO_DEFAUT,
+        )
 
 
 class GenerateurDocument:

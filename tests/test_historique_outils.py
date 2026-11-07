@@ -23,9 +23,11 @@ Ces tests verrouillent :
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from pydantic import BaseModel
 
 from app.agents.base import AgentDefinition
 from app.agents.harness import AgentRuntimeConfig, create_carso_deep_agent
@@ -33,7 +35,10 @@ from app.agents.historique_outils import (
     REPONSE_ABSENTE,
     HistoriqueOutilsCoherentMiddleware,
     assainir_sequence_outils,
+    completer_identifiants,
+    completer_identifiants_sequence,
 )
+from app.tools.base import TypedTool
 from app.tools.permissions import PermissionPolicy
 from tests.agent_fixtures import ScriptedChatModel, final_message
 
@@ -298,3 +303,167 @@ def test_graphe_avec_un_tool_orphelin_va_au_bout() -> None:
             not (isinstance(m, ToolMessage) and m.tool_call_id == "orphelin")
             for m in messages
         )
+
+
+# --- ids d'appels absents (constat du 06/11) --------------------------------
+
+
+def _assistant_sans_id(*noms: str) -> AIMessage:
+    """Message assistant dont les appels n'ont **aucun** identifiant.
+
+    ``AIMessage`` accepte ``id: None`` ; c'est ``ToolMessage`` qui refuse, et
+    le run entier échoue alors au premier outil exécuté.
+    """
+    return AIMessage(
+        content="",
+        tool_calls=[{"name": nom, "args": {}, "id": None} for nom in noms],
+    )
+
+
+def test_un_appel_sans_id_recoit_un_id_non_vide() -> None:
+    message = _assistant_sans_id("lire_donnees")
+    repare, ajoutes = completer_identifiants(message)
+
+    assert ajoutes == 1
+    assert repare is not message
+    assert repare.id == message.id
+    ident = repare.tool_calls[0]["id"]
+    assert isinstance(ident, str) and ident
+    # Le reste de l'appel est intact : on ne réécrit que l'id.
+    assert repare.tool_calls[0]["name"] == "lire_donnees"
+    assert repare.tool_calls[0]["args"] == {}
+
+
+def test_un_id_declare_n_est_jamais_reecrit() -> None:
+    message = _assistant(("call_du_fournisseur", "lire_donnees"))
+    repare, ajoutes = completer_identifiants(message)
+
+    assert ajoutes == 0
+    assert repare is message
+
+
+def test_deux_appels_sans_id_recoivent_des_ids_distincts() -> None:
+    repare, ajoutes = completer_identifiants(_assistant_sans_id("a", "b"))
+
+    assert ajoutes == 2
+    premier, second = (appel["id"] for appel in repare.tool_calls)
+    assert premier != second
+
+
+def test_les_appels_invalides_sont_completes_aussi() -> None:
+    """Le fournisseur exige une réponse **aussi** pour un appel mal formé."""
+    message = AIMessage(
+        content="",
+        invalid_tool_calls=[{"name": "x", "args": "{", "id": None, "error": None}],
+    )
+    repare, ajoutes = completer_identifiants(message)
+
+    assert ajoutes == 1
+    assert repare.invalid_tool_calls[0]["id"]
+
+
+def test_un_historique_sans_id_reste_inchange_par_identite() -> None:
+    sain = [_assistant(("call_1", "lire_donnees")), _tool("ok", "call_1")]
+    complets, ajoutes = completer_identifiants_sequence(sain)
+
+    assert ajoutes == 0
+    assert all(a is b for a, b in zip(sain, complets, strict=True))
+
+
+def test_l_assainissement_complete_l_id_avant_de_paire_la_reponse() -> None:
+    """La réponse synthétique porte l'id complété, jamais ``None``."""
+    message = _assistant_sans_id("lire_donnees")
+    propre = assainir_sequence_outils([message])
+
+    assert len(propre) == 2
+    appel = propre[0].tool_calls[0]["id"]
+    reponse = propre[1]
+    assert isinstance(reponse, ToolMessage)
+    assert reponse.tool_call_id == appel
+    assert reponse.tool_call_id  # non vide : ToolMessage l'exige
+    assert reponse.content == REPONSE_ABSENTE
+
+
+def test_le_middleware_rend_la_requete_exploitable() -> None:
+    middleware = HistoriqueOutilsCoherentMiddleware()
+    vu: dict[str, Any] = {}
+
+    def handler(request: Any) -> AIMessage:
+        vu["messages"] = list(request.messages)
+        return final_message("fini")
+
+    middleware.wrap_model_call(_Requete([_assistant_sans_id("lire_donnees")]), handler)
+
+    appels = vu["messages"][0].tool_calls
+    assert appels[0]["id"]
+    assert isinstance(vu["messages"][1], ToolMessage)
+    assert vu["messages"][1].tool_call_id == appels[0]["id"]
+
+
+def test_le_middleware_complete_la_reponse_du_modele() -> None:
+    """Sans cela, ToolNode lève ``tool_call_id … input_value=None``."""
+    middleware = HistoriqueOutilsCoherentMiddleware()
+
+    sortie = middleware.wrap_model_call(
+        _Requete([HumanMessage(content="salut")]),
+        lambda _request: _assistant_sans_id("lire_donnees"),
+    )
+
+    assert sortie.tool_calls[0]["id"]
+    ToolMessage(content="ok", tool_call_id=sortie.tool_calls[0]["id"])  # ne lève pas
+
+
+def test_l_etat_du_fil_est_complete_au_debut_du_run() -> None:
+    middleware = HistoriqueOutilsCoherentMiddleware()
+    message = _assistant_sans_id("lire_donnees")
+
+    mise_a_jour = middleware.before_agent({"messages": [message]}, None)
+
+    assert mise_a_jour is not None
+    assert mise_a_jour["messages"][0].tool_calls[0]["id"]
+    assert middleware.before_agent({"messages": [final_message("ok")]}, None) is None
+
+
+class _EntreeEcho(BaseModel):
+    """Entrée minimale du tool de test."""
+
+    texte: str = "a"
+
+
+ECHO = TypedTool(
+    name="echo",
+    description="Renvoie le texte reçu (outil de test).",
+    input_schema=_EntreeEcho,
+    handler=lambda payload: {"ok": True, "texte": payload["texte"]},
+)
+
+
+def _contrat_avec_echo() -> AgentDefinition:
+    return replace(
+        _contrat_minimal(),
+        tools=("echo",),
+        policy=PermissionPolicy(allowed_capabilities=frozenset({"document_read"})),
+    )
+
+
+def test_le_graphe_execute_un_outil_appele_sans_id() -> None:
+    """Le cas réel : le fournisseur omet l'id, le run doit aboutir."""
+    modele = ScriptedChatModel(
+        responses=[_assistant_sans_id("echo"), final_message("terminé")]
+    )
+    graphe = create_carso_deep_agent(
+        definition=_contrat_avec_echo(),
+        tools=(ECHO,),
+        runtime=AgentRuntimeConfig(model=modele),
+    )
+
+    etat = graphe.invoke(
+        {"messages": [HumanMessage("salut")]},
+        config={"configurable": {"thread_id": "fil-ids"}},
+    )
+
+    assert etat["messages"][-1].content == "terminé"
+    # Le modèle a reçu une réponse d'outil rattachée à un id **valide**.
+    outils = [m for m in modele.received[-1] if isinstance(m, ToolMessage)]
+    assert outils
+    assert all(isinstance(m.tool_call_id, str) and m.tool_call_id for m in outils)

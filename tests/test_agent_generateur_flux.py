@@ -216,14 +216,19 @@ class TestPerimetreOutils:
         assert not any("analyze_rfp_" == nom for nom in outils)
 
     def test_ecritures_sous_approbation_humaine(self) -> None:
-        """Toute écriture de la chaîne est déclarée HITL au contrat."""
+        """Toute écriture **métier** de la chaîne est déclarée HITL au contrat.
+
+        Les générations de documents n'y figurent plus (INC-123) : elles déposent
+        un livrable ``proposed``, la décision humaine reste la validation du
+        document.
+        """
         assert {
             "enregistrer_appel",
             "rattacher_document_appel",
             "submit_rfp_extraction",
             "create_offer_draft",
-            "generer_document",
         } <= set(DEFINITION.approval_required)
+        assert "generer_document" not in DEFINITION.approval_required
 
     def test_permission_analyse_portee_par_le_generateur(self) -> None:
         assert DEFINITION.policy.allows("analyze_rfp")
