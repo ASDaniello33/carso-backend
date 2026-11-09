@@ -11,7 +11,9 @@ from app.domain.base import Base
 
 def test_contrat_readonly() -> None:
     assert DEFINITION.agent_id == "agent_statistique"
-    assert DEFINITION.approval_required == ()
+    # Seule atteinte au périmètre lecture : la corbeille documentaire
+    # (INC-145), sous validation humaine — jamais exécutée sans décision.
+    assert DEFINITION.approval_required == ("supprimer_document",)
     assert "query_analytics" in DEFINITION.tools
     assert "langsearch_web_search" in DEFINITION.tools
 

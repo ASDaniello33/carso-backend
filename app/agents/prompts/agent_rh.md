@@ -28,6 +28,12 @@ Tu peut generer un rapport en powerpointe : Resumer d'annalyse d'un Mission pour
   = le prénom + nom **réellement enregistrés** dans le vivier—jamais un nom
   reconstruit de mémoire ni une identité inventée. `points_forts` reprend
   uniquement des faits lus (profil, CV, rôle déjà tenu).
+- **Lis les fiches par lot** : `get_equipe` accepte `equipe_ids`, une liste de
+  personnes (50 au plus) rendue en un seul appel, dans l'ordre demandé. Un
+  identifiant inconnu apparaît dans `introuvables` sans empêcher les autres
+  fiches. N'appelle donc **jamais** l'outil une fois par personne : après un
+  `search_equipes`, envoie d'un coup tous les identifiants des personnes qui
+  t'intéressent. `list_equipe_cv` reste, lui, par personne (`equipe_id`).
 - `disponible` (booléen) et `conflit` (une phrase, ex. « en conflit avec
   DEMO-FORM-2026 (10/10 → 09/11) ») reprennent le résultat de
   `verifier_disponibilite`. Classe d'abord les personnes disponibles ; si tu
@@ -51,7 +57,7 @@ Tu peut generer un rapport en powerpointe : Resumer d'annalyse d'un Mission pour
 Tu n'as pas de consigne utilisateur figée—le message de l'utilisateur
 est ta seule entrée.
 
-LE DOCUMENT GENERE NE DOIT PAS AVOIR DES LANGAGES DE BROUILLON, s'il y en a fait le en cadre rouge pour que l'utilisateur le remarque, et ajouter <<a completer>> les informations
+LE DOCUMENT GENERE NE DOIT PAS AVOIR DES LANGAGES DE BROUILLON, s'il y en a fait le en cadre rouge pour que l'utilisateur le remarque, et ajouter **(à compléter)** les informations
 que l'utilisateur doit completer et fait le plus claire
 LE DOCUMENT GENERE DOIT ETRE PRET A ETRE UN DOCUMENT OFFICIEL, SAUF A COMPLETER PAR L'UTILISATEUR POUR LES INFORMATIONS MANQUANTS
 

@@ -547,13 +547,16 @@ class MissionService:
     ) -> Mission:
         """Modification partielle : titre, lieu, description, dates.
 
-        Les dates ne se modifient que pendant ``en_planification`` : la
-        planification les exige (ADR 0012) et une mission née sans dates doit
-        pouvoir les recevoir — sans cela elle resterait bloquée à vie. Dès que
-        la mission est planifiée, la session porte le calendrier : changer les
-        dates ici créerait un désaccord silencieux, le refus est explicite.
-        Quand une seule des deux bornes est fournie, l'autre est celle déjà
-        portée par la mission ; début > fin est refusé.
+        Les dates se modifient à **tout état vivant** (ADR 0015) : de
+        nouvelles dates replacent la mission dans le temps. Une session
+        existante (hors ``annule``) reçoit les mêmes dates dans la même
+        transaction, et les statuts des deux entités se **réalignent** sur le
+        nouveau calendrier via ``validate_transition`` — jamais de statut
+        figé en désaccord avec les dates. Une mission ``annule`` est figée :
+        l'annulation est une décision humaine terminale. Une session créée à
+        la main reste ``en_planification`` : sa confirmation reste un geste
+        humain distinct. Quand une seule des deux bornes est fournie, l'autre
+        est celle déjà portée par la mission ; début > fin est refusé.
 
         ``acteur`` distingue les deux chemins qui partagent ce service : le tool
         d'agent sous HITL (``AGENT``, défaut — comportement historique) et le
@@ -574,10 +577,10 @@ class MissionService:
             modifie = True
         dates_fournies = (date_debut, date_fin) != (None, None)
         if dates_fournies:
-            if mission.statut != StatutMission.EN_PLANIFICATION.value:
+            if mission.statut == StatutMission.ANNULE.value:
                 raise ValidationError(
-                    "Les dates d'une mission ne se changent qu'avant sa "
-                    "planification : la session déjà créée porte le calendrier.",
+                    "Une mission annulée est figée : ses dates ne se "
+                    "modifient plus (décision humaine terminale).",
                     details={
                         "mission_id": str(mission_id),
                         "statut": mission.statut,
@@ -606,6 +609,8 @@ class MissionService:
                 "Aucune modification fournie pour la mission",
                 details={"mission_id": str(mission_id)},
             )
+        if dates_fournies:
+            self._propager_dates(mission, acteur)
         self._trace.record_event(
             actor_type=acteur,
             action=ActionAudit.MISSION_MODIFIEE.value,
@@ -619,6 +624,107 @@ class MissionService:
             },
         )
         return mission
+
+    def _propager_dates(self, mission: Mission, acteur: str) -> None:
+        """Reporte les nouvelles dates sur la session et réaligne les statuts.
+
+        La session **suit toujours la mission** (comme à l'annulation) : c'est
+        elle qui reçoit les dates réécrites. Les statuts se réalignent ensuite
+        sur les nouvelles dates (ADR 0015) : la session d'abord — c'est elle
+        qui commande le calendrier — puis la mission. Une session ``annule``
+        ne reçoit jamais les dates (elle suit sa mission annulée) mais la
+        mission vivante, elle, se réaligne toujours. Chaque réalignement
+        passe par ``validate_transition`` et écrit sa trace.
+        """
+        aujourdhui = date.today()
+        session_formation = self.sessions.get_for_mission(mission.id)
+        if (
+            session_formation is not None
+            and session_formation.statut != StatutSessionFormation.ANNULE.value
+        ):
+            nouvelles = (mission.date_debut, mission.date_fin)
+            if (session_formation.date_debut, session_formation.date_fin) != nouvelles:
+                session_formation.date_debut, session_formation.date_fin = nouvelles
+                self._trace.record_event(
+                    actor_type=acteur,
+                    action=ActionAudit.SESSION_MODIFIEE.value,
+                    entity_type=_SESSION,
+                    entity_id=session_formation.id,
+                    after={
+                        "date_debut": str(mission.date_debut) if mission.date_debut else None,
+                        "date_fin": str(mission.date_fin) if mission.date_fin else None,
+                    },
+                    event_metadata={"reportees_depuis_mission": True},
+                )
+            self._realigner_statut(_SESSION, session_formation, aujourdhui, acteur)
+        self._realigner_statut(_ENTITY, mission, aujourdhui, acteur)
+
+    def _realigner_statut(
+        self,
+        entite: str,
+        objet: Mission | SessionFormation,
+        aujourdhui: date,
+        acteur: str,
+    ) -> None:
+        """Réaligne le statut d'une mission ou d'une session sur ses dates.
+
+        Le statut cible est **calculé** (ADR 0012 : le calendrier commande) :
+        ``planifie`` si les dates restent à venir, ``en_cours`` si elles
+        encadrent aujourd'hui, ``cloture`` si la fin est dépassée. Le
+        réalignement est **pas à pas** : chaque cran passe par
+        ``validate_transition`` et écrit sa trace — jamais de saut
+        (``planifie`` → ``cloture`` ou l'inverse n'existe pas dans la machine
+        à états). Une session créée à la main (``en_planification``) garde
+        son statut : sa confirmation reste un geste humain distinct.
+        """
+        est_session = entite == _SESSION
+        statuts: type[StatutMission] | type[StatutSessionFormation] = (
+            StatutSessionFormation if est_session else StatutMission
+        )
+        action = (
+            ActionAudit.SESSION_STATUT_CHANGE.value
+            if est_session
+            else ActionAudit.MISSION_STATUT_CHANGE.value
+        )
+        statut_actuel = objet.statut
+        if statut_actuel == statuts.ANNULE.value:
+            return  # intouchable : une annulation est une décision humaine
+        if statut_actuel == statuts.EN_PLANIFICATION.value:
+            return  # mission non planifiée, session manuelle : geste humain d'abord
+        if objet.date_debut is None or objet.date_fin is None:
+            return  # aucune date : aucun réalignement possible
+        if objet.date_debut > aujourdhui:
+            cible = statuts.PLANIFIE.value
+        elif objet.date_fin >= aujourdhui:
+            cible = statuts.EN_COURS.value
+        else:
+            cible = statuts.CLOTURE.value
+        while statut_actuel != cible:
+            if statut_actuel == statuts.PLANIFIE.value:
+                etape = statuts.EN_COURS.value
+            elif statut_actuel == statuts.CLOTURE.value:
+                etape = statuts.EN_COURS.value
+            else:  # ``en_cours`` : recule vers ``planifie`` ou avance vers ``cloture``
+                etape = (
+                    statuts.PLANIFIE.value
+                    if cible == statuts.PLANIFIE.value
+                    else statuts.CLOTURE.value
+                )
+            validate_transition(entite, statut_actuel, etape)
+            objet.statut = etape
+            self._trace.record_event(
+                actor_type=acteur,
+                action=action,
+                entity_type=entite,
+                entity_id=objet.id,
+                after={"statut": etape},
+                event_metadata={
+                    "statut_avant": statut_actuel,
+                    "cible_calendaire": cible,
+                    "realigne_sur_nouvelles_dates": True,
+                },
+            )
+            statut_actuel = etape
 
     def obtenir(self, mission_id: UUID) -> Mission:
         """Charge une mission **dans le périmètre** (lecture pure, sans mutation).

@@ -150,6 +150,76 @@ class ParametresAgentService:
         )
         return True
 
+    def definir_skill_pour_agents(
+        self, nom: str, agents: list[str], *, modifie_par: str | None = None
+    ) -> list[str]:
+        """Rattache un skill ``SKILL.md`` aux agents cités, le retire des autres.
+
+        La liste reçue est **la vérité** : un agent qui l'utilisait et n'y figure
+        plus le perd. Sans cette sémantique, décocher une case dans l'écran
+        n'aurait aucun effet et le skill resterait chargé à son insu.
+
+        Créer une surcharge pour un seul skill est légitime : c'est le mécanisme
+        existant d'ajout de skills à un agent (``skills_ajoutes``). En revanche,
+        une surcharge qui **devient vide** est désactivée : laisser une ligne
+        active sans contenu ferait afficher « surchargé » pour rien.
+
+        Args:
+            nom: nom du skill (déjà validé par le service appelant).
+            agents: identifiants d'agents qui doivent le recevoir.
+            modifie_par: compte à l'origine du changement (audit).
+
+        Returns:
+            Les agents qui reçoivent effectivement le skill, triés.
+
+        Raises:
+            NotFoundError: agent inconnu du catalogue.
+        """
+        demandes = sorted({agent for agent in agents if agent})
+        # Un agent inconnu est refusé explicitement : l'accepter en silence
+        # laisserait croire que le skill est chargé alors qu'aucun graphe ne
+        # pourrait le monter.
+        for agent_id in demandes:
+            definition_du_contrat(agent_id)
+
+        for ligne in self.surcharges.lister_actives():
+            actuels = list(ligne.skills_ajoutes or [])
+            doit = ligne.agent_id in demandes
+            if doit and nom not in actuels:
+                ligne.skills_ajoutes = [*actuels, nom]
+                self._session.flush()
+            elif not doit and nom in actuels:
+                ligne.skills_ajoutes = [autre for autre in actuels if autre != nom]
+                self._desactiver_si_vide(ligne)
+                self._session.flush()
+
+        for agent_id in demandes:
+            ligne = self.surcharges.get_toute_ligne(agent_id)
+            if ligne is None:
+                ligne = SurchargeAgent(agent_id=agent_id, actif=True)
+                self.surcharges.add(ligne)
+            if nom not in (ligne.skills_ajoutes or []):
+                ligne.skills_ajoutes = [*(ligne.skills_ajoutes or []), nom]
+            ligne.actif = True
+            if modifie_par is not None:
+                ligne.modifie_par = modifie_par
+            self._session.flush()
+        return demandes
+
+    def _desactiver_si_vide(self, ligne: SurchargeAgent) -> None:
+        """Désactive une surcharge que le retrait d'un skill a vidée.
+
+        Une ligne active sans outil désactivé, sans consigne et sans skill est
+        un affichage trompeur (« surchargé » alors que rien n'est surchargé) ;
+        la désactiver rend l'agent exactement à son contrat.
+        """
+        if (
+            not ligne.outils_desactives
+            and not (ligne.instructions_supplementaires or "").strip()
+            and not ligne.skills_ajoutes
+        ):
+            ligne.actif = False
+
     @staticmethod
     def _valider_skills(noms: list[str]) -> list[str]:
         """Valide des noms de skills contre le registre (``SKILL.md`` présent)."""

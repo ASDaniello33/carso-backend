@@ -98,6 +98,10 @@ NOMS_TOOLS: tuple[str, ...] = (
     READ_DOCUMENT_TOOL,
     # Vision : une image déposée se lit en la voyant (scan, capture).
     "lire_image",
+    # Renommage et suppression d'un document existant : contenu jamais
+    # régénéré ; la suppression passe par une validation humaine.
+        "renommer_document",
+    "supprimer_document",
     # Livrable : la génération à thème CARSO seulement — la voie HTML libre
     # (`generer_document`) appartient aux agents producteurs, pas au consultant.
     "generer_document_professionnel",
@@ -365,7 +369,19 @@ def executer_analytique(session: Session, payload: dict[str, Any]) -> dict[str, 
     if entree.metrique == "beneficiaires_par_mois":
         return compter_beneficiaires_par_mois(session, {"mois": entree.mois})
     if entree.session_id is None:
-        raise BusinessValidationError("session_id requis pour beneficiaires_par_session")
+        # Erreur **actionnable** : sans méthode indiquée, le modèle réessaie le
+        # même appel invalide (deux appels d'outil pour un seul besoin, deux
+        # phases de raisonnement, deux cartes dans le fil).
+        raise BusinessValidationError(
+            "beneficiaires_par_session exige session_id : appeler d'abord "
+            "search_sessions pour obtenir l'identifiant de la session, puis "
+            "relancer query_analytics avec cet identifiant.",
+            details={
+                "metrique": entree.metrique,
+                "parametre_requis": "session_id",
+                "methode": "search_sessions",
+            },
+        )
     return compter_beneficiaires_par_session(
         session,
         {
@@ -454,7 +470,9 @@ def construire_tools_generaliste(
         name="query_analytics",
         description=(
             "Agrégation déterministe nommée : " + ", ".join(ANALYTIQUES_AUTORISEES) +
-            ". Le service calcule."
+            ". Le service calcule. « beneficiaires_par_session » exige session_id "
+            "(à obtenir avec search_sessions avant l'appel) ; les autres "
+            "métriques n'ont besoin d'aucun paramètre."
         ),
         input_schema=AnalyticsInput,
         run=executer_analytique,

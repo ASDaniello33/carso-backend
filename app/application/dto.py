@@ -512,6 +512,10 @@ class LotInput:
     partenariat: str | None = None
     date_fin: date | None = None
     donnees_source: dict[str, Any] | None = None
+    #: Lieu où le lot se déroule (facultatif) : la zone est un texte libre,
+    #: le lieu est la position. Un lot peut rester sans lieu — c'est un domaine,
+    #: une activité, pas forcément un point sur la carte.
+    lieu_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)

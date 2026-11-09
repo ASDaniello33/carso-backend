@@ -87,6 +87,50 @@ def test_retrouve_un_appel_par_titre_insensible_a_la_casse(api_session_factory) 
     assert familles["appels"]["resultats"][0]["id"] == str(appel.id)
 
 
+def test_lien_appel_pointe_sur_la_fiche_sans_redirection(api_session_factory) -> None:
+    """Le résultat ouvre la fiche réelle : `/appels/{id}`.
+
+    L'ancien `/appels-propositions/{id}` reposait sur une redirection de
+    l'interface ; la route a changé de nom, le lien doit suivre.
+    """
+    orga = _organisation()
+    seed(api_session_factory, orga)
+    appel = _appel(orga.id, "Formation des jeunes agriculteurs", "AP-42")
+    seed(api_session_factory, appel)
+
+    session = api_session_factory()
+    try:
+        resultat = RechercheService(session).rechercher("agriculteurs")
+    finally:
+        session.close()
+
+    familles = {f["famille"]: f for f in resultat["familles"]}
+    assert familles["appels"]["resultats"][0]["href"] == f"/appels/{appel.id}"
+
+
+def test_lien_organisation_filtre_la_liste(api_session_factory) -> None:
+    """Les familles sans page de détail ouvrent leur liste **pré-filtrée**.
+
+    Organisations, équipes, documents et bénéficiaires n'ont pas d'écran de
+    détail : `/organisations/{id}` menait à une page inexistante.
+    """
+    from urllib.parse import parse_qs, urlparse
+
+    seed(api_session_factory, _organisation("Croix-Rouge Malagasy"))
+
+    session = api_session_factory()
+    try:
+        resultat = RechercheService(session).rechercher("croix")
+    finally:
+        session.close()
+
+    familles = {f["famille"]: f for f in resultat["familles"]}
+    lien = familles["organisations"]["resultats"][0]["href"]
+    analyse = urlparse(lien)
+    assert analyse.path == "/organisations"
+    assert parse_qs(analyse.query)["recherche"] == ["Croix-Rouge Malagasy"]
+
+
 def test_base_vide_aucun_resultat(api_session_factory) -> None:
     session: Session = api_session_factory()
     try:

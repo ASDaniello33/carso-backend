@@ -103,10 +103,16 @@ def test_statistique_lit_les_documents_et_ne_produit_qu_un_livrable() -> None:
         engine.dispose()
 
     assert set(OUTILS_LECTURE) <= noms
-    # Un seul outil de production — le générateur professionnel, déposé en
-    # proposition : ni document libre, ni correction, ni dépôt direct.
+    # Deux voies de production, toutes deux déposées en ``proposed`` : le
+    # générateur professionnel et la voie HTML libre (INC-113, commit du 07/11
+    # qui a étendu le statistique aux rapports et tableaux de bord). Ce qui
+    # reste interdit est nommé : validation, rendu serveur, correction d'un
+    # document existant, analyse d'un modèle de référence.
     assert "generer_document_professionnel" in noms
-    interdits = set(OUTILS_PRODUCTION) - {"generer_document_professionnel"}
+    interdits = set(OUTILS_PRODUCTION) - {
+        "generer_document_professionnel",
+        "generer_document",
+    }
     assert not (interdits & noms)
     assert "document_read" in STAT_DEF.capabilities
     assert "document_propose" in STAT_DEF.capabilities

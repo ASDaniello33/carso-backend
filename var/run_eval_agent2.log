@@ -1,0 +1,20 @@
+run sur agent_generateur_offre — consigne de 1253 caractères
+durée 510s — 24677 événements
+outils : ['lister_modeles_documents', 'read_appel', 'get_lot', 'search_offres', 'obtenir_structure_modele', 'list_appel_documents', 'get_document_structure', 'read_document_range', 'read_file', 'copier_modele_document', 'remplacer_element_model', 'remplir_modele', 'obtenir_structure_document', 'proposer_telechargement_document']
+texte final :
+ , usages professionnels et managériaux, aide à la décision) ;
+   - besoins logistiques (salle, Internet, vidéoprojecteur, ordinateurs, supports, accès plateformes IA) ;
+   - **les 6 livrables des TDR** en tableau, dont la note méthodologique et la note de bonnes pratiques ;
+   - suivi, évaluation, conclusion et engagement.
+
+**Document produit**
+
+- Nom : **Offre_technique_AMI_FID_59_Formation_IA.docx** (nom de travail en base : `modele-OFFRE-TECH-L01.docx`), version 3, rattaché à l'offre OFFRE-TECH-L01.
+- Modèle utilisé : **`baeca7f4-f35e-4515-b706-2d3fcdce2d63`** (Model_offre_technique_FID.docx, version 1).
+
+**Statut** : le document est une **proposition** (statut `proposed`), non officialisée. Il attend votre validation pour devenir officiel. Le téléchargement vous est proposé dans le fil.
+
+**Points à compléter avant soumission** (non inventés, absents des TDR ou à confirmer par vous) : les références et certifications du dossier de candidature (annexe de la section 1), et le lieu exact de la formation, à préciser avec le FID.
+
+Souhaitez-vous une révision (ton, structure, ajout d'une section comme l'équipe pressentie ou le planning de mise en œuvre), ou passer à l'étape suivante ?
+trajectoire : C:\Users\Asus\Documents\CARSO_AI\backend\var\eval_runs\run-1794213071\trajectoire.json

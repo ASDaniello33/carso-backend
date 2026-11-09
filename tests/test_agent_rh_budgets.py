@@ -149,11 +149,12 @@ def test_creer_budget_mission_et_lignes(factory: sessionmaker[Session]) -> None:
     """Création en brouillon, lignes calculées par le serveur, total correct."""
     outils = _outils(factory)
     mission = _mission(factory)
-    sortie = outils["creer_budget_mission"].invoke(
-        {"mission_id": str(mission.id), "devise": "MAD"}
-    )
+    # Sans devise explicite : le tool doit produire la devise de travail
+    # (ariary), pas l'héritage ``MAD`` du prototype.
+    sortie = outils["creer_budget_mission"].invoke({"mission_id": str(mission.id)})
     assert sortie["statut"] == "brouillon"
     assert sortie["requires_approval"] is True
+    assert sortie["devise"] == "MGA"
 
     ligne = outils["ajouter_ligne_budget"].invoke(
         {

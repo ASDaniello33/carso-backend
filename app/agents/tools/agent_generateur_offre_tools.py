@@ -142,6 +142,10 @@ NOMS_TOOLS: tuple[str, ...] = (
     "lire_element_document",
     # Un appel scanné (photo, capture) se lit dans l'image.
     "lire_image",
+    # Renommage et suppression d'un document existant : contenu jamais
+    # régénéré ; la suppression passe par une validation humaine.
+        "renommer_document",
+    "supprimer_document",
     "langsearch_web_search",
     # Lecture d'une page trouvée : le texte réel d'un appel ou d'un cahier des
     # charges est lu dans la source, borné, jamais reconstitué de mémoire.

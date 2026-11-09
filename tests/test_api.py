@@ -473,7 +473,7 @@ def test_budget_total_recalcule(api_client: TestClient, session_factory) -> None
     lot = _seed_lot(session_factory, appel)
     created = _post_offre(api_client, lot, "OF-API-03", "Offre")
     offre_id = UUID(created.json()["id"])
-    budget = Budget(offre_id=offre_id, devise="MAD")
+    budget = Budget(offre_id=offre_id)
     seed(session_factory, budget)
 
     l1 = api_client.post(

@@ -8,6 +8,16 @@ migration ``ALTER TYPE``. Les enums ci-dessous sont la source de vérité Python
 
 from enum import StrEnum
 
+#: Devise de travail de CARSO (Toliara, Madagascar) : l'ariary.
+#:
+#: Le modèle ``Budget`` portait ``MAD`` (dirham marocain) par héritage du
+#: prototype : un budget créé sans devise explicite naissait donc dans une
+#: monnaie qui n'est pas celle de l'organisation. La constante est la **seule**
+#: déclaration côté Python : le modèle, le service et les tests s'y réfèrent,
+#: pour qu'un changement de devise ne laisse pas de copie divergente. Le défaut
+#: SQL (``server_default``) est aligné par la migration ``0034``.
+DEVISE_PAR_DEFAUT = "MGA"
+
 
 class TypeAppel(StrEnum):
     """Nature de l'appel reçu (règle métier confirmée avec CARSO).
@@ -524,6 +534,10 @@ class ActionAudit(StrEnum):
     # d'administration tracée. Ce n'est pas une proposition d'agent.
     CONFIGURATION_AGENT_MODIFIEE = "configuration_agent.modifiee"
     CONFIGURATION_AGENT_RECHARGEE = "configuration_agent.rechargee"
+    # Catalogue des fournisseurs et modèles d'IA : un geste d'administration de
+    # plus (ajout/édition/suppression). Aucune clé n'y figure jamais.
+    FOURNISSEUR_IA_MODIFIE = "fournisseur_ia.modifie"
+    MODELE_IA_MODIFIE = "modele_ia.modifie"
     # Modification et suppression (règle confirmée CARSO, 22/09). La suppression
     # emporte le sous-arbre : l'événement conserve l'INVENTAIRE de ce qui a
     # disparu (auteur, motif, comptages), jamais les données elles-mêmes.

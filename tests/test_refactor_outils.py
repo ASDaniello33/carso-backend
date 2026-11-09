@@ -165,21 +165,40 @@ PREFIXES_ECRITURE = (
     "submit_",
 )
 
+#: Exception documentaire d'INC-145 : la corbeille d'un document. Elle écrit
+#: bien quelque chose, donc elle n'est admise qu'avec sa garde — vérifiée par
+#: les deux tests ci-dessous — et non parce que le préfixe serait faux.
+EXCEPTION_ECRITURE_DOCUMENT = "supprimer_document"
+
 
 def test_statistique_aucune_ecriture_de_donnee_au_contrat() -> None:
     from app.agents.agent_statistique import DEFINITION
 
-    assert DEFINITION.approval_required == ()
-    assert all(not nom.startswith(PREFIXES_ECRITURE) for nom in DEFINITION.tools)
-    # La seule écriture admise : un livrable, qui ne vaut jamais approbation.
+    ecritures = [
+        nom
+        for nom in DEFINITION.tools
+        if nom.startswith(PREFIXES_ECRITURE) and nom != EXCEPTION_ECRITURE_DOCUMENT
+    ]
+    assert not ecritures, f"écritures métier hors du périmètre lecture : {ecritures}"
+    # La corbeille ne s'ouvre que sur une décision humaine.
+    assert EXCEPTION_ECRITURE_DOCUMENT in DEFINITION.approval_required
+    # Les seules créations admises : des livrables, qui ne valent jamais
+    # approbation.
     assert "generer_document_professionnel" in DEFINITION.tools
+    assert "generer_document" in DEFINITION.tools
     assert "document_propose" in DEFINITION.capabilities
 
 
 def test_generaliste_aucune_ecriture_de_donnee_au_contrat() -> None:
     from app.agents.generaliste_readonly import DEFINITION
 
-    assert all(not nom.startswith(PREFIXES_ECRITURE) for nom in DEFINITION.tools)
+    ecritures = [
+        nom
+        for nom in DEFINITION.tools
+        if nom.startswith(PREFIXES_ECRITURE) and nom != EXCEPTION_ECRITURE_DOCUMENT
+    ]
+    assert not ecritures, f"écritures métier hors du périmètre lecture : {ecritures}"
+    assert EXCEPTION_ECRITURE_DOCUMENT in DEFINITION.approval_required
     assert "generer_document_professionnel" in DEFINITION.tools
     assert "document_propose" in DEFINITION.capabilities
 
@@ -201,12 +220,13 @@ def test_ecritures_hitl_declarees() -> None:
     assert "create_offer_draft" in GENO_DEF.approval_required
     assert "propose_lot_update" in GENO_DEF.approval_required
     assert "propose_appel_update" in GENO_DEF.approval_required
-    # Généraliste / statistique : aucune écriture du tout.
+    # Généraliste / statistique : la seule écriture est la corbeille
+    # documentaire d'INC-145, et elle est déclarée sous HITL.
     from app.agents.agent_statistique import DEFINITION as STAT_DEF
     from app.agents.generaliste_readonly import DEFINITION as GEN_DEF
 
-    assert GEN_DEF.approval_required == ()
-    assert STAT_DEF.approval_required == ()
+    assert GEN_DEF.approval_required == ("supprimer_document",)
+    assert STAT_DEF.approval_required == ("supprimer_document",)
 
 
 def test_generaliste_couve_toutes_les_tables() -> None:

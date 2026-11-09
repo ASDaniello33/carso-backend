@@ -31,6 +31,10 @@ from app.api.schemas.parametres import (
     ParametresEtatRead,
     ServeurMcpRead,
     ServeurMcpUpdate,
+    SkillFichierCreate,
+    SkillFichierDetailRead,
+    SkillFichierRead,
+    SkillFichierUpdate,
     SkillsDisponiblesRead,
     SondeMcpRead,
     SurchargeAgentRead,
@@ -41,6 +45,7 @@ from app.application.services.parametres_service import (
     ParametresAgentService,
     ServeurMcpService,
 )
+from app.application.services.skills_fichiers_service import SkillsFichiersService
 from app.core.chiffrement import chiffrement_disponible
 from app.core.config import get_settings
 from app.core.errors import NotFoundError
@@ -252,6 +257,81 @@ def lister_skills_disponibles(admin: AdminUser) -> SkillsDisponiblesRead:
     """Skills installables sur le disque (``<racine>/<nom>/SKILL.md``)."""
     _ = admin
     return SkillsDisponiblesRead(racine=str(racine_skills()), disponibles=lister_skills())
+
+
+@router.get("/skills/fichiers", response_model=list[SkillFichierRead])
+def lister_skills_fichiers(admin: AdminUser, session: DbSession) -> list[SkillFichierRead]:
+    """Skills ``SKILL.md`` : nom, description, origine et agents qui les reçoivent.
+
+    Les skills écrits depuis cet écran sont modifiables ; ceux livrés avec le
+    paquet sont signalés ``origine = paquet`` — l'écran désactive leurs actions
+    plutôt que de laisser découvrir un refus après saisie.
+    """
+    _ = admin
+    return [
+        SkillFichierRead(**element)
+        for element in SkillsFichiersService(session).lister()
+    ]
+
+
+@router.get("/skills/fichiers/{nom}", response_model=SkillFichierDetailRead)
+def lire_skill_fichier(nom: str, admin: AdminUser, session: DbSession) -> SkillFichierDetailRead:
+    """Skill complet (description + corps), pour préremplir la correction."""
+    _ = admin
+    return SkillFichierDetailRead(**SkillsFichiersService(session).lire(nom))
+
+
+@router.post("/skills/fichiers", response_model=SkillFichierDetailRead, status_code=201)
+def creer_skill_fichier(
+    payload: SkillFichierCreate, admin: AdminUser, session: DbSession
+) -> SkillFichierDetailRead:
+    """Écrit ``<racine>/<nom>/SKILL.md`` et le rattache aux agents choisis.
+
+    Le frontmatter (nom + description) est ce que l'agent voit au démarrage du
+    runtime ; le corps n'est lu que si la tâche relève de la description. Après
+    l'écriture, le runtime est rechargé : les contextes mémorisés ne doivent pas
+    continuer sans le nouveau skill.
+    """
+    service = SkillsFichiersService(session, actor_id=str(admin.id))
+    skill = service.creer(
+        nom=payload.nom,
+        description=payload.description,
+        corps=payload.corps,
+        agents=payload.agents,
+        modifie_par=str(admin.id),
+    )
+    _recharger(session, str(admin.id))
+    return SkillFichierDetailRead(**skill)
+
+
+@router.patch("/skills/fichiers/{nom}", response_model=SkillFichierDetailRead)
+def modifier_skill_fichier(
+    nom: str,
+    payload: SkillFichierUpdate,
+    admin: AdminUser,
+    session: DbSession,
+) -> SkillFichierDetailRead:
+    """Corrige un skill administré (nom immuable, champs absents conservés)."""
+    service = SkillsFichiersService(session, actor_id=str(admin.id))
+    skill = service.modifier(
+        nom,
+        description=payload.description,
+        corps=payload.corps,
+        agents=payload.agents,
+        modifie_par=str(admin.id),
+    )
+    _recharger(session, str(admin.id))
+    return SkillFichierDetailRead(**skill)
+
+
+@router.delete("/skills/fichiers/{nom}", status_code=204)
+def supprimer_skill_fichier(
+    nom: str, admin: AdminUser, session: DbSession
+) -> None:
+    """Retire le skill des agents qui le portent, puis supprime son dossier."""
+    service = SkillsFichiersService(session, actor_id=str(admin.id))
+    service.supprimer(nom, modifie_par=str(admin.id))
+    _recharger(session, str(admin.id))
 
 
 # --- Connecteurs MCP ----------------------------------------------------------

@@ -157,7 +157,14 @@ def _probleme_lisible(detail: dict[str, Any]) -> str:
         cause = (detail.get("ctx") or {}).get("error")
         if cause is not None:
             return str(cause)
-    return _MESSAGES_SCHEMA.get(type_, str(detail.get("msg", "entrée invalide")))
+    texte = _MESSAGES_SCHEMA.get(type_, str(detail.get("msg", "entrée invalide")))
+    # La **borne** fait partie du problème : « trop d'éléments » sans « 50 au
+    # plus » oblige le modèle à deviner la limite qu'il vient de dépasser.
+    ctx = detail.get("ctx") or {}
+    for cle, gabarit in (("max_length", "({} au plus)"), ("min_length", "({} au moins)")):
+        if cle in ctx:
+            return f"{texte} {gabarit.format(ctx[cle])}"
+    return texte
 
 
 def _type_recu(valeur: Any) -> str | None:
@@ -297,8 +304,12 @@ def to_langchain_tool(tool: TypedTool) -> Any:
     def _run(**kwargs: Any) -> str | list[dict[str, Any]]:
         # invoke() convertit déjà CarsoError → {ok: false} (Tool Message).
         # handle_tool_error ci-dessous ne rattrape QUE ToolException
-        # (langchain_core.tools.base.BaseTool.run) — doc officielle.
+        # (langchain_core.tools.base.BaseTool.run) — doc officielle : lever
+        # ToolException est le seul moyen d'obtenir un ToolMessage
+        # ``status="error"`` (au lieu d'un tool call « Terminé » qui a échoué).
         resultat = tool.invoke(kwargs)
+        if isinstance(resultat, dict) and resultat.get("ok") is False:
+            raise ToolException(json.dumps(resultat, ensure_ascii=False, default=str))
         if isinstance(resultat, str):
             return resultat
         if tool.multimodal:
@@ -307,12 +318,19 @@ def to_langchain_tool(tool: TypedTool) -> Any:
                 return contenu
         return json.dumps(resultat, ensure_ascii=False, default=str)
 
-    from langchain_core.tools import StructuredTool
+    from langchain_core.tools import StructuredTool, ToolException
 
     return StructuredTool.from_function(
         func=_run,
         name=tool.name,
         description=tool.description,
         args_schema=tool.input_schema,
+        # Erreur **métier** levée par le handler → ToolException ci-dessus.
         handle_tool_error=True,
+        # Arguments invalides (`{}` émis par le modèle) : sans ce drapeau, la
+        # validation LangChain lève HORS de `_run` et l'appel se termine sans
+        # ``TOOL_CALL_RESULT`` — le modèle réessaie à l'aveugle et le fil garde
+        # une carte « en préparation ». Ici, l'erreur devient un ToolMessage
+        # ``status="error"`` porteur du schéma attendu.
+        handle_validation_error=True,
     )

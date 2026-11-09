@@ -15,7 +15,6 @@ Règles appliquées :
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.application.dto import AffectationProposee
@@ -401,6 +400,70 @@ class AffectationService:
             }
             for _, m in occupees
         ]
+
+    def conflits_mission(
+        self,
+        mission_id: UUID,
+        *,
+        date_debut: object | None = None,
+        date_fin: object | None = None,
+    ) -> list[dict[str, object]]:
+        """Conflits de disponibilité de **toute l'équipe approuvée** d'une mission.
+
+        Lecture seule de la même règle (:meth:`conflits_disponibilite`), sans
+        la réécrire : une mission dont les dates changent (ADR 0015) peut
+        chevaucher les autres missions de ses membres. Le service ne bloque
+        rien — l'information est destinée à l'alerte de l'écran.
+
+        ``date_debut``/``date_fin`` évaluent une **période hypothétique** (les
+        dates saisies avant enregistrement d'un report) au lieu de celles de
+        la mission ; absentes, elles valent les dates enregistrées.
+
+        Ne sont examinées que les affectations **approuvées** (la règle de
+        disponibilité ne voit qu'elles) ; une mission sans ses deux dates, ou
+        une mission annulée, n'est pas évaluable et renvoie une liste vide.
+
+        Returns:
+            Une entrée par membre en conflit : ``equipe_id``, ``nom``,
+            ``prenom`` et les ``missions_en_conflit`` (référence, titre,
+            dates) renvoyées par la règle unique.
+        """
+        mission = self._get_mission(mission_id)
+        debut = date_debut if date_debut is not None else mission.date_debut
+        fin = date_fin if date_fin is not None else mission.date_fin
+        if (
+            debut is None
+            or fin is None
+            or mission.statut == StatutMission.ANNULE.value
+        ):
+            return []
+        membres = [
+            a
+            for a in self.affectations.list_for_mission(mission.id)
+            if a.statut == StatutAffectation.APPROUVEE.value
+        ]
+        if not membres:
+            return []
+        conflits: list[dict[str, object]] = []
+        for affectation in membres:
+            bloquantes = self.conflits_disponibilite(
+                affectation.equipe_id,
+                debut,
+                fin,
+                mission_id=mission.id,
+            )
+            if not bloquantes:
+                continue
+            equipe = affectation.equipe
+            conflits.append(
+                {
+                    "equipe_id": str(affectation.equipe_id),
+                    "nom": equipe.nom if equipe is not None else "",
+                    "prenom": equipe.prenom if equipe is not None else "",
+                    "missions_en_conflit": bloquantes,
+                }
+            )
+        return conflits
 
     def _verifier_disponibilite(
         self, mission: Mission, equipe_id: UUID, *, sauf_affectation_id: UUID | None = None

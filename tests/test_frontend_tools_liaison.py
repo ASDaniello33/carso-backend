@@ -124,6 +124,67 @@ def test_payload_carte_exige_un_titre_et_borne_les_points() -> None:
         )
 
 
+def test_payload_dashboard_exige_des_valeurs_groupees_par_ligne() -> None:
+    """Une ligne de tableau porte un objet ``valeurs``, jamais des clés aplaties.
+
+    Recette du 08/11 : le schéma laissait ``lignes`` libre, le modèle a émis
+    `{"indicateur": "Missions", "valeur": 10}` et la page Rapports levait
+    `TypeError: Cannot read properties of undefined (reading 'indicateur')`.
+    """
+    from pydantic import ValidationError
+
+    from app.agents.frontend_tools_catalogue import SCHEMAS_FRONTEND
+
+    schema = SCHEMAS_FRONTEND["generer_dashboard"]
+    base = {
+        "titre": "Indicateurs clés",
+        "source": "base",
+        "sources": [{"type": "base", "reference": "query_analytics:missions"}],
+    }
+    tableau = {
+        "type": "tableau",
+        "libelle": "Chiffres clés",
+        "colonnes": [{"cle": "indicateur", "titre": "Indicateur"}],
+    }
+
+    # Forme attendue par le rendu : valeurs groupées, nombre accepté tel quel.
+    valide = schema.model_validate(
+        {
+            **base,
+            "widgets": [
+                {
+                    **tableau,
+                    "colonnes": [
+                        {"cle": "indicateur", "titre": "Indicateur"},
+                        {"cle": "valeur", "titre": "Valeur", "num": True},
+                    ],
+                    "lignes": [
+                        {
+                            "id": "m1",
+                            "valeurs": {"indicateur": "Missions", "valeur": 10},
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+    assert valide.widgets[0].lignes[0].valeurs["valeur"] == 10
+
+    # Forme aplatie : refusée par le schéma (message lisible pour l'agent).
+    with pytest.raises(ValidationError):
+        schema.model_validate(
+            {
+                **base,
+                "widgets": [
+                    {
+                        **tableau,
+                        "lignes": [{"indicateur": "Missions", "valeur": 10}],
+                    }
+                ],
+            }
+        )
+
+
 def test_generateur_a_ses_outils_daffichage() -> None:
     noms = noms_pour_agent(AGENT_GENERATEUR)
     assert "naviguer_vers" in noms

@@ -36,6 +36,7 @@ from app.agents.contexte import ContexteUtilisateurMiddleware, UserContext
 from app.agents.exclusion_outils import ExclusionOutilsMiddleware
 from app.agents.frontend_tools_catalogue import bloc_outils_frontend
 from app.agents.historique_outils import HistoriqueOutilsCoherentMiddleware
+from app.agents.images_outils import ImagesOutilsMiddleware
 from app.agents.page_courante import BLOC_PAGE_COURANTE
 from app.agents.pieces_jointes_contexte import BLOC_PIECES_JOINTES
 from app.agents.prompt import (
@@ -66,6 +67,15 @@ _CADRE_CARSO = """
 - Tu n'utilises que les tools fournis (métier + affichage listés ci-dessous).
   Tu n'en réclames pas d'autres.
 - Tu restes strictement dans ton périmètre métier.
+- **Emphase lisible** : dans le texte rendu à l'utilisateur, mets l'information
+  importante en **gras** (`**comme ceci**`) ou en `code` pour un identifiant ; un
+  nom propre, une référence ou un statut déjà mis en avant va en gras, pas entre
+  chevrons. N'utilise ni `<<`/`>>` ni tiret cadratin (`—`) pour cela : la phrase
+  se construit autrement (deux-points, virgule, phrase séparée).
+- **Un tour = une réponse.** Appelle d'abord tous les outils nécessaires (lecture,
+  agrégation, affichage), puis rédige **une seule fois** le texte final. N'écris
+  pas de texte avant un appel d'outil : le fil afficherait deux réponses pour une
+  seule question. Pas de phrase d'annonce du type « je vérifie… ».
 - Un document demandé sans objet métier identifié (organisation, appel, offre,
   mission, équipe, session) se génère quand même : omets l'ancre, n'invente
   aucun UUID. Après `generer_document`, appelle
@@ -285,8 +295,11 @@ def create_carso_deep_agent(
     # Exclusion des outils intégrés hors contrat (``grep``) : après les
     # middlewares qui ajoutent des outils (fichiers Deep Agents, affichage).
     middleware.append(ExclusionOutilsMiddleware())
-    # Cohérence de l'historique en dernier, juste avant le fournisseur.
+    # Cohérence de l'historique, puis livraison des images d'outil : dans cet
+    # ordre, l'historique est déjà conforme quand les images sont déplacées
+    # vers un message utilisateur (voir app/agents/images_outils.py).
     middleware.append(HistoriqueOutilsCoherentMiddleware())
+    middleware.append(ImagesOutilsMiddleware())
     kwargs["middleware"] = middleware
     return create_deep_agent(**kwargs)
 

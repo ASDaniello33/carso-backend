@@ -23,6 +23,12 @@ os.environ["CYCLE_DE_VIE_BALAYAGE_ACTIF"] = "0"
 # répertoire Qdrant pendant la suite — les tests appellent l'indexation
 # explicitement (`indexer_prochain`) et désactivent donc le worker.
 os.environ["KNOWLEDGE_INDEXATION_ACTIVE"] = "0"
+# Administrateur principal (BOOTSTRAP_ADMIN_EMAIL) : le `Settings` lit le
+# `.env` de la machine, donc la suite verrait l'adresse du poste de
+# développement et les garde-fous « principal » dépendraient de qui exécute
+# les tests. Vidé ici ; les tests qui portent sur cette règle passent des
+# ``Settings`` explicites (même approche que AUTH_SECRET ci-dessus).
+os.environ["BOOTSTRAP_ADMIN_EMAIL"] = ""
 
 import pytest
 from fastapi.testclient import TestClient

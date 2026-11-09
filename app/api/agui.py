@@ -33,6 +33,7 @@ from app.agents.manager import get_runtime_manager
 from app.api.agui_historique import HistoriqueArgumentsSains
 from app.api.agui_ids import AgentFluxIdsUniques
 from app.api.agui_interrupt_orphelin import PurgeInterruptOrphelin
+from app.api.agui_outils_complets import ResultatsOutilsComplets
 from app.api.agui_resume_interne import ResumeInterneMasque
 from app.api.deps import CurrentUser, get_current_user
 from app.api.permissions import agents_autorises, garde_agui
@@ -385,6 +386,13 @@ def _ajouter_endpoint(
             # avant même d'appeler le modèle) et le fil restait empoisonné.
             # L'entrée est assainie avant d'être relayée (voir agui_historique).
             agent = HistoriqueArgumentsSains(agent)
+            # Dernier filet : chaque appel d'outil doit recevoir un résultat. Un
+            # run coupé en plein appel (ou un appel déclaré jamais exécuté)
+            # laissait une carte « Préparation » à vie dans le fil ; l'appel est
+            # clos par une erreur explicite juste avant la fin du run (voir
+            # app/api/agui_outils_complets.py). Posé en dernier : les ids sont
+            # déjà publics et l'erreur de run déjà émise.
+            agent = ResultatsOutilsComplets(agent)
             _monter_endpoint(add_endpoint, app, agent, path, definition.agent_id)
             return
         except TypeError:

@@ -60,6 +60,10 @@ NOMS_TOOLS: tuple[str, ...] = (
     "lire_element_document",
     # Une fiche ou une liste photographiée se lit dans l'image.
     "lire_image",
+    # Renommage et suppression d'un document existant : contenu jamais
+    # régénéré ; la suppression passe par une validation humaine.
+        "renommer_document",
+    "supprimer_document",
     "importer_tableau_xlsx",
     # Traitement documentaire en série dans SON espace de travail (INC-116) :
     # le tool est construit par ``tools_scripts_pour``.

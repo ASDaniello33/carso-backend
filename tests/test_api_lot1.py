@@ -109,6 +109,77 @@ def test_lots_crud(api_client: TestClient, api_session_factory) -> None:
     assert appel_absent.status_code == 404
 
 
+def test_lot_cree_avec_son_lieu(api_client: TestClient, api_session_factory) -> None:
+    """Le rattachement d'un lieu se fait **dans** la création du lot.
+
+    La zone saisie à la main reste un texte libre ; le lieu, lui, porte la
+    position. Sans ce champ à la création, l'interface devait créer le lot puis
+    le modifier : un lot sans zone géolocalisée restait possible si le second
+    appel échouait.
+    """
+    appel = _seed_appel(api_session_factory)
+
+    lieu = api_client.post(
+        "/api/v1/lieux/",
+        json={
+            "nom": "Toliara",
+            "adresse": "Centre-ville, Toliara",
+            "ville": "Toliara",
+            "pays": "Madagascar",
+            "zone": "Atsimo-Andrefana",
+            "latitude": -23.3568,
+            "longitude": 43.6662,
+        },
+    )
+    assert lieu.status_code == 201, lieu.text
+    lieu_id = lieu.json()["id"]
+
+    cree = api_client.post(
+        f"/api/v1/appels/{appel.id}/lots/",
+        json={
+            "numero": "2",
+            "titre": "Lot du Sud-Ouest",
+            "zone": "Toliara",
+            "lieu_id": lieu_id,
+        },
+    )
+    assert cree.status_code == 201, cree.text
+    assert cree.json()["lieu_id"] == lieu_id
+    assert cree.json()["lieu"]["nom"] == "Toliara"
+    assert cree.json()["lieu"]["latitude"] == -23.3568
+
+    # Un identifiant inconnu est refusé explicitement : pas de lot pointant
+    # vers un lieu fantôme.
+    fantome = api_client.post(
+        f"/api/v1/appels/{appel.id}/lots/",
+        json={"numero": "3", "titre": "Lot fantôme", "lieu_id": str(uuid4())},
+    )
+    assert fantome.status_code == 404
+
+
+def test_zone_du_lot_se_modifie_et_se_vide(
+    api_client: TestClient, api_session_factory
+) -> None:
+    """``PATCH`` de la zone : posée, puis retirée par une chaîne vide (INC-154)."""
+    appel = _seed_appel(api_session_factory)
+    cree = api_client.post(
+        f"/api/v1/appels/{appel.id}/lots/",
+        json={"numero": "1", "titre": "Lot sans zone"},
+    )
+    assert cree.status_code == 201, cree.text
+    assert cree.json()["zone"] is None
+    lot_id = cree.json()["id"]
+    url = f"/api/v1/appels/{appel.id}/lots/{lot_id}"
+
+    posee = api_client.patch(url, json={"zone": "Toliara, Madagascar"})
+    assert posee.status_code == 200, posee.text
+    assert posee.json()["zone"] == "Toliara, Madagascar"
+
+    videe = api_client.patch(url, json={"zone": ""})
+    assert videe.status_code == 200, videe.text
+    assert videe.json()["zone"] is None
+
+
 def test_beneficiaire_crud(api_client: TestClient, api_session_factory) -> None:
     cree = api_client.post(
         "/api/v1/beneficiaires/",

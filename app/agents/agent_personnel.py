@@ -108,6 +108,8 @@ DEFINITION = AgentDefinition(
         *TOOLS_DOCUMENTS_PROPOSE,
         "run_python_script",
     ),
+    # Supprimer un document est une décision humaine : HITL avant exécution.
+    approval_required=("supprimer_document",),
     collaboration=(),
     prompt=prompt.PERSONNEL_SYSTEM_PROMPT,
     output_schema_name="PersonnelAnswer",

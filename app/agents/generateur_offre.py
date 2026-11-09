@@ -103,6 +103,8 @@ DEFINITION = AgentDefinition(
     # par livrable. Retirés ici : ``generer_document``,
     # ``generer_document_html``.
     approval_required=(
+        # Supprimer un document est une décision humaine : HITL avant exécution.
+        "supprimer_document",
         "enregistrer_appel",
         "rattacher_document_appel",
         "submit_rfp_extraction",

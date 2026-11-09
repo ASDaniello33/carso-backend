@@ -56,6 +56,7 @@ def create_lot(
             numero=payload.numero,
             titre=payload.titre,
             zone=payload.zone,
+            lieu_id=payload.lieu_id,
             objectifs=payload.objectifs,
             resultats_attendus=payload.resultats_attendus,
             mission_description=payload.mission_description,

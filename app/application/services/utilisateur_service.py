@@ -35,7 +35,11 @@ from app.core.errors import (
 )
 from app.domain.enums import ActionAudit, ActorType, RoleUtilisateur, StatutUtilisateur
 from app.domain.execution import Equipe
-from app.domain.identity import CodeReinitialisation, Utilisateur
+from app.domain.identity import (
+    CodeReinitialisation,
+    Utilisateur,
+    est_administrateur_principal,
+)
 from app.domain.state_machines import validate_transition
 from app.infrastructure.email import EnvoyeurEmail
 from app.infrastructure.repositories import CodeReinitialisationRepository, UtilisateurRepository
@@ -72,8 +76,18 @@ ROLES_GERABLES: tuple[str, ...] = (
 
 
 class UtilisateurService:
-    def __init__(self, session: Session, actor_id: str | None = None) -> None:
+    def __init__(
+        self,
+        session: Session,
+        actor_id: str | None = None,
+        settings: Settings | None = None,
+    ) -> None:
         self._session = session
+        #: Réglages injectables : les garde-fous d'administration dépendent de
+        #: ``BOOTSTRAP_ADMIN_EMAIL``. Sans injection, la configuration du
+        #: déploiement fait foi ; les tests passent des ``Settings`` explicites
+        #: pour ne jamais dépendre du ``.env`` de la machine.
+        self._settings = settings
         self.utilisateurs = UtilisateurRepository(session)
         self.codes = CodeReinitialisationRepository(session)
         self._trace = TraceContext(session, actor_id=actor_id)
@@ -319,10 +333,19 @@ class UtilisateurService:
                 un compte en attente devient ``collaborateur`` (équipe interne) ;
                 le choix validé est ``collaborateur`` ou ``formateur`` — jamais
                 ``administrateur`` ni ``en_attente``.
+
+        Raises:
+            ValidationError: la réactivation d'un administrateur suspendu est
+                réservée au compte principal (elle rendrait vaine une décision
+                de suspension qu'il a prise seul).
         """
         user = self._get(user_id)
         validate_transition(_ENTITY, user.statut, StatutUtilisateur.ACTIF.value)
         etait_suspendu = user.statut == StatutUtilisateur.SUSPENDU.value
+        if etait_suspendu:
+            # Réactiver un administrateur suspendu rendrait vaine la décision du
+            # principal : même autorité que pour la suspension elle-même.
+            self._verifier_autorite_sur_admin(user, admin_id=admin_id)
         user.statut = StatutUtilisateur.ACTIF.value
         if user.role == RoleUtilisateur.EN_ATTENTE.value:
             # Rôle porté par l'équipe liée (décision « rôle équipe = rôle
@@ -495,8 +518,107 @@ class UtilisateurService:
                 roles.get(demande.equipe_id) if demande.equipe_id else None
             )
 
-    def suspendre(self, user_id: UUID) -> Utilisateur:
+    def _adresse_principale(self) -> str | None:
+        """Adresse de l'administrateur principal, ou ``None`` si non déclarée."""
+        return (self._settings or get_settings()).bootstrap_admin_email
+
+    def est_administrateur_principal(self, user: Utilisateur) -> bool:
+        """Vrai si ce compte est l'administrateur principal du déploiement.
+
+        Public parce que l'API l'expose (``UtilisateurRead.administrateur_principal``) :
+        l'écran Paramètres désactive les gestes que le serveur refuserait.
+
+        L'adresse vient de ``BOOTSTRAP_ADMIN_EMAIL`` — la même source que la
+        création du premier compte, donc jamais une seconde déclaration à tenir
+        à jour. Non déclarée ⇒ aucun compte n'est principal.
+        """
+        return est_administrateur_principal(user.email, self._adresse_principale())
+
+    def marquer_administrateur_principal(self, *comptes: Utilisateur) -> None:
+        """Pose le drapeau transitoire lu par ``UtilisateurRead``.
+
+        Même mécanisme que ``role_souhaite`` : rien n'est persisté, la
+        configuration du déploiement reste la seule source de vérité. Sans
+        adresse principale déclarée, tous les drapeaux restent à ``False``.
+        """
+        adresse = self._adresse_principale()
+        for compte in comptes:
+            compte.administrateur_principal = est_administrateur_principal(  # type: ignore[attr-defined]
+                compte.email, adresse
+            )
+
+    def _est_dernier_admin_actif(self, user: Utilisateur) -> bool:
+        """Vrai si retirer ce compte laisserait zéro administrateur actif."""
+        if user.role != RoleUtilisateur.ADMINISTRATEUR.value:
+            return False
+        if user.statut != StatutUtilisateur.ACTIF.value:
+            # Un compte déjà suspendu ne compte pas dans les actifs : sa
+            # suppression ne retire aucun accès.
+            return False
+        actifs = self._session.scalars(
+            select(Utilisateur).where(
+                Utilisateur.role == RoleUtilisateur.ADMINISTRATEUR.value,
+                Utilisateur.statut == StatutUtilisateur.ACTIF.value,
+                Utilisateur.id != user.id,
+            )
+        )
+        return not list(actifs)
+
+    def _verifier_autorite_sur_admin(self, user: Utilisateur, *, admin_id: UUID) -> None:
+        """Interdit de désactiver, rétrograder ou supprimer un administrateur
+        sans l'autorité du compte principal.
+
+        La règle ne s'applique qu'aux comptes **administrateurs** ; un compte
+        ordinaire reste gérable par n'importe quel administrateur. Le principal,
+        lui, est intouchable : le retirer supprimerait le seul compte capable
+        de gérer les administrateurs (celui enregistré dans ``.env``).
+
+        Raises:
+            ValidationError: compte administrateur ciblé par quelqu'un d'autre
+                que le principal, ou principal lui-même ciblé.
+        """
+        if user.role != RoleUtilisateur.ADMINISTRATEUR.value:
+            return
+        if not self._adresse_principale():
+            # Aucun principal déclaré : la règle historique s'applique (tout
+            # administrateur gère les comptes). Refuser ici rendrait les
+            # installations sans ``BOOTSTRAP_ADMIN_EMAIL`` ingérables.
+            return
+        if self.est_administrateur_principal(user):
+            raise ValidationError(
+                "L'administrateur principal est protégé : il ne peut être ni "
+                "désactivé, ni rétrogradé, ni supprimé"
+            )
+        auteur = self._session.get(Utilisateur, admin_id)
+        if auteur is None or not self.est_administrateur_principal(auteur):
+            raise ValidationError(
+                "Seul l'administrateur principal peut désactiver, rétrograder "
+                "ou supprimer un autre administrateur"
+            )
+
+    def suspendre(self, user_id: UUID, *, admin_id: UUID) -> Utilisateur:
+        """Désactive un compte : la personne ne peut plus se connecter.
+
+        Garde-fous (mêmes familles que la suppression, sinon le compte se
+        désactiverait là où il ne se supprime pas) :
+
+        - un administrateur ne désactive pas son propre compte ;
+        - le dernier administrateur actif reste actif — sans lui, plus personne
+          n'ouvre les écrans d'administration ;
+        - un compte administrateur ne se retire que sur décision de
+          l'administrateur **principal** (``BOOTSTRAP_ADMIN_EMAIL``), et le
+          principal lui-même n'est jamais désactivable.
+        """
         user = self._get(user_id)
+        if user.id == admin_id:
+            raise ValidationError(
+                "Vous ne pouvez pas désactiver votre propre compte"
+            )
+        self._verifier_autorite_sur_admin(user, admin_id=admin_id)
+        if self._est_dernier_admin_actif(user):
+            raise ValidationError(
+                "Impossible de désactiver le dernier compte administrateur"
+            )
         validate_transition(_ENTITY, user.statut, StatutUtilisateur.SUSPENDU.value)
         user.statut = StatutUtilisateur.SUSPENDU.value
         self._trace.record_event(
@@ -538,18 +660,25 @@ class UtilisateurService:
                 | (Utilisateur.nom.ilike(motif))
                 | (Utilisateur.prenom.ilike(motif))
             )
-        return list(self._session.scalars(stmt))
+        comptes = list(self._session.scalars(stmt))
+        self.marquer_administrateur_principal(*comptes)
+        return comptes
 
     def changer_role(self, user_id: UUID, *, role: str, admin_id: UUID) -> Utilisateur:
         """Change le rôle d'un compte existant (collaborateur ou formateur).
 
         Un administrateur ne change pas son propre rôle : même garde-fou que la
         suppression (il ne s'affaiblit pas lui-même depuis cette page).
+        Rétrograder un administrateur revient à le retirer de l'administration :
+        l'autorité du compte **principal** s'applique donc aussi ici, sans quoi
+        la règle de désactivation se contournerait par un simple changement de
+        rôle.
 
         Raises:
             NotFoundError: compte inexistant.
             ValidationError: rôle hors choix validé, compte pas encore actif,
-                ou auto-modification.
+                auto-modification, dernier administrateur, ou administrateur
+                retiré sans l'autorité du compte principal.
         """
         user = self._get(user_id)
         if user.id == admin_id:
@@ -563,6 +692,16 @@ class UtilisateurService:
         if user.role == RoleUtilisateur.EN_ATTENTE.value:
             raise ValidationError(
                 "Ce compte est une demande en attente : validez-la d'abord depuis la file"
+            )
+        self._verifier_autorite_sur_admin(user, admin_id=admin_id)
+        if role != RoleUtilisateur.ADMINISTRATEUR.value and self._est_dernier_admin_actif(
+            user
+        ):
+            # Sans principal déclaré, _verifier_autorite_sur_admin laisse passer :
+            # rétrograder le dernier admin actif laisserait l'installation sans
+            # administration, exactement ce que la suppression interdit.
+            raise ValidationError(
+                "Impossible de rétrograder le dernier compte administrateur"
             )
         avant = user.role
         user.role = role
@@ -583,7 +722,10 @@ class UtilisateurService:
 
         - un administrateur ne supprime pas son propre compte depuis cette
           page (risque de verrouillage immédiat) ;
-        - le compte ne peut pas être le dernier administrateur actif.
+        - le compte ne peut pas être le dernier administrateur actif ;
+        - un compte administrateur ne se supprime que sur décision de
+          l'administrateur **principal** (``BOOTSTRAP_ADMIN_EMAIL``), qui n'est
+          lui-même jamais supprimable.
 
         Aucune FK métier ne pointe vers ``utilisateurs`` : la suppression
         n'oriente aucune donnée métier. L'audit conserve l'identité du compte
@@ -591,24 +733,19 @@ class UtilisateurService:
 
         Raises:
             NotFoundError: compte inexistant.
-            ValidationError: auto-suppression, ou dernier administrateur.
+            ValidationError: auto-suppression, dernier administrateur, ou
+                administrateur retiré sans l'autorité du compte principal.
         """
         user = self._get(user_id)
         if user.id == admin_id:
             raise ValidationError(
                 "Vous ne pouvez pas supprimer votre propre compte"
             )
-        if user.role == RoleUtilisateur.ADMINISTRATEUR.value:
-            actifs = self._session.scalars(
-                select(Utilisateur).where(
-                    Utilisateur.role == RoleUtilisateur.ADMINISTRATEUR.value,
-                    Utilisateur.statut == StatutUtilisateur.ACTIF.value,
-                )
+        self._verifier_autorite_sur_admin(user, admin_id=admin_id)
+        if self._est_dernier_admin_actif(user):
+            raise ValidationError(
+                "Impossible de supprimer le dernier compte administrateur"
             )
-            if len([a for a in actifs if a.id != user_id]) < 1:
-                raise ValidationError(
-                    "Impossible de supprimer le dernier compte administrateur"
-                )
         identite = {
             "email": user.email,
             "nom": user.nom,

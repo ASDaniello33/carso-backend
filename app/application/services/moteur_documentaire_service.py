@@ -542,15 +542,8 @@ class MoteurDocumentaireService:
         candidats: list[str] = []
         if type_document:
             candidats.append(type_document)
-        elif isinstance(sujet.objet, Offre):
-            candidats.extend(
-                (
-                    sujet.objet.type,
-                    f"modele_{sujet.objet.type}",
-                    _TYPE_MODELE_GENERIQUE,
-                    f"modele_{_TYPE_MODELE_GENERIQUE}",
-                )
-            )
+        else:
+            candidats.extend(self._types_modele_de_l_objet(sujet))
         for candidat in dict.fromkeys(candidats):
             modele = self._modeles.find_active(sujet.organisation_id, candidat)
             if modele is not None:
@@ -694,7 +687,7 @@ class MoteurDocumentaireService:
         sujet = self._sujet(ancre, entity_id)
         depot = (type_document or _TYPE_DEPOT_DEFAUT[ancre]).strip().lower()
         copie = self._document_nomme(sujet, self._nom_travail(sujet))
-        if copie is not None:
+        if copie is not None and self._copie_couvre_le_type(sujet, copie):
             type_copie = (copie.doc_metadata or {}).get("type_depot") or copie.type_document
             if str(type_copie).lower() == depot:
                 raise ValidationError(
@@ -725,7 +718,8 @@ class MoteurDocumentaireService:
         raise ValidationError(
             f"Aucun document d'offre ne se génère à neuf pour « {sujet.libelle} "
             f"» : l'organisation « {sujet.organisation_nom} » a déposé "
-            f"{len(modeles)} modèle(s). Copier le modèle "
+            f"{len(modeles)} modèle(s) applicable(s) à ce type d'offre. "
+            "Copier le modèle "
             "(copier_modele_document), puis éditer la copie : "
             "remplacer_element_model pour les textes et titres, remplir_modele "
             "pour les sections rédigées. Aucun texte du modèle n'est inventé.",
@@ -743,20 +737,78 @@ class MoteurDocumentaireService:
             },
         )
 
-    def _modeles_applicables(self, sujet: _Sujet) -> list[dict[str, Any]]:
-        """Modèles que l'organisation peut appliquer à cet objet.
+    def _copie_couvre_le_type(self, sujet: _Sujet, document: Document) -> bool:
+        """La copie de travail vient-elle d'un modèle applicable à cet objet ?
 
-        Réutilise la résolution de :meth:`modele_pour_sujet` (mêmes règles, un
-        seul endroit à corriger) ; le cas « plusieurs modèles » y est une erreur
-        qui porte déjà la liste. Un registre vide donne une liste vide : la
+        Une copie héritée d'un modèle d'un **autre** type d'offre — le modèle
+        technique du client copié dans l'offre financière du même lot — n'est
+        pas le document de ce type : elle ne bloque pas la génération du bon
+        livrable. Sans ce contrôle, l'offre financière restait fermée par une
+        copie qui ne lui correspond pas (``OFFRE-FIN-L01``, modèle FID
+        ``Model_offre_technique_FID.docx``).
+
+        Une copie sans modèle consigné, ou dont le modèle a disparu du
+        registre, reste considérée comme valable : on ne rouvre pas la
+        génération sur une copie dont on ignore l'origine.
+        """
+        modele_id = (document.doc_metadata or {}).get("modele_document_id")
+        if not modele_id:
+            return True
+        try:
+            modele = self.obtenir_modele(sujet.organisation_id, UUID(str(modele_id)))
+        except (NotFoundError, ValueError):
+            return True
+        candidats = self._types_modele_de_l_objet(sujet)
+        if not candidats:
+            return True
+        return str(modele.type_document) in candidats
+
+    def _types_modele_de_l_objet(self, sujet: _Sujet) -> tuple[str, ...]:
+        """Types de modèle candidats pour cet objet, du plus précis au plus large.
+
+        C'est **le type de l'offre** qui commande : le modèle technique déposé
+        par le client ne couvre pas l'offre financière du même lot, et
+        réciproquement. Le vocabulaire du registre accepte le type nu
+        (``offre_technique``), sa forme préfixée (``modele_offre_technique``),
+        la variante ``modele_offre_<type>`` (``modele_offre_autre``) puis le
+        générique ``offre`` / ``modele_offre``, qui vaut pour toute offre.
+
+        Hors offre, aucun candidat : la résolution reste celle de
+        l'appelant (un seul modèle du registre, ou une liste à trancher).
+        """
+        if not isinstance(sujet.objet, Offre):
+            return ()
+        type_offre = str(sujet.objet.type)
+        variantes = [type_offre, f"modele_{type_offre}"]
+        if not type_offre.startswith("offre_"):
+            # Type d'offre « autre » : le registre le nomme ``modele_offre_autre``.
+            variantes.append(f"modele_offre_{type_offre}")
+        variantes.extend((_TYPE_MODELE_GENERIQUE, f"modele_{_TYPE_MODELE_GENERIQUE}"))
+        return tuple(dict.fromkeys(variantes))
+
+    def _modeles_applicables(self, sujet: _Sujet) -> list[dict[str, Any]]:
+        """Modèles du registre qui couvrent **réellement** cet objet.
+
+        Le type filtre la liste : un ``modele_offre_technique`` n'est pas
+        applicable à une offre financière, même s'il est le seul du registre.
+        Sans ce filtre, un modèle déposé pour un autre type d'offre bloquait la
+        génération de l'offre demandée et invitait à copier un gabarit qui ne
+        lui correspond pas (constaté sur ``OFFRE-FIN-L01`` : le modèle technique
+        du FID fermait l'offre financière).
+
+        Mêmes types candidats que :meth:`modele_pour_sujet` (un seul endroit à
+        corriger) et même résolution ``find_active`` (un gabarit supprimé est
+        écarté). Un registre sans modèle applicable donne une liste vide : la
         génération libre reste alors ouverte.
         """
-        try:
-            modele = self.modele_pour_sujet(sujet)
-        except ValidationError as erreur:
-            return list((erreur.details or {}).get("modeles") or [])
-        if modele is None:
-            return []
+        retenus: list[ModeleDocument] = []
+        vus: set[UUID] = set()
+        for candidat in self._types_modele_de_l_objet(sujet):
+            modele = self._modeles.find_active(sujet.organisation_id, candidat)
+            if modele is None or modele.id in vus:
+                continue
+            vus.add(modele.id)
+            retenus.append(modele)
         return [
             {
                 "modele_id": str(modele.id),
@@ -764,6 +816,7 @@ class MoteurDocumentaireService:
                 "type_document": modele.type_document,
                 "version": modele.version,
             }
+            for modele in retenus
         ]
 
     def document_de_travail(self, ancre: str, entity_id: UUID) -> tuple[_Sujet, Document]:
@@ -1287,9 +1340,35 @@ class MoteurDocumentaireService:
         return organisation.nom if organisation is not None else str(organisation_id)
 
     def _document_nomme(self, sujet: _Sujet, nom: str) -> Document | None:
-        """Document de travail actif portant ce nom : la version la plus récente."""
-        versions = self._versions(sujet, nom)
-        return versions[0] if versions else None
+        """Copie de travail **lisible** portant ce nom, la plus récente.
+
+        Une fiche sans fichier n'est pas une copie de travail : elle ne peut
+        être ni lue ni éditée. Ce cas se produit quand le dépôt du livrable a
+        enregistré la fiche sans écrire les octets (incident constaté : deux
+        copies homonymes sur une même offre, l'une sans fichier). La retenir
+        ferait échouer toute édition suivante — et la copie qui porte vraiment
+        le modèle resterait inutilisée alors qu'elle existe.
+
+        On retient donc la version la plus récente dont le fichier est présent,
+        et ``None`` s'il n'y en a aucune : l'appelant recopie le modèle.
+        """
+        for candidat in self._versions(sujet, nom):
+            try:
+                self._documents.telecharger(candidat.id)
+            except Exception:  # noqa: BLE001 - fiche orpheline : on essaie la suivante
+                continue
+            return candidat
+        return None
+
+    def _copie_fantome(self, sujet: _Sujet, nom: str) -> list[Document]:
+        """Fiches homonymes dont le fichier manque (diagnostic, jamais éditées)."""
+        orphelines: list[Document] = []
+        for candidat in self._versions(sujet, nom):
+            try:
+                self._documents.telecharger(candidat.id)
+            except Exception:  # noqa: BLE001
+                orphelines.append(candidat)
+        return orphelines
 
     def _nom_travail(self, sujet: _Sujet, nom_fichier: str | None = None) -> str:
         """Nom **déterministe** de la copie de travail d'un objet."""

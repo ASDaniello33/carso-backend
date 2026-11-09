@@ -157,6 +157,66 @@ class AgentCatalogueItem(BaseModel):
     hitl_scenarios: list[HitlScenarioItem] = []
 
 
+# --- Catalogue des fournisseurs et modèles d'IA -----------------------------
+
+
+class ModeleIACreate(BaseModel):
+    """Modèles à enregistrer chez un fournisseur.
+
+    Liste : la découverte en renvoie plusieurs d'un coup, et l'administrateur
+    coche ceux qu'il garde. Les doublons sont ignorés (aucune erreur).
+    """
+
+    modeles: list[str] = Field(min_length=1, max_length=200)
+
+
+class FournisseurIACreate(BaseModel):
+    """Nouvelle connexion de fournisseur (la clé est en écriture seule)."""
+
+    nom: str = Field(min_length=1, max_length=120)
+    protocole: str = Field(min_length=1, max_length=50)
+    base_url: str | None = Field(default=None, max_length=500)
+    api_key: str | None = Field(default=None, max_length=500, repr=False)
+
+
+class FournisseurIAUpdate(BaseModel):
+    """Modification d'une connexion ; la clé absente est **conservée**."""
+
+    nom: str | None = Field(default=None, max_length=120)
+    protocole: str | None = Field(default=None, max_length=50)
+    base_url: str | None = Field(default=None, max_length=500)
+    api_key: str | None = Field(default=None, max_length=500, repr=False)
+    conserver_cle: bool = True
+
+
+class ModeleIARead(BaseModel):
+    """Modèle enregistré (jamais de secret)."""
+
+    id: str
+    nom_modele: str
+    libelle: str | None = None
+    actif: bool = True
+
+
+class FournisseurIARead(BaseModel):
+    """Fournisseur et ses modèles — la clé n'est dite qu'en présence."""
+
+    id: str
+    nom: str
+    protocole: str
+    base_url: str | None = None
+    cle_enregistree: bool = False
+    actif: bool = True
+    modeles: list[ModeleIARead] = []
+
+
+class DecouverteModelesRead(BaseModel):
+    """Modèles proposés par le fournisseur et ceux déjà enregistrés."""
+
+    disponibles: list[str]
+    deja_enregistres: list[str] = []
+
+
 __all__ = [
     "AgentCatalogueItem",
     "AgentPersonnelRead",
@@ -167,6 +227,12 @@ __all__ = [
     "AgentRuntimeTestRead",
     "AgentRuntimeUpdate",
     "AgentRuntimeValuesRead",
+    "DecouverteModelesRead",
+    "FournisseurIACreate",
+    "FournisseurIARead",
+    "FournisseurIAUpdate",
     "HitlReponseItem",
     "HitlScenarioItem",
+    "ModeleIACreate",
+    "ModeleIARead",
 ]

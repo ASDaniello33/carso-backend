@@ -82,6 +82,12 @@ NOMS_TOOLS: tuple[str, ...] = (
     "lire_element_document",
     # Vision : un scan de tableau se lit dans l'image, pas dans un texte absent.
     "lire_image",
+    # Gestion documentaire (INC-145) : les deux tools sont montés par
+    # ``tools_documents_pour`` et déclarés au contrat — oubliés ici, ils
+    # sortaient du périmètre annoncé par ce module. La suppression reste sous
+    # validation humaine (``approval_required`` du contrat).
+    "renommer_document",
+    "supprimer_document",
     # Rapport/synthèse : livrable déposé en proposition (aucune donnée modifiée).
     # Livrable : document libre en HTML, ou thème CARSO — toujours ``proposed``.
     "generer_document",

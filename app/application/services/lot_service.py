@@ -32,6 +32,12 @@ from app.infrastructure.repositories import (
 
 _ENTITY = "lot"
 
+#: Champs texte dont une valeur **vidée** est un effacement explicite (la donnée
+#: redevient nulle) au lieu d'être ignorée comme un champ non fourni. Sans
+#: cette distinction, le PATCH partiel ne pouvait pas retirer une zone : le
+#: formulaire retirait le champ de la requête et la valeur restait en base.
+_CHAMPS_TEXTE_LIBERABLES = frozenset({"zone"})
+
 _CHAMPS = (
     "numero",
     "titre",
@@ -69,6 +75,7 @@ class LotService:
             NotFoundError: appel introuvable.
             ConflictError: ``numero`` déjà utilisé pour cet appel.
         """
+        verifier_lieu_existant(entree.lieu_id, self._session)
         if self.appels.get(entree.appel_id) is None:
             raise NotFoundError(f"Appel {entree.appel_id} introuvable")
         if self.lots.get_by_numero(entree.appel_id, entree.numero) is not None:
@@ -84,6 +91,7 @@ class LotService:
             numero=entree.numero,
             titre=entree.titre,
             zone=entree.zone,
+            lieu_id=entree.lieu_id,
             objectifs=entree.objectifs,
             resultats_attendus=entree.resultats_attendus,
             mission_description=entree.mission_description,
@@ -114,7 +122,11 @@ class LotService:
         modifie = False
         for nom in _CHAMPS:
             valeur = getattr(entree, nom)
-            if valeur is None or getattr(lot, nom) == valeur:
+            if valeur is None:
+                continue
+            if nom in _CHAMPS_TEXTE_LIBERABLES:
+                valeur = str(valeur).strip() or None
+            if getattr(lot, nom) == valeur:
                 continue
             if nom == "numero":
                 existant = self.lots.get_by_numero(lot.appel_id, valeur)

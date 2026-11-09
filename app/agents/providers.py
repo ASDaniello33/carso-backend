@@ -23,10 +23,13 @@ messages d'erreur, ni dans les logs, ni dans une ``AgentTask`` (instruction/08 �
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Protocol
 
 from app.core.config import Settings, get_settings
 from app.core.errors import CarsoError
+
+logger = logging.getLogger(__name__)
 
 SUPPORTED_PROVIDERS: frozenset[str] = frozenset({"openai", "google_genai", "openai_compatible"})
 
@@ -159,6 +162,117 @@ def is_agent_configured(settings: Settings | None = None) -> bool:
     return False
 
 
+
+def _texte_des_blocs(contenu: list[Any]) -> str:
+    """Texte d'un contenu multimodal, blocs non textuels ignorés.
+
+    Le raisonnement (``reasoning``/``thinking``) n'est jamais renvoyé au
+    fournisseur ; seuls les textes sont conservés, concaténés en une chaîne —
+    l'API compatible OpenAI refuse un contenu en tableau.
+    """
+    textes: list[str] = []
+    for bloc in contenu:
+        if isinstance(bloc, str):
+            textes.append(bloc)
+            continue
+        if not isinstance(bloc, dict):
+            continue
+        type_bloc = bloc.get("type")
+        if type_bloc in ("reasoning", "thinking", "reasoning_content"):
+            continue
+        valeur = bloc.get("text")
+        if not isinstance(valeur, str):
+            valeur = bloc.get("content") if isinstance(bloc.get("content"), str) else None
+        if isinstance(valeur, str):
+            textes.append(valeur)
+    return "".join(textes)
+
+
+def _a_des_images(contenu: Any) -> bool:
+    """Vrai si un contenu porte un bloc image."""
+    return isinstance(contenu, list) and any(
+        isinstance(bloc, dict) and bloc.get("type") in ("image_url", "image")
+        for bloc in contenu
+    )
+
+
+def _contenu_sans_raisonnement(contenu: list[Any]) -> list[Any] | None:
+    """Contenu multimodal conservé, débarrassé des blocs de raisonnement.
+
+    Le raisonnement rejoué faisait répondre le modèle deux fois
+    (``docs/validation/INC-140-MODE-RAISONNEMENT.md``) ; les images, elles, sont
+    la raison d'être du contenu en tableau et doivent rester en place.
+
+    Returns:
+        Le contenu nettoyé, ou ``None`` s'il ne reste rien d'exploitable (auquel
+        cas l'appelant retombe sur le texte).
+    """
+    types_ignores = ("reasoning", "thinking", "reasoning_content")
+    gardes = [
+        bloc
+        for bloc in contenu
+        if not (isinstance(bloc, dict) and bloc.get("type") in types_ignores)
+    ]
+    return gardes or None
+
+
+#: Classes dérivées déjà construites, par classe de base : une sous-classe par
+#: provider réellement importé, créée une seule fois par processus.
+_CLASSES_NORMALISEES: dict[str, type] = {}
+
+
+def _classe_contenu_texte(chat_openai: Any) -> type:
+    """``ChatOpenAI`` qui retire le raisonnement rejoué sans perdre les images.
+
+    Les passerelles compatibles OpenAI (logfare, vLLM…) refusent un contenu en
+    tableau **porteur de blocs de raisonnement** : ``messages[].content`` partait
+    alors en tableau et la passerelle répondait ``Expected string, received
+    array`` — run en erreur (``docs/validation/INC-140-MODE-RAISONNEMENT.md``).
+
+    Depuis le 09/11, la règle est plus fine : un contenu **avec image** reste un
+    tableau (les blocs de raisonnement seuls sont retirés) — aplatir en chaîne
+    supprimait l'image, et ``lire_image`` annonçait alors une vision que le
+    modèle n'avait pas. Un contenu **sans image** est aplati en chaîne, comme
+    avant : c'est la forme que ces passerelles acceptent.
+
+    Le raisonnement n'est **ni demandé ni interprété** : le paramètre
+    ``reasoning`` faisait répondre le modèle deux fois sur un même message
+    (une salutation, puis une seconde réponse après un appel d'outil), sur tous
+    les agents. Voir ``docs/validation/INC-142-RAISONNEMENT-MASQUE.md`` §6.
+    """
+    base = chat_openai.ChatOpenAI
+    cle = f"{base.__module__}.{base.__qualname__}"
+    existante = _CLASSES_NORMALISEES.get(cle)
+    if existante is not None:
+        return existante
+
+    class ModeleContenuTexte(base):
+        def _get_request_payload(self, input_, *, stop=None, **kwargs):
+            payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+            messages = payload.get("messages")
+            if isinstance(messages, list):
+                for message in messages:
+                    if not isinstance(message, dict):
+                        continue
+                    contenu = message.get("content")
+                    if not isinstance(contenu, list):
+                        continue
+                    if _a_des_images(contenu):
+                        # Tableau conservé : l'image est le motif du contenu
+                        # multimodal. Seuls les blocs de raisonnement partent.
+                        nettoye = _contenu_sans_raisonnement(contenu)
+                        if nettoye is None:
+                            message["content"] = _texte_des_blocs(contenu)
+                        else:
+                            message["content"] = nettoye
+                        continue
+                    message["content"] = _texte_des_blocs(contenu)
+            return payload
+
+    _CLASSES_NORMALISEES[cle] = ModeleContenuTexte
+    return ModeleContenuTexte
+
+
 def build_chat_model(
     settings: Settings | None = None,
     *,
@@ -250,11 +364,12 @@ def _client_httpx(verifier_ssl: bool, *, asynchrone: bool = False) -> Any:
 
 def _build_openai(settings: Settings, *, model: str, api_key: str | None) -> Any:
     chat_openai = _require_package("langchain_openai", paquet="langchain-openai")
+    classe = _classe_contenu_texte(chat_openai)
     # max_retries=2 : les agrégateurs renvoient parfois un flux SSE tronqué ou
     # non-JSON (JSONDecodeError dans openai._streaming) — un incident réseau, pas
     # une erreur métier. Le SDK OpenAI retente alors (2 essais, backoff expo),
     # ce qui résorbe la plupart de ces micro-coupures avant d'exposer l'utilisateur.
-    return chat_openai.ChatOpenAI(
+    modele = classe(
         max_retries=2,
         model=model,
         api_key=api_key,
@@ -269,6 +384,7 @@ def _build_openai(settings: Settings, *, model: str, api_key: str | None) -> Any
         http_client=_client_httpx(settings.agent_ssl_verify),
         http_async_client=_client_httpx(settings.agent_ssl_verify, asynchrone=True),
     )
+    return modele
 
 
 def _build_openai_compatible(settings: Settings, *, model: str, api_key: str | None) -> Any:
@@ -281,10 +397,11 @@ def _build_openai_compatible(settings: Settings, *, model: str, api_key: str | N
         raise AgentConfigurationError(msg)
 
     chat_openai = _require_package("langchain_openai", paquet="langchain-openai")
+    classe = _classe_contenu_texte(chat_openai)
     # Même justification que _build_openai : les passerelles compatibles OpenAI
     # coupent parfois le flux SSE en cours de réponse (JSONDecodeError côté SDK) —
     # 2 tentatives réseau absorbent l'incident sans exposer l'utilisateur.
-    return chat_openai.ChatOpenAI(
+    modele = classe(
         max_retries=2,
         model=model,
         base_url=settings.agent_base_url,
@@ -300,6 +417,7 @@ def _build_openai_compatible(settings: Settings, *, model: str, api_key: str | N
         http_client=_client_httpx(settings.agent_ssl_verify),
         http_async_client=_client_httpx(settings.agent_ssl_verify, asynchrone=True),
     )
+    return modele
 
 
 def _build_google_genai(settings: Settings, *, model: str, api_key: str | None) -> Any:

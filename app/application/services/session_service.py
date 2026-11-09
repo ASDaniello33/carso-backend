@@ -9,6 +9,11 @@ Règles appliquées :
 - ``en_cours`` (jour J) et ``cloture`` (fin dépassée) sont appliqués **par le
   balayage de cycle de vie**, jamais saisis : ce service ne propose que la
   confirmation et l'annulation ;
+- **les dates d'une session suivent celles de sa mission** (ADR 0015) : la
+  mission les reporte à chaque modification de ses dates ; les changer
+  directement ici est refusé tant que la session porte encore exactement le
+  calendrier de sa mission datée — le calendrier a une seule source : la
+  mission ;
 - annuler une session **annule aussi sa mission** (et réciproquement,
   ``MissionService.annuler``) : l'exécution et sa préparation ne peuvent pas
   diverger ;
@@ -245,11 +250,50 @@ class SessionService:
         absent (``None``) n'est pas appliqué — le formulaire d'interface envoie
         seulement ce qui a changé.
 
+        Les dates ne se changent que si la mission a **déjà** les siennes
+        modifiées (ADR 0015) : la mission reporte ses dates sur la session,
+        jamais l'inverse — sinon le calendrier aurait deux sources qui se
+        contredisent. Le refus vise la session qui porte encore exactement le
+        calendrier de sa **mission datée** ; une session décalée de sa mission
+        (correction historique) ou une mission sans dates redeviennent
+        modifiables ici.
+
         Raises:
-            ValidationError: aucune modification fournie.
+            ValidationError: aucune modification fournie ; dates modifiées
+                alors qu'elles sont encore exactement celles de la mission.
         """
         self._perimetre.exiger_complet("modifier une session")
         session_formation = self._get(session_id)
+        dates_modifiees = (
+            entree.date_debut is not None
+            and entree.date_debut != session_formation.date_debut
+        ) or (
+            entree.date_fin is not None
+            and entree.date_fin != session_formation.date_fin
+        )
+        if dates_modifiees:
+            mission = self.missions.get(session_formation.mission_id)
+            if (
+                mission is not None
+                and mission.date_debut is not None
+                and mission.date_fin is not None
+                and mission.date_debut == session_formation.date_debut
+                and mission.date_fin == session_formation.date_fin
+            ):
+                raise ValidationError(
+                    "Les dates de la session suivent celles de sa mission : "
+                    "modifiez d'abord la mission, elle reportera ses dates ici.",
+                    details={
+                        "session_id": str(session_id),
+                        "mission_id": str(session_formation.mission_id),
+                        "date_debut_mission": (
+                            str(mission.date_debut) if mission.date_debut else None
+                        ),
+                        "date_fin_mission": (
+                            str(mission.date_fin) if mission.date_fin else None
+                        ),
+                    },
+                )
         modifie = False
         for nom in ("theme", "date_debut", "date_fin", "lieu"):
             valeur = getattr(entree, nom)

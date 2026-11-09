@@ -71,9 +71,10 @@ def _offre_financiere(api_client: TestClient, lot: Lot) -> UUID:
 
 
 def _budget(api_client: TestClient, offre_id: UUID) -> dict[str, object]:
-    reponse = api_client.post(
-        f"{PRÉFIXE}/budgets", json={"offre_id": str(offre_id), "devise": "MAD"}
-    )
+    # Devise volontairement omise : le défaut du serveur (ariary) est vérifié
+    # par ``test_devise_par_defaut_mga`` ; les autres tests ne doivent pas
+    # dépendre d'un code devise particulier.
+    reponse = api_client.post(f"{PRÉFIXE}/budgets", json={"offre_id": str(offre_id)})
     assert reponse.status_code == 201, reponse.text
     return reponse.json()
 
@@ -144,6 +145,35 @@ def test_creer_budget_et_calculer_le_total(api_client: TestClient, contexte) -> 
     liste = api_client.get(f"{PRÉFIXE}/budgets", params={"offre_id": str(contexte["offre_id"])})
     assert liste.status_code == 200
     assert liste.json()[0]["nb_lignes"] == 2
+
+
+def test_devise_par_defaut_mga(api_client: TestClient, contexte) -> None:
+    """Un budget créé sans devise naît en ariary (devise de travail de CARSO).
+
+    Le défaut était ``MAD`` (dirham marocain) par héritage du prototype : un
+    budget non renseigné sortait donc dans une monnaie qui n'est pas celle de
+    l'organisation. Le défaut est vérifié ici à la frontière HTTP, pas seulement
+    dans le service.
+    """
+    budget = _budget(api_client, contexte["offre_id"])
+    assert budget["devise"] == "MGA"
+
+    detail = api_client.get(f"{PRÉFIXE}/budgets/{budget['budget_id']}")
+    assert detail.status_code == 200
+    assert detail.json()["devise"] == "MGA"
+
+    liste = api_client.get(f"{PRÉFIXE}/budgets", params={"offre_id": str(contexte["offre_id"])})
+    assert liste.json()[0]["devise"] == "MGA"
+
+
+def test_devise_explicite_est_respectee(api_client: TestClient, contexte) -> None:
+    """Une devise fournie reste prioritaire : le défaut ne réécrit pas un choix."""
+    reponse = api_client.post(
+        f"{PRÉFIXE}/budgets",
+        json={"offre_id": str(contexte["offre_id"]), "devise": "EUR"},
+    )
+    assert reponse.status_code == 201, reponse.text
+    assert reponse.json()["devise"] == "EUR"
 
 
 def test_cout_total_envoye_par_le_client_est_ignore(api_client: TestClient, contexte) -> None:

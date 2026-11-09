@@ -79,6 +79,8 @@ __all__ = [
     "ListerModelesDocumentsInput",
     "ObtenirStructureModeleInput",
     "CopierModeleDocumentInput",
+    "RenommerDocumentInput",
+    "SupprimerDocumentInput",
     "ObtenirStructureDocumentInput",
     "ModeleSegmentTexte",
     "RemplacerElementModeleInput",
@@ -1454,6 +1456,38 @@ class CopierModeleDocumentInput(BaseModel):
     nom_fichier: str | None = Field(
         default=None,
         description="Nom du fichier de travail (sinon 'modele-<référence>.docx').",
+    )
+
+
+class RenommerDocumentInput(BaseModel):
+    """Renommage d'un document existant — jamais de régénération du contenu."""
+
+    document_id: UUID = Field(description="Identifiant du document à renommer.")
+    nom: str = Field(
+        min_length=1,
+        max_length=255,
+        description=(
+            "Nouveau nom, **avec son extension** ('.docx', '.pdf'…) : elle est "
+            "exigée par le stockage et le rendu."
+        ),
+    )
+
+
+class SupprimerDocumentInput(BaseModel):
+    """Suppression d'un document (corbeille), après validation humaine.
+
+    L'appel est suspendu par l'interruption HITL : le document n'est supprimé
+    qu'après l'accord explicite de l'utilisateur.
+    """
+
+    document_id: UUID = Field(description="Identifiant du document à supprimer.")
+    motif: str = Field(
+        min_length=3,
+        max_length=500,
+        description=(
+            "Raison de la suppression, conservée dans l'audit et affichée dans "
+            "la corbeille. Décrire le besoin de l'utilisateur, pas une supposition."
+        ),
     )
 
 
@@ -3391,15 +3425,25 @@ def build_document_tools(
         return sortie
 
     def _lire_image(payload: dict[str, Any]) -> dict[str, Any]:
-        """Rend une image **visible** au modèle (bloc ``image_url``).
+        """Rend une image **visible** au modèle et renvoie son contenu base64.
 
         Le texte ne suffit pas : un scan, une capture ou un schéma n'ont pas
         d'extraction fiable. L'image est lue par le service documentaire (donc
         bornée au périmètre du compte), réduite si nécessaire, puis renvoyée
         dans le résultat du tool — le pont LangChain la transforme en contenu
         multimodal (``app/tools/base``).
+
+        **Toujours actif** (constat 09/11) : l'outil ne refuse plus quand
+        ``AGENT_VISION=false``. Il rend l'image et sa valeur base64 dans
+        ``images[]``, et joint dans ``vision_activee``/``message`` la vérité sur
+        ce qui est réellement transmis. Un refus dur privait l'utilisateur de
+        l'image alors que le contenu est disponible et borné au compte ; le
+        mensonge silencieux, lui, est écarté par le message. Le base64 ne
+        voyage jamais en texte JSON — il part en bloc ``image_url``, sinon il
+        consommerait des centaines de milliers de tokens.
         """
         policy.require(identite.agent_id, "document_read")
+        from app.core.config import get_settings
         from app.documents.images import preparer_image
 
         document_id = _uuid(payload["document_id"], "document_id")
@@ -3414,6 +3458,25 @@ def build_document_tools(
             )
         _nom_fichier, chemin = service.telecharger(document_id)
         image = preparer_image(chemin, mime_type=mime)
+        # Déclaratif, jamais deviné : le provider peut accepter la requête et
+        # ignorer l'image (constat du 08/11, carré rouge décrit « Inconnue »).
+        vision_activee = get_settings().agent_vision
+        message = (
+            "Image fournie pour observation directe : décris ce que tu "
+            "vois et lis ce qui est réellement lisible. Une valeur floue "
+            "se signale comme incertaine, elle ne se devine pas."
+        )
+        if image.transformee:
+            message += " L'image a été réduite : un petit texte peut avoir perdu en netteté."
+        if not vision_activee:
+            message += (
+                " Attention : la vision du modèle est désactivée "
+                "(AGENT_VISION=false). L'image et sa valeur base64 sont "
+                "fournies, mais tu ne peux pas te fier à ce que tu crois "
+                "voir : ne décris jamais son contenu de mémoire, et indique "
+                "à l'utilisateur que la lecture visuelle demande un modèle "
+                "multimodal avec AGENT_VISION=true."
+            )
         return {
             "document_id": str(document.id),
             "nom": document.nom,
@@ -3423,17 +3486,8 @@ def build_document_tools(
             "hauteur": image.hauteur,
             "taille_octets": image.octets,
             "reduite": image.transformee,
-            "message": (
-                "Image fournie pour observation directe : décris ce que tu "
-                "vois et lis ce qui est réellement lisible. Une valeur floue "
-                "se signale comme incertaine, elle ne se devine pas."
-                + (
-                    " L'image a été réduite : un petit texte peut avoir perdu "
-                    "en netteté."
-                    if image.transformee
-                    else ""
-                )
-            ),
+            "vision_activee": vision_activee,
+            "message": message,
             "images": [
                 {
                     "mime": image.mime_type,
@@ -3967,6 +4021,65 @@ def build_document_tools(
         return moteur.structure_document(
             str(payload["ancre"]), _uuid(payload["entity_id"], "entity_id")
         )
+
+    def _renommer(payload: dict[str, Any]) -> dict[str, Any]:
+        """Renomme un document : métadonnées seulement, contenu intact.
+
+        Le contenu ne passe jamais par ici — `modifier_metadonnees` ne touche
+        que la fiche. Un document à plusieurs versions est refusé par le service
+        (le nom est la clé de l'historique) : l'erreur remonte telle quelle.
+        """
+        policy.require(identite.agent_id, "document_propose")
+        from app.application.dto import DocumentMetadonneesUpdateInput
+
+        document_id = _uuid(payload["document_id"], "document_id")
+        service = service_factory()
+        document = service.modifier_metadonnees(
+            document_id, DocumentMetadonneesUpdateInput(nom=payload["nom"])
+        )
+        return {
+            "document_id": str(document.id),
+            "nom": document.nom,
+            "type_document": document.type_document,
+            "version": document.version,
+            "statut": document.statut,
+            "message": (
+                "Document renommé : seul son nom a changé. Contenu, version, "
+                "statut et rattachements sont ceux d'avant."
+            ),
+        }
+
+    def _supprimer(payload: dict[str, Any]) -> dict[str, Any]:
+        """Supprime un document (corbeille), décision humaine déjà requise.
+
+        L'interruption HITL (``approval_required``) a lieu **avant** l'appel :
+        ici, l'accord est acquis. ``decided_by`` porte le compte à l'origine de
+        la demande quand il est connu (contexte AG-UI), sinon l'agent — l'audit
+        ne prétend jamais qu'un humain a cliqué.
+        """
+        policy.require(identite.agent_id, "document_propose")
+        from app.application.dto import DecisionInput
+        from app.application.trace import demande_par_effectif
+
+        document_id = _uuid(payload["document_id"], "document_id")
+        service = service_factory()
+        document = service.obtenir(document_id)
+        decideur = demande_par_effectif() or f"agent:{identite.agent_id}"
+        retires = service.supprimer_document(
+            document_id,
+            DecisionInput(decided_by=decideur, reason=payload["motif"]),
+        )
+        return {
+            "document_id": str(document_id),
+            "nom": document.nom,
+            "type_document": document.type_document,
+            "fichiers_retires": retires,
+            "suppression": "corbeille",
+            "message": (
+                "Document placé dans la corbeille : le fichier est retiré, la "
+                "fiche reste, et la restauration demeure possible."
+            ),
+        }
 
     def _remplacer_element(payload: dict[str, Any]) -> dict[str, Any]:
         """Remplace le texte d'un ou plusieurs éléments : une seule version."""
@@ -4557,9 +4670,12 @@ def build_document_tools(
                 "schéma, plan, scan. À utiliser dès qu'un document à lire est "
                 "une image — ``lire_document`` ne rend qu'un texte, et une "
                 "image n'en a pas. "
-                "Le retour porte la fiche (nom, dimensions) et l'image "
-                "elle-même ; décris ce que tu observes et cite ce que tu lis "
-                "vraiment (ne devine jamais un chiffre flou : dis qu'il l'est). "
+                "Le retour porte la fiche (nom, dimensions), l'image "
+                "elle-même et sa valeur ``base64`` ; décris ce que tu observes "
+                "et cite ce que tu lis vraiment (ne devine jamais un chiffre "
+                "flou : dis qu'il l'est). L'outil reste actif même quand la "
+                "vision du modèle est désactivée : ``vision_activee`` dit alors "
+                "la vérité, et tu ne décris pas une image que tu ne vois pas. "
                 "Lecture seule, aucun chemin disque."
             ),
             handler=_lire_image,
@@ -4684,6 +4800,41 @@ def build_document_tools(
             handler=_copier_modele,
             input_schema=CopierModeleDocumentInput,
             tags=("documents", "generation", "modele"),
+        ),
+        TypedTool(
+            name="renommer_document",
+            description=(
+                "Renomme un document existant **sans le régénérer** : seuls le nom "
+                "et la fiche changent — contenu, version et rattachements sont "
+                "préservés. Le nom porte son extension ('.docx', '.pdf'…), exigée "
+                "par le stockage. **Ne renomme JAMAIS la copie de travail d'un "
+                "modèle** (`copier_modele_document`) : l'édition retrouve cette "
+                "copie par son nom déterministe `modele-<référence>.docx`, et la "
+                "renommer la rend introuvable (`remplir_modele`, "
+                "`obtenir_structure_document` et `remplacer_element_model` "
+                "échouent alors). Pour changer le nom du **livrable final**, "
+                "copier le fichier sous un autre nom une fois le contenu terminé. "
+                "Refusé sur un document à plusieurs versions (le nom est la clé de "
+                "l'historique) : le message indique alors la sortie."
+            ),
+            handler=_renommer,
+            input_schema=RenommerDocumentInput,
+            tags=("documents", "generation"),
+        ),
+        TypedTool(
+            name="supprimer_document",
+            description=(
+                "Demande la suppression d'un document : mise à la **corbeille** "
+                "(fichier retiré, fiche conservée, restauration possible). "
+                "**Validation humaine obligatoire** : l'appel est suspendu et "
+                "l'utilisateur approuve ou refuse ; sans accord, le document reste "
+                "intact. `motif` est conservé dans l'audit et la corbeille. Ne "
+                "jamais supprimer de sa propre initiative : proposer, l'utilisateur "
+                "décide."
+            ),
+            handler=_supprimer,
+            input_schema=SupprimerDocumentInput,
+            tags=("documents", "suppression"),
         ),
         TypedTool(
             name="obtenir_structure_document",

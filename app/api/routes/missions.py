@@ -280,10 +280,11 @@ def update_mission(
     """Modification partielle d'une mission : titre, description, lieu, dates.
 
     Les offres rattachées ne bougent jamais : elles sont la réponse à un
-    ``Appel + Lot``, une autre mission est une autre mission. Les dates ne
-    se changent qu'en ``en_planification`` (contrôle du service) — la
-    planification les exige, une mission née sans elles doit les recevoir.
-    L'audit est attribué à l'humain — le tool d'agent, lui, trace ``AGENT``.
+    ``Appel + Lot``, une autre mission est une autre mission. Les dates se
+    changent à tout état vivant (contrôle du service) : la session existante
+    les reçoit dans la même transaction et les statuts se réalignent sur le
+    nouveau calendrier (ADR 0015). L'audit est attribué à l'humain — le tool
+    d'agent, lui, trace ``AGENT``.
     """
     return MissionService(session, actor_id=str(utilisateur.id)).modifier(
         mission_id,

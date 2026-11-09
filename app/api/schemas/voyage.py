@@ -24,6 +24,13 @@ class LieuTrouveRead(BaseModel):
     longitude: float
     osm_type: str | None = None
     osm_id: int | None = None
+    #: Granularité Photon : house, street, locality, district, city, county,
+    #: state, country, other.
+    type: str | None = None
+    #: Étiquette OSM (``amenity=hospital``, ``tourism=hotel``…) : c'est elle
+    #: qui distingue un hôtel d'une ville sans interpréter le nom affiché.
+    osm_key: str | None = None
+    osm_value: str | None = None
     libelle: str
 
 

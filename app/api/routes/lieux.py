@@ -65,7 +65,19 @@ def rechercher_lieu(
         max_length=200,
         description="Nom ou adresse (API Photon, appelée par le backend).",
     ),
-    limite: int = Query(default=5, ge=1, le=10),
+    limite: int = Query(default=8, ge=1, le=10),
+    lat: float | None = Query(
+        default=None,
+        ge=-90,
+        le=90,
+        description="Latitude de référence : privilégie les résultats proches.",
+    ),
+    lon: float | None = Query(
+        default=None,
+        ge=-180,
+        le=180,
+        description="Longitude de référence (va avec ``lat``).",
+    ),
 ) -> list[LieuTrouveRead]:
     """Suggère des lieux (nom, adresse, position) pour préremplir le formulaire.
 
@@ -79,8 +91,11 @@ def rechercher_lieu(
     cfg = get_settings()
     from app.geo.photon import RechercheLieux
 
+    # Le biais de proximité est une **aide**, pas une règle métier : sans la
+    # paire complète, il est ignoré (une coordonnée seule ne désigne aucun
+    # point) et la recherche reste mondiale.
     results = RechercheLieux(cfg.photon_base_url, timeout_s=cfg.photon_timeout_s).chercher(
-        q, limite=limite
+        q, limite=limite, latitude=lat, longitude=lon
     )
     return [
         LieuTrouveRead(
@@ -92,6 +107,9 @@ def rechercher_lieu(
             longitude=trouve.longitude,
             osm_type=trouve.osm_type,
             osm_id=trouve.osm_id,
+            type=trouve.type,
+            osm_key=trouve.osm_key,
+            osm_value=trouve.osm_value,
             libelle=trouve.libelle,
         )
         for trouve in results

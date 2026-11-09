@@ -105,11 +105,26 @@ _GESTES_HUMAINS = re.compile(
     r"|supprimer|purger|corbeille"
 )
 
+#: `supprimer_document` (INC-145) porte bien le mot « supprimer », mais il ne
+#: vise rien du cycle de vie mission/session : il met un **document** à la
+#: corbeille, geste réversible. L'exemption n'est acceptée qu'accompagnée de sa
+#: garde : la validation humaine reste obligatoire (vérifié plus bas).
+_EXEMPTE_CYCLE_DE_VIE = frozenset({"supprimer_document"})
+
 
 def test_aucun_agent_ne_porte_un_tool_de_cycle_de_vie() -> None:
     """Créer/planifier/annuler une mission ou une session n'est pas un tool."""
     for definition in AGENT_DEFINITIONS:
         for nom in definition.tools:
+            if nom in _EXEMPTE_CYCLE_DE_VIE:
+                # La suppression documentaire reste sous décision humaine : sans
+                # cette garde, l'exemption rouvrirait la porte à un vrai geste
+                # de cycle de vie déguisé en tool documentaire.
+                assert nom in definition.approval_required, (
+                    f"{definition.agent_id}: {nom!r} exempté du motif mais hors "
+                    "HITL — la suppression doit rester une décision humaine"
+                )
+                continue
             assert not _GESTES_HUMAINS.search(nom), (
                 f"{definition.agent_id}: le tool {nom!r} touche un geste "
                 "réservé à la décision humaine (cycle de vie mission/session)"
@@ -160,11 +175,23 @@ def test_agents_lecture_seule_n_ont_aucun_outil_de_mutation() -> None:
                 "composer_image",
                 "verifier_image_svg",
                 "importer_tableau_xlsx",
+                # INC-145 : renommer ne touche que le nom (contenu, version,
+                # statut intacts) ; supprimer met à la corbeille. Ce second geste
+                # n'est admis ici que parce que la validation humaine est
+                # vérifiée juste après — sinon un agent lecture seule pourrait
+                # retirer un document sans décision.
+                "renommer_document",
+                "supprimer_document",
             )
             assert autorise, (
                 f"{definition.agent_id}: le tool {nom!r} n'est pas de la "
                 "lecture — un agent lecture seule ne doit pas l'avoir"
             )
+        # La suppression reste une décision humaine, jamais un geste d'agent
+        # silencieux : l'exception ci-dessus ne tient qu'à cette condition.
+        assert "supprimer_document" in definition.approval_required, (
+            f"{definition.agent_id}: supprimer_document doit être sous HITL"
+        )
         # Le livrable reste une proposition : la capacité est ``propose``,
         # jamais une approbation.
         assert "document_propose" in definition.capabilities
@@ -174,10 +201,11 @@ def test_agents_lecture_seule_n_ont_aucun_outil_de_mutation() -> None:
 def test_agent_personnel_ne_porte_que_des_documents_en_proposition() -> None:
     """Agent personnel : livrables ``proposed`` et script confiné, aucune mutation.
 
-    Les deux seules exceptions à la règle lecture seule sont nommées : la
-    génération/correction documentaire (statut ``proposed``, validation humaine)
-    et ``run_python_script`` (espace du compte, garde d'audit). Tout autre outil
-    hors préfixes de lecture serait une régression.
+    Les exceptions à la règle lecture seule sont nommées : génération/correction
+    documentaire et images (statut ``proposed``, validation humaine),
+    ``run_python_script`` (espace du compte) et les deux gestes documentaires
+    d'INC-145 — dont la suppression, admise sous validation humaine seulement.
+    Tout autre outil hors préfixes de lecture serait une régression.
     """
     exceptions = {
         "generer_document",
@@ -191,6 +219,10 @@ def test_agent_personnel_ne_porte_que_des_documents_en_proposition() -> None:
         "composer_image",
         "verifier_image_svg",
         "run_python_script",
+        # INC-145 : nom et corbeille d'un document existant. La suppression
+        # n'entre ici que sous validation humaine, vérifiée ci-dessous.
+        "renommer_document",
+        "supprimer_document",
     }
     for nom in PERSONNEL_DEF.tools:
         autorise = nom.startswith(_LECTURE_SEULE) or nom in exceptions
@@ -198,6 +230,10 @@ def test_agent_personnel_ne_porte_que_des_documents_en_proposition() -> None:
             f"{PERSONNEL_DEF.agent_id}: le tool {nom!r} sort du périmètre "
             "lecture seule + livrables en proposition"
         )
+    assert "supprimer_document" in PERSONNEL_DEF.approval_required, (
+        "agent_personnel: supprimer_document doit être sous HITL"
+    )
+
     assert not any(c.startswith("document_approve") for c in PERSONNEL_DEF.capabilities)
     # La surface lecture seule partagée ne doit pas se propager : le généraliste
     # et le statisticien ne reçoivent pas les livrables par effet de bord.

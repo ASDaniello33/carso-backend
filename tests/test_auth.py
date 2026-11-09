@@ -976,3 +976,212 @@ def test_reinitialisation_nouveau_mot_de_passe_identique_refuse(session: Session
         )
     # La pose a échoué : le code n'est PAS consommé — un vrai choix reste possible.
     svc.verifier_code_reinitialisation(email=user.email, code=code, settings=_settings())
+
+
+# --- Administrateur principal (BOOTSTRAP_ADMIN_EMAIL) ---------------------------
+# L'administrateur principal est celui enregistré dans le `.env` du déploiement :
+# lui seul peut désactiver, rétrograder ou supprimer un autre administrateur, et
+# aucun geste ne le vise lui-même. Les règles sont testées avec des ``Settings``
+# explicites : la suite ne dépend jamais du `.env` de la machine (conftest vide
+# BOOTSTRAP_ADMIN_EMAIL).
+
+
+def _reglages_principal(email: str = "principal@carso.ma") -> Settings:
+    return Settings(
+        _env_file=None, auth_secret="secret-test-auth-carso-32b", bootstrap_admin_email=email
+    )
+
+
+def _admin_simple(session: Session, email: str, *, statut: str = "actif") -> Utilisateur:
+    compte = Utilisateur(
+        email=email,
+        nom="Admin",
+        prenom="Simple",
+        password_hash=hasher_mot_de_passe("adminpass1"),
+        role=RoleUtilisateur.ADMINISTRATEUR.value,
+        statut=statut,
+    )
+    session.add(compte)
+    session.flush()
+    return compte
+
+
+def test_le_principal_desactive_un_autre_administrateur(session: Session) -> None:
+    principal = _admin_simple(session, "principal@carso.ma")
+    autre = _admin_simple(session, "autre.admin@carso.ma")
+    reglages = _reglages_principal()
+
+    UtilisateurService(session, settings=reglages).suspendre(autre.id, admin_id=principal.id)
+
+    assert autre.statut == StatutUtilisateur.SUSPENDU.value
+    evenement = session.scalars(
+        select(AuditEvent).where(
+            AuditEvent.action == ActionAudit.UTILISATEUR_SUSPENDU.value
+        )
+    ).one()
+    assert str(evenement.entity_id) == str(autre.id)
+
+
+def test_un_administrateur_ordinaire_ne_desactive_pas_un_confrere(session: Session) -> None:
+    principal = _admin_simple(session, "principal@carso.ma")
+    ordinaire = _admin_simple(session, "ordinaire@carso.ma")
+    cible = _admin_simple(session, "cible@carso.ma")
+    reglages = _reglages_principal()
+
+    with pytest.raises(ValidationError, match="Seul l'administrateur principal"):
+        UtilisateurService(session, settings=reglages).suspendre(
+            cible.id, admin_id=ordinaire.id
+        )
+    # Le principal n'a pas bougé non plus : le refus ne suspend rien.
+    assert cible.statut == StatutUtilisateur.ACTIF.value
+    assert principal.statut == StatutUtilisateur.ACTIF.value
+
+
+def test_le_principal_ne_se_desactive_pas(session: Session) -> None:
+    """Même protégé, le principal ne s'auto-suspend pas : message dédié."""
+    principal = _admin_simple(session, "principal@carso.ma")
+    reglages = _reglages_principal()
+
+    with pytest.raises(ValidationError, match="propre compte"):
+        UtilisateurService(session, settings=reglages).suspendre(
+            principal.id, admin_id=principal.id
+        )
+
+
+def test_personne_ne_desactive_le_principal(session: Session) -> None:
+    """Un autre administrateur ne touche pas au principal (même actif que lui)."""
+    principal = _admin_simple(session, "principal@carso.ma")
+    autre = _admin_simple(session, "autre.admin@carso.ma")
+    reglages = _reglages_principal()
+
+    with pytest.raises(ValidationError, match="administrateur principal est protégé"):
+        UtilisateurService(session, settings=reglages).suspendre(
+            principal.id, admin_id=autre.id
+        )
+
+
+def test_le_dernier_administrateur_actif_ne_se_desactive_pas(session: Session) -> None:
+    """Aucun principal déclaré : la règle historique s'applique (dernier admin)."""
+    seul = _admin_simple(session, "seul@carso.ma")
+
+    with pytest.raises(ValidationError, match="dernier compte administrateur"):
+        UtilisateurService(session, settings=_reglages_principal("")).suspendre(
+            seul.id, admin_id=uuid4()
+        )
+    assert seul.statut == StatutUtilisateur.ACTIF.value
+
+
+def test_le_dernier_administrateur_ne_se_retrograde_pas(session: Session) -> None:
+    """Rétrograder le dernier admin laisserait l'installation sans administration."""
+    seul = _admin_simple(session, "seul@carso.ma")
+
+    with pytest.raises(ValidationError, match="rétrograder le dernier"):
+        UtilisateurService(session, settings=_reglages_principal("")).changer_role(
+            seul.id, role=RoleUtilisateur.COLLABORATEUR.value, admin_id=uuid4()
+        )
+    assert seul.role == RoleUtilisateur.ADMINISTRATEUR.value
+
+
+def test_un_administrateur_non_principal_ne_retrograde_pas_un_confrere(session: Session) -> None:
+    """La règle de désactivation ne se contourne pas par un changement de rôle."""
+    _admin_simple(session, "principal@carso.ma")
+    ordinaire = _admin_simple(session, "ordinaire@carso.ma")
+    cible = _admin_simple(session, "cible@carso.ma")
+
+    with pytest.raises(ValidationError, match="Seul l'administrateur principal"):
+        UtilisateurService(session, settings=_reglages_principal()).changer_role(
+            cible.id, role=RoleUtilisateur.COLLABORATEUR.value, admin_id=ordinaire.id
+        )
+    assert cible.role == RoleUtilisateur.ADMINISTRATEUR.value
+
+
+def test_le_principal_supprime_un_autre_administrateur(session: Session) -> None:
+    principal = _admin_simple(session, "principal@carso.ma")
+    autre = _admin_simple(session, "autre.admin@carso.ma")
+    troisieme = _admin_simple(session, "troisieme@carso.ma")
+
+    UtilisateurService(session, settings=_reglages_principal()).supprimer(
+        autre.id, admin_id=principal.id
+    )
+    session.flush()
+
+    assert session.get(Utilisateur, autre.id) is None
+    assert session.get(Utilisateur, troisieme.id) is not None
+
+
+def test_le_principal_n_est_pas_supprimable(session: Session) -> None:
+    principal = _admin_simple(session, "principal@carso.ma")
+    autre = _admin_simple(session, "autre.admin@carso.ma")
+
+    with pytest.raises(ValidationError, match="administrateur principal est protégé"):
+        UtilisateurService(session, settings=_reglages_principal()).supprimer(
+            principal.id, admin_id=autre.id
+        )
+    assert session.get(Utilisateur, principal.id) is not None
+
+
+def test_un_compte_ordinaire_reste_gerable_par_tout_administrateur(session: Session) -> None:
+    """La règle « principal » ne paralyse pas la gestion des comptes ordinaires."""
+    _admin_simple(session, "principal@carso.ma")
+    ordinaire = _admin_simple(session, "ordinaire@carso.ma")
+    collaborateur = _actif(session, nom="Collegue", prenom="Ordinaire")
+    service = UtilisateurService(session, settings=_reglages_principal())
+
+    service.suspendre(collaborateur.id, admin_id=ordinaire.id)
+    assert collaborateur.statut == StatutUtilisateur.SUSPENDU.value
+
+
+def test_api_comptes_expose_le_drapeau_du_principal(
+    api_client: TestClient, api_session_factory: sessionmaker[Session]
+) -> None:
+    """L'écran administrateurs s'appuie sur ``administrateur_principal`` (jamais
+    sur l'ordre de la liste) pour désactiver les gestes refusés par le serveur."""
+    from app.api.deps import get_current_user
+
+    with api_session_factory() as preparation:
+        principal = _admin_simple(preparation, "principal@carso.ma")
+        preparation.commit()
+        principal_id = str(principal.id)
+        identite = principal
+
+    api_client.app.dependency_overrides[get_current_user] = lambda: identite
+
+    # Le service des routes lit le `.env` : on fixe la configuration attendue.
+    from app.application.services import utilisateur_service as module
+
+    original = module.get_settings
+    module.get_settings = lambda: _reglages_principal()  # type: ignore[assignment]
+    try:
+        reponse = api_client.get("/api/v1/auth/utilisateurs")
+        assert reponse.status_code == 200, reponse.text
+        drapeaux = {u["email"]: u["administrateur_principal"] for u in reponse.json()}
+        assert drapeaux["principal@carso.ma"] is True
+
+        moi = api_client.get("/api/v1/auth/me")
+        assert moi.status_code == 200, moi.text
+        assert moi.json()["administrateur_principal"] is True
+
+        refus = api_client.post(f"/api/v1/auth/utilisateurs/{principal_id}/suspension")
+        assert refus.status_code == 422, refus.text
+        assert "propre compte" in refus.json()["error"]["message"]
+    finally:
+        module.get_settings = original  # type: ignore[assignment]
+
+
+def test_reactiver_un_administrateur_suspendu_est_reserve_au_principal(
+    session: Session,
+) -> None:
+    """Réactiver un admin suspendu rendrait vaine la décision du principal."""
+    principal = _admin_simple(session, "principal@carso.ma")
+    ordinaire = _admin_simple(session, "ordinaire@carso.ma")
+    suspendu = _admin_simple(session, "suspendu@carso.ma", statut="suspendu")
+    reglages = _reglages_principal()
+
+    with pytest.raises(ValidationError, match="Seul l'administrateur principal"):
+        UtilisateurService(session, settings=reglages).activer(
+            suspendu.id, admin_id=ordinaire.id
+        )
+    assert suspendu.statut == StatutUtilisateur.SUSPENDU.value
+
+    UtilisateurService(session, settings=reglages).activer(suspendu.id, admin_id=principal.id)
+    assert suspendu.statut == StatutUtilisateur.ACTIF.value

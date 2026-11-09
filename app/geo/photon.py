@@ -37,6 +37,16 @@ class LieuTrouve:
     #: Référence OSM de la source (traçabilité : d'où vient cette position).
     osm_type: str | None
     osm_id: int | None
+    #: Granularité Photon du résultat : house, street, locality, district,
+    #: city, county, state, country, other. Sert à nommer la suggestion
+    #: ("Ville", "Quartier", "Adresse") sans deviner.
+    type: str | None = None
+    #: Étiquette OSM (``amenity=hospital``, ``tourism=hotel``, ``office=ngo``,
+    #: ``boundary=national_park``…). C'est elle qui dit qu'un résultat est un
+    #: hôtel, un hôpital ou une entreprise — Photon ne rend pas de catégorie
+    #: plus parlante, et l'interface ne doit pas interpréter le nom.
+    osm_key: str | None = None
+    osm_value: str | None = None
 
     @property
     def libelle(self) -> str:
@@ -54,12 +64,16 @@ def _texte(valeur: object) -> str | None:
     return valeur.strip()
 
 
-def _construire_adresse(proprietes: dict) -> str | None:
-    """Adresse lisible sans ``name`` : rue + numéro (ordre Photon)."""
+def _construire_adresse(proprietes: dict, *, avec_rue: bool = True) -> str | None:
+    """Adresse lisible : rue + numéro (ordre Photon), code postal, quartier.
+
+    ``avec_rue=False`` quand le nom du résultat **est** déjà « numéro + rue » :
+    l'adresse ne doit pas répéter ce que la première ligne affiche.
+    """
     parties = []
     numero = _texte(proprietes.get("housenumber"))
     rue = _texte(proprietes.get("street"))
-    if rue:
+    if rue and avec_rue:
         parties.append(f"{numero or ''} {rue}".strip())
     code = _texte(proprietes.get("postcode"))
     quartier = _texte(proprietes.get("district")) or _texte(proprietes.get("county"))
@@ -67,6 +81,32 @@ def _construire_adresse(proprietes: dict) -> str | None:
         if partie:
             parties.append(partie)
     return ", ".join(parties) or None
+
+
+def _nom_du_resultat(proprietes: dict) -> tuple[str | None, str | None]:
+    """Nom affichable et adresse complémentaire d'un résultat Photon.
+
+    Un résultat **sans** ``name`` n'est pas un déchet : c'est très souvent une
+    adresse (numéro + rue), un hameau ou un quartier. Les écarter revenait à ne
+    proposer que les objets nommés — donc les villes, régions et quelques
+    établissements bien saisis — alors que la recherche doit couvrir adresses,
+    commerces, hôtels, hôpitaux, parcs et administrations.
+    """
+    nom = _texte(proprietes.get("name"))
+    if nom is not None:
+        return nom, _construire_adresse(proprietes)
+    rue = _texte(proprietes.get("street"))
+    if rue:
+        numero = _texte(proprietes.get("housenumber"))
+        return f"{numero or ''} {rue}".strip(), _construire_adresse(
+            proprietes, avec_rue=False
+        )
+    nom = (
+        _texte(proprietes.get("locality"))
+        or _texte(proprietes.get("district"))
+        or _texte(proprietes.get("city"))
+    )
+    return nom, _construire_adresse(proprietes)
 
 
 def interpreter_reponse(donnees: dict) -> list[LieuTrouve]:
@@ -77,6 +117,10 @@ def interpreter_reponse(donnees: dict) -> list[LieuTrouve]:
             "Réponse de recherche illisible", details={"fournisseur": "photon"}
         )
     trouves: list[LieuTrouve] = []
+    # Photon rend parfois deux fois le même objet (une réserve naturelle qui est
+    # aussi une limite de parc national) : deux lignes identiques ne sont pas
+    # une information. La clé est le nom + la position arrondie (~11 m).
+    vus: set[tuple[str, float, float]] = set()
     for feature in features[:LIMITE_MAX]:
         if not isinstance(feature, dict):
             continue
@@ -89,23 +133,33 @@ def interpreter_reponse(donnees: dict) -> list[LieuTrouve]:
             or not all(isinstance(c, (int, float)) for c in coordonnees)
         ):
             continue  # un résultat sans position n'a pas de carte
-        nom = _texte(proprietes.get("name"))
+        nom, adresse = _nom_du_resultat(proprietes)
         if nom is None:
+            continue  # même l'adresse manque : rien à afficher
+        # GeoJSON : coordinates[0] = longitude, coordinates[1] = latitude.
+        latitude = float(coordonnees[1])
+        longitude = float(coordonnees[0])
+        cle = (nom.casefold(), round(latitude, 4), round(longitude, 4))
+        if cle in vus:
             continue
+        vus.add(cle)
         trouves.append(
             LieuTrouve(
                 nom=nom,
-                adresse=_construire_adresse(proprietes),
+                adresse=adresse,
                 ville=_texte(proprietes.get("city")) or _texte(proprietes.get("state")),
                 pays=_texte(proprietes.get("country")),
-                latitude=float(coordonnees[1]),
-                longitude=float(coordonnees[0]),
+                latitude=latitude,
+                longitude=longitude,
                 osm_type=_texte(proprietes.get("osm_type")),
                 osm_id=(
                     int(proprietes["osm_id"])
                     if isinstance(proprietes.get("osm_id"), int)
                     else None
                 ),
+                type=_texte(proprietes.get("type")),
+                osm_key=_texte(proprietes.get("osm_key")),
+                osm_value=_texte(proprietes.get("osm_value")),
             )
         )
     return trouves
@@ -129,7 +183,7 @@ class RechercheLieux:
         self,
         requete: str,
         *,
-        limite: int = 5,
+        limite: int = 8,
         latitude: float | None = None,
         longitude: float | None = None,
     ) -> list[LieuTrouve]:

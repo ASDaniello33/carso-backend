@@ -1412,6 +1412,7 @@ class DocumentService:
         nouveau_nom = entree.nom.strip() if entree.nom is not None else None
         nouveau_type = entree.type_document
         if nouveau_nom is not None and nouveau_nom != document.nom:
+            self._refuser_renommage_copie_modele(document, nouveau_nom)
             self._valider_renommage_versionnable(document, nouveau_nom)
             self._valider_extension(nouveau_nom)
             document.nom = sanitize_filename(nouveau_nom)
@@ -2003,6 +2004,40 @@ class DocumentService:
             raise ValidationError(
                 msg, details={"extensions_autorisees": sorted(ALLOWED_EXTENSIONS)}
             )
+
+    def _refuser_renommage_copie_modele(self, document: Document, cible: str) -> None:
+        """Une copie de travail de modèle garde son nom déterministe.
+
+        La chaîne modèle (INC-129) retrouve la copie par
+        ``modele-<référence>.docx`` sur l'objet : la renommer la rend
+        introuvable pour ``remplir_modele``, ``remplacer_element_model`` et
+        ``obtenir_structure_document``, et l'agent n'a plus aucun moyen
+        d'éditer le document qu'il vient de copier. Le refus est porté par le
+        service — l'interdiction dans la description de l'outil ne suffit pas.
+
+        Raises:
+            ValidationError: la cible ne respecte pas le nom déterministe.
+        """
+        if (document.doc_metadata or {}).get("role") != "copie_modele":
+            return
+        propre = sanitize_filename(cible)
+        if propre == document.nom:
+            return
+        # Remettre le nom déterministe reste permis : c'est la réparation d'une
+        # copie déjà renommée, et c'est un état que l'édition sait retrouver.
+        if propre.startswith("modele-") and propre.endswith(".docx"):
+            return
+        raise ValidationError(
+            "La copie de travail d'un modèle ne peut pas être renommée : "
+            "l'édition la retrouve par son nom déterministe "
+            "« modele-<référence>.docx ». Renommer le livrable final après "
+            "avoir terminé le contenu, jamais la copie.",
+            details={
+                "document_id": str(document.id),
+                "nom_actuel": document.nom,
+                "cible": cible,
+            },
+        )
 
     def _valider_renommage_versionnable(self, document: Document, cible: str) -> None:
         """Nom et type forment la clé de versionnement ``(nom, type_document)``.

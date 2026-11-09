@@ -25,6 +25,7 @@ from app.agents.toolkit import KIT_CAPABILITY
 from app.agents.tools.agent_rh_tools import (
     CAPACITE_EMAIL,
     MAX_DESTINATAIRES,
+    MAX_FICHES_PAR_LOT,
     EnvoyerEmailInput,
     construire_tools_rh,
 )
@@ -827,3 +828,90 @@ def test_envoyer_email_pieces_jointes_trop_lourdes_refusees(
     assert sortie["error"]["code"] == "business_validation_error"
     assert sortie["error"]["details"]["plafond_octets"] == 4
     assert envois == []
+
+
+def _semis_vivier(factory: sessionmaker[Session], combien: int) -> list[str]:
+    """Quelques personnes distinctes, pour lire un lot en un seul appel."""
+    with factory() as session:
+        equipes = [
+            Equipe(nom=f"Famille{i}", prenom=f"Prenom{i}", profil="formateur")
+            for i in range(combien)
+        ]
+        session.add_all(equipes)
+        session.commit()
+        return [str(e.id) for e in equipes]
+
+
+def test_get_equipe_lit_un_lot_en_un_appel(factory: sessionmaker[Session]) -> None:
+    """Cinquante fiches s'obtiennent en **un** appel, pas cinquante.
+
+    L'ancien schéma n'acceptait qu'un `equipe_id` : l'agent devait boucler, un
+    tour de conversation par personne. Le lot supprime la boucle sans changer
+    ce que chaque fiche contient.
+    """
+    ids = _semis_vivier(factory, 50)
+    sortie = _outils_rh(factory)["get_equipe"].invoke({"equipe_ids": ids})
+
+    assert sortie["ok"] is True
+    assert sortie["nb_equipes"] == 50
+    assert sortie["introuvables"] == []
+    # L'ordre demandé est l'ordre rendu : l'agent peut associer sans rechercher.
+    assert [fiche["id"] for fiche in sortie["equipes"]] == ids
+    assert sortie["equipes"][0]["nom_complet"] == "Prenom0 Famille0"
+    assert sortie["equipes"][0]["profil"] == "formateur"
+
+
+def test_get_equipe_identifiant_inconnu_n_annule_pas_les_autres(
+    factory: sessionmaker[Session],
+) -> None:
+    """Un identifiant inconnu est **dit**, jamais remplacé par une fiche vide."""
+    ids = _semis_vivier(factory, 2)
+    inconnu = str(uuid4())
+    sortie = _outils_rh(factory)["get_equipe"].invoke(
+        {"equipe_ids": [ids[0], inconnu, ids[1]]}
+    )
+
+    assert sortie["ok"] is True
+    assert sortie["nb_equipes"] == 2
+    assert sortie["introuvables"] == [inconnu]
+    assert [fiche["id"] for fiche in sortie["equipes"]] == ids
+
+
+def test_get_equipe_doublon_lu_une_seule_fois(factory: sessionmaker[Session]) -> None:
+    """Un identifiant écrit deux fois ne produit pas deux fiches."""
+    ids = _semis_vivier(factory, 1)
+    sortie = _outils_rh(factory)["get_equipe"].invoke(
+        {"equipe_ids": [ids[0], ids[0]]}
+    )
+
+    assert sortie["ok"] is True
+    assert sortie["nb_equipes"] == 1
+
+
+def test_get_equipe_liste_vide_et_trop_longue_refusees(
+    factory: sessionmaker[Session],
+) -> None:
+    """Schéma explicite : lire zéro ou soixante personnes n'est pas un appel valide."""
+    outil = _outils_rh(factory)["get_equipe"]
+
+    vide = outil.invoke({"equipe_ids": []})
+    assert vide["ok"] is False
+    assert vide["error"]["code"] == "business_validation_error"
+
+    trop = outil.invoke({"equipe_ids": [str(uuid4()) for _ in range(MAX_FICHES_PAR_LOT + 1)]})
+    assert trop["ok"] is False
+    assert trop["error"]["code"] == "business_validation_error"
+    # Le message dit la borne : l'agent corrige sans deviner.
+    assert str(MAX_FICHES_PAR_LOT) in trop["error"]["message"]
+
+
+def test_list_equipe_cv_reste_par_personne(factory: sessionmaker[Session]) -> None:
+    """Le lot ne déborde pas sur `list_equipe_cv` : les CV restent par personne."""
+    ids = _semis_vivier(factory, 1)
+    outil = _outils_rh(factory)["list_equipe_cv"]
+
+    assert outil.invoke({"equipe_id": ids[0]})["ok"] is True
+    # L'ancien champ unique reste le sien : aucun `equipe_ids` n'y est accepté.
+    refus = outil.invoke({"equipe_ids": ids})
+    assert refus["ok"] is False
+    assert refus["error"]["code"] == "business_validation_error"

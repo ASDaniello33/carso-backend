@@ -149,3 +149,8 @@ class UtilisateurRead(BaseModel):
     #: l'écran de validation le préremplit (l'administrateur peut le changer).
     #: ``None`` sur un compte qui n'est pas une demande en attente.
     role_souhaite: str | None = None
+    #: Vrai pour l'administrateur **principal** (``BOOTSTRAP_ADMIN_EMAIL``) :
+    #: aucun geste ne le retire, il n'est ni désactivable, ni rétrogradable, ni
+    #: supprimable. L'écran Paramètres s'appuie sur ce drapeau pour désactiver
+    #: ce que le service refuserait — il ne déduit rien de l'ordre de la liste.
+    administrateur_principal: bool = False

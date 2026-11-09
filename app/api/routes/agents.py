@@ -32,15 +32,22 @@ from app.api.schemas.agent_runtime import (
     AgentRuntimeTestRead,
     AgentRuntimeUpdate,
     AgentRuntimeValuesRead,
+    DecouverteModelesRead,
+    FournisseurIACreate,
+    FournisseurIARead,
+    FournisseurIAUpdate,
     HitlReponseItem,
     HitlScenarioItem,
+    ModeleIACreate,
 )
 from app.api.schemas.skill import SkillCreate, SkillRead, SkillUpdate
 from app.application.services import AgentRuntimeService
 from app.application.services.agent_personnel_service import AgentPersonnelService
+from app.application.services.catalogue_modeles_service import CatalogueModelesService
 from app.application.services.parametres_service import ParametresAgentService
 from app.application.services.skills_service import SkillsService
 from app.core.chiffrement import dechiffrer
+from app.core.errors import ValidationError as BusinessValidationError
 from app.domain.agent_personnel import ConfigurationAgentPersonnel
 from app.domain.agent_runtime import ConfigurationRuntimeAgent
 from app.domain.skill import Skill
@@ -442,6 +449,146 @@ def historique_runtime(
     """Versions successives de la configuration (la plus récente d'abord)."""
     _ = admin
     return AgentRuntimeService(session).historique(limit=limit)
+
+
+# --- Catalogue des fournisseurs et modèles d'IA (administration) --------------
+#
+# La configuration runtime reste l'unique porte d'écriture de ce qui est
+# appliqué : ces routes gèrent les **connexions** mémorisées et le choix d'un
+# modèle enregistré, sans jamais exposer une clé.
+
+
+@router.get("/fournisseurs", response_model=list[FournisseurIARead])
+def lister_fournisseurs(admin: AdminUser, session: DbSession) -> list[dict]:
+    """Fournisseurs enregistrés et leurs modèles (aucune clé renvoyée)."""
+    _ = admin
+    return CatalogueModelesService(session).lister()
+
+
+@router.post("/fournisseurs", response_model=FournisseurIARead, status_code=201)
+def ajouter_fournisseur(
+    payload: FournisseurIACreate, admin: AdminUser, session: DbSession
+) -> dict:
+    """Ajoute une connexion : protocole, URL de base et clé (chiffrée)."""
+    service = CatalogueModelesService(session, actor_id=str(admin.id))
+    fournisseur = service.ajouter_fournisseur(
+        nom=payload.nom,
+        protocole=payload.protocole,
+        base_url=payload.base_url,
+        api_key=payload.api_key,
+    )
+    session.commit()
+    return {**fournisseur.resume(), "modeles": []}
+
+
+@router.put("/fournisseurs/{fournisseur_id}", response_model=FournisseurIARead)
+def modifier_fournisseur(
+    fournisseur_id: UUID,
+    payload: FournisseurIAUpdate,
+    admin: AdminUser,
+    session: DbSession,
+) -> dict:
+    """Modifie une connexion ; une clé absente est **conservée**."""
+    service = CatalogueModelesService(session, actor_id=str(admin.id))
+    service.modifier_fournisseur(
+        fournisseur_id,
+        nom=payload.nom,
+        protocole=payload.protocole,
+        base_url=payload.base_url,
+        api_key=payload.api_key,
+        conserver_cle=payload.conserver_cle,
+    )
+    session.commit()
+    return service.resume_fournisseur(fournisseur_id)
+
+
+@router.delete("/fournisseurs/{fournisseur_id}", status_code=204)
+def supprimer_fournisseur(
+    fournisseur_id: UUID, admin: AdminUser, session: DbSession
+) -> None:
+    """Supprime une connexion sans modèles et hors configuration appliquée."""
+    service = CatalogueModelesService(session, actor_id=str(admin.id))
+    service.supprimer_fournisseur(fournisseur_id)
+    session.commit()
+
+
+@router.post(
+    "/fournisseurs/{fournisseur_id}/decouvrir", response_model=DecouverteModelesRead
+)
+async def decouvrir_modeles_fournisseur(
+    fournisseur_id: UUID, admin: AdminUser, session: DbSession
+) -> dict:
+    """Interroge le fournisseur : modèles proposés et déjà enregistrés.
+
+    Protocole sans découverte, URL absente ou route inexistante ⇒ 422 avec le
+    message qui invite à l'ajout manuel (ce n'est pas une panne serveur).
+    """
+    _ = admin
+    from app.agents.decouverte_modeles import DecouverteIndisponible
+
+    service = CatalogueModelesService(session)
+    try:
+        return await service.decouvrir(fournisseur_id)
+    except DecouverteIndisponible as exc:
+        raise BusinessValidationError(str(exc), details={"decouverte": False}) from exc
+    except AgentConfigurationError as exc:
+        raise BusinessValidationError(
+            str(exc), details=getattr(exc, "details", None)
+        ) from exc
+
+
+@router.post(
+    "/fournisseurs/{fournisseur_id}/modeles",
+    response_model=FournisseurIARead,
+    status_code=201,
+)
+def enregistrer_modeles(
+    fournisseur_id: UUID,
+    payload: ModeleIACreate,
+    admin: AdminUser,
+    session: DbSession,
+) -> dict:
+    """Enregistre les modèles sélectionnés ; les doublons sont ignorés."""
+    service = CatalogueModelesService(session, actor_id=str(admin.id))
+    service.ajouter_modeles(fournisseur_id, payload.modeles)
+    session.commit()
+    return service.resume_fournisseur(fournisseur_id)
+
+
+@router.delete("/modeles/{modele_id}", status_code=204)
+def supprimer_modele(modele_id: UUID, admin: AdminUser, session: DbSession) -> None:
+    """Retire un modèle du catalogue (jamais celui appliqué au runtime)."""
+    service = CatalogueModelesService(session, actor_id=str(admin.id))
+    service.supprimer_modele(modele_id)
+    session.commit()
+
+
+@router.post("/modeles/{modele_id}/appliquer", response_model=AgentRuntimeApplicationRead)
+def appliquer_modele_enregistre(
+    modele_id: UUID, admin: AdminUser, session: DbSession
+) -> AgentRuntimeApplicationRead:
+    """Applique un modèle enregistré : connexion reprise, aucune ressaisie.
+
+    Le catalogue fournit provider/modèle/URL/clé du fournisseur ; c'est
+    ``AgentRuntimeService`` qui valide, versionne, trace — puis le manager
+    reconstruit les graphes à chaud.
+    """
+    catalogue = CatalogueModelesService(session, actor_id=str(admin.id))
+    params = catalogue.preparer_application(modele_id)
+    actif = AgentRuntimeService(session).obtenir_active()
+    ligne = AgentRuntimeService(session, actor_id=str(admin.id)).enregistrer(
+        provider=params["provider"],
+        model=params["model"],
+        base_url=params["base_url"],
+        temperature=float(actif.temperature) if actif is not None else 0.0,
+        max_iterations=int(actif.max_iterations) if actif is not None else 1000,
+        modifie_par=str(admin.id),
+        api_key=params["api_key"],
+    )
+    session.commit()
+    manager = get_runtime_manager()
+    manager.apply_persisted(ligne)
+    return _etat(manager.state())
 
 
 __all__ = ["router"]

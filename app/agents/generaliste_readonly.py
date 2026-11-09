@@ -96,6 +96,10 @@ DEFINITION = AgentDefinition(
         # Une pièce jointe image (scan, capture) se lit en la **voyant** : le
         # texte extrait d'une image n'existe pas.
         "lire_image",
+        # Renommage et suppression d'un document existant : contenu jamais
+        # régénéré ; la suppression passe par une validation humaine.
+        "renommer_document",
+        "supprimer_document",
         # Génération d'un livrable à thème CARSO : déposé en proposition,
         # jamais approuvé. La voie HTML libre (`generer_document`) reste aux
         # agents producteurs (générateur, RH, assistant, statistique, personnel).
@@ -117,6 +121,8 @@ DEFINITION = AgentDefinition(
         # texte — un agent qui n'a pas le droit de chercher ne l'obtient pas ici.
         "rechercher_video",
     ),
+    # Supprimer un document est une décision humaine : HITL avant exécution.
+    approval_required=("supprimer_document",),
     collaboration=(),
     prompt=prompt.GENERALISTE_SYSTEM_PROMPT,
     output_schema_name="GeneralistAnswer",

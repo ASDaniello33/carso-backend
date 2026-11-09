@@ -53,6 +53,7 @@ from app.application.services import (
 )
 from app.application.trace import TraceContext
 from app.core.config import get_settings
+from app.core.errors import NotFoundError
 from app.core.errors import ValidationError as BusinessValidationError
 from app.domain.enums import ActionAudit, ActorType, SourceAffectation, TypeDocument
 from app.domain.execution import Equipe, Mission
@@ -73,6 +74,11 @@ CAPACITE_EMAIL = "email_send"
 #: refus est explicite — un envoi silencieusement tronqué serait un mensonge.
 MAX_DESTINATAIRES = 10
 MAX_PIECES_JOINTES = 5
+
+#: Plafond de fiches lues en un appel (borne de service, pas une règle métier) :
+#: au-delà, la réponse déborderait la conversation. Un vivier entier se lit par
+#: pages de cette taille, pas par un appel par personne.
+MAX_FICHES_PAR_LOT = 50
 
 NOMS_TOOLS: tuple[str, ...] = (
     # Base de connaissance : consulter une méthode, un cadre de référence,
@@ -117,6 +123,10 @@ NOMS_TOOLS: tuple[str, ...] = (
     "lire_element_document",
     # Un CV ou une pièce scannée se lit en voyant l'image.
     "lire_image",
+    # Renommage et suppression d'un document existant : contenu jamais
+    # régénéré ; la suppression passe par une validation humaine.
+        "renommer_document",
+    "supprimer_document",
     "generer_document",
     "generer_document_professionnel",
     "modifier_section_document",
@@ -147,6 +157,25 @@ NOMS_TOOLS: tuple[str, ...] = (
 
 class EquipeIdInput(BaseModel):
     equipe_id: UUID
+
+
+class EquipesIdsInput(BaseModel):
+    """Lot de fiches à lire en **un** appel.
+
+    Une lecture par identifiant obligeait l'agent à un appel par personne :
+    cinquante appels pour cinquante personnes, chacun consommant le tour de
+    conversation. Le lot est la forme normale ; la borne évite seulement
+    qu'une demande démesurée produise une réponse ingérable.
+    """
+
+    equipe_ids: list[UUID] = Field(
+        min_length=1,
+        max_length=MAX_FICHES_PAR_LOT,
+        description=(
+            "Personnes du vivier à lire, dans l'ordre où les fiches sont "
+            f"attendues ({MAX_FICHES_PAR_LOT} au plus par appel)."
+        ),
+    )
 
 
 class MissionIdInput(BaseModel):
@@ -207,7 +236,8 @@ class MissionUpdateInput(BaseModel):
 
     Le lieu d'exécution est une **référence** (``lieux``), pas un texte libre :
     le lot d'un appel n'est pas un lieu, et un lieu inventé ne doit jamais être
-    écrit.
+    écrit. Les dates se changent à tout état vivant (ADR 0015) : la session
+    existante les reçoit et les statuts se réalignent après approbation.
     """
 
     mission_id: UUID
@@ -216,6 +246,8 @@ class MissionUpdateInput(BaseModel):
         default=None, description="Référence d'un lieu existant (jamais un texte libre)."
     )
     description: str | None = Field(default=None, max_length=4000)
+    date_debut: date | None = Field(default=None)
+    date_fin: date | None = Field(default=None)
 
 
 class MissionBudgetInput(BaseModel):
@@ -348,8 +380,8 @@ _CHAMPS_MISSION = (
 )
 
 
-def _get_equipe(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
-    equipe = EquipeService(session).obtenir(UUID(str(payload["equipe_id"])))
+def _fiche_equipe(equipe: Equipe) -> dict[str, Any]:
+    """Fiche d'une personne — champs lus, jamais complétés par déduction."""
     return {
         "id": str(equipe.id),
         "nom": equipe.nom,
@@ -361,6 +393,36 @@ def _get_equipe(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
         "profil": equipe.profil,
         "statut": equipe.statut,
         "email": equipe.email,
+    }
+
+
+def _get_equipes(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Fiches de plusieurs personnes en **un** appel (lecture seule).
+
+    Un identifiant inconnu — ou hors périmètre d'un compte restreint, que le
+    service traite de la même façon — ne fait pas échouer les autres : il est
+    listé dans ``introuvables``. Une fiche manquante doit être **dite** : la
+    remplacer par une fiche vide reviendrait à inventer une personne.
+    """
+    entree = EquipesIdsInput.model_validate(payload)
+    service = EquipeService(session)
+    fiches: list[dict[str, Any]] = []
+    introuvables: list[str] = []
+    vus: set[UUID] = set()
+    for equipe_id in entree.equipe_ids:
+        if equipe_id in vus:
+            continue
+        vus.add(equipe_id)
+        try:
+            equipe = service.obtenir(equipe_id)
+        except NotFoundError:
+            introuvables.append(str(equipe_id))
+            continue
+        fiches.append(_fiche_equipe(equipe))
+    return {
+        "equipes": fiches,
+        "nb_equipes": len(fiches),
+        "introuvables": introuvables,
     }
 
 
@@ -554,6 +616,8 @@ def _propose_mission_update(session: Session, payload: dict[str, Any]) -> dict[s
         titre=entree.titre,
         lieu_id=entree.lieu_id,
         description=entree.description,
+        date_debut=entree.date_debut,
+        date_fin=entree.date_fin,
     )
     return {
         "mission_id": str(mission.id),
@@ -932,9 +996,14 @@ def construire_tools_rh(
     ))
     kit.enregistrer(OperationSpec(
         name="get_equipe",
-        description="Fiche personne (sans inventer de compétences).",
-        input_schema=EquipeIdInput,
-        run=_get_equipe,
+        description=(
+            "Fiches de plusieurs personnes en un seul appel (`equipe_ids`) : "
+            "identité, profil, statut, email (sans inventer de compétences). "
+            "Un identifiant inconnu est listé dans `introuvables` sans faire "
+            "échouer les autres fiches."
+        ),
+        input_schema=EquipesIdsInput,
+        run=_get_equipes,
     ))
     kit.enregistrer(OperationSpec(
         name="list_equipe_cv",
@@ -993,8 +1062,10 @@ def construire_tools_rh(
         name="propose_mission_update",
         description=(
             "Propose une mise à jour de mission (titre, lieu d'exécution, "
-            "description) : lieu_id doit référencer un lieu existant. Aucune "
-            "écriture directe, approbation humaine requise."
+            "description, dates de début et de fin) : lieu_id doit référencer un "
+            "lieu existant ; les nouvelles dates sont reportées sur la session "
+            "existante et les statuts se réalignent sur le nouveau calendrier. "
+            "Aucune écriture directe, approbation humaine requise."
         ),
         input_schema=MissionUpdateInput,
         mutation=True,

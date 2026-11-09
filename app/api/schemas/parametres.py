@@ -61,6 +61,54 @@ class SkillsDisponiblesRead(BaseModel):
     disponibles: list[str] = Field(default_factory=list)
 
 
+class SkillFichierRead(BaseModel):
+    """Skill ``SKILL.md`` tel que l'écran d'administration le montre.
+
+    ``origine`` distingue un skill **livré avec le paquet** (lecture seule : il
+    voyage avec le code) d'un skill **écrit depuis cet écran** (modifiable et
+    supprimable). ``agents`` dit quels agents le reçoivent déjà — sans cela, on
+    ne saurait pas si décocher une case aurait un effet.
+    """
+
+    nom: str
+    description: str = ""
+    origine: str = Field(default="paquet", description="`admin` ou `paquet`")
+    agents: list[str] = Field(default_factory=list)
+
+
+class SkillFichierDetailRead(SkillFichierRead):
+    """Skill complet : description, corps du guide et rattachement."""
+
+    corps: str = ""
+    #: Contenu exact du ``SKILL.md``. L'aperçu de l'écran l'affiche tel quel :
+    #: un rendu recomposé côté interface pourrait diverger de ce que lit l'agent.
+    apercu: str = ""
+
+
+class SkillFichierCreate(BaseModel):
+    """Création d'un skill : son nom (le dossier), quand le charger, son corps.
+
+    Les bornes exactes vivent dans le service (message actionnable) ; ici, on
+    refuse seulement un corps absurde avant de lire la requête en entier.
+    """
+
+    nom: str = Field(min_length=1, max_length=80)
+    description: str = Field(min_length=1, max_length=800)
+    corps: str = Field(min_length=1, max_length=40_000)
+    #: Agents qui doivent recevoir ce skill. Vide = installé mais rattaché à
+    #: personne (il apparaîtra dans l'onglet Agents pour être coché).
+    agents: list[str] = Field(default_factory=list)
+
+
+class SkillFichierUpdate(BaseModel):
+    """Correction d'un skill administré : ``None`` conserve, ``nom`` est immuable."""
+
+    description: str | None = Field(default=None, min_length=1, max_length=800)
+    corps: str | None = Field(default=None, min_length=1, max_length=40_000)
+    #: Remplace intégralement le rattachement ; ``None`` le conserve.
+    agents: list[str] | None = None
+
+
 class SondeMcpRead(BaseModel):
     """Dernier résultat **réel** de connexion à un connecteur (lecture seule).
 
@@ -192,6 +240,10 @@ __all__ = [
     "ParametresEtatRead",
     "ServeurMcpRead",
     "ServeurMcpUpdate",
+    "SkillFichierCreate",
+    "SkillFichierDetailRead",
+    "SkillFichierRead",
+    "SkillFichierUpdate",
     "SkillsDisponiblesRead",
     "SondeMcpRead",
     "SurchargeAgentRead",

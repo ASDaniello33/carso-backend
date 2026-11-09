@@ -10,10 +10,13 @@ restent ceux du client — c'est mesuré, pas promis.
 **La génération libre est fermée quand un modèle s'applique.** Les outils qui
 créent un document neuf (`generer_document_professionnel`,
 `generer_document_html`, `generer_document`, la rédaction progressive) sont
-refusés par le moteur dès que l'organisation a déposé un modèle pour l'objet
-visé, ou dès qu'une copie existe sur cet objet : le message nomme le document à
-éditer. Ce n'est pas un contournement à chercher (autre nom, autre ancre) :
-c'est la voie unique. Sans modèle, ces outils restent les bons.
+refusés par le moteur dès que l'organisation a déposé un modèle **du type de
+l'offre visée**, ou dès qu'une copie de ce type existe sur cet objet : le
+message nomme le document à éditer. Un modèle ne couvre que son type d'offre :
+un `modele_offre_technique` ne sert pas l'offre financière du même lot (et
+réciproquement) ; seul un modèle générique `offre` vaut pour les deux. Ce n'est
+pas un contournement à chercher (autre nom, autre ancre) : c'est la voie
+unique. Sans modèle applicable, ces outils restent les bons.
 
 ### La chaîne, dans cet ordre
 

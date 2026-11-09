@@ -11,6 +11,7 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 RACINE_BACKEND = Path(__file__).resolve().parents[2]
 
 
+
 class Settings(BaseSettings):
     """Application settings loaded from environment / backend/.env.
 
@@ -172,6 +173,29 @@ class Settings(BaseSettings):
     # secret est refusé, jamais stocké en clair.
     parametres_chiffrement_key: SecretStr | None = Field(default=None)
     agent_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
+    # Vision du modèle (``AGENT_VISION``). Faux par défaut : la plupart des
+    # modèles configurés ne voient pas les images, et une image envoyée à un
+    # modèle aveugle est silencieusement ignorée (« Inconnue » sur un carré
+    # rouge, constaté 08/11). Depuis le 09/11, ``lire_image`` reste actif
+    # malgré ce réglage : il rend l'image **et sa valeur base64**, et
+    # ``vision_activee=false`` dit la vérité au modèle (aucune description
+    # inventée).
+    #
+    # Ce réglage est **déclaratif** : il n'est pas déduit du nom du modèle (un
+    # même nom peut être servi par plusieurs backends). Ne le passer à ``true``
+    # qu'après avoir **vérifié** la vision : envoyer une image portant un mot
+    # impossible à deviner (ex. « ZORBLAK-7742 ») et demander ce mot. Une réponse
+    # exacte prouve que le modèle voit ; une description plausible mais fausse
+    # prouve le contraire. Le 09/11, ``deepseek-v4.1-flash`` via tokenharbor.ai a
+    # répondu le mot exact 3 fois sur 3 : la vision est réelle, d'où
+    # ``AGENT_VISION=true`` dans ``.env``.
+    #
+    # Deux conditions sont nécessaires pour que le modèle voie réellement : (1)
+    # le provider transmet les blocs ``image_url`` — c'est le cas de la
+    # passerelle ici ; (2) l'image arrive dans un message **utilisateur**, les
+    # passerelles compatibles OpenAI ignorant une image dans un message d'outil
+    # (``app/agents/images_outils.py`` s'en charge).
+    agent_vision: bool = Field(default=False)
     # Attente maximale (secondes) entre deux chunks de streaming du LLM. Les
     # modèles raisonneurs (grok, o1…) peuvent rester silencieux longtemps
     # pendant leur raisonnement interne ; le défaut de langchain-openai (120 s)

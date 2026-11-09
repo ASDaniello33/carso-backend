@@ -398,9 +398,7 @@ def test_instrumentation_refuse_un_modele_deja_instrumente() -> None:
     assert any("instrumenté" in avert for avert in seconde.avertissements)
 
     with pytest.raises(ValidationError, match="carso"):
-        instrumenter(
-            resultat.octets, seconde, S.ConfigurationModele(statut="validee", champs=[])
-        )
+        instrumenter(resultat.octets, seconde, S.ConfigurationModele(statut="validee", champs=[]))
 
 
 def test_instrumentation_refuse_une_ligne_a_fusion_verticale() -> None:
@@ -556,9 +554,7 @@ def test_rendu_conditionnel_faux_supprime_le_bloc() -> None:
     _a, _c, supprime = _rendu({**VALEURS, "methodologie": False})
 
     texte_garde = " ".join(p.text for p in LireDocx(io.BytesIO(garde.octets)).paragraphs)
-    texte_supprime = " ".join(
-        p.text for p in LireDocx(io.BytesIO(supprime.octets)).paragraphs
-    )
+    texte_supprime = " ".join(p.text for p in LireDocx(io.BytesIO(supprime.octets)).paragraphs)
     assert "Méthode du client" in texte_garde
     assert "Méthode du client" not in texte_supprime
     assert "methodologie" in supprime.champs_supprimes
@@ -664,9 +660,7 @@ def test_validation_refuse_une_partie_non_ciblee_modifiee() -> None:
     styles = paquet.parties["word/styles.xml"] + b"<!-- altere -->"
     altere = P.ecrire(paquet, {"word/styles.xml": styles})
 
-    rapport = valider_livrable(
-        altere, modele=modele_docx(), parties_modifiees=resultat.parties
-    )
+    rapport = valider_livrable(altere, modele=modele_docx(), parties_modifiees=resultat.parties)
 
     assert not rapport.ok
     assert any("styles.xml" in erreur for erreur in rapport.erreurs)
@@ -785,9 +779,7 @@ def _deposer_modele(db_session, stockage, organisation, octets: bytes):
 def _service(db_session, documents):
     from app.application.services.moteur_documentaire_service import MoteurDocumentaireService
 
-    return MoteurDocumentaireService(
-        db_session, document_service=documents, actor_id="test"
-    )
+    return MoteurDocumentaireService(db_session, document_service=documents, actor_id="test")
 
 
 def _pret_a_generer(db_session, stockage, organisation):
@@ -972,9 +964,7 @@ def _outils(documents):
     }
 
 
-def test_le_registre_des_modeles_decrit_chaque_entree(
-    db_session, stockage, organisation
-) -> None:
+def test_le_registre_des_modeles_decrit_chaque_entree(db_session, stockage, organisation) -> None:
     documents, modele = _deposer_modele(db_session, stockage, organisation, modele_docx())
 
     sortie = _outils(documents)["lister_modeles_documents"].invoke(
@@ -989,9 +979,7 @@ def test_le_registre_des_modeles_decrit_chaque_entree(
     assert entree["version"] == 1
 
 
-def test_structure_modele_montre_les_elements_reeels(
-    db_session, stockage, organisation
-) -> None:
+def test_structure_modele_montre_les_elements_reeels(db_session, stockage, organisation) -> None:
     """L'agent doit voir les éléments qu'il pourra modifier — pas des champs inventés."""
     documents, modele = _deposer_modele(db_session, stockage, organisation, modele_docx())
 
@@ -1006,9 +994,7 @@ def test_structure_modele_montre_les_elements_reeels(
     assert any(element["niveau_titre"] == 1 for element in sortie["elements"])
     # Le fichier n'est pas modifié par la lecture.
     _nom, chemin = documents.telecharger(modele.document_template_id)
-    assert chemin.read_bytes() == documents.telecharger(
-        modele.document_template_id
-    )[1].read_bytes()
+    assert chemin.read_bytes() == documents.telecharger(modele.document_template_id)[1].read_bytes()
     assert len(chemin.read_bytes()) > 0
 
 
@@ -1088,7 +1074,8 @@ def test_remplir_modele_insere_html_listes_tableau_et_image(
     service = _service(db_session, documents)
     service.copier_modele_dans_objet("offre", offre.id)
     element = next(
-        item for item in service.structure_document("offre", offre.id)["elements"]
+        item
+        for item in service.structure_document("offre", offre.id)["elements"]
         if item["texte"].startswith("Méthode du client")
     )
     image = "data:image/png;base64," + base64.b64encode(_png((10, 120, 60))).decode()
@@ -1162,13 +1149,16 @@ def test_les_outils_modele_exposes_sont_la_chaine_copier_editer(
         "remplir_modele",
     } <= noms
     # Les voies parallèles (placeholders, clonage, ancres) ne sont plus exposées.
-    assert not {
-        "remplir_document_modele",
-        "generer_document_modele",
-        "valider_modele_document",
-        "clone_document_structure",
-        "fill_template",
-    } & noms
+    assert (
+        not {
+            "remplir_document_modele",
+            "generer_document_modele",
+            "valider_modele_document",
+            "clone_document_structure",
+            "fill_template",
+        }
+        & noms
+    )
 
 
 def test_l_outil_copier_modele_document_renvoie_les_elements(
@@ -1187,3 +1177,73 @@ def test_l_outil_copier_modele_document_renvoie_les_elements(
     assert sortie["nombre_elements"] == len(sortie["elements"])
     assert all("element_id" in element for element in sortie["elements"])
     assert "copié tel quel" in sortie["message"]
+
+
+# --- INC-149 : défauts trouvés par un run réel d'agent ---------------------------
+
+
+def test_copie_fantome_n_est_jamais_retenue_comme_document_de_travail(
+    db_session, stockage, organisation, offre
+) -> None:
+    """Une fiche homonyme sans fichier ne bloque pas l'édition de la vraie copie.
+
+    Incident observé en production (INC-149) : deux copies du modèle sur la même
+    offre, l'une avec son fichier, l'autre avec une fiche seule. L'édition
+    retenait la plus récente par sa version — la fantôme — et échouait sur
+    « Fichier documentaire absent », alors que la copie utilisable existait.
+    """
+    documents, _modele = _deposer_modele(db_session, stockage, organisation, modele_docx())
+    service = _service(db_session, documents)
+    vraie, _modele, _elements = service.copier_modele_dans_objet("offre", offre.id)
+
+    from app.domain.document import Document as DocumentDomaine
+
+    # Fiche homonyme de version supérieure, sans fichier sur le stockage.
+    fantome = DocumentDomaine(
+        nom=vraie.nom,
+        type_document=vraie.type_document,
+        mime_type=vraie.mime_type,
+        taille_octets=vraie.taille_octets,
+        storage_path=f"offres/{offre.id}/fantome-{vraie.nom}",
+        checksum_sha256=vraie.checksum_sha256,
+        version=vraie.version + 1,
+        statut=vraie.statut,
+        offre_id=offre.id,
+        doc_metadata={"role": "copie_modele"},
+    )
+    db_session.add(fantome)
+    db_session.flush()
+
+    _sujet, retenue = service.document_de_travail("offre", offre.id)
+
+    assert retenue.id == vraie.id, "la fiche sans fichier ne doit jamais être éditée"
+    # Et l'édition fonctionne réellement.
+    element = next(
+        item
+        for item in service.structure_document("offre", offre.id)["elements"]
+        if item["texte"].startswith("Client :")
+    )
+    service.remplacer_element("offre", offre.id, element["element_id"], "Client : FID")
+
+
+def test_renommer_la_copie_de_travail_est_refuse(db_session, stockage, organisation, offre) -> None:
+    """Renommer la copie la rendrait introuvable : le service refuse.
+
+    La chaîne modèle retrouve la copie par ``modele-<référence>.docx``. Le run
+    réel de l'INC-149 a suivi la description de l'outil (qui le conseillait) et
+    s'est retrouvé avec une copie éditable devenue inaccessible.
+    """
+    documents, _modele = _deposer_modele(db_session, stockage, organisation, modele_docx())
+    service = _service(db_session, documents)
+    copie, _modele, _elements = service.copier_modele_dans_objet("offre", offre.id)
+
+    from app.application.dto import DocumentMetadonneesUpdateInput
+
+    with pytest.raises(ValidationError, match="ne peut pas être renommée"):
+        documents.modifier_metadonnees(
+            copie.id, DocumentMetadonneesUpdateInput(nom="Offre_technique_finale.docx")
+        )
+
+    # Le nom déterministe est intact et la copie reste éditable.
+    assert copie.nom.startswith("modele-") and copie.nom.endswith(".docx")
+    service.structure_document("offre", offre.id)

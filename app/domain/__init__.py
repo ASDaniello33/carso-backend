@@ -8,6 +8,7 @@ resolves string relationship targets only after all classes are registered.
 from app.domain.agent_personnel import ConfigurationAgentPersonnel
 from app.domain.agent_runtime import ConfigurationRuntimeAgent, SurchargeAgent
 from app.domain.base import Base
+from app.domain.catalogue_ia import FournisseurIA, ModeleIA
 from app.domain.connaissance import (
     ChunkConnaissance,
     ConfigurationEmbedding,
@@ -70,6 +71,8 @@ __all__ = [
     "Reaction",
     "ConfigurationRuntimeAgent",
     "Document",
+    "FournisseurIA",
+    "ModeleIA",
     "ServeurMcp",
     "ItineraireCache",
     "ParametresVoyage",

@@ -18,6 +18,25 @@ from app.domain.base import Base, TimestampMixin, UuidPkMixin
 from app.domain.enums import RoleUtilisateur, StatutUtilisateur
 
 
+def est_administrateur_principal(
+    email: str | None, adresse_principale: str | None
+) -> bool:
+    """Vrai si ``email`` est l'adresse de l'administrateur **principal**.
+
+    L'administrateur principal n'est pas un rôle stocké : c'est l'adresse
+    ``BOOTSTRAP_ADMIN_EMAIL`` du ``.env`` du déploiement (source de vérité déjà
+    utilisée pour créer le premier compte). Le comparer à la volée évite une
+    colonne dupliquée qui divergerait de la configuration.
+
+    Sans adresse déclarée, la notion est vide (``False``) : aucun compte n'est
+    principal, et les garde-fous qui s'y réfèrent retombent sur la règle
+    historique « tout administrateur, garde-fous compris ».
+    """
+    if not email or not adresse_principale:
+        return False
+    return email.strip().lower() == adresse_principale.strip().lower()
+
+
 class Utilisateur(Base, UuidPkMixin, TimestampMixin):
     """Compte de connexion. Un compte pending n'a aucun droit métier."""
 

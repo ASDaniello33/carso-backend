@@ -64,7 +64,7 @@ DEFINITION = AgentDefinition(
     # ici : ``generer_document``, ``generer_document_html``.
     # ``import_beneficiaires`` reste sous HITL : c'est une écriture de données
     # métier (des bénéficiaires réels), pas un livrable.
-    approval_required=("import_beneficiaires",),
+    approval_required=("import_beneficiaires", "supprimer_document"),
     output_schema_name="ApercuImport",
     # ``generation-document`` : la méthode et les composants HTML du générateur
     # professionnel (le tool prioritaire docx/pdf de cet agent).

@@ -561,7 +561,13 @@ def test_api_catalogue_agents(api_client: TestClient) -> None:
     assert "agent_analyseur_appel_proposition" not in par_id
     assert "get_lot" in par_id["agent_generateur_offre"]["tools"]
     assert par_id["agent_generateur_offre"]["collaboration"] == ["agent_rh"]
-    assert par_id["agent_generaliste_readonly"]["approval_required"] == []
+    # Lecture seule, mais INC-145 lui a donné la suppression documentaire : le
+    # seul geste sous validation humaine est la corbeille, et c'est exactement
+    # celui-là — ni plus (aucune mutation métier), ni moins (le document ne
+    # partirait pas sans décision).
+    assert par_id["agent_generaliste_readonly"]["approval_required"] == [
+        "supprimer_document"
+    ]
 
     # L'agent personnel est exposé : il ne reçoit aucun outil de mutation.
     assert par_id["agent_personnel"]["collaboration"] == []

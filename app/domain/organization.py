@@ -33,6 +33,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.base import Base, TimestampMixin, UuidPkMixin
 from app.domain.enums import (
+    DEVISE_PAR_DEFAUT,
     StatutAppel,
     StatutBudget,
     StatutOffre,
@@ -236,7 +237,10 @@ class Budget(Base, UuidPkMixin, TimestampMixin):
     )
     mission_id: Mapped[UUID | None] = mapped_column(ForeignKey("missions.id", ondelete="CASCADE"))
     devise: Mapped[str] = mapped_column(
-        String(10), nullable=False, default="MAD", server_default="MAD"
+        String(10),
+        nullable=False,
+        default=DEVISE_PAR_DEFAUT,
+        server_default=DEVISE_PAR_DEFAUT,
     )
     statut: Mapped[str] = mapped_column(
         String(50), nullable=False, default=StatutBudget.BROUILLON.value,

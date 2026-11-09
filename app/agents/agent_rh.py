@@ -72,6 +72,8 @@ DEFINITION = AgentDefinition(
     # humaine reste la validation du document. Les écritures métier ci-dessous
     # restent sous HITL : elles modifient des données réelles.
     approval_required=(
+        # Supprimer un document est une décision humaine : HITL avant exécution.
+        "supprimer_document",
         "create_assignment_proposal",
         "propose_equipe_update",
         "propose_mission_update",

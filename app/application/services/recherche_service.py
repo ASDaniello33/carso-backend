@@ -13,6 +13,7 @@ donnée validée—jamais de contenu inventé ni de résultat hors permission.
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import quote
 from uuid import UUID
 
 from sqlalchemy import false, or_, select
@@ -31,6 +32,18 @@ PLAFOND_PAR_FAMILLE = 5
 
 _COMMENCE_PAR = "%{}%"
 _CONTIENT = "%{}%"
+
+
+def _lien_liste(chemin: str, valeur: str | None) -> str:
+    """Lien vers la **liste filtrée** d'une famille sans page de détail.
+
+    Organisations, équipes, documents et bénéficiaires n'ont pas d'écran de
+    détail : pointer sur ``/famille/{id}`` menait à une page inexistante. Le
+    lien ouvre donc leur liste, pré-filtrée sur le libellé affiché, pour que
+    le résultat de la recherche s'y retrouve réellement.
+    """
+    terme = (valeur or "").strip()
+    return f"{chemin}?recherche={quote(terme)}" if terme else chemin
 
 
 def _nettoyer(requete: str) -> str:
@@ -118,7 +131,7 @@ class RechercheService:
         return [
             {
                 "famille": "appels",
-                "label": "Appels à propositions",
+                "label": "Appels",
                 "total": len(lignes),
                 "resultats": [
                     {
@@ -126,7 +139,7 @@ class RechercheService:
                         "titre": appel.titre,
                         "detail": appel.reference,
                         "statut": appel.statut,
-                        "href": f"/appels-propositions/{appel.id}",
+                        "href": f"/appels/{appel.id}",
                     }
                     for appel in lignes
                 ],
@@ -252,7 +265,7 @@ class RechercheService:
                         "titre": organisation.nom,
                         "detail": None,
                         "statut": None,
-                        "href": f"/organisations/{organisation.id}",
+                        "href": _lien_liste("/organisations", organisation.nom),
                     }
                     for organisation in lignes
                 ],
@@ -282,7 +295,9 @@ class RechercheService:
                         "titre": f"{equipe.prenom} {equipe.nom}".strip(),
                         "detail": equipe.email,
                         "statut": equipe.statut,
-                        "href": f"/equipes/{equipe.id}",
+                        "href": _lien_liste(
+                            "/equipes", f"{equipe.prenom} {equipe.nom}"
+                        ),
                     }
                     for equipe in lignes
                 ],
@@ -328,7 +343,7 @@ class RechercheService:
                         "titre": document.nom,
                         "detail": document.type_document,
                         "statut": document.statut,
-                        "href": f"/documents/{document.id}",
+                        "href": _lien_liste("/documents", document.nom),
                     }
                     for document in lignes
                 ],
@@ -361,7 +376,9 @@ class RechercheService:
                         "titre": f"{beneficiaire.prenom} {beneficiaire.nom}".strip(),
                         "detail": None,
                         "statut": None,
-                        "href": f"/beneficiaires/{beneficiaire.id}",
+                        "href": _lien_liste(
+                            "/beneficiaires", f"{beneficiaire.prenom} {beneficiaire.nom}"
+                        ),
                     }
                     for beneficiaire in lignes
                 ],

@@ -1,0 +1,25 @@
+{
+  "run": "run-1794213071",
+  "consigne": "Reprends l'offre technique du lot df5c5116-4407-4c20-b006-846d671a2272 de l'appel ba227e3f-0df4-4546-9ba6-fcf802c0e036\n(FID, AMI N°59/AMI/FID/FSR/SQC_CAB_FORM_IA).\n\nLe FID impose son propre modèle DOCX. Vérifie d'abord le modèle de l'organisation\n13382ac8-d3ef-4cb1-a1ed-9d6c5da306d0 au registre, puis produis l'offre technique DANS ce modèle :\ncopie le modèle, renseigne ses emplacements, et rédige le contenu à partir des\ntermes de référence de l'appel.\n\nLe contenu doit couvrir, sans rien inventer :\n- le public et les volumes : deux vagues, environ 24 participants pour la vague\n  SI/PSE et environ 30 pour la vague Directeurs/Chefs de service/Responsables ;\n- la durée : sept jours ouvrables au total, dont quatre (04) jours pour la\n  vague 1 et trois (03) jours pour la vague 2 ;\n- les six livrables attendus par les termes de référence, dont la note\n  méthodologique et la note de bonnes pratiques ;\n- le programme par vague et le format présentiel, pratique et participatif.\n\nNe régénère pas un document au thème CARSO : le document doit rester le modèle\ndu client, avec ses styles, sa couverture et son logo. Le document reste une\nproposition, non officialisée.\n\nÀ la fin, indique le nom du document produit et l'identifiant du modèle utilisé.\n",
+  "bilan": {
+    "nb_evenements": 24677,
+    "outils": [
+      "lister_modeles_documents",
+      "read_appel",
+      "get_lot",
+      "search_offres",
+      "obtenir_structure_modele",
+      "list_appel_documents",
+      "get_document_structure",
+      "read_document_range",
+      "read_file",
+      "copier_modele_document",
+      "remplacer_element_model",
+      "remplir_modele",
+      "obtenir_structure_document",
+      "proposer_telechargement_document"
+    ],
+    "erreurs": []
+  },
+  "texte_final": "TECH-L01. Les styles, la couverture, le logo et la mise en page du client sont conservés, aucune régénération au thème CARSO n'a été faite.\n2. **Couverture renseignée** (version 2) : titre « OFFRE TECHNIQUE », objet de la formation, référence de l'AMI N°59/AMI/FID/FSR/SQC_CAB_FORM_IA, institution destinataire (FID), lieu et date (Toliara, le 09 novembre 2026), soumissionnaire (CARSO).\n3. **Sommaire et contenu rédigés** (version 3, 91 blocs insérés), strictement à partir des termes de référence :\n   - présentation du soumissionnaire (CARSO, GIE, CCI Toliara) ;\n   - compréhension des TDR et objectifs de la formation ;\n   - **public et volumes** : tableau des deux vagues, vague 1 = équipes SI et PSE, environ 24 participants (09 Suivi-Évaluation + 15 Système d'Information), 4 jours ouvrables ; vague 2 = Directeurs, Chefs de service et Responsables, environ 30 participants, 3 jours ouvrables ; total 7 jours ouvrables ;\n   - approche pédagogique : présentiel, pratique, participatif, démonstrations, exercices guidés, ateliers de groupe, données fictives/anonymisées/validées par le FID, évaluation des acquis par vague ;\n   - **programme détaillé jour par jour** pour chaque vague (V1 : fondamentaux, analyse de données, agents IA, ateliers spécialisés SI/PSE ; V2 : initiation IA générative, usages professionnels et managériaux, aide à la décision) ;\n   - besoins logistiques (salle, Internet, vidéoprojecteur, ordinateurs, supports, accès plateformes IA) ;\n   - **les 6 livrables des TDR** en tableau, dont la note méthodologique et la note de bonnes pratiques ;\n   - suivi, évaluation, conclusion et engagement.\n\n**Document produit**\n\n- Nom : **Offre_technique_AMI_FID_59_Formation_IA.docx** (nom de travail en base : `modele-OFFRE-TECH-L01.docx`), version 3, rattaché à l'offre OFFRE-TECH-L01.\n- Modèle utilisé : **`baeca7f4-f35e-4515-b706-2d3fcdce2d63`** (Model_offre_technique_FID.docx, version 1).\n\n**Statut** : le document est une **proposition** (statut `proposed`), non officialisée. Il attend votre validation pour devenir officiel. Le téléchargement vous est proposé dans le fil.\n\n**Points à compléter avant soumission** (non inventés, absents des TDR ou à confirmer par vous) : les références et certifications du dossier de candidature (annexe de la section 1), et le lieu exact de la formation, à préciser avec le FID.\n\nSouhaitez-vous une révision (ton, structure, ajout d'une section comme l'équipe pressentie ou le planning de mise en œuvre), ou passer à l'étape suivante ?"
+}

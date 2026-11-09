@@ -64,6 +64,7 @@ construit son ``ToolMessage`` avec ``None``. Un id déclaré n'est jamais rééc
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from collections.abc import Sequence
@@ -80,6 +81,11 @@ try:  # pragma: no cover - dépend de l'extra agents
 except ImportError:  # pragma: no cover - extra agents absent
     AIMessage = None  # type: ignore[assignment,misc]
     ToolMessage = None  # type: ignore[assignment,misc]
+
+try:  # pragma: no cover - pydantic est une dépendance de base
+    from pydantic import ValidationError
+except ImportError:  # pragma: no cover - environnement dégradé
+    ValidationError = ValueError  # type: ignore[assignment,misc]
 
 _logger = logging.getLogger(__name__)
 
@@ -263,6 +269,122 @@ def assainir_sequence_outils(messages: Sequence[Any]) -> list[Any]:
     return resultat
 
 
+def dedupliquer_appels(message: Any) -> tuple[Any, int]:
+    """Retire les appels d'outils **identiques** (même nom, mêmes arguments).
+
+    Certains modèles répètent le même appel dans un message. Le graphe exécute
+    alors chaque appel : le second reste sans résultat exploitable, une carte
+    reste « en préparation » et le modèle raisonne une fois de plus. Le premier
+    appel est conservé (même id) ; les suivants strictement identiques sont
+    retirés avant ``ToolNode``.
+    """
+    appels = getattr(message, "tool_calls", None)
+    if not isinstance(appels, list) or len(appels) < 2:
+        return message, 0
+    vus: set[str] = set()
+    uniques: list[Any] = []
+    for appel in appels:
+        cle = json.dumps(
+            [appel.get("name"), appel.get("args")],
+            sort_keys=True,
+            ensure_ascii=False,
+            default=str,
+        )
+        if cle in vus:
+            continue
+        vus.add(cle)
+        uniques.append(appel)
+    doublons = len(appels) - len(uniques)
+    if not doublons:
+        return message, 0
+    return message.model_copy(update={"tool_calls": uniques}), doublons
+
+
+def dedupliquer_sequence(messages: Sequence[Any]) -> tuple[list[Any], int]:
+    """Applique ``dedupliquer_appels`` à chaque message d'une séquence."""
+    sortie: list[Any] = []
+    total = 0
+    for message in messages:
+        propre, doublons = dedupliquer_appels(message)
+        total += doublons
+        sortie.append(propre)
+    return sortie, total
+
+
+def _appel_conforme(appel: Any, schemas: dict[str, Any]) -> bool:
+    """Vrai si les arguments de l'appel satisfont le schéma de son outil.
+
+    Un outil absent de ``schemas`` (nom inconnu, outil frontend) n'est **pas**
+    jugé : l'erreur explicite du ``ToolNode`` est plus instructive que le refus.
+    """
+    if not isinstance(appel, dict):
+        return True
+    nom = appel.get("name")
+    schema = schemas.get(nom) if isinstance(nom, str) else None
+    if schema is None or not hasattr(schema, "model_validate"):
+        return True
+    args = appel.get("args")
+    if not isinstance(args, dict):
+        return False
+    try:
+        schema.model_validate(args)
+    except ValidationError:
+        return False
+    return True
+
+
+def filtrer_appels_invalides(message: Any, schemas: dict[str, Any]) -> tuple[Any, int]:
+    """Retire les appels dont les arguments violent le schéma de l'outil.
+
+    Constat : ``qwen-3.8-27b`` émet parfois, dans le même message qu'un appel
+    valide, un second appel **incomplet** (``query_analytics {}``). Cet appel ne
+    peut rien produire : il laissait une carte en erreur dans le fil, en plus de
+    celle du véritable besoin. Il est donc refusé avant ``ToolNode``.
+
+    **Exception délibérée** : si **aucun** appel du message n'est conforme, ils
+    sont tous conservés. Les retirer tous laisserait ``ToolNode`` sans travail et
+    laisserait le modèle sans retour sur son erreur — il relancerait à l'aveugle,
+    et le tour finirait sur une réponse vide. Dans ce cas, l'appel invalide reçoit
+    un ``ToolMessage`` ``status="error"`` qui lui apprend le schéma attendu.
+
+    Returns:
+        ``(message, appels_refuses)`` — le message **lui-même** si rien n'est
+        écarté, sinon une copie dont ``tool_calls`` est réduit.
+    """
+    appels = getattr(message, "tool_calls", None)
+    if not isinstance(appels, list) or not appels or not schemas:
+        return message, 0
+    conformes = [appel for appel in appels if _appel_conforme(appel, schemas)]
+    refuses = len(appels) - len(conformes)
+    if not refuses or not conformes:
+        return message, 0
+    return message.model_copy(update={"tool_calls": conformes}), refuses
+
+
+def filtrer_sequence_invalides(
+    messages: Sequence[Any], schemas: dict[str, Any]
+) -> tuple[list[Any], int]:
+    """Applique ``filtrer_appels_invalides`` à chaque message d'une séquence."""
+    sortie: list[Any] = []
+    total = 0
+    for message in messages:
+        propre, refuses = filtrer_appels_invalides(message, schemas)
+        total += refuses
+        sortie.append(propre)
+    return sortie, total
+
+
+def schemas_outils(request: Any) -> dict[str, Any]:
+    """Schémas d'arguments des outils offerts au modèle, par nom."""
+    schemas: dict[str, Any] = {}
+    for outil in getattr(request, "tools", None) or ():
+        nom = getattr(outil, "name", None)
+        schema = getattr(outil, "args_schema", None)
+        if isinstance(nom, str) and nom:
+            schemas[nom] = schema
+    return schemas
+
+
 def _inchange(avant: Sequence[Any], apres: Sequence[Any]) -> bool:
     """Vrai si la liste assainie est identique, élément par élément (identité)."""
     return len(avant) == len(apres) and all(a is b for a, b in zip(avant, apres, strict=True))
@@ -292,24 +414,42 @@ class HistoriqueOutilsCoherentMiddleware(_AgentMiddleware):
         return request.override(messages=propre)
 
     @staticmethod
-    def _reponse_complete(reponse: Any) -> Any:
+    def _reponse_complete(reponse: Any, schemas: dict[str, Any] | None = None) -> Any:
         """Réponse du modèle dont chaque appel porte un id (sinon ToolNode casse).
+
+        Trois passages, dans cet ordre : ids manquants complétés, appels
+        strictement identiques dédupliqués, appels dont les arguments violent le
+        schéma refusés.
 
         Le gestionnaire rend un ``ModelResponse`` (dataclass ``result`` + sortie
         structurée), pas un ``AIMessage`` : réparer seulement ce dernier laissait
         passer l'appel sans id, et ``ToolNode`` levait
         ``tool_call_id … input_value=None``.
         """
+        schemas = schemas or {}
         resultat = getattr(reponse, "result", None)
         if isinstance(resultat, list):
             repares, ajoutes = completer_identifiants_sequence(resultat)
-            if not ajoutes:
+            repares, doublons = dedupliquer_sequence(repares)
+            repares, refuses = filtrer_sequence_invalides(repares, schemas)
+            if not (ajoutes or doublons or refuses):
                 return reponse
-            _logger.info("Appels d'outils sans id complétés : %d", ajoutes)
+            if ajoutes:
+                _logger.info("Appels d'outils sans id complétés : %d", ajoutes)
+            if doublons:
+                _logger.info("Appels d'outils identiques ignorés : %d", doublons)
+            if refuses:
+                _logger.info("Appels d'outils non conformes au schéma refusés : %d", refuses)
             return replace(reponse, result=repares)
         repare, ajoutes = completer_identifiants(reponse)
+        repare, doublons = dedupliquer_appels(repare)
+        repare, refuses = filtrer_appels_invalides(repare, schemas)
         if ajoutes:
             _logger.info("Appels d'outils sans id complétés : %d", ajoutes)
+        if doublons:
+            _logger.info("Appels d'outils identiques ignorés : %d", doublons)
+        if refuses:
+            _logger.info("Appels d'outils non conformes au schéma refusés : %d", refuses)
         return repare
 
     def _etat_complet(self, state: Any) -> dict[str, Any] | None:
@@ -330,10 +470,12 @@ class HistoriqueOutilsCoherentMiddleware(_AgentMiddleware):
         return self._etat_complet(state)
 
     def wrap_model_call(self, request: Any, handler: Any) -> Any:
-        return self._reponse_complete(handler(self._coherent(request)))
+        return self._reponse_complete(handler(self._coherent(request)), schemas_outils(request))
 
     async def awrap_model_call(self, request: Any, handler: Any) -> Any:
-        return self._reponse_complete(await handler(self._coherent(request)))
+        return self._reponse_complete(
+            await handler(self._coherent(request)), schemas_outils(request)
+        )
 
 
 __all__ = [
@@ -343,5 +485,10 @@ __all__ = [
     "assainir_sequence_outils",
     "completer_identifiants",
     "completer_identifiants_sequence",
+    "dedupliquer_appels",
+    "dedupliquer_sequence",
+    "filtrer_appels_invalides",
+    "filtrer_sequence_invalides",
     "identifiant_appel",
+    "schemas_outils",
 ]

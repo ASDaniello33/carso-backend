@@ -282,13 +282,14 @@ def test_prestation_directe_reste_possible(session: Session) -> None:
     assert mission.session is not None
 
 
-def test_dates_de_mission_ajoutables_avant_planification(session: Session) -> None:
-    """Une mission née sans dates doit pouvoir les recevoir (ADR 0012).
+def test_dates_de_mission_modifiables_avant_et_apres_planification(session: Session) -> None:
+    """Une mission née sans dates doit pouvoir les recevoir (ADR 0012, 0015).
 
     La planification exige des dates ; sans porte de sortie, une mission créée
     sans elles resterait bloquée à vie en « en planification ». Elles se
-    modifient donc tant que la mission n'est pas planifiée — ensuite la
-    session porte le calendrier et le refus est explicite, jamais silencieux.
+    modifient donc tant que la mission n'est pas planifiée — et, depuis
+    l'ADR 0015, aussi après : la session existante reçoit les nouvelles dates
+    dans la même transaction, jamais de désaccord silencieux.
     """
     org = Organisation(nom="Bailleur Ahanta")
     session.add(org)
@@ -329,7 +330,18 @@ def test_dates_de_mission_ajoutables_avant_planification(session: Session) -> No
     assert mission.session.date_debut == date(2026, 12, 1)
     assert mission.session.date_fin == date(2026, 12, 3)
 
-    # Passé ce stade, le calendrier appartient à la session : refus explicite.
-    with pytest.raises(ValidationError, match="avant sa planification"):
-        missions.modifier(mission.id, date_debut=date(2026, 12, 10), acteur="HUMAIN")
-    assert mission.date_debut == date(2026, 12, 1)
+    # ADR 0015 : les dates restent modifiables après la planification. La
+    # session existante les reçoit dans la même transaction (dates futures :
+    # les deux entités restent « planifié », aucun réalignement à faire).
+    mission = missions.modifier(
+        mission.id,
+        date_debut=date(2026, 12, 10),
+        date_fin=date(2026, 12, 12),
+        acteur="HUMAIN",
+    )
+    assert mission.date_debut == date(2026, 12, 10)
+    assert mission.statut == StatutMission.PLANIFIE.value
+    assert mission.session is not None
+    assert mission.session.date_debut == date(2026, 12, 10)
+    assert mission.session.date_fin == date(2026, 12, 12)
+    assert mission.session.statut == StatutSessionFormation.PLANIFIE.value

@@ -78,6 +78,10 @@ DEFINITION = AgentDefinition(
         # Vision : un scan de tableau se lit dans l'image, pas dans un texte
         # qui n'existe pas.
         "lire_image",
+        # Renommage et suppression d'un document existant : contenu jamais
+        # régénéré ; la suppression passe par une validation humaine.
+                "renommer_document",
+        "supprimer_document",
         # Livrable (rapport, synthèse) : déposé en proposition, jamais approuvé.
         "generer_document",
         "generer_document_professionnel",
@@ -112,7 +116,7 @@ DEFINITION = AgentDefinition(
         "rechercher_video",
     ),
     collaboration=(),
-    approval_required=(),
+    approval_required=("supprimer_document",),
     output_schema_name="StatistiqueReponse",
     skills=(),
     hitl_scenarios=SCENARIOS_HITL,

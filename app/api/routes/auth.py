@@ -100,7 +100,13 @@ def confirmer_reinitialisation(
 
 
 @router.get("/me", response_model=UtilisateurRead)
-def me(user: CurrentUser) -> Utilisateur:
+def me(user: CurrentUser, session: DbSession) -> Utilisateur:
+    """Profil du compte connecté, avec le drapeau « administrateur principal ».
+
+    Le drapeau est calculé à la lecture (aucune colonne) : le compte connecté le
+    voit sur lui-même comme sur n'importe quelle fiche de la liste.
+    """
+    UtilisateurService(session).marquer_administrateur_principal(user)
     return user
 
 
@@ -248,7 +254,15 @@ def suspendre(
     admin: AdminUser,
     session: DbSession,
 ) -> Utilisateur:
-    return UtilisateurService(session, actor_id=str(admin.id)).suspendre(user_id)
+    """Désactive un compte (la personne ne peut plus se connecter).
+
+    L'auteur vient du JWT : c'est lui qui porte l'autorité sur un autre compte
+    administrateur (réservée au compte principal). Sans cet identifiant, le
+    service ne pourrait pas distinguer les deux situations.
+    """
+    return UtilisateurService(session, actor_id=str(admin.id)).suspendre(
+        user_id, admin_id=admin.id
+    )
 
 
 # --- Gestion des comptes existants (page Utilisateurs, administrateur) -------

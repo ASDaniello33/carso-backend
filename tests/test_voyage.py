@@ -99,6 +99,94 @@ def test_photon_rend_des_resultats_normalises() -> None:
     assert "Toliara" in lieu.libelle and "Madagascar" in lieu.libelle
 
 
+def test_photon_couvre_adresses_et_etablissements() -> None:
+    """Hôtel, hôpital, adresse **sans nom** : tout doit sortir, avec sa nature.
+
+    L'interpréteur ne retenait que les objets portant un ``name`` : une adresse
+    Photon (numéro + rue) disparaissait, et la recherche ne semblait proposer
+    que des villes et des régions.
+    """
+    adresse = {
+        "type": "Feature",
+        "properties": {
+            "osm_type": "W",
+            "osm_id": 11,
+            "street": "Rue des Roses",
+            "housenumber": "12",
+            "postcode": "601",
+            "district": "Tanambao",
+            "city": "Toliara",
+            "country": "Madagascar",
+            "type": "house",
+            "osm_key": "highway",
+            "osm_value": "residential",
+        },
+        "geometry": {"type": "Point", "coordinates": [43.67, -23.35]},
+    }
+    hopital = {
+        "type": "Feature",
+        "properties": {
+            "osm_type": "N",
+            "osm_id": 12,
+            "name": "Hôpital SALFA",
+            "type": "house",
+            "osm_key": "amenity",
+            "osm_value": "hospital",
+            "city": "Toliara",
+        },
+        "geometry": {"type": "Point", "coordinates": [43.671, -23.353]},
+    }
+    # Cas réellement observé chez Photon : un commerce sans ``name``.
+    commerce = {
+        "type": "Feature",
+        "properties": {
+            "osm_type": "N",
+            "osm_id": 13,
+            "shop": "supermarket",
+            "street": "Rue Principale",
+            "city": "Morondava",
+            "country": "Madagascar",
+            "type": "house",
+            "osm_key": "shop",
+            "osm_value": "supermarket",
+        },
+        "geometry": {"type": "Point", "coordinates": [44.28, -20.28]},
+    }
+    resultats = interpreter_photon({"features": [adresse, hopital, commerce]})
+    assert [r.nom for r in resultats] == [
+        "12 Rue des Roses",
+        "Hôpital SALFA",
+        "Rue Principale",
+    ]
+    assert resultats[2].osm_value == "supermarket"
+    # GeoJSON : [0] = longitude, [1] = latitude — jamais inversées.
+    assert resultats[0].latitude == pytest.approx(-23.35)
+    assert resultats[0].longitude == pytest.approx(43.67)
+    # La rue est déjà le nom : le complément ne la répète pas.
+    assert resultats[0].adresse == "601, Tanambao"
+    assert resultats[1].osm_key == "amenity"
+    assert resultats[1].osm_value == "hospital"
+    assert resultats[1].type == "house"
+
+
+def test_photon_dedoublonne_le_meme_objet() -> None:
+    """Photon rend parfois deux fois le même lieu (parc + réserve) : une ligne."""
+    parc = {
+        "type": "Feature",
+        "properties": {
+            "osm_type": "R",
+            "osm_id": 21,
+            "name": "Parc National de Tsimanampetsotsa",
+            "boundary": "national_park",
+            "osm_key": "boundary",
+            "osm_value": "national_park",
+            "type": "other",
+        },
+        "geometry": {"type": "Point", "coordinates": [43.825, -24.2]},
+    }
+    assert len(interpreter_photon({"features": [parc, parc]})) == 1
+
+
 def test_photon_illisible_est_une_erreur_explicite() -> None:
     from app.core.errors import ServiceExterneError
 

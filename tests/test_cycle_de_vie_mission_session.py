@@ -300,7 +300,26 @@ def test_la_machine_a_etats_refuse_les_sauts(session: Session) -> None:
         StatutSessionFormation.EN_COURS.value,
         StatutSessionFormation.ANNULE.value,
     }
-    assert TRANSITIONS["mission"][StatutMission.CLOTURE.value] == set()
+    # ADR 0015 : réalignement calendaire sur nouvelles dates (pas à pas).
+    assert TRANSITIONS["mission"][StatutMission.EN_COURS.value] == {
+        StatutMission.CLOTURE.value,
+        StatutMission.PLANIFIE.value,
+        StatutMission.ANNULE.value,
+    }
+    assert TRANSITIONS["mission"][StatutMission.CLOTURE.value] == {
+        StatutMission.EN_COURS.value,
+    }
+    assert TRANSITIONS["session"][StatutSessionFormation.EN_COURS.value] == {
+        StatutSessionFormation.CLOTURE.value,
+        StatutSessionFormation.PLANIFIE.value,
+        StatutSessionFormation.ANNULE.value,
+    }
+    assert TRANSITIONS["session"][StatutSessionFormation.CLOTURE.value] == {
+        StatutSessionFormation.EN_COURS.value,
+    }
+    # Les deux machines restent verrouillées : ``annule`` reste terminal.
+    assert TRANSITIONS["mission"][StatutMission.ANNULE.value] == set()
+    assert TRANSITIONS["session"][StatutSessionFormation.ANNULE.value] == set()
 
 
 # --- Annulation symétrique --------------------------------------------------

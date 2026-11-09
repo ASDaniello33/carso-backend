@@ -32,6 +32,34 @@ from app.tools.documents import build_document_tools
 from app.tools.permissions import AgentIdentity, PermissionPolicy
 
 
+@pytest.fixture
+def vision_activee(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Modèle déclaré multimodal : ``lire_image`` est autorisé.
+
+    Par défaut ``AGENT_VISION`` est faux (les modèles configurés ne voient pas
+    les images) : les tests qui vérifient le transport de l'image doivent donc
+    l'activer explicitement.
+    """
+    from app.core import config
+
+    reglages = config.get_settings().model_copy(update={"agent_vision": True})
+    monkeypatch.setattr(config, "get_settings", lambda: reglages)
+
+
+@pytest.fixture
+def vision_desactivee(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Modèle déclaré sans vision : l'outil doit le dire, sans se bloquer.
+
+    Forcé ici plutôt que lu du ``.env`` : le test vérifie un **contrat**, il ne
+    doit pas changer de sens selon l'installation locale (``AGENT_VISION`` vaut
+    désormais ``true`` sur le poste de recette).
+    """
+    from app.core import config
+
+    reglages = config.get_settings().model_copy(update={"agent_vision": False})
+    monkeypatch.setattr(config, "get_settings", lambda: reglages)
+
+
 def _image_png(cote: int = 64) -> bytes:
     buffer = io.BytesIO()
     Image.new("RGB", (cote, cote), (30, 90, 160)).save(buffer, format="PNG")
@@ -126,7 +154,7 @@ def _outil_lire_image(chemin: Path, mime_type: str):
     return next(tool for tool in tools if tool.name == "lire_image"), service
 
 
-def test_lire_image_porte_l_image_au_modele(tmp_path: Path) -> None:
+def test_lire_image_porte_l_image_au_modele(tmp_path: Path, vision_activee: None) -> None:
     chemin = tmp_path / "capture.png"
     chemin.write_bytes(_image_png())
     tool, service = _outil_lire_image(chemin, "image/png")
@@ -149,7 +177,9 @@ def test_lire_image_porte_l_image_au_modele(tmp_path: Path) -> None:
     assert url.startswith("data:image/png;base64,")
 
 
-def test_lire_image_refuse_un_document_qui_n_est_pas_une_image(tmp_path: Path) -> None:
+def test_lire_image_refuse_un_document_qui_n_est_pas_une_image(
+    tmp_path: Path, vision_activee: None
+) -> None:
     chemin = tmp_path / "facture.pdf"
     chemin.write_bytes(b"%PDF-1.7")
     tool, service = _outil_lire_image(chemin, "application/pdf")
@@ -158,6 +188,52 @@ def test_lire_image_refuse_un_document_qui_n_est_pas_une_image(tmp_path: Path) -
 
     assert sortie["ok"] is False
     assert "n'est pas une image" in sortie["error"]["message"]
+
+
+def test_lire_image_reste_actif_et_rend_le_base64_sans_vision(
+    tmp_path: Path, vision_desactivee: None
+) -> None:
+    """Sans vision : l'outil **reste actif** et rend quand même le base64.
+
+    Constat du 09/11 : le refus dur quand ``AGENT_VISION=false`` privait
+    l'utilisateur de l'image alors que son contenu est lisible, borné au
+    périmètre du compte. L'outil rend donc l'image et sa valeur base64, et dit
+    la vérité sur la vision (`vision_activee=false` + réserve dans le message)
+    au lieu de faire semblant (carré rouge décrit « Inconnue », 08/11).
+    """
+    chemin = tmp_path / "capture.png"
+    chemin.write_bytes(_image_png())
+    tool, service = _outil_lire_image(chemin, "image/png")
+
+    sortie = tool.invoke({"document_id": str(service._document.id)})
+
+    assert sortie["ok"] is True, sortie
+    assert sortie["vision_activee"] is False
+    assert sortie["images"][0]["base64"]
+    assert "AGENT_VISION" in sortie["message"]
+    # Le base64 ne doit pas finir en texte : le pont le porte en bloc image_url.
+    contenu = to_langchain_tool(tool).invoke({"document_id": str(service._document.id)})
+    assert isinstance(contenu, list), contenu
+    assert any(bloc["type"] == "image_url" for bloc in contenu)
+    texte = next(bloc["text"] for bloc in contenu if bloc["type"] == "text")
+    # La **valeur** base64 ne doit jamais atterrir dans le texte (des centaines
+    # de milliers de tokens pour rien) : elle voyage uniquement dans le bloc.
+    assert sortie["images"][0]["base64"] not in texte
+    assert '"images"' not in texte
+
+
+def test_lire_image_dit_la_verite_sur_la_vision_activee(
+    tmp_path: Path, vision_activee: None
+) -> None:
+    """Vision déclarée : l'image est fournie sans réserve inutile."""
+    chemin = tmp_path / "capture.png"
+    chemin.write_bytes(_image_png())
+    tool, service = _outil_lire_image(chemin, "image/png")
+
+    sortie = tool.invoke({"document_id": str(service._document.id)})
+
+    assert sortie["vision_activee"] is True
+    assert "AGENT_VISION" not in sortie["message"]
 
 
 # --- 3. Périmètre documentaire de tous les agents -----------------------------

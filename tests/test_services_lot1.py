@@ -173,6 +173,31 @@ def test_lot_modifier_numero_duplique_409(session: Session) -> None:
     assert service.obtenir(lot2.id).zone == "Nord"
 
 
+def test_lot_zone_se_modifie_et_s_efface(session: Session) -> None:
+    """La zone est une donnée officielle : modifiable, et effaçable (INC-154).
+
+    Un champ vidé dans le formulaire doit retirer la zone ; sinon le PATCH
+    partiel la laissait en place et l'utilisateur croyait l'avoir retirée.
+    """
+    appel = _seed_appel(session)
+    service = LotService(session)
+    lot = service.ajouter(
+        LotInput(appel_id=appel.id, numero="1", titre="Lot 1", zone="Atsimo-Andrefana")
+    )
+
+    service.modifier(lot.id, LotUpdateInput(zone="Toliara"))
+    assert service.obtenir(lot.id).zone == "Toliara"
+
+    # Chaîne vide (ou blanche) : la zone redevient nulle.
+    service.modifier(lot.id, LotUpdateInput(zone="   "))
+    assert service.obtenir(lot.id).zone is None
+
+    # Une modification qui ne la mentionne pas laisse la zone intacte.
+    service.modifier(lot.id, LotUpdateInput(zone="Sud-Ouest"))
+    service.modifier(lot.id, LotUpdateInput(titre="Lot 1 bis"))
+    assert service.obtenir(lot.id).zone == "Sud-Ouest"
+
+
 def test_lot_zones_source(session: Session) -> None:
     appel = _seed_appel(session)
     service = LotService(session)

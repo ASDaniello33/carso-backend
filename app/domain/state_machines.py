@@ -68,20 +68,40 @@ TRANSITIONS: dict[str, dict[str, set[str]]] = {
     # ``cloture`` sont commandés par le calendrier et appliqués par le balayage
     # de cycle de vie, tracé en ``SYSTEME``. ``annule`` est ouvert à l'équipe
     # interne depuis tout état vivant.
+    #
+    # ADR 0015 : le calendrier devient **modifiable** après planification.
+    # De nouvelles dates déplacent la mission dans le temps : ``en_cours`` et
+    # ``cloture`` se **réalignent** pas à pas sur le calendrier réécrit (le
+    # réalignement de ``MissionService.modifier`` n'avance ou ne recule jamais
+    # d'un cran sans passer par ``validate_transition`` — un saut direct
+    # ``planifie`` → ``cloture`` ou l'inverse n'existe pas). Ces arêtes ne sont
+    # empruntées que par ce recalcul, jamais saisies à la main
+    # (``changer_statut`` refuse ``planifie``).
     "mission": {
         StatutMission.EN_PLANIFICATION: {
             StatutMission.PLANIFIE,
             StatutMission.ANNULE,
         },
         StatutMission.PLANIFIE: {StatutMission.EN_COURS, StatutMission.ANNULE},
-        StatutMission.EN_COURS: {StatutMission.CLOTURE, StatutMission.ANNULE},
-        StatutMission.CLOTURE: set(),
+        StatutMission.EN_COURS: {
+            StatutMission.CLOTURE,
+            StatutMission.PLANIFIE,  # ADR 0015 : réalignement sur nouvelles dates
+            StatutMission.ANNULE,
+        },
+        StatutMission.CLOTURE: {
+            StatutMission.EN_COURS,  # ADR 0015 : réalignement sur nouvelles dates
+        },
         StatutMission.ANNULE: set(),
     },
     # Une session naît ``planifie`` (planification de la mission) ou
     # ``en_planification`` (création manuelle, confirmée ensuite). Les passages
     # ``en_cours`` / ``cloture`` sont automatiques ; ``annule`` est humain et
-    # annule la mission.
+    # annule la mission. ADR 0015 : les statuts calendaire se réalignent pas à
+    # pas sur de nouvelles dates (arêtes ``en_cours`` → ``planifie`` et
+    # ``cloture`` → ``en_cours``, appelées par le réalignement de
+    # ``MissionService.modifier``). ``en_planification`` n'a **pas** d'arête de
+    # réalignement — une session créée à la main n'est pas encore confirmée, sa
+    # confirmation humaine reste un geste distinct.
     "session": {
         StatutSessionFormation.EN_PLANIFICATION: {
             StatutSessionFormation.PLANIFIE,
@@ -93,9 +113,12 @@ TRANSITIONS: dict[str, dict[str, set[str]]] = {
         },
         StatutSessionFormation.EN_COURS: {
             StatutSessionFormation.CLOTURE,
+            StatutSessionFormation.PLANIFIE,  # ADR 0015 : réalignement
             StatutSessionFormation.ANNULE,
         },
-        StatutSessionFormation.CLOTURE: set(),
+        StatutSessionFormation.CLOTURE: {
+            StatutSessionFormation.EN_COURS,  # ADR 0015 : réalignement
+        },
         StatutSessionFormation.ANNULE: set(),
     },
     "document": {

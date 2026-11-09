@@ -109,10 +109,10 @@ class MissionUpdate(BaseModel):
     ``PATCH /missions/{id}/lieu`` avec ``lieu_id = null`` : un ``null`` ici
     signifie « non fourni ».
 
-    Les dates ne se modifient que pendant ``en_planification`` : la
-    planification les exige (ADR 0012) et une mission née sans elles doit
-    pouvoir les recevoir. Une fois la mission planifiée, la session porte le
-    calendrier — changer les dates ici créerait un désaccord silencieux.
+    Les dates se modifient à tout état vivant (ADR 0015) : la session de la
+    mission les reçoit dans la même transaction et les statuts des deux
+    entités se réalignent sur le nouveau calendrier. Début > fin : 422. Une
+    mission ``annule`` est figée : ses dates ne se modifient plus.
     """
 
     titre: str | None = Field(default=None, min_length=1, max_length=255)

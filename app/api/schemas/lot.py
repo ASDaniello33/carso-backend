@@ -21,6 +21,10 @@ class LotCreate(BaseModel):
     partenariat: str | None = None
     date_fin: date | None = None
     donnees_source: dict[str, Any] | None = None
+    #: Lieu déjà existant à rattacher à la zone du lot. L'interface crée le
+    #: lieu **avant** d'envoyer cette requête : un identifiant inconnu est un
+    #: 404 explicite, jamais une ligne fantôme.
+    lieu_id: UUID | None = None
 
 
 class LotUpdate(BaseModel):

@@ -8,15 +8,31 @@ from typing import Any
 
 from app.api.agui_interrupt_orphelin import (
     MOTIF_REFUS,
+    MOTIF_SANS_REPONSE,
     PurgeInterruptOrphelin,
     decisions_refus,
 )
 
 
-def _snapshot(*, nexts: tuple[str, ...], action_requests: int = 0) -> Any:
+def _snapshot(
+    *,
+    nexts: tuple[str, ...],
+    action_requests: int = 0,
+    decisions_autorisees: tuple[str, ...] = ("approve", "edit", "reject"),
+    nom_outil: str = "outil_sensible",
+) -> Any:
     interruptions = ()
     if action_requests:
-        payload = {"action_requests": [{"name": f"outil_{i}"} for i in range(action_requests)]}
+        payload = {
+            "action_requests": [{"name": nom_outil} for _ in range(action_requests)],
+            "review_configs": [
+                {
+                    "action_name": nom_outil,
+                    "allowed_decisions": list(decisions_autorisees),
+                }
+                for _ in range(action_requests)
+            ],
+        }
         interruptions = (SimpleNamespace(value=payload),)
     return SimpleNamespace(
         next=nexts,
@@ -89,6 +105,57 @@ def test_decisions_refus_sans_payload_compte_une_par_interruption() -> None:
     snapshot = SimpleNamespace(
         next=("tools",),
         tasks=(SimpleNamespace(interrupts=(SimpleNamespace(value=None),)),),
+    )
+    assert decisions_refus(snapshot) == [{"type": "reject", "message": MOTIF_REFUS}]
+
+
+def test_questionnaire_orphelin_recoit_respond_pas_reject() -> None:
+    """Constat 09/11 : ``poser_questionnaire`` n'accepte que ``respond``.
+
+    Un ``reject`` y levait ``ValueError: Decision type 'reject' is not allowed
+    for tool 'poser_questionnaire'`` : la purge échouait, l'interruption
+    survivait, et le message suivant ne partait jamais.
+    """
+    snapshot = _snapshot(
+        nexts=("model",),
+        action_requests=1,
+        decisions_autorisees=("respond",),
+        nom_outil="poser_questionnaire",
+    )
+    assert decisions_refus(snapshot) == [{"type": "respond", "message": MOTIF_SANS_REPONSE}]
+
+
+def test_decision_par_outil_dans_un_meme_tour() -> None:
+    """Un questionnaire et un outil sensible dans le même lot : deux décisions."""
+    payload = {
+        "action_requests": [{"name": "poser_questionnaire"}, {"name": "envoyer_email"}],
+        "review_configs": [
+            {"action_name": "poser_questionnaire", "allowed_decisions": ["respond"]},
+            {"action_name": "envoyer_email", "allowed_decisions": ["approve", "reject"]},
+        ],
+    }
+    snapshot = SimpleNamespace(
+        next=("model",), tasks=(SimpleNamespace(interrupts=(SimpleNamespace(value=payload),)),)
+    )
+    assert decisions_refus(snapshot) == [
+        {"type": "respond", "message": MOTIF_SANS_REPONSE},
+        {"type": "reject", "message": MOTIF_REFUS},
+    ]
+
+
+def test_outil_sans_decision_sure_n_envoie_rien() -> None:
+    """Ni ``reject`` ni ``respond`` : rien n'est décidé à la place de l'humain."""
+    snapshot = _snapshot(
+        nexts=("model",), action_requests=1, decisions_autorisees=("approve", "edit")
+    )
+    assert decisions_refus(snapshot) == []
+
+
+def test_configuration_non_alignee_retombe_sur_le_refus() -> None:
+    """``review_configs`` absente : le refus reste la voie sûre."""
+    payload = {"action_requests": [{"name": "outil_sensible"}]}
+    snapshot = SimpleNamespace(
+        next=("model",), tasks=(SimpleNamespace(interrupts=(SimpleNamespace(value=payload),)),)
     )
     assert decisions_refus(snapshot) == [{"type": "reject", "message": MOTIF_REFUS}]
 

@@ -49,6 +49,7 @@ from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.domain.enums import (
     ActionAudit,
     ActorType,
+    DEVISE_PAR_DEFAUT,
     StatutBudget,
     TypeOffre,
     TypeProposition,
@@ -147,7 +148,10 @@ class BudgetService:
         budget = Budget(
             offre_id=offre_id,
             mission_id=mission_id,
-            devise=(devise or "").strip() or "MAD",
+            # Devise de travail de CARSO par défaut ; une devise explicite
+            # (celle de l'appel, par exemple) reste prioritaire dès qu'elle est
+            # fournie : le service n'écrase jamais un choix humain.
+            devise=(devise or "").strip() or DEVISE_PAR_DEFAUT,
             statut=StatutBudget.BROUILLON.value,
             version=1,
         )

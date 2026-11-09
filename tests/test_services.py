@@ -594,7 +594,7 @@ class TestOffreService:
         offre = service.creer_brouillon(
             lot.id, "OF-2026-04", "Offre", type=TypeOffre.OFFRE_TECHNIQUE.value
         )
-        budget = Budget(offre_id=offre.id, devise="MAD")
+        budget = Budget(offre_id=offre.id)
         session.add(budget)
         session.flush()
 

@@ -6,7 +6,7 @@ la décision humaine (règle 6 [C]).
 """
 
 from datetime import date
-from typing import Any
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
@@ -25,7 +25,9 @@ from app.api.schemas import (
     ConflitDisponibilite,
     DecisionCreate,
     DisponibilitePersonne,
+    MembreEnConflit,
     MissionAffectationsRead,
+    MissionConflitsEquipeRead,
     MissionDisponibilitesRead,
     PropositionAgentRhRead,
 )
@@ -33,7 +35,7 @@ from app.application.dto import AffectationProposee
 from app.application.services import AffectationService, MissionService
 from app.application.trace import Decision, demande_par
 from app.core.errors import ConflictError, NotFoundError
-from app.domain.enums import StatutAffectation
+from app.domain.enums import StatutAffectation, StatutMission
 from app.domain.execution import AffectationEquipe
 
 router = APIRouter(tags=["affectations"], dependencies=[Depends(get_current_user)])
@@ -247,6 +249,83 @@ def lire_disponibilites(
         date_debut=mission.date_debut,
         date_fin=mission.date_fin,
         personnes=personnes,
+    )
+
+
+@router.get(
+    "/missions/{mission_id}/conflits-equipe",
+    response_model=MissionConflitsEquipeRead,
+    dependencies=[Depends(exiger_interne)],
+)
+def lire_conflits_equipe(
+    mission_id: UUID,
+    session: DbSession,
+    perimetre: PerimetreDep,
+    date_debut: Annotated[
+        date | None,
+        Query(
+            description=(
+                "Début d'une période hypothétique à évaluer (dates saisies avant "
+                "enregistrement d'un report) ; absent = dates de la mission."
+            )
+        ),
+    ] = None,
+    date_fin: Annotated[
+        date | None,
+        Query(description="Fin de la période hypothétique ; absente = dates de la mission."),
+    ] = None,
+) -> MissionConflitsEquipeRead:
+    """Chevauchements de l'équipe **approuvée** sur les dates de la mission.
+
+    Lecture seule de la même règle que le refus d'affectation (ADR 0012),
+    agrégée par membre : après un report de dates (ADR 0015) ou une
+    affectation, l'écran signale les personnes déjà engagées ailleurs sur la
+    période. L'alerte **informe** ; elle ne modifie ni ne bloque rien.
+
+    ``date_debut``/``date_fin`` évaluent une période **hypothétique** — les
+    dates saisies dans le formulaire, avant enregistrement du report — sans
+    rien écrire. Absentes, la période évaluée est celle de la mission.
+
+    Une période sans ses deux bornes, ou une mission annulée, n'est pas
+    évaluable : ``evaluable`` est faux et aucun membre n'est signalé.
+    """
+    mission = MissionService(session, perimetre=perimetre).obtenir(mission_id)
+    debut = date_debut if date_debut is not None else mission.date_debut
+    fin = date_fin if date_fin is not None else mission.date_fin
+    evaluable = (
+        debut is not None
+        and fin is not None
+        and mission.statut != StatutMission.ANNULE.value
+    )
+    conflits = (
+        AffectationService(session).conflits_mission(
+            mission.id, date_debut=debut, date_fin=fin
+        )
+        if evaluable
+        else []
+    )
+    return MissionConflitsEquipeRead(
+        mission_id=mission.id,
+        evaluable=evaluable,
+        date_debut=debut,
+        date_fin=fin,
+        membres=[
+            MembreEnConflit(
+                equipe_id=c["equipe_id"],
+                nom=c["nom"],
+                prenom=c["prenom"],
+                missions_en_conflit=[
+                    ConflitDisponibilite(
+                        reference=m["reference"],
+                        titre=m["titre"],
+                        date_debut=date.fromisoformat(m["date_debut"]),
+                        date_fin=date.fromisoformat(m["date_fin"]),
+                    )
+                    for m in c["missions_en_conflit"]
+                ],
+            )
+            for c in conflits
+        ],
     )
 
 

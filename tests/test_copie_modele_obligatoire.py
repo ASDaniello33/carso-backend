@@ -56,8 +56,22 @@ def _outils(documents):
     }
 
 
-def _contexte(tmp_path: Path, db_session, *, avec_modele: bool, avec_copie: bool = False):
-    """Organisation, offre, et — au choix — modèle au registre et copie de travail."""
+def _contexte(
+    tmp_path: Path,
+    db_session,
+    *,
+    avec_modele: bool,
+    avec_copie: bool = False,
+    type_offre: str = "offre_technique",
+    type_modele: str = "modele_offre_technique",
+):
+    """Organisation, offre, et — au choix — modèle au registre et copie de travail.
+
+    ``type_offre`` / ``type_modele`` permettent de vérifier la correspondance :
+    un modèle déposé pour un type d'offre ne couvre pas l'autre (constat
+    ``OFFRE-FIN-L01``, où le modèle technique du FID fermait l'offre
+    financière).
+    """
     stockage = LocalDocumentStorage(tmp_path / "stockage", max_bytes=8 * 1024 * 1024)
     organisation = Organisation(nom="Client Modèle")
     db_session.add(organisation)
@@ -77,7 +91,7 @@ def _contexte(tmp_path: Path, db_session, *, avec_modele: bool, avec_copie: bool
         modele_id = ModeleDocumentService(db_session).enregistrer_modele(
             organisation.id,
             nom="modele_client.docx",
-            type_document="modele_offre_technique",
+            type_document=type_modele,
             document_template_id=document.id,
             registered_by="test",
         ).id
@@ -97,7 +111,7 @@ def _contexte(tmp_path: Path, db_session, *, avec_modele: bool, avec_copie: bool
         organisation_id=organisation.id,
         appel_id=appel.id,
         lot_id=lot.id,
-        type="offre_technique",
+        type=type_offre,
         reference="OFFRE-COPIER",
         titre="Offre à copier",
         version=1,
@@ -244,6 +258,101 @@ def test_un_document_sans_ancre_n_est_pas_concerne(tmp_path, db_session) -> None
     sortie = outils["generer_document_professionnel"].invoke(payload)
 
     assert "ne se génère à neuf" not in str(sortie.get("error") or "")
+
+
+def test_un_modele_d_un_autre_type_d_offre_ne_bloque_pas(tmp_path, db_session) -> None:
+    """Le modèle technique du client ne ferme pas l'offre financière.
+
+    Constat de terrain (offre ``OFFRE-FIN-L01``, organisation FID) : le refus
+    citait le modèle technique déposé et invitait à le copier dans une offre
+    financière — un gabarit qui ne lui correspond pas. La règle ne vaut que
+    pour le type d'offre que le modèle couvre.
+    """
+    contexte = _contexte(
+        tmp_path,
+        db_session,
+        avec_modele=True,
+        type_offre="offre_financiere",
+        type_modele="modele_offre_technique",
+    )
+
+    # Aucun refus : la génération libre reste le bon chemin pour ce type.
+    contexte["service"].exiger_copie_modele("offre", contexte["offre"].id)
+
+    outils = _outils(contexte["documents"])
+    sortie = outils["generer_document_professionnel"].invoke(_payload(contexte))
+    assert "ne se génère à neuf" not in str(sortie.get("error") or "")
+
+
+def test_le_modele_du_meme_type_d_offre_bloque(tmp_path, db_session) -> None:
+    """Le pendant : le modèle financier ferme bien l'offre financière."""
+    contexte = _contexte(
+        tmp_path,
+        db_session,
+        avec_modele=True,
+        type_offre="offre_financiere",
+        type_modele="modele_offre_financiere",
+    )
+
+    with pytest.raises(ValidationError, match="ne se génère à neuf") as refus:
+        contexte["service"].exiger_copie_modele("offre", contexte["offre"].id)
+    assert refus.value.details["modeles"][0]["type_document"] == "modele_offre_financiere"
+
+
+def test_un_modele_generique_couvre_les_deux_types(tmp_path, db_session) -> None:
+    """Un modèle générique (``offre``) s'applique à toute offre."""
+    contexte = _contexte(
+        tmp_path,
+        db_session,
+        avec_modele=True,
+        type_offre="offre_financiere",
+        type_modele="offre",
+    )
+
+    with pytest.raises(ValidationError, match="ne se génère à neuf"):
+        contexte["service"].exiger_copie_modele("offre", contexte["offre"].id)
+
+
+def test_une_copie_issue_d_un_autre_type_n_empeche_pas_la_generation(
+    tmp_path, db_session
+) -> None:
+    """La copie technique déjà déposée ne ferme pas l'offre financière.
+
+    État réel constaté sur ``OFFRE-FIN-L01`` : trois versions de
+    ``modele-OFFRE-FIN-L01.docx`` copiées depuis ``Model_offre_technique_FID``.
+    Cette copie n'est pas le document d'une offre financière : elle ne doit
+    plus bloquer la production du bon livrable.
+    """
+    contexte = _contexte(
+        tmp_path,
+        db_session,
+        avec_modele=True,
+        avec_copie=True,
+        type_offre="offre_financiere",
+        type_modele="modele_offre_technique",
+    )
+
+    contexte["service"].exiger_copie_modele("offre", contexte["offre"].id)
+
+    outils = _outils(contexte["documents"])
+    sortie = outils["generer_document_professionnel"].invoke(_payload(contexte))
+    assert "a déjà sa copie du modèle" not in str(sortie.get("error") or "")
+    assert "ne se génère à neuf" not in str(sortie.get("error") or "")
+
+
+def test_une_copie_du_bon_type_bloque_toujours(tmp_path, db_session) -> None:
+    """La copie du modèle du même type, elle, reste le document à éditer."""
+    contexte = _contexte(
+        tmp_path,
+        db_session,
+        avec_modele=True,
+        avec_copie=True,
+        type_offre="offre_financiere",
+        type_modele="modele_offre_financiere",
+    )
+
+    with pytest.raises(ValidationError, match="a déjà sa copie du modèle"):
+        contexte["service"].exiger_copie_modele("offre", contexte["offre"].id)
 
 
 def test_une_ancre_inconnue_repond_introuvable(tmp_path, db_session) -> None:

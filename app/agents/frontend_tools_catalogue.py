@@ -851,6 +851,42 @@ class LigneGraphiqueDashboard(BaseModel):
     valeur: float
 
 
+class ColonneTableauDashboard(BaseModel):
+    """Colonne d'un widget tableau : clé technique et libellé affiché."""
+
+    model_config = ConfigDict(extra="allow")
+
+    cle: str = Field(min_length=1, description="Clé lue dans ``ligne.valeurs``.")
+    titre: str = Field(min_length=1, description="En-tête affiché.")
+
+
+class LigneTableauDashboard(BaseModel):
+    """Ligne d'un widget tableau — les valeurs sont **groupées sous ``valeurs``**.
+
+    Constat de recette (08/11) : ``lignes: list[dict[str, Any]]`` laissait le
+    modèle libre d'aplatir la ligne (`{"indicateur": "Missions", "valeur": 10}`)
+    au lieu de `{"id": "m1", "valeurs": {"indicateur": …, "valeur": …}}`.
+    La page Rapports levait alors `TypeError: Cannot read properties of
+    undefined (reading 'indicateur')`, et après garde du rendu, un tableau de
+    « Non renseigné ». Le modèle reçoit donc ici la forme exacte attendue par
+    le rendu ; une ligne aplatie est refusée avec un message lisible plutôt
+    qu'acceptée silencieusement.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    id: str | None = Field(
+        default=None,
+        description="Identifiant de la ligne, pour la clé de rendu.",
+    )
+    valeurs: dict[str, str | int | float] = Field(
+        description=(
+            "Valeurs par clé de colonne, dans un objet ``valeurs`` — jamais "
+            "aplaties sur la ligne."
+        ),
+    )
+
+
 class SourceDashboard(BaseModel):
     """Provenance déclarée d'une donnée : base, document ou web."""
 
@@ -865,9 +901,10 @@ class SourceDashboard(BaseModel):
 class WidgetDashboard(BaseModel):
     """Widget d'un dashboard : tuile, graphique ou tableau.
 
-    Le contrat strict par forme de widget vit côté client (zod) ; ici, un
-    schéma souple ``extra=allow`` suffit — le middleware ne rejette que le
-    visiblement invalide, et le rendu ignore les champs qu'il ne connaît pas.
+    Le rendu client ignore les champs qu'il ne connaît pas (``extra=allow``),
+    mais les **lignes de tableau** ont une forme explicite
+    (:class:`LigneTableauDashboard`) : sans elle, le modèle inventait un
+    aplatissement des valeurs et le tableau s'affichait vide.
     """
 
     model_config = ConfigDict(extra="allow")
@@ -879,8 +916,8 @@ class WidgetDashboard(BaseModel):
     detail: str | None = None
     unite: str | None = None
     donnees: list[LigneGraphiqueDashboard] = Field(default_factory=list)
-    colonnes: list[dict[str, Any]] = Field(default_factory=list)
-    lignes: list[dict[str, Any]] = Field(default_factory=list)
+    colonnes: list[ColonneTableauDashboard] = Field(default_factory=list)
+    lignes: list[LigneTableauDashboard] = Field(default_factory=list)
 
 
 class PayloadDashboard(BaseModel):

@@ -139,6 +139,37 @@ class MissionDisponibilitesRead(BaseModel):
     personnes: list[DisponibilitePersonne] = Field(default_factory=list)
 
 
+class MembreEnConflit(BaseModel):
+    """Membre d'équipe dont une mission approuvée chevauche celle-ci.
+
+    Une donnée par personne, pas une phrase : l'interface écrit son alerte.
+    """
+
+    equipe_id: UUID
+    nom: str
+    prenom: str
+    missions_en_conflit: list[ConflitDisponibilite] = Field(default_factory=list)
+
+
+class MissionConflitsEquipeRead(BaseModel):
+    """Alerte de chevauchement de l'équipe **approuvée** d'une mission.
+
+    Lecture seule de la règle de disponibilité (ADR 0012) : le report des
+    dates d'une mission (ADR 0015) peut croiser les autres missions de ses
+    membres. L'alerte informe, elle ne bloque jamais l'écriture.
+
+    ``evaluable`` est faux quand la mission n'a pas ses deux dates, ou
+    lorsqu'elle est annulée : la règle ne s'applique pas et aucune personne
+    n'est signalée.
+    """
+
+    mission_id: UUID
+    evaluable: bool
+    date_debut: date | None = None
+    date_fin: date | None = None
+    membres: list[MembreEnConflit] = Field(default_factory=list)
+
+
 class PropositionAgentRhRead(BaseModel):
     """Réponse de l'AgentRH : candidats classés + affectations proposées
     en attente de décision humaine (HITL)."""
