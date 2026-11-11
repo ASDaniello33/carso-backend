@@ -695,8 +695,21 @@ class ConnaissanceService:
         api_key: str | None = None,
         conserver_cle: bool = True,
         modifie_par: str | None = None,
+        fournisseur_id: UUID | None = None,
+        modele_catalogue_id: UUID | None = None,
     ) -> tuple[ConfigurationEmbedding, bool]:
         """Enregistre le modèle d'embedding après un appel réel de validation.
+
+        Deux façons de désigner la connexion :
+
+        - **depuis le catalogue** (``fournisseur_id`` / ``modele_catalogue_id``) :
+          l'URL de base et la clé sont lues sur la connexion déjà enregistrée —
+          l'administrateur ne les ressaisit pas, et corriger la clé du
+          fournisseur la corrige ici aussi. Un champ explicitement fourni
+          l'emporte (cas rare : un endpoint d'embedding différent du chat chez
+          le même fournisseur) ;
+        - **à la main** (aucun identifiant) : comportement d'origine, un
+          endpoint et une clé saisis sur cet écran.
 
         Returns:
             ``(ligne, reindexation_requise)`` — la réindexation est requise quand
@@ -705,9 +718,19 @@ class ConnaissanceService:
 
         Raises:
             EmbeddingIndisponibleError: configuration refusée par le provider.
-            BusinessValidationError: clé fournie sans chiffrement disponible.
+            BusinessValidationError: clé fournie sans chiffrement disponible,
+                ou connexion du catalogue désactivée/introuvable.
             CarsoError: index vectoriel indisponible pour la réinitialisation.
         """
+        if fournisseur_id is not None or modele_catalogue_id is not None:
+            provider, model, base_url, api_key = self._depuis_le_catalogue(
+                provider=provider,
+                model=model,
+                base_url=base_url,
+                api_key=api_key,
+                fournisseur_id=fournisseur_id,
+                modele_catalogue_id=modele_catalogue_id,
+            )
         provider_n, model_n, base_url_n = valider_configuration(
             provider=provider, model=model, base_url=base_url
         )
@@ -764,6 +787,132 @@ class ConnaissanceService:
         )
         declencher_indexation()
         return ligne, changera
+
+    # --- Connexions réutilisables (catalogue des fournisseurs) ---------------
+
+    def connexions_embedding(self) -> list[dict[str, Any]]:
+        """Fournisseurs du catalogue utilisables comme source d'embedding.
+
+        Un fournisseur d'embedding est une **connexion** : protocole, URL de
+        base et clé. Le catalogue les garde déjà pour les modèles de chat ; les
+        ressaisir ici revenait à recopier la même URL et la même clé, et à
+        corriger une clé à deux endroits.
+
+        Ce que l'écran reçoit ne contient **aucun secret** : le nom, le
+        protocole, l'URL, le drapeau « une clé existe » et les modèles
+        enregistrés chez ce fournisseur. La clé n'est jamais relue par l'API ;
+        elle est déchiffrée côté serveur au moment d'appliquer le modèle.
+
+        Seuls les fournisseurs **actifs** sont proposés : en choisir un
+        désactivé donnerait une configuration qui échoue au premier appel.
+        """
+        from app.infrastructure.repositories.catalogue_ia import (
+            FournisseurIARepository,
+            ModeleIARepository,
+        )
+
+        fournisseurs = FournisseurIARepository(self._session)
+        modeles = ModeleIARepository(self._session)
+        connexions: list[dict[str, Any]] = []
+        for fournisseur in fournisseurs.lister():
+            if not fournisseur.actif:
+                continue
+            connexions.append(
+                {
+                    **fournisseur.resume(),
+                    "modeles": [
+                        modele.resume() for modele in modeles.lister_pour(fournisseur.id)
+                    ],
+                }
+            )
+        return connexions
+
+    def _depuis_le_catalogue(
+        self,
+        *,
+        provider: str,
+        model: str,
+        base_url: str | None,
+        api_key: str | None,
+        fournisseur_id: UUID | None,
+        modele_catalogue_id: UUID | None,
+    ) -> tuple[str, str, str | None, str | None]:
+        """Complète la configuration depuis une connexion déjà enregistrée.
+
+        Un champ fourni explicitement **gagne** : l'URL d'embedding peut
+        différer de celle du chat chez un même fournisseur, et l'administrateur
+        doit pouvoir le dire. Sinon, la connexion fournit l'URL et la clé.
+
+        Un modèle du catalogue identifie son fournisseur : on ne demande pas les
+        deux, et un identifiant incohérent (modèle X + fournisseur Y) est refusé
+        plutôt que résolu au hasard.
+
+        Raises:
+            BusinessValidationError: connexion introuvable, désactivée, ou
+                modèle et fournisseur qui ne vont pas ensemble.
+        """
+        from app.infrastructure.repositories.catalogue_ia import (
+            FournisseurIARepository,
+            ModeleIARepository,
+        )
+
+        modele_ligne = None
+        if modele_catalogue_id is not None:
+            modele_ligne = ModeleIARepository(self._session).obtenir_avec_fournisseur(
+                modele_catalogue_id
+            )
+            if modele_ligne is None:
+                raise BusinessValidationError(
+                    "Modèle du catalogue introuvable.",
+                    details={"modele_id": str(modele_catalogue_id)},
+                )
+            if fournisseur_id is not None and modele_ligne.fournisseur_id != fournisseur_id:
+                raise BusinessValidationError(
+                    "Le modèle choisi n'appartient pas à ce fournisseur.",
+                    details={
+                        "modele_id": str(modele_catalogue_id),
+                        "fournisseur_id": str(fournisseur_id),
+                    },
+                )
+            fournisseur = modele_ligne.fournisseur
+        else:
+            fournisseur = (
+                FournisseurIARepository(self._session).obtenir(fournisseur_id)
+                if fournisseur_id is not None
+                else None
+            )
+            if fournisseur is None:
+                raise BusinessValidationError(
+                    "Fournisseur du catalogue introuvable.",
+                    details={"fournisseur_id": str(fournisseur_id)},
+                )
+        if not fournisseur.actif:
+            raise BusinessValidationError(
+                "Ce fournisseur est désactivé : le réactiver avant de l'utiliser "
+                "pour les embeddings.",
+                details={"fournisseur_id": str(fournisseur.id)},
+            )
+
+        provider_final = provider.strip() or fournisseur.protocole
+        model_final = model.strip() or (
+            modele_ligne.nom_modele if modele_ligne is not None else ""
+        )
+        if not model_final:
+            raise BusinessValidationError(
+                "Indiquer le modèle d'embedding (identifiant envoyé au fournisseur).",
+                details={"champ": "model"},
+            )
+        base_url_final = (base_url or "").strip() or fournisseur.base_url
+        cle_finale = api_key
+        if not (cle_finale and cle_finale.strip()) and fournisseur.api_key_chiffree:
+            try:
+                cle_finale = dechiffrer(fournisseur.api_key_chiffree)
+            except CarsoError:
+                logger.warning(
+                    "Clé du fournisseur %s illisible : repli sur la clé du .env",
+                    fournisseur.id,
+                )
+        return provider_final, model_final, base_url_final, cle_finale
 
     def desactiver_configuration(self) -> bool:
         """Revient au modèle du ``.env`` (la décision est mémorisée).

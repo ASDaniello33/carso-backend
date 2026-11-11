@@ -25,7 +25,7 @@ import io
 import json
 from collections.abc import Iterator
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import select
@@ -38,6 +38,7 @@ from app.application.dto import (
     LieuInput,
     MissionDepuisOffresInput,
 )
+from app.application.perimetre import Perimetre
 from app.application.services import (
     AppelService,
     DocumentService,
@@ -170,11 +171,16 @@ PROPOSITION = {
 def _deposer_non_classe(
     factory: sessionmaker[Session], nom: str = "Appel recu.pdf"
 ) -> UUID:
-    """Pièce jointe déposée hors fiche métier : ``generated/{id}/``."""
+    """Pièce jointe déposée hors fiche métier : dossier du compte."""
     from tests.document_fixtures import build_pdf
 
     with factory() as session:
-        document = DocumentService(session).enregistrer_document(
+        document = DocumentService(
+            session,
+            perimetre=Perimetre(
+                role="administrateur", utilisateur_id=uuid4(), est_complet=True
+            ),
+        ).enregistrer_document(
             DocumentUploadInput(
                 type_document=TypeDocument.APPEL_OFFRE.value,
                 nom=nom,
@@ -247,7 +253,7 @@ class TestReceptionAppel:
         document_id = _deposer_non_classe(factory)
         avant = _document(factory, document_id)
         assert avant.appel_id is None
-        assert avant.storage_path.startswith("generated/")
+        assert avant.storage_path.startswith("workdir/")
 
         sortie = outils["enregistrer_appel"].invoke(
             {
@@ -356,7 +362,12 @@ class TestReceptionAppel:
         from tests.document_fixtures import build_pdf
 
         with factory() as session:
-            document = DocumentService(session).enregistrer_document(
+            document = DocumentService(
+                session,
+                perimetre=Perimetre(
+                    role="administrateur", utilisateur_id=uuid4(), est_complet=True
+                ),
+            ).enregistrer_document(
                 DocumentUploadInput(
                     type_document=TypeDocument.APPEL_OFFRE.value,
                     nom="Deja rattache.pdf",

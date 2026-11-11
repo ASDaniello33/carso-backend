@@ -155,6 +155,30 @@ class ConnaissanceEtatRead(BaseModel):
     index: IndexConnaissanceRead
 
 
+class ConnexionEmbeddingModeleRead(BaseModel):
+    """Modèle enregistré chez une connexion (nom seulement, aucun secret)."""
+
+    id: UUID
+    nom_modele: str
+    libelle: str | None = None
+    actif: bool = True
+
+
+class ConnexionEmbeddingRead(BaseModel):
+    """Connexion fournisseur réutilisable pour les embeddings.
+
+    Ni clé, ni jeton : ``cle_enregistree`` dit seulement qu'une clé existe. Le
+    serveur la déchiffre au moment d'appliquer le modèle.
+    """
+
+    id: UUID
+    nom: str
+    protocole: str
+    base_url: str | None = None
+    cle_enregistree: bool = False
+    modeles: list[ConnexionEmbeddingModeleRead] = Field(default_factory=list)
+
+
 class EmbeddingTestCreate(BaseModel):
     """Demande de mesure réelle d'un modèle (aucune écriture)."""
 
@@ -175,13 +199,23 @@ class EmbeddingTestRead(BaseModel):
 
 
 class EmbeddingConfigurationCreate(BaseModel):
-    """Enregistrement du modèle appliqué (validation réelle avant écriture)."""
+    """Enregistrement du modèle appliqué (validation réelle avant écriture).
 
-    provider: str = Field(min_length=1, max_length=50)
-    model: str = Field(min_length=1, max_length=150)
+    ``fournisseur_id`` / ``modele_catalogue_id`` désignent une **connexion déjà
+    enregistrée** dans le catalogue : l'URL de base et la clé en viennent, sans
+    ressaisie. Les champs explicites restent acceptés et l'emportent — un
+    endpoint d'embedding peut différer chez le même fournisseur.
+    """
+
+    provider: str = Field(default="", max_length=50)
+    model: str = Field(default="", max_length=150)
     base_url: str | None = Field(default=None, max_length=500)
     api_key: str | None = Field(default=None, max_length=500)
     conserver_cle: bool = True
+    #: Connexion du catalogue à réutiliser (URL de base + clé déjà enregistrées).
+    fournisseur_id: UUID | None = None
+    #: Modèle du catalogue : identifie son fournisseur et fournit le nom du modèle.
+    modele_catalogue_id: UUID | None = None
 
 
 class EmbeddingConfigurationEnregistreeRead(BaseModel):

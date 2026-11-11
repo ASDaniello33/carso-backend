@@ -31,7 +31,7 @@ permission, délègue (AGENTS.md §2.5—Agent → Tool → Service → Reposito
 
 Une ancre métier **réelle** range le fichier sous l'objet correspondant.
 Une ancre absente, inconnue ou inventée range le document sous
-``generated/{id}/`` (type ``non_classe``)—aucun UUID n'est inventé.
+``workdir/{compte}/{id}/`` (type ``non_classe``)—aucun UUID n'est inventé.
 """
 
 from __future__ import annotations
@@ -2016,7 +2016,7 @@ def _kwargs_ancre(payload: dict[str, Any]) -> dict[str, UUID]:
 
     Un nom d'ancre hors vocabulaire reste une erreur : ce n'est pas un oubli,
     c'est une valeur inventée. Un UUID manquant ou une ancre omise n'en est pas
-    une — le service range alors sous ``generated/{id}/``.
+    une — le service range alors dans le dossier de travail du compte.
     """
     brute = payload.get("ancre")
     if brute is None:
@@ -2118,7 +2118,7 @@ def _contrat_validation(rapport: Any) -> dict[str, Any]:
 def _message_livrable(sortie: dict[str, Any], conforme: bool) -> str:
     """Message de retour d'une génération structurée (ce qui reste à faire).
 
-    Un livrable déposé **sans ancre** reste sous ``generated/{id}/`` : le dire
+    Un livrable déposé **sans ancre** reste dans le dossier du compte : le dire
     explicitement, faute de quoi l'agent croit le document rangé dans un
     dossier métier et n'essaie jamais de le rattacher.
     """
@@ -2129,7 +2129,7 @@ def _message_livrable(sortie: dict[str, Any], conforme: bool) -> str:
     if sortie.get("non_classe"):
         base = (
             f"Document déposé en statut '{sortie.get('statut')}' sans "
-            f"rattachement métier (generated/{sortie.get('document_id')}). "
+            f"rattachement métier (dossier personnel {sortie.get('document_id')}). "
             f"Validation humaine requise. Étape suivante : appeler {suite}"
         )
     else:
@@ -2488,7 +2488,7 @@ def build_document_tools(
             sortie["non_classe"] = True
             sortie["message"] = (
                 f"Document déposé en statut 'proposed' sans rattachement métier "
-                f"(generated/{document.id}). Validation humaine requise. "
+                f"(dossier personnel {document.id}). Validation humaine requise. "
                 "Proposer le téléchargement via proposer_telechargement_document."
             )
         else:
@@ -2531,7 +2531,7 @@ def build_document_tools(
             f"{image.extension}, {image.octets_finis} octets."
         )
         if sortie.get("non_classe"):
-            texte += " Aucune ancre : rangée sous generated/{id}."
+            texte += " Aucune ancre : rangée dans le dossier du compte."
         texte += (
             " Pour que l'utilisateur la voie et la télécharge, appeler "
             "afficher_image avec ce document_id."
@@ -2779,7 +2779,7 @@ def build_document_tools(
         else:
             resultat["message"] = (
                 "Document généré et déposé en statut 'proposed' sans rattachement "
-                f"métier (generated/{resultat['document_id']}). "
+                f"métier (dossier personnel {resultat['document_id']}). "
                 "Appeler proposer_telechargement_document pour offrir le téléchargement."
             )
         return resultat
@@ -2810,7 +2810,7 @@ def build_document_tools(
         if sortie.get("non_classe"):
             sortie["message"] = (
                 "Document HTML converti et déposé en statut 'proposed' sans "
-                f"rattachement métier (generated/{sortie['document_id']}). "
+                f"rattachement métier (dossier personnel {sortie['document_id']}). "
                 "Validation humaine requise. Appeler proposer_telechargement_document."
             )
         else:
@@ -2911,7 +2911,7 @@ def build_document_tools(
         }.get(rendu.format, "Document professionnel")
         sortie["message"] = (
             f"{libelle} généré et déposé en statut 'proposed' sans "
-            f"rattachement métier (generated/{sortie['document_id']}). "
+            f"rattachement métier (dossier personnel {sortie['document_id']}). "
             "Validation humaine requise. Appeler proposer_telechargement_document."
             if sortie.get("non_classe")
             else (
@@ -3028,7 +3028,7 @@ def build_document_tools(
             return
 
     def _sans_rattachement(sortie: dict[str, Any]) -> bool:
-        """Le livrable a-t-il été rangé sous ``generated/{id}`` faute d'ancre ?"""
+        """Le livrable a-t-il été rangé dans le dossier du compte faute d'ancre ?"""
         return bool(sortie.get("non_classe", False))
 
     def _generer_structurer(payload: dict[str, Any], fmt: str) -> dict[str, Any]:
@@ -4443,7 +4443,7 @@ def build_document_tools(
                 "``avertissements`` (tailles alignées, images écartées, tirets) : "
                 "les lire avant de présenter le document. "
                 "Rattachement : une ancre métier réelle classe le fichier sous "
-                "l'objet ; une ancre absente le range sous generated/{id} "
+                "l'objet ; une ancre absente le range dans le dossier du compte "
                 "(non classé) — ne jamais inventer d'UUID. "
                 "Après succès : render_document, puis "
                 "proposer_telechargement_document."

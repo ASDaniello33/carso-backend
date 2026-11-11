@@ -11,12 +11,13 @@ from __future__ import annotations
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.application.perimetre import Perimetre
 from app.application.services import DocumentService
 from app.documents.storage import LocalDocumentStorage
 from app.domain.base import Base
@@ -48,7 +49,12 @@ def storage(tmp_path: Path) -> LocalDocumentStorage:
 
 @pytest.fixture
 def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
-    return DocumentService(session, storage=storage, actor_id="test")
+    return DocumentService(
+        session,
+        storage=storage,
+        actor_id="test",
+        perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+    )
 
 
 @pytest.fixture
@@ -161,7 +167,7 @@ def test_ancre_inconnue_refusee(
     assert "appel" in sortie["error"]["message"]
 
 
-def test_ancre_inexistante_range_sous_generated(
+def test_ancre_inexistante_range_dans_le_dossier_du_compte(
     service: DocumentService, organisation: Organisation
 ) -> None:
     """Un UUID d'ancre inventé n'est pas écrit : le document est non classé."""
@@ -174,10 +180,10 @@ def test_ancre_inexistante_range_sous_generated(
     document = service.obtenir(UUID(sortie["document_id"]))
     assert document.type_document == "non_classe"
     assert document.organisation_id is None
-    assert document.storage_path.startswith(f"generated/{document.id}/")
+    assert document.storage_path.startswith(f"workdir/{document.proprietaire_id}/{document.id}/")
 
 
-def test_generation_sans_ancre_range_sous_generated(
+def test_generation_sans_ancre_range_dans_le_dossier_du_compte(
     service: DocumentService, organisation: Organisation
 ) -> None:
     outil = _tools(service)["generer_document"]

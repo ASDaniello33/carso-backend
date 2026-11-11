@@ -808,7 +808,23 @@ class MissionService:
             after=after,
         )
         notifications.notifier_mission_creee(self._session, mission)
+        self._valider_appel_si_complet(mission)
         return mission
+
+    def _valider_appel_si_complet(self, mission: Mission) -> None:
+        """Applique la règle « une offre et une mission » à l'appel du lot.
+
+        Une prestation directe n'a pas d'appel : rien à évaluer. Import local
+        pour la même raison que dans ``OffreService`` (cycle d'imports).
+        """
+        if mission.lot_id is None:
+            return
+        lot = self.lots.get(mission.lot_id)
+        if lot is None:
+            return
+        from app.application.services.appel_service import AppelService
+
+        AppelService(self._session).marquer_valide_si_complet(lot.appel_id)
 
     def _get(self, mission_id: UUID) -> Mission:
         mission = self.missions.get(mission_id)

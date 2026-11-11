@@ -24,7 +24,7 @@ import zipfile
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from pptx import Presentation
@@ -32,6 +32,7 @@ from pptx.util import Emu
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.application.perimetre import Perimetre
 from app.application.services import DocumentService
 from app.core.errors import ValidationError
 from app.documents.professionnel import (
@@ -413,7 +414,12 @@ def session() -> Iterator[Session]:
 @pytest.fixture
 def service(session: Session, tmp_path: Path) -> DocumentService:
     stockage = LocalDocumentStorage(tmp_path / "carso", max_bytes=10 * 1024 * 1024)
-    return DocumentService(session, storage=stockage, actor_id="test")
+    return DocumentService(
+        session,
+        storage=stockage,
+        actor_id="test",
+        perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+    )
 
 
 def _tools(service: DocumentService, policy: PermissionPolicy = POLICY_DOC) -> dict[str, Any]:
@@ -469,7 +475,7 @@ def test_tool_pptx_sans_ancre_range_en_non_classe(service: DocumentService) -> N
     sortie = outil.invoke(_payload(None))
 
     assert sortie.get("non_classe") is True
-    assert "generated/" in sortie["message"]
+    assert "dossier personnel" in sortie["message"]
 
 
 def test_tool_pptx_refuse_sans_permission(service: DocumentService) -> None:

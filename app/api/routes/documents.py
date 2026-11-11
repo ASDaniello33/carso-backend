@@ -216,7 +216,7 @@ def import_media(
     **Rattachement** : au plus une ancre métier (organisation, appel, offre,
     mission, équipe, session). Fournie, elle range le média dans le dossier
     métier et le rend visible aux comptes de son périmètre. Absente, le média
-    entre ``non_classe`` sous ``generated/{id}/`` — l'ancre n'est jamais devinée
+    entre ``non_classe`` dans ``workdir/{compte}/{id}/`` — l'ancre n'est jamais devinée
     à partir de l'URL.
 
     Réservé à l'**équipe interne** : le mode sans ancre reste possible, et un
@@ -454,6 +454,21 @@ def telecharger_fichier_video(
     if flux.taille_octets is not None:
         entetes["Content-Length"] = str(flux.taille_octets)
     return StreamingResponse(flux.octets, media_type=flux.type_mime, headers=entetes)
+
+
+@router.get("/personnels", response_model=list[DocumentRead])
+def list_personnels_documents(
+    session: DbSession,
+    perimetre: PerimetreDep = None,  # type: ignore[assignment]
+) -> list[Document]:
+    """Documents **personnels** du compte connecté — la lecture de « Mon dossier ».
+
+    La règle est celle du service, pas de l'écran : sans ancre métier
+    (organisation, appel, offre, mission, intervenant, session) **et** dont le
+    compte est propriétaire. Déclarée **avant** ``/{document_id}`` : un chemin
+    littéral doit gagner sur un paramètre de chemin.
+    """
+    return DocumentService(session, perimetre=perimetre).lister_personnels()
 
 
 @router.get("/all", response_model=list[DocumentRead])

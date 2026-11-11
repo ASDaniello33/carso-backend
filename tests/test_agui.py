@@ -152,7 +152,7 @@ def test_catalogue_agui_expose_scenarios_hitl() -> None:
 
 import asyncio  # noqa: E402
 
-from app.api.agui import StreamingRunError, _message_erreur  # noqa: E402
+from app.api.agui import StreamingRunError, _code_erreur, _message_erreur  # noqa: E402
 
 
 def _evenement(nom: str) -> dict:
@@ -246,6 +246,114 @@ def test_erreur_metier_passe_telle_quelle() -> None:
 def test_message_erreur_vide_retombe_sur_le_nom_d_exception() -> None:
     assert _message_erreur(RuntimeError()) == "RuntimeError"
     assert _message_erreur(RuntimeError("panne réseau: Connection error"))[:5] == "Le mo"
+
+
+def _refus(statut: int, corps: str) -> Exception:
+    """Erreur de fournisseur telle que les SDK la lèvent (statut + corps)."""
+    exc = RuntimeError(corps)
+    exc.status_code = statut  # type: ignore[attr-defined]
+    return exc
+
+
+def test_un_quota_epuise_dit_quand_il_revient() -> None:
+    """Constat utilisateur : « erreur réseau ou config agent IA » au lieu du 429.
+
+    Trace réelle (var/serveur_parcours.log, 09/11) : le fournisseur annonçait
+    ``free allowance ... used up. It comes back on 16 Nov 2026 at 06:51 UTC``
+    et l'utilisateur lisait « injoignable, vérifiez la configuration ». Le
+    message du fournisseur doit atteindre l'écran : c'est lui qui dit la cause
+    et l'échéance.
+    """
+    exc = _refus(
+        429,
+        "Error code: 429 - {'error': {'message': \"Your free allowance for "
+        "':free' models is used up. It comes back on 16 Nov 2026 at 06:51 UTC.\"}}",
+    )
+
+    message = _message_erreur(exc)
+
+    assert "429" in message
+    assert "free allowance" in message
+    assert "16 Nov 2026" in message
+    assert "injoignable" not in message
+    assert _code_erreur(exc) == "quota_fournisseur"
+
+
+def test_un_quota_sans_statut_http_reste_un_quota() -> None:
+    """Certaines passerelles n'exposent pas ``status_code`` : le texte suffit."""
+    exc = RuntimeError(
+        "Your requests to gpt-5-mini for gpt-5-mini in eastus have exceeded "
+        "token rate limit."
+    )
+
+    message = _message_erreur(exc)
+
+    assert "token rate limit" in message
+    assert "injoignable" not in message
+    assert _code_erreur(exc) == "quota_fournisseur"
+
+
+def test_un_modele_inconnu_dit_quel_modele_est_refuse() -> None:
+    exc = _refus(
+        400,
+        "Error code: 400 - {'error': {'message': 'The model foo does not "
+        "exist or you do not have access to it.'}}",
+    )
+
+    message = _message_erreur(exc)
+
+    assert "The model foo does not exist" in message
+    assert "injoignable" not in message
+    assert _code_erreur(exc) == "requete_refusee"
+
+
+def test_une_cle_refusee_ne_divulgue_jamais_la_cle() -> None:
+    """Le fournisseur cite parfois la clé refusée : elle ne doit pas sortir."""
+    exc = _refus(401, "Error code: 401 - Incorrect API key provided: sk-live-ABC123.")
+
+    message = _message_erreur(exc)
+
+    assert "sk-live-ABC123" not in message
+    assert "***" in message
+    assert _code_erreur(exc) == "cle_refusee"
+
+
+def test_une_erreur_5xx_du_fournisseur_est_nommee_telle_quelle() -> None:
+    exc = _refus(502, "Error code: 502 - upstream connect error before headers")
+
+    message = _message_erreur(exc)
+
+    # Un 502 est un refus du fournisseur, pas un DNS cassé côté serveur.
+    assert "502" in message
+    assert "injoignable" not in message
+    assert _code_erreur(exc) == "fournisseur_en_erreur"
+
+
+def test_une_erreur_metier_qui_parle_de_quota_n_est_pas_un_quota_llm() -> None:
+    """« quota » est aussi un mot du domaine : une erreur d'outil reste la sienne.
+
+    Sans cette borne, un refus métier citant le quota d'un lot serait réécrit
+    en « quota du fournisseur », et l'utilisateur irait attendre un quota IA
+    qui n'existe pas.
+    """
+    exc = RuntimeError("Le quota du lot 2 est dépassé : 4 500 000 MGA sur 4 000 000")
+
+    message = _message_erreur(exc)
+
+    assert "quota du lot 2" in message
+    assert "fournisseur du modèle" not in message
+    assert _code_erreur(exc) == "erreur_run"
+
+
+def test_une_vraie_panne_dns_reste_traduite_en_reseau() -> None:
+    """Le correctif ne doit pas transformer une panne réseau en refus."""
+    exc = ConnectionError("Connection error. [Errno 11001] getaddrinfo failed")
+
+    message = _message_erreur(exc)
+
+    assert "injoignable" in message
+    assert "getaddrinfo" not in message
+    assert _code_erreur(exc) == "modele_injoignable"
 
 
 def test_silence_du_flux_n_est_pas_une_panne_reseau() -> None:

@@ -275,7 +275,7 @@ def _document_avec_fichier(
             type_document=TypeDocument.AUTRE.value,
             mime_type=mime_type,
             taille_octets=len(contenu),
-            storage_path=f"generated/{uuid4()}/{nom}",
+            storage_path=f"workdir/{uuid4()}/{uuid4()}/{nom}",
             statut=statut,
         )
         session.add(document)

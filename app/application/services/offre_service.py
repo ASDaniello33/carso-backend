@@ -199,6 +199,12 @@ class OffreService:
             entity_id=offre.id,
             after={"lot_id": str(lot_id), "reference": reference, "type": type},
         )
+        # Règle du dossier complet (10/11) : l'offre peut être la pièce
+        # manquante d'un appel saisi à la main. Import local — le service des
+        # appels importe déjà ``Offre`` (cycle d'imports au niveau module).
+        from app.application.services.appel_service import AppelService
+
+        AppelService(self._session).marquer_valide_si_complet(appel.id)
         return offre
 
     def soumettre_revue(self, offre_id: UUID) -> Offre:

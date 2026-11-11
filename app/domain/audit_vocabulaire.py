@@ -58,6 +58,9 @@ LIBELLES_ACTION: dict[str, str] = {
     ActionAudit.EXTRACTION_PROPOSEE.value: "Extraction d'appel proposée",
     ActionAudit.EXTRACTION_VALIDEE.value: "Extraction d'appel validée",
     ActionAudit.EXTRACTION_REJETEE.value: "Extraction d'appel rejetée",
+    #: Règle du dossier complet (10/11) : l'appel devient valide parce qu'il a
+    #: une offre et une mission, sans décision d'extraction à approuver.
+    ActionAudit.APPEL_A_PROPOSITION_VALIDE.value: "Appel validé",
     ActionAudit.LOTS_MATERIALISES.value: "Lots créés depuis l'appel",
     # Offres de formation
     ActionAudit.OFFRE_CREEE.value: "Brouillon d'offre créé",
@@ -183,6 +186,14 @@ LIBELLES_ACTION: dict[str, str] = {
     ),
     # Suppression générique : le libellé dépend de l'entité (voir _ENTITES).
     ActionAudit.SUPPRESSION_EFFECTUEE.value: "Suppression",
+    # Purge de journaux d'audit (administrateur) : le libellé dit le geste,
+    # pas la conséquence — le nombre d'événements est dans l'événement.
+    ActionAudit.AUDIT_PURGE.value: "Journaux d'audit purgés",
+    # Catalogue des fournisseurs et modèles d'IA : deux actions distinctes,
+    # parce qu'on ne corrige pas de la même façon l'URL d'une connexion et le
+    # nom d'un modèle chez un fournisseur.
+    ActionAudit.FOURNISSEUR_IA_MODIFIE.value: "Fournisseur d'IA modifié",
+    ActionAudit.MODELE_IA_MODIFIE.value: "Modèle d'IA modifié",
 }
 
 #: Version de la clé → libellé, pour les valeurs **héritées** encore présentes

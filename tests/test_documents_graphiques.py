@@ -30,6 +30,7 @@ import io
 import zipfile
 from collections.abc import Iterator
 from pathlib import Path
+from uuid import uuid4
 from typing import Any
 
 import pytest
@@ -39,6 +40,7 @@ from PIL import Image
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.application.perimetre import Perimetre
 from app.application.services import DocumentService
 from app.core.errors import ValidationError
 from app.documents.professionnel import rendre_professionnel
@@ -80,7 +82,12 @@ def storage(tmp_path: Path) -> LocalDocumentStorage:
 
 @pytest.fixture
 def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
-    return DocumentService(session, storage=storage, actor_id="test")
+    return DocumentService(
+        session,
+        storage=storage,
+        actor_id="test",
+        perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+    )
 
 
 @pytest.fixture

@@ -14,6 +14,7 @@ from collections.abc import Iterator
 from io import BytesIO
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
@@ -574,3 +575,122 @@ def test_api_ajout_multipart_puis_indexation(
     fichier = api_client.get(f"/api/v1/connaissances/{document_id}/fichier")
     assert fichier.status_code == 200
     assert fichier.content == b"Une methode de suivi qualite."
+
+
+# --- Réutilisation d'une connexion du catalogue (lot 4, 10/11) ---------------
+
+
+def _fournisseur(session: Session, *, actif: bool = True, avec_cle: bool = True):
+    """Enregistre un fournisseur du catalogue (connexion réutilisable)."""
+    from app.domain.catalogue_ia import FournisseurIA
+
+    fournisseur = FournisseurIA(
+        nom=f"fournisseur-{uuid4().hex[:6]}",
+        protocole="openai_compatible",
+        base_url="http://localhost:11434/v1",
+        actif=actif,
+    )
+    if avec_cle:
+        from app.core.chiffrement import chiffrer
+
+        fournisseur.api_key_chiffree = chiffrer("cle-du-catalogue")
+    session.add(fournisseur)
+    session.flush()
+    return fournisseur
+
+
+def test_le_modele_d_embedding_reprend_la_connexion_du_catalogue(
+    service: tuple[ConnaissanceService, Session, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    cle_chiffrement: str,
+) -> None:
+    """Choisir une connexion existante évite de ressaisir URL et clé.
+
+    C'est l'objet du lot : une clé corrigée au catalogue vaut ici aussi, sans
+    second endroit à mettre à jour.
+    """
+    svc, session, _ = service
+    fournisseur = _fournisseur(session)
+    vues: list[ConfigurationEmbeddingEffective] = []
+
+    def faux_sonder(configuration: ConfigurationEmbeddingEffective) -> SondageEmbedding:
+        vues.append(configuration)
+        return SondageEmbedding(
+            dimensions=8,
+            signature=f"{configuration.provider}:{configuration.model}:8",
+            latence_ms=1,
+            modele=configuration.model,
+        )
+
+    monkeypatch.setattr(
+        "app.application.services.connaissance_service.sonder", faux_sonder
+    )
+    # Ni URL ni clé : tout vient de la connexion.
+    ligne, _ = svc.configurer(
+        provider="",
+        model="text-embedding-3-small",
+        fournisseur_id=fournisseur.id,
+    )
+    session.commit()
+
+    assert vues and vues[0].base_url == "http://localhost:11434/v1"
+    assert vues[0].api_key == "cle-du-catalogue"
+    assert vues[0].provider == "openai_compatible"
+    assert ligne.base_url == "http://localhost:11434/v1"
+    assert ligne.api_key_chiffree  # la clé a été re-chiffrée pour cette ligne
+
+
+def test_un_champ_saisi_l_emporte_sur_la_connexion(
+    service: tuple[ConnaissanceService, Session, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    cle_chiffrement: str,
+) -> None:
+    """Un endpoint d'embedding peut différer chez le même fournisseur."""
+    svc, session, _ = service
+    fournisseur = _fournisseur(session)
+
+    monkeypatch.setattr(
+        "app.application.services.connaissance_service.sonder",
+        lambda configuration: SondageEmbedding(
+            dimensions=8,
+            signature=f"{configuration.provider}:{configuration.model}:8",
+            latence_ms=1,
+            modele=configuration.model,
+        ),
+    )
+    ligne, _ = svc.configurer(
+        provider="",
+        model="mon-embedding",
+        base_url="https://endpoint-embedding.exemple/v1",
+        fournisseur_id=fournisseur.id,
+    )
+    session.commit()
+    assert ligne.base_url == "https://endpoint-embedding.exemple/v1"
+
+
+def test_un_fournisseur_desactive_est_refuse(
+    service: tuple[ConnaissanceService, Session, Any],
+    cle_chiffrement: str,
+) -> None:
+    """Proposer une connexion désactivée donnerait un modèle qui échoue au 1er appel."""
+    svc, session, _ = service
+    fournisseur = _fournisseur(session, actif=False)
+    with pytest.raises(CarsoError):
+        svc.configurer(provider="", model="x", fournisseur_id=fournisseur.id)
+    session.rollback()
+
+
+def test_les_connexions_proposees_n_exposent_aucun_secret(
+    service: tuple[ConnaissanceService, Session, Any],
+    cle_chiffrement: str,
+) -> None:
+    """L'écran reçoit de quoi choisir, jamais la clé."""
+    svc, session, _ = service
+    _fournisseur(session)
+    session.commit()
+    connexions = svc.connexions_embedding()
+    assert connexions
+    for connexion in connexions:
+        assert "api_key_chiffree" not in connexion
+        assert "cle" not in connexion
+        assert isinstance(connexion["cle_enregistree"], bool)

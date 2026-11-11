@@ -270,7 +270,7 @@ class TypeDocument(StrEnum):
     TEMPLATE = "template"
     AUTRE = "autre"
     # Document sans objet métier (génération ou dépôt hors fiche) :
-    # rangé sous ``generated/{id}/``, aucune FK.
+    # rangé sous ``workdir/{compte}/{id}/``, aucune FK.
     NON_CLASSE = "non_classe"
 
 
@@ -410,6 +410,10 @@ class ActionAudit(StrEnum):
     APPEL_A_PROPOSITION_MODIFIE = "appel_a_proposition.modifie"
     EXTRACTION_PROPOSEE = "appel_a_proposition.extraction_proposee"
     EXTRACTION_VALIDEE = "appel_a_proposition.extraction_validee"
+    #: Appel devenu ``valide`` par la règle du dossier complet (au moins une
+    #: offre **et** une mission), sans décision d'extraction : un appel saisi
+    #: à la main n'a pas de proposition à approuver.
+    APPEL_A_PROPOSITION_VALIDE = "appel_a_proposition.valide"
     EXTRACTION_REJETEE = "appel_a_proposition.extraction_rejetee"
     LOTS_MATERIALISES = "appel_a_proposition.lots_materialises"
     OFFRE_CREEE = "offre.brouillon_creee"
@@ -549,6 +553,12 @@ class ActionAudit(StrEnum):
     #: propriétaire et à l'administration ; n'a de sens que sans ancre métier.
     DOCUMENT_VISIBILITE_MODIFIEE = "document.visibilite_modifiee"
     SUPPRESSION_EFFECTUEE = "suppression.effectuee"
+    #: Purge de journaux d'audit par l'**administrateur** (décision CARSO, 10/11).
+    #: Le geste est lui-même tracé : la ligne de trace qui l'enregistre survit à
+    #: la purge et dit combien d'événements ont disparu, sur quelle période et
+    #: pourquoi. Effacer une trace sans laisser la trace de l'effacement serait
+    #: exactement ce que le journal existe pour empêcher.
+    AUDIT_PURGE = "audit.purge"
     SURCHARGE_AGENT_MODIFIEE = "surcharge_agent.modifiee"
     # Agent personnel (10/10) : un compte règle **son** agent — instructions
     # personnelles et outils retirés. Ce n'est pas une surcharge d'agent

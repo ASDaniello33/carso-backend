@@ -138,8 +138,12 @@ class TestMissionService:
         assert mission.organisation_id == offre.organisation_id
         assert mission.lot_id == offre.lot_id
         assert sorted(o.reference for o in mission.offres) == ["OF-2026-A", "OF-2026-A-FIN"]
-        evenement = session.scalars(select(AuditEvent)).one()
-        assert evenement.action == ActionAudit.MISSION_CREEE.value
+        # Filtre sur l'action : la règle du dossier complet (10/11) ajoute sa
+        # propre trace quand le dossier devient complet — la mission est ici la
+        # pièce manquante, l'appel bascule donc au même moment.
+        evenement = session.scalars(
+            select(AuditEvent).where(AuditEvent.action == ActionAudit.MISSION_CREEE.value)
+        ).one()
         assert evenement.after["appel_id"] == str(offre.appel_id)
         assert evenement.after["lot_id"] == str(offre.lot_id)
 
@@ -270,8 +274,18 @@ class TestMissionService:
         assert [o.id for o in mission.offres] == [offre.id]
         assert mission.lot_id == offre.lot_id
         assert mission.organisation_id == offre.organisation_id
-        evenement = session.scalars(select(AuditEvent)).one()
-        assert evenement.action == ActionAudit.MISSION_CREEE.value
+        # L'événement de création existe et reste unique pour cette action :
+        # la règle du dossier complet écrit, elle, un événement distinct.
+        assert (
+            len(
+                session.scalars(
+                    select(AuditEvent).where(
+                        AuditEvent.action == ActionAudit.MISSION_CREEE.value
+                    )
+                ).all()
+            )
+            == 1
+        )
 
     def test_creation_depuis_offre_non_approuvee_refusee(self, session: Session) -> None:
         offre = _make_offre(session, statut=StatutOffre.EN_REVUE.value)

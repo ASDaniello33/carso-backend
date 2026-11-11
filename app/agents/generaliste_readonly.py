@@ -89,6 +89,10 @@ DEFINITION = AgentDefinition(
         "search_equipes",
         "search_affectations",
         "search_documents",
+        # Journal d'audit : « qui a fait quoi » sur un dossier. Réservé au
+        # compte **administrateur** — la garde est appliquée à l'appel
+        # (agent_audit_tools), pas au montage : le graphe est partagé.
+        "consulter_journal_audit",
         # Base de connaissance : consulter une méthode, un cadre de référence,
         # une expertise CARSO — passages sourcés (ouvrage, page, section).
         "search_knowledge_base",

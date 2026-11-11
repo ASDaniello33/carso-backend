@@ -18,7 +18,7 @@ import io
 from collections.abc import Iterator
 from dataclasses import replace
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from langgraph.checkpoint.memory import MemorySaver
@@ -40,6 +40,7 @@ from app.agents import (
 from app.agents.base import AgentDefinition
 from app.agents.harness import allowed_tools_only
 from app.application.dto import DocumentUploadInput
+from app.application.perimetre import Perimetre
 from app.application.services import DocumentService
 from app.core.config import Settings, get_settings
 from app.core.errors import ValidationError
@@ -123,7 +124,12 @@ def appel_avec_document(
     """Appel à proposition + document PDF réel déposé par le service documentaire."""
     del storage_root
     with api_session_factory() as session:
-        document = DocumentService(session).enregistrer_document(
+        document = DocumentService(
+            session,
+            perimetre=Perimetre(
+                role="administrateur", utilisateur_id=uuid4(), est_complet=True
+            ),
+        ).enregistrer_document(
             DocumentUploadInput(
                 type_document=TypeDocument.APPEL_PROPOSITION.value,
                 nom="Appel à proposition.pdf",

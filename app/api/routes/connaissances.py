@@ -36,6 +36,7 @@ from app.api.schemas import (
     ConnaissanceRead,
     ConnaissanceRechercheCreate,
     ConnaissanceRechercheRead,
+    ConnexionEmbeddingRead,
     EmbeddingConfigurationCreate,
     EmbeddingConfigurationEnregistreeRead,
     EmbeddingConfigurationRead,
@@ -118,6 +119,21 @@ def configuration(session: DbSession, user: AdminUser) -> EmbeddingConfiguration
     return EmbeddingConfigurationRead(**effective.resume())
 
 
+@router.get("/connexions-embedding", response_model=list[ConnexionEmbeddingRead])
+def connexions_embedding(session: DbSession, user: AdminUser) -> list[ConnexionEmbeddingRead]:
+    """Connexions fournisseurs réutilisables pour le modèle d'embedding.
+
+    L'écran de réglage propose ces connexions au lieu de deux champs à
+    ressaisir : l'URL de base et la clé viennent du catalogue des fournisseurs
+    (déjà chiffrée au repos), et une clé corrigée là-bas s'applique ici aussi.
+    Aucun secret n'est renvoyé — seulement le drapeau « une clé existe ».
+    """
+    return [
+        ConnexionEmbeddingRead(**connexion)
+        for connexion in _service(session, user).connexions_embedding()
+    ]
+
+
 @router.post("/configuration/test", response_model=EmbeddingTestRead)
 def tester_configuration(
     entree: EmbeddingTestCreate, session: DbSession, user: AdminUser
@@ -145,6 +161,8 @@ def enregistrer_configuration(
         api_key=entree.api_key,
         conserver_cle=entree.conserver_cle,
         modifie_par=str(user.id),
+        fournisseur_id=entree.fournisseur_id,
+        modele_catalogue_id=entree.modele_catalogue_id,
     )
     message = (
         "Modèle enregistré. La bibliothèque est réindexée en tâche de fond "

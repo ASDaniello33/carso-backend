@@ -28,6 +28,7 @@ from app.application.dto import (
     PresenceLotEntree,
     SessionPlanificationInput,
 )
+from app.application.perimetre import Perimetre
 from app.application.services import (
     BeneficiaireService,
     DocumentService,
@@ -78,7 +79,11 @@ def storage_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Pa
 @pytest.fixture
 def documents(session: Session, storage_root: Path) -> DocumentService:
     del storage_root
-    return DocumentService(session, actor_id="test")
+    return DocumentService(
+        session,
+        actor_id="test",
+        perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+    )
 
 
 def _audit_actions(session: Session) -> list[str]:
@@ -420,7 +425,7 @@ def test_document_ancre_sur_une_session(session: Session, documents: DocumentSer
 def test_ancre_session_inconnue_range_non_classe(
     session: Session, documents: DocumentService
 ) -> None:
-    """Ancre introuvable ⇒ ``generated/{id}/`` + ``non_classe`` (comportement documenté).
+    """Ancre introuvable ⇒ dossier du compte + ``non_classe`` (comportement documenté).
 
     Un document sans objet métier reste un document : aucune FK n'est inventée,
     l'utilisateur peut toujours enregistrer ce qu'il demande.
@@ -435,7 +440,7 @@ def test_ancre_session_inconnue_range_non_classe(
     )
     assert document.type_document == TypeDocument.NON_CLASSE.value
     assert document.session_id is None
-    assert document.storage_path.startswith("generated/")
+    assert document.storage_path.startswith("workdir/")
 
 
 def test_deux_ancres_sont_refusees(session: Session, documents: DocumentService) -> None:

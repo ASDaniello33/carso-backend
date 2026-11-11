@@ -18,6 +18,7 @@ backend. Le manager ne connaît pas FastAPI—le couplage reste dans ce module.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from contextvars import ContextVar
@@ -130,11 +131,242 @@ def _dernier_outil(entree: Any) -> tuple[str, str] | None:
     return dernier
 
 
+#: Classes d'exception d'une panne de **transport** (DNS, TLS, socket).
+#: Comparées par nom pour ne pas dépendre des SDK installés (openai, httpx,
+#: google-genai, urllib3) : chacun a sa hiérarchie.
+_CLASSES_RESEAU = frozenset(
+    {
+        "APIConnectionError",
+        "OpenAIConnectionError",
+        "APITimeoutError",
+        "ConnectError",
+        "ConnectTimeout",
+        "ConnectionError",
+        "ConnectionRefusedError",
+        "ConnectionResetError",
+        "MaxRetryError",
+        "NewConnectionError",
+        "ReadTimeout",
+        "SSLError",
+        "SSLCertVerificationError",
+        "TimeoutException",
+        "TimeoutError",
+        "URLError",
+    }
+)
+
+#: Indices textuels d'un transport cassé — **jamais** un refus du fournisseur.
+#: Volontairement étroits : « timeout » seul est aussi le texte d'un 504 ou
+#: d'un délai propre au fournisseur, qui porte alors un message utile.
+_INDICES_RESEAU = (
+    "connection error",
+    "getaddrinfo",
+    "name or service not known",
+    "nodename nor servname",
+    "connection refused",
+    "connection reset",
+    "certificate verify failed",
+    "server certificate",
+    "apiconnectionerror",
+    "connecterror",
+    "max retries exceeded",
+)
+
+#: Masques de secret : un message de fournisseur cite parfois la clé refusée.
+_SECRETS = re.compile(
+    r"(sk-[A-Za-z0-9_\-*.]+|Bearer\s+[A-Za-z0-9._\-]+|"
+    r"(?:api[_-]?key|access[_-]?token|token|secret)\s*[=:]\s*[^\s,;\"'}]+)",
+    re.IGNORECASE,
+)
+_URL = re.compile(r"https?://\S+", re.IGNORECASE)
+
+#: Longueur maximale du détail repris du fournisseur (un écran de chat, pas un
+#: journal) : coupe propre, jamais un message tronqué au milieu d'un mot.
+_BORNE_DETAIL = 320
+
+
+def _assainir_detail(texte: str) -> str:
+    """Détail fournisseur affichable : une ligne, sans secret ni URL."""
+    propre = " ".join(texte.split())
+    propre = _SECRETS.sub("***", propre)
+    propre = _URL.sub("(adresse du fournisseur)", propre)
+    if len(propre) > _BORNE_DETAIL:
+        propre = propre[:_BORNE_DETAIL].rstrip() + "…"
+    return propre
+
+
+#: Clé ``message`` d'un corps d'erreur, quel que soit le style de guillemets :
+#: un ``repr`` Python mélange souvent les deux (« 'message': "… ':free' …" »).
+_MESSAGE_IMBRIQUE = re.compile(
+    r"""['"]message['"]\s*:\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')""",
+    re.IGNORECASE,
+)
+
+
+def _desetoffer(valeur: str, guillemet: str) -> str:
+    """Défait les échappements d'une chaîne prise dans un corps d'erreur."""
+    if guillemet == '"':
+        try:
+            return json.loads(f'"{valeur}"')
+        except ValueError:
+            return valeur
+    return valeur.replace("\\'", "'").replace("\\\\", "\\")
+
+
+def _message_imbrique(brut: str) -> str:
+    """Message utile porté par une erreur de fournisseur.
+
+    Les SDK joignent le corps JSON du refus à ``str(exc)``
+    (``Error code: 429 - {'error': {'message': '…'}}``). On en extrait le
+    **message** — le reste (type, code, en-têtes) n'aide pas l'utilisateur.
+    À défaut, le texte entier est repris tel quel (Azure : « Your requests to
+    gpt-5-mini … exceeded token rate limit. »).
+    """
+    trouve = _MESSAGE_IMBRIQUE.search(brut)
+    if not trouve:
+        return brut
+    if trouve.group(1) is not None:
+        return _desetoffer(trouve.group(1), '"')
+    return _desetoffer(trouve.group(2) or "", "'")
+
+
+#: Code HTTP écrit dans le texte du SDK quand ``status_code`` est absent
+#: (``Error code: 502 - …``, cas fréquent des passerelles d'agrégation).
+_CODE_TEXTE = re.compile(r"\berror code:\s*(\d{3})\b", re.IGNORECASE)
+
+#: Refus de quota exprimé sans statut (Azure : « … exceeded token rate limit. »).
+#: Volontairement étroit : « quota » seul est aussi un mot du domaine métier
+#: (budget d'un lot) — une erreur d'outil ne doit pas devenir un quota LLM.
+_INDICES_QUOTA = (
+    "rate limit",
+    "rate_limit",
+    "ratelimit",
+    "insufficient_quota",
+    "insufficient quota",
+    "free allowance",
+    "allowance for",
+    "exceeded token",
+    "tokens per minute",
+    "tokens per day",
+)
+
+
+def _statut_http(exc: BaseException) -> int | None:
+    """Code HTTP d'un refus de fournisseur, quand le SDK en expose un.
+
+    Trois sources, dans l'ordre de fiabilité : l'attribut du SDK, la réponse
+    HTTP jointe, puis le **texte** (``Error code: 429``) — les passerelles
+    d'agrégation perdent souvent l'attribut et ne laissent que le texte.
+    """
+    for attribut in ("status_code", "http_status", "code"):
+        valeur = getattr(exc, attribut, None)
+        if isinstance(valeur, int) and 100 <= valeur <= 599:
+            return valeur
+    reponse = getattr(exc, "response", None)
+    valeur = getattr(reponse, "status_code", None)
+    if isinstance(valeur, int) and 100 <= valeur <= 599:
+        return valeur
+    trouve = _CODE_TEXTE.search(str(exc))
+    return int(trouve.group(1)) if trouve else None
+
+
+def _est_refus_de_quota(brut: str) -> bool:
+    """Vrai pour un refus de quota même sans statut HTTP explicite."""
+    minuscule = brut.lower()
+    return any(indice in minuscule for indice in _INDICES_QUOTA)
+
+
+def _est_panne_reseau(exc: BaseException, brut: str) -> bool:
+    """Vrai pour un transport cassé — et seulement pour lui."""
+    if type(exc).__name__ in _CLASSES_RESEAU:
+        return True
+    # Un refus HTTP porte un statut : c'est le fournisseur qui a répondu, donc
+    # pas le réseau, quel que soit le vocabulaire de son message.
+    if _statut_http(exc) is not None:
+        return False
+    minuscule = brut.lower()
+    return any(indice in minuscule for indice in _INDICES_RESEAU)
+
+
+def _message_selon_statut(statut: int, detail: str) -> str:
+    """Refus du fournisseur : le statut, le détail du fournisseur, la suite.
+
+    Le détail est repris **tel que le fournisseur l'a écrit** (assaini) : un
+    « 429 : free allowance used up, comes back on 16 Nov » dit exactement quoi
+    faire, là où « vérifiez la configuration » envoie l'utilisateur au hasard.
+    """
+    suite = detail if detail else ""
+    if statut == 401 or statut == 403:
+        return (
+            f"Le fournisseur du modèle a refusé la clé d'API ({statut}). {suite} "
+            "Vérifiez la clé et le modèle dans Paramètres, puis réessayez."
+        ).strip()
+    if statut == 429:
+        return (
+            f"Le fournisseur du modèle a refusé la requête : limite "
+            f"d'utilisation ou quota atteint (429). {suite} "
+            "Attendez, ou choisissez un autre modèle dans Paramètres."
+        ).strip()
+    if statut in (400, 404, 405, 413, 415, 422):
+        return (
+            f"Le fournisseur du modèle a refusé la requête ({statut}). {suite} "
+            "Vérifiez le modèle choisi dans Paramètres."
+        ).strip()
+    if 500 <= statut <= 599:
+        return (
+            f"Le fournisseur du modèle est en erreur ({statut}). {suite} "
+            "Réessayez dans quelques instants."
+        ).strip()
+    return f"Le fournisseur du modèle a refusé la requête ({statut}). {suite}".strip()
+
+
+def _code_erreur(exc: BaseException) -> str:
+    """Code machine du ``RUN_ERROR``, pour que le client ne re-devine rien.
+
+    Le message porte la cause en français ; le code la rend **stable** :
+    l'interface choisit son titre dessus et affiche le message tel quel. Sans
+    lui, le client reclassait les messages par mots-clés (« model »,
+    « timeout »…) et remplaçait un refus 429 explicite par « vérifiez la
+    configuration ».
+
+    Valeurs : ``silence_fournisseur``, ``quota_fournisseur``,
+    ``cle_refusee``, ``requete_refusee``, ``fournisseur_en_erreur``,
+    ``modele_injoignable``, ``erreur_run``.
+    """
+    brut = str(exc).strip().lower()
+    if type(exc).__name__ == "StreamChunkTimeoutError" or (
+        "no streaming chunk received" in brut
+    ):
+        return "silence_fournisseur"
+    statut = _statut_http(exc)
+    if statut is None and _est_refus_de_quota(str(exc)) and not _est_panne_reseau(
+        exc, str(exc)
+    ):
+        statut = 429
+    if statut is not None:
+        if statut in (401, 403):
+            return "cle_refusee"
+        if statut == 429:
+            return "quota_fournisseur"
+        if 500 <= statut <= 599:
+            return "fournisseur_en_erreur"
+        return "requete_refusee"
+    if _est_panne_reseau(exc, str(exc).strip()):
+        return "modele_injoignable"
+    return "erreur_run"
+
+
 def _message_erreur(exc: BaseException) -> str:
     """Message du modèle d'échec : lisible, sans secret (AGENTS.md §9).
 
-    Un incident réseau vers le provider (DNS, TLS, connectivité) est traduit
-    en cause générique — la traceback brute, elle, reste dans les logs serveur.
+    Trois familles, trois traitements :
+
+    1. **silence du flux** — la connexion vit, la génération s'est arrêtée ;
+    2. **refus du fournisseur** (401/429/400/5xx…) — le message du fournisseur
+       est repris, c'est lui qui dit la vraie cause (quota, modèle inconnu,
+       clé refusée) ;
+    3. **panne de transport** (DNS, TLS, socket) — traduite en français, la
+       traceback brute restant dans les logs serveur.
     """
     brut = str(exc).strip()
     # Silence du flux (``StreamChunkTimeoutError`` de langchain_openai, borné par
@@ -161,24 +393,20 @@ def _message_erreur(exc: BaseException) -> str:
             f"(silence du fournisseur){suffixe}. Relancez la demande ; si le "
             "problème se répète, demandez une réponse plus courte."
         )
-    if any(
-        indice in brut.lower()
-        for indice in (
-            "connection error",
-            "getaddrinfo",
-            "connecterror",
-            "apiconnectionerror",
-            "ssl",
-            "timed out",
-            "timeout",
-        )
-    ):
+    statut = _statut_http(exc)
+    if statut is None and _est_refus_de_quota(brut) and not _est_panne_reseau(exc, brut):
+        statut = 429  # quota sans statut : même traitement qu'un 429 explicite
+    if statut is not None:
+        detail = _assainir_detail(_message_imbrique(brut)) if brut else ""
+        return _message_selon_statut(statut, detail)
+    if _est_panne_reseau(exc, brut):
         return (
             "Le modèle d'IA est injoignable (réseau ou fournisseur indisponible). "
-            "Vérifiez la configuration dans Paramètres, puis réessayez."
+            "Vérifiez la connexion du serveur et la configuration dans "
+            "Paramètres, puis réessayez."
         )
     if brut:
-        return brut
+        return _assainir_detail(brut)
     return type(exc).__name__
 
 
@@ -230,7 +458,9 @@ class StreamingRunError:
                 exc_info=exc,
             )
             if RunErrorEvent is not None:
-                yield RunErrorEvent(message=_message_erreur(exc))
+                yield RunErrorEvent(
+                    message=_message_erreur(exc), code=_code_erreur(exc)
+                )
 
 
 def chemin_agui(agent_id: str, api_prefix: str) -> str:

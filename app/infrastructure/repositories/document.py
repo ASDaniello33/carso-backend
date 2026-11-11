@@ -16,11 +16,11 @@ et ``list_versions`` garde l'historique lisible.
 import uuid
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from app.domain.document import Document
 from app.domain.enums import StatutDocument
-from app.domain.execution import ModeleDocument
+from app.domain.execution import ModeleDocument, SessionFormation
 from app.infrastructure.repositories.base import BaseRepository
 
 #: Un document approuvé puis archivé reste lisible, mais un document supprimé
@@ -135,13 +135,66 @@ class DocumentRepository(BaseRepository[Document]):
         )
         return list(self.session.scalars(stmt))
 
+    def list_personnels_de(self, proprietaire_id: uuid.UUID) -> list[Document]:
+        """Documents **personnels** d'un compte : sans objet métier et à lui.
+
+        Deux conditions, et une seule définition pour toute l'application :
+
+        1. **aucune ancre** — organisation, appel, offre, mission, intervenant,
+           session. Un document rattaché à un objet métier appartient à cet
+           objet, jamais au dossier privé de qui l'a déposé.
+        2. **le compte en est propriétaire** — un document sans ancre d'un
+           collègue n'est pas le mien, et l'administration, qui *voit* tout, ne
+           doit pas voir « mon dossier » peuplé des dossiers des autres.
+
+        Le rangement de stockage ne décide pas : un fichier peut rester sous
+        ``missions/<id>/`` après la suppression de son ancre, et rester le
+        document personnel de son auteur. Les six ancres font foi, pas le chemin.
+        """
+        stmt = (
+            select(Document)
+            .where(
+                Document.proprietaire_id == proprietaire_id,
+                Document.statut != StatutDocument.SUPPRIME.value,
+                Document.organisation_id.is_(None),
+                Document.appel_id.is_(None),
+                Document.offre_id.is_(None),
+                Document.mission_id.is_(None),
+                Document.equipe_id.is_(None),
+                Document.session_id.is_(None),
+            )
+            .order_by(Document.created_at.desc())
+        )
+        return list(self.session.scalars(stmt))
+
     def list_by_checksum(self, checksum_sha256: str) -> list[Document]:
         """Documents partageant ce contenu (détection de doublon, contrôle)."""
         stmt = select(Document).where(Document.checksum_sha256 == checksum_sha256)
         return list(self.session.scalars(stmt))
 
     def list_for_mission(self, mission_id: uuid.UUID) -> list[Document]:
-        return self._documents_actifs(Document.mission_id, mission_id)
+        """Pièces de la mission **et de sa session** (appartenance partagée).
+
+        La mission a une session (``uq_sessions_mission_id``). Une pièce déposée
+        depuis la session appartient aussi à la mission : les deux ancres sont
+        lues ensemble, en une requête, sans doublon — le document n'est qu'une
+        ligne, il ne peut pas apparaître deux fois.
+        """
+        session_de_mission = select(SessionFormation.id).where(
+            SessionFormation.mission_id == mission_id
+        )
+        stmt = (
+            select(Document)
+            .where(
+                or_(
+                    Document.mission_id == mission_id,
+                    Document.session_id.in_(session_de_mission),
+                ),
+                Document.statut != StatutDocument.SUPPRIME.value,
+            )
+            .order_by(Document.created_at.desc())
+        )
+        return list(self.session.scalars(stmt))
 
     def list_for_appel(self, appel_id: uuid.UUID) -> list[Document]:
         return self._documents_actifs(Document.appel_id, appel_id)
@@ -156,8 +209,28 @@ class DocumentRepository(BaseRepository[Document]):
         return self._documents_actifs(Document.equipe_id, equipe_id)
 
     def list_for_session(self, session_id: uuid.UUID) -> list[Document]:
-        """Documents propres à une session (fiche de présence, checklist, rapport)."""
-        return self._documents_actifs(Document.session_id, session_id)
+        """Pièces de la session **et de sa mission** (appartenance partagée).
+
+        Sens inverse du listing de mission : une pièce déposée sur la mission
+        (fiche technique, liste des bénéficiaires) sert aussi à la session. La
+        mission est résolue en base depuis la session, jamais devinée par
+        l'appelant — un identifiant de session ne dit pas la mission au client.
+        """
+        mission_de_session = select(SessionFormation.mission_id).where(
+            SessionFormation.id == session_id
+        )
+        stmt = (
+            select(Document)
+            .where(
+                or_(
+                    Document.session_id == session_id,
+                    Document.mission_id.in_(mission_de_session),
+                ),
+                Document.statut != StatutDocument.SUPPRIME.value,
+            )
+            .order_by(Document.created_at.desc())
+        )
+        return list(self.session.scalars(stmt))
 
 
 class ModeleDocumentRepository(BaseRepository[ModeleDocument]):

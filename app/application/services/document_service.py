@@ -13,6 +13,13 @@ Upload
 
 Règles appliquées :
 
+- **appartenance mission/session** (décision utilisateur 10/11)—une mission a
+  une session (``sessions.mission_id`` unique). Une pièce de mission (liste des
+  bénéficiaires, checklist, fiche de présence, rapport) **appartient aussi à la
+  session** de cette mission, sans être copiée : le fichier et la ligne
+  ``documents`` restent **uniques**, seule la seconde ancre est renseignée
+  (``session_id`` posée sur un document déjà ancré ``mission_id``). Aucune
+  fiche en double, aucun octet en double ;
 - **règle 6 [C]**—un document produit par un agent est créé en ``proposed``,
   jamais ``approved``—le dépôt ne vaut pas validation ;
 - **instruction/06 §9**—un document officiel n'est **jamais écrasé**. Une
@@ -48,6 +55,7 @@ from pathlib import Path
 from typing import Any, BinaryIO
 from uuid import UUID, uuid4
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.application.dto import (
@@ -70,6 +78,7 @@ from app.core.config import get_settings
 from app.core.errors import CarsoError, ConflictError, NotFoundError, ValidationError
 from app.documents.extraction import extract_text
 from app.documents.paths import (
+    SCOPE_PERSONNEL,
     build_logical_path,
     extension_of,
     sanitize_filename,
@@ -105,10 +114,10 @@ from app.infrastructure.repositories.base import BaseRepository
 
 _ENTITY = "document"
 
-#: Scope des documents sans objet métier (génération ou dépôt hors fiche).
-_SCOPE_GENERE = "generated"
+#: Scope des documents sans objet métier : le dossier du compte propriétaire.
+_SCOPE_PERSONNEL = SCOPE_PERSONNEL
 #: Champ fictif : aucune colonne FK n'est écrite pour ce repli.
-_CHAMP_GENERE = ""
+_CHAMP_PERSONNEL = ""
 
 #: Visibilité d'un document **sans ancre** (ADR 0013) : ``prive`` (défaut) ou
 #: ``public``. Seul le propriétaire (ou l'administration) peut la changer.
@@ -230,6 +239,29 @@ def document_dans_perimetre(
     return False
 
 
+def _code_integrite(erreur: IntegrityError) -> str:
+    """Code d'intégrité d'une erreur, quel que soit le pilote.
+
+    PostgreSQL expose un ``sqlstate`` (``23503`` clé étrangère, ``23505``
+    unicité) sur l'exception d'origine. Le pilote SQLite, lui, ne le fournit
+    pas : on lit alors le message, ce qui garde la traduction testable sans
+    base PostgreSQL. Un code inconnu rend une chaîne vide, donc aucune
+traduction : l'erreur d'origine remonte intacte.
+    """
+    origine = getattr(erreur, "orig", None)
+    sqlstate = getattr(origine, "sqlstate", None)
+    if sqlstate:
+        return str(sqlstate)
+    message = str(origine or erreur)
+    if "FOREIGN KEY constraint failed" in message:
+        return "23503"
+    if "UNIQUE constraint failed" in message:
+        return "23505"
+    if "NOT NULL constraint failed" in message:
+        return "23502"
+    return ""
+
+
 def _est_administrateur(perimetre: Perimetre) -> bool:
     """Vrai si le compte est un administrateur (rôle, pas périmètre complet).
 
@@ -289,8 +321,11 @@ class DocumentService:
         """Dépose un nouveau document (version 1).
 
         Une ancre réelle range le fichier sous le dossier métier. Une ancre
-        absente ou inventée range le document sous ``generated/{id}/`` avec
-        le type ``non_classe`` — aucune FK n'est inventée.
+        absente ou inventée range le document dans le **dossier de travail de
+        son propriétaire** (``workdir/{compte}/{id}/``) avec le type
+        ``non_classe`` — aucune FK n'est inventée, et sans compte identifié le
+        dépôt est refusé : une fiche personnelle sans propriétaire n'apparaît
+        dans le dossier de personne.
 
         Raises:
             ValidationError: plusieurs ancres, type de document ou nom
@@ -299,9 +334,12 @@ class DocumentService:
         """
         ancre = self._resoudre_ancre(entree)
         self._exiger_ancre_autorisee(ancre.champ, ancre.entity_id)
+        # Un document sans ancre n'existe que dans le dossier d'un compte :
+        # le propriétaire est une **condition du chemin**, pas un décor.
+        proprietaire_chemin = self._proprietaire_du_chemin(ancre)
         type_document = (
             TypeDocument.NON_CLASSE.value
-            if ancre.scope == _SCOPE_GENERE
+            if ancre.scope == _SCOPE_PERSONNEL
             else self._valider_type(entree.type_document)
         )
         nom = sanitize_filename(entree.nom)
@@ -310,10 +348,19 @@ class DocumentService:
             msg = "Un document de ce nom et de ce type existe déjà (version 1)"
             raise ConflictError(msg, details={"nom": nom, "type_document": type_document})
 
-        chemin_logique = build_logical_path(ancre.scope, ancre.entity_id, nom)
+        chemin_logique = build_logical_path(
+            ancre.scope, ancre.entity_id, nom, proprietaire_id=proprietaire_chemin
+        )
         kwargs_ancre = {ancre.champ: ancre.entity_id} if ancre.champ else {}
+        # Seconde ancre mission/session : la pièce est rangée une seule fois,
+        # sous le dossier du scope choisi, mais elle appartient aussi à l'autre
+        # objet quand il existe (une mission a une session). Aucune copie.
+        for champ_complement, identifiant in self._ancre_complementaire(
+            ancre, entree
+        ).items():
+            kwargs_ancre.setdefault(champ_complement, identifiant)
         document = Document(
-            id=ancre.entity_id if ancre.scope == _SCOPE_GENERE else uuid4(),
+            id=ancre.entity_id if ancre.scope == _SCOPE_PERSONNEL else uuid4(),
             nom=nom,
             type_document=type_document,
             version=1,
@@ -323,6 +370,11 @@ class DocumentService:
             #: fait générer par un agent). C'est lui qui décidera de la
             #: visibilité d'un document sans ancre.
             proprietaire_id=self._perimetre.utilisateur_id,
+            #: Un document naît **privé** : publier est un geste de son
+            #: propriétaire, jamais un effet de bord d'un dépôt. Écrit ici plutôt
+            #: que laissé au défaut du serveur, pour que la règle soit lisible là
+            #: où la fiche est créée.
+            visibilite=_VISIBILITE_PRIVEE,
             doc_metadata=self._metadonnees(entree),
             **kwargs_ancre,
         )
@@ -349,6 +401,10 @@ class DocumentService:
         """
         courant = self._get_modifiable(document_id)
         ancre = self._ancre_du_document(courant)
+        # Une ancre dont l'objet a disparu entre la lecture et l'écriture ne doit
+        # pas devenir une violation de clé étrangère : on refuse avec le motif.
+        self._exiger_ancre_presente(ancre, courant)
+        proprietaire_chemin = self._proprietaire_du_chemin(ancre, courant)
         nom = sanitize_filename(entree.nom or courant.nom)
 
         if nom != courant.nom:
@@ -364,7 +420,12 @@ class DocumentService:
             raise ConflictError(msg, details={"version": nouvelle_version})
 
         nom_fichier = versioned_filename(nom, nouvelle_version)
-        chemin_logique = build_logical_path(ancre.scope, ancre.entity_id, nom_fichier)
+        chemin_logique = build_logical_path(
+            ancre.scope,
+            ancre.entity_id,
+            nom_fichier,
+            proprietaire_id=proprietaire_chemin,
+        )
 
         document = Document(
             nom=nom,
@@ -376,7 +437,9 @@ class DocumentService:
             #: même si la précédente appartenait à un autre compte.
             proprietaire_id=self._perimetre.utilisateur_id,
             doc_metadata=self._metadonnees(entree),
-            **({ancre.champ: ancre.entity_id} if ancre.champ else {}),
+            #: Les deux ancres mission/session suivent la version : réviser une
+            #: pièce ne doit pas la faire disparaître de l'autre écran.
+            **self._ancres_de_version(courant),
         )
         self._materialiser(document, chemin_logique, entree)
         self._trace.record_event(
@@ -468,9 +531,10 @@ class DocumentService:
         )
         try:
             self._session.flush()
-        except Exception:
+        except Exception as exc:
             # Compensation : un échec base ne laisse pas de copie orpheline.
             self.storage.remove(stocke.logical_path)
+            self._traduire_integrite(exc, courant, champ=champ)
             raise
 
         # L'ancienne copie n'est retirée qu'une fois la nouvelle adresse écrite.
@@ -785,14 +849,15 @@ class DocumentService:
                 },
             )
             self._session.flush()
-        except Exception:
+        except Exception as exc:
             # Compensation : un échec base ne laisse pas le fichier redéposé
             # orphelin sur le disque (même règle que le rattachement).
             if chemin_ecrit is not None:
                 try:
                     self.storage.remove(chemin_ecrit)
-                except Exception as exc:  # pragma: no cover - dépend du disque
-                    logger.warning("Fichier redéposé non retiré (%s) : %s", chemin_ecrit, exc)
+                except Exception as disque:  # pragma: no cover - dépend du disque
+                    logger.warning("Fichier redéposé non retiré (%s) : %s", chemin_ecrit, disque)
+            self._traduire_integrite(exc, document)
             raise
         return document
 
@@ -1014,8 +1079,8 @@ class DocumentService:
                 refusé par la validation de fichier.
         """
         ancre = self._resoudre_ancre(entree)
-        if ancre.scope == _SCOPE_GENERE:
-            # Sans ancre, le rangement est ``generated/{id}`` et le type réel
+        if ancre.scope == _SCOPE_PERSONNEL:
+            # Sans ancre, le rangement est le dossier du compte et le type réel
             # ``non_classe`` : il n'y a pas de famille de versions à réviser.
             return self.enregistrer_document(entree)
         type_reel = self._valider_type(entree.type_document)
@@ -1025,19 +1090,33 @@ class DocumentService:
             existant is not None
             and existant.statut
             not in (StatutDocument.ARCHIVED.value, StatutDocument.SUPPRIME.value)
-            and self._memes_ancres(existant, ancre)
+            and self._memes_ancres(
+                existant, ancre, self._ancre_complementaire(ancre, entree)
+            )
         ):
             return self.remplacer_document(existant.id, entree)
         return self.enregistrer_document(entree)
 
-    def _memes_ancres(self, document: Document, ancre: DocumentAnchor) -> bool:
-        """Vrai si le document porte **exactement** l'ancre demandée.
+    def _memes_ancres(
+        self,
+        document: Document,
+        ancre: DocumentAnchor,
+        complementaires: dict[str, UUID] | None = None,
+    ) -> bool:
+        """Vrai si le document appartient au **même objet métier**.
 
         Un document homonyme rangé ailleurs n'est jamais révisé : deux objets
-        métier différents gardent chacun leur livrable.
+        métier différents gardent chacun leur livrable. L'ancre complémentaire
+        mission/session (``complementaires``) fait partie de l'identité : une
+        pièce déposée sur la mission puis redéposée depuis sa session est la
+        **même** pièce, elle se révise au lieu d'être dupliquée.
         """
+        complementaires = complementaires or {}
         for champ in _ANCHORS:
-            attendu = ancre.entity_id if champ == ancre.champ else None
+            if champ == ancre.champ:
+                attendu: UUID | None = ancre.entity_id
+            else:
+                attendu = complementaires.get(champ)
             if getattr(document, champ) != attendu:
                 return False
         return True
@@ -1195,6 +1274,26 @@ class DocumentService:
             raise ValidationError(msg, details={"filtres_possibles": sorted(_LISTERS)})
         self._exiger_ancre_autorisee(filtre, entity_id)
         return list(getattr(self.documents, methode)(entity_id))
+
+    def lister_personnels(self) -> list[Document]:
+        """Documents personnels du compte connecté (dossier privé).
+
+        C'est la lecture de « Mon dossier », et la **seule** : l'écran n'a pas à
+        recalculer la règle, sinon deux définitions finissent par diverger — le
+        défaut déjà constaté quand l'écran filtrait sans le propriétaire.
+
+        Raises:
+            PermissionDeniedError: appel sans compte identifié — un dossier
+                personnel sans personne n'existe pas (scripts, balayage).
+        """
+        from app.core.errors import PermissionDeniedError
+
+        compte = self._perimetre.utilisateur_id
+        if compte is None:
+            raise PermissionDeniedError(
+                "Les documents personnels appartiennent à un compte identifié.",
+            )
+        return self.documents.list_personnels_de(compte)
 
     def lister_tous(self, statut: str | None = None) -> list[Document]:
         """Tous les documents (gestion générale), filtrables par statut.
@@ -1630,7 +1729,7 @@ class DocumentService:
         if perimetre.est_complet:
             return
         if not filtre:
-            # Sans ancre, le document part en ``generated/{id}`` (non_classe) :
+            # Sans ancre, le document part dans le dossier de son compte :
             # le dépôt d'un compte restreint est légitime et la fiche reste
             # visible de son demandeur via ``genere_pour`` (incrément 74).
             return
@@ -1799,6 +1898,7 @@ class DocumentService:
             ancre.scope,
             ancre.entity_id,
             versioned_filename(document.nom, document.version),
+            proprietaire_id=self._proprietaire_du_chemin(ancre, document),
         )
 
     def _trace_suppression(self, document: Document) -> dict[str, object]:
@@ -1861,16 +1961,17 @@ class DocumentService:
             # created_at/updated_at sont générés par la base : une relecture les
             # matérialise pour la réponse API (une seule requête supplémentaire).
             self._session.refresh(document)
-        except Exception:
+        except Exception as exc:
             # Compensation : un échec base ne laisse pas de fichier orphelin.
             # (Fenêtre résiduelle : un rollback de l'appelant après ce point,
             # ou un arrêt brutal, laisse le fichier sans ligne — limitation
             # documentée, cf. docs/design/DOCUMENT_INFRASTRUCTURE.md.)
             self.storage.remove(stocke.logical_path)
+            self._traduire_integrite(exc, document)
             raise
 
     def _resoudre_ancre(self, entree: DocumentUploadInput) -> DocumentAnchor:
-        """Détermine l'ancre : réelle si elle existe, sinon ``generated/{id}``."""
+        """Détermine l'ancre : réelle si elle existe, sinon le dossier du compte."""
         fournies = [
             (champ, valeur)
             for champ, _scope in _ANCHORS.items()
@@ -1889,7 +1990,45 @@ class DocumentService:
                 return DocumentAnchor(
                     scope=_ANCHORS[champ], champ=champ, entity_id=entity_id
                 )
-        return DocumentAnchor(scope=_SCOPE_GENERE, champ=_CHAMP_GENERE, entity_id=uuid4())
+        return DocumentAnchor(scope=_SCOPE_PERSONNEL, champ=_CHAMP_PERSONNEL, entity_id=uuid4())
+
+    def _ancre_complementaire(
+        self, ancre: DocumentAnchor, entree: DocumentUploadInput
+    ) -> dict[str, UUID]:
+        """Seconde ancre **mission/session** à poser, sans copier la pièce.
+
+        Règle (décision utilisateur 10/11) : la fiche de présence appartient à
+        la session, et la liste des bénéficiaires, la checklist et le rapport
+        appartiennent à la fois à la mission et à sa session. Une mission a
+        **une** session (``sessions.mission_id`` unique), donc le rattachement
+        est déterminé, jamais deviné.
+
+        - Dépôt sur la mission → la session de cette mission reçoit la pièce.
+        - Dépôt sur la session → la mission de cette session la reçoit.
+        - Une ancre complémentaire fournie par l'appelant et contredisant la
+          relation réelle est ignorée : la base fait foi, pas le formulaire.
+
+        Returns:
+            Les champs d'ancre à poser en plus (``{}`` si aucun).
+        """
+        complementaires: dict[str, UUID] = {}
+        if ancre.champ == "mission_id":
+            session_formation = self._sessions.get_for_mission(ancre.entity_id)
+            if session_formation is not None:
+                complementaires["session_id"] = session_formation.id
+        elif ancre.champ == "session_id":
+            session_formation = self._sessions.get(ancre.entity_id)
+            if session_formation is not None and session_formation.mission_id is not None:
+                complementaires["mission_id"] = session_formation.mission_id
+        # Une ancre complémentaire explicitement demandée ne peut que confirmer
+        # la relation réelle : sinon elle est écartée, avec une trace.
+        demandee = entree.mission_id if ancre.champ == "session_id" else entree.session_id
+        if demandee is not None and demandee not in complementaires.values():
+            logger.info(
+                "Ancre complémentaire ignorée (relation réelle différente)",
+                extra={"ancre": ancre.champ, "demandee": str(demandee)},
+            )
+        return complementaires
 
     def _ancre_existe(self, champ: str, entity_id: UUID) -> bool:
         depots: dict[str, BaseRepository] = {
@@ -1958,7 +2097,14 @@ class DocumentService:
             )
         return champ, entity_id, _ANCHORS[champ]
 
-    def _chemin_logique_libre(self, scope: str, entity_id: UUID, nom: str) -> str:
+    def _chemin_logique_libre(
+        self,
+        scope: str,
+        entity_id: UUID,
+        nom: str,
+        *,
+        proprietaire_id: UUID | None = None,
+    ) -> str:
         """Chemin libre dans le dossier cible (dé-collision purement technique).
 
         Deux pièces jointes homonymes d'un même appel ne peuvent pas occuper le
@@ -1968,7 +2114,10 @@ class DocumentService:
         fichier = Path(nom)
         for indice in range(1, 100):
             candidat = build_logical_path(
-                scope, entity_id, f"{fichier.stem}_r{indice}{fichier.suffix}"
+                scope,
+                entity_id,
+                f"{fichier.stem}_r{indice}{fichier.suffix}",
+                proprietaire_id=proprietaire_id,
             )
             if not self.storage.exists(candidat):
                 return candidat
@@ -1976,6 +2125,28 @@ class DocumentService:
             "Aucun emplacement libre dans le dossier cible",
             details={"scope": scope, "nom": nom},
         )
+
+    @staticmethod
+    def _ancres_de_version(courant: Document) -> dict[str, UUID]:
+        """Ancres à recopier sur la nouvelle version d'un document.
+
+        La version rangée garde **toutes** les ancres de la fiche qu'elle révise :
+        son ancre principale (organisation, appel, offre, mission, équipe ou
+        session) et son ancre complémentaire mission/session. Réviser une pièce
+        ne la fait donc jamais disparaître de l'écran de son objet — ni de la
+        mission quand elle est relue depuis la session, ni de l'offre quand la
+        copie de modèle est rééditée.
+
+        Le modèle autorise une ancre principale **au plus**, plus la paire
+        mission/session : recopier toutes les valeurs non nulles restitue
+        exactement l'appartenance de la fiche, sans en inventer aucune.
+        """
+        ancres: dict[str, UUID] = {}
+        for champ in _ANCHORS:
+            valeur = getattr(courant, champ)
+            if valeur is not None:
+                ancres[champ] = valeur
+        return ancres
 
     def _ancre_du_document(self, document: Document) -> DocumentAnchor:
         """Ancre d'un document existant — le dossier de stockage n'est jamais
@@ -1985,8 +2156,128 @@ class DocumentService:
             if entity_id is not None:
                 return DocumentAnchor(scope=scope, champ=champ, entity_id=entity_id)
         return DocumentAnchor(
-            scope=_SCOPE_GENERE, champ=_CHAMP_GENERE, entity_id=document.id
+            scope=_SCOPE_PERSONNEL, champ=_CHAMP_PERSONNEL, entity_id=document.id
         )
+
+    def _traduire_integrite(
+        self,
+        erreur: Exception,
+        document: Document,
+        *,
+        champ: str | None = None,
+    ) -> None:
+        """Traduit une violation d'intégrité en erreur métier lisible.
+
+        Appelée dans le ``except`` des trois écritures documentaires (dépôt,
+        révision, rattachement), **avant** de relancer. Une ``IntegrityError``
+        brute finit en 500 sans message d'interface : l'utilisateur ne saurait
+        ni ce qui a échoué ni quoi faire. Deux familles seulement sont traduites,
+        parce que ce sont celles que ce service peut provoquer :
+
+        - **clé étrangère** : l'objet d'ancre a disparu entre la lecture et
+          l'écriture (concurrence, suppression hors du service) ;
+        - **unicité** : la fiche visée a été créée entre-temps.
+
+        Toute autre violation remonte inchangée : la masquer derrière un message
+        métier ferait perdre l'information à l'exploitant.
+        """
+        if not isinstance(erreur, IntegrityError):
+            return
+        code = _code_integrite(erreur)
+        if code == "23505":
+            msg = (
+                "Un document de ce nom et de ce type vient d'être enregistré : "
+                "la contrainte d'unicité a refusé le doublon"
+            )
+            raise ConflictError(
+                msg,
+                details={"document_id": str(document.id), "nom": document.nom},
+            ) from erreur
+        if code == "23503":
+            ancre = champ or self._ancre_du_document(document).champ
+            libelle = ancre.removesuffix("_id") if ancre else "métier"
+            msg = (
+                f"L'objet « {libelle} » auquel ce document est rattaché n'existe "
+                "plus : aucun document n'a été enregistré"
+            )
+            raise NotFoundError(
+                msg,
+                details={
+                    "document_id": str(document.id),
+                    "nom": document.nom,
+                    **({"ancre": ancre} if ancre else {}),
+                },
+            ) from erreur
+
+    def _exiger_ancre_presente(self, ancre: DocumentAnchor, document: Document) -> None:
+        """Refuse une révision dont l'objet d'ancre n'existe plus.
+
+        Le recopiage des ancres sur la nouvelle version s'appuie sur la fiche
+        révisée, pas sur les données du formulaire. Si l'objet a été supprimé
+        entre la lecture de la fiche et l'écriture — ou si sa ligne a disparu
+        hors du circuit habituel — la base refuserait l'insertion par contrainte
+        de clé étrangère, ce qui remonterait comme une panne SQL. Le motif métier
+        est plus utile : la fiche est conservée, seule la révision est refusée.
+
+        Cinq ancres sont en ``ON DELETE CASCADE`` (la fiche part avec son objet),
+        donc le cas ordinaire ne se présente pas ; ``organisation_id`` est en
+        ``SET NULL`` et devient simplement une fiche sans ancre.
+
+        Raises:
+            NotFoundError: l'objet de l'ancre n'existe plus en base.
+        """
+        if not ancre.champ or self._ancre_existe(ancre.champ, ancre.entity_id):
+            return
+        libelle = ancre.champ.removesuffix("_id")
+        msg = (
+            f"La révision est refusée : l'objet « {libelle} » auquel ce document "
+            "est rattaché n'existe plus. La fiche et son fichier sont conservés ; "
+            "rattachez-la à un objet existant ou laissez-la hors rattachement."
+        )
+        raise NotFoundError(
+            msg,
+            details={
+                "document_id": str(document.id),
+                "nom": document.nom,
+                "ancre": ancre.champ,
+                "entity_id": str(ancre.entity_id),
+            },
+        )
+
+    def _proprietaire_du_chemin(
+        self, ancre: DocumentAnchor, document: Document | None = None
+    ) -> UUID | None:
+        """Compte dont le dossier de travail reçoit le fichier.
+
+        ``None`` pour un document ancré sur un objet métier : il suit le
+        périmètre de cet objet et n'a pas de dossier personnel. Sans ancre,
+        c'est le compte qui dépose ; à défaut (remplacement, restauration d'une
+        fiche plus ancienne), celui que la fiche porte déjà. Aucun des deux :
+        refus explicite. Un chemin ne s'invente pas, et une fiche personnelle
+        sans propriétaire ne serait le document de personne.
+
+        Raises:
+            ValidationError: dépôt personnel par un appel sans compte, ou
+                fiche personnelle sans propriétaire.
+        """
+        if ancre.scope != _SCOPE_PERSONNEL:
+            return None
+        proprietaire = self._perimetre.utilisateur_id or (
+            document.proprietaire_id if document is not None else None
+        )
+        if proprietaire is None:
+            msg = (
+                "Un document sans rattachement métier doit appartenir à un "
+                "compte : son dossier de travail est indéterminé sans "
+                "propriétaire"
+            )
+            raise ValidationError(
+                msg,
+                details={
+                    "document_id": str(document.id) if document is not None else None
+                },
+            )
+        return proprietaire
 
     def _valider_type(self, type_document: str) -> str:
         valides = {type_.value for type_ in TypeDocument}

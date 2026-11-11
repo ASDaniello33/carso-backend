@@ -500,6 +500,7 @@ def construire_tools_generaliste(
         outils.append(outil)
     # Tools de lieux partagés par tous les agents du catalogue (recherche
     # d'adresse + itinéraire) — filtrés par le contrat de l'agent.
+    from app.agents.tools.agent_audit_tools import construire_tools_audit
     from app.agents.tools.agent_lieux_tools import construire_tools_lieux
     from app.agents.tools.connaissances import outils_connaissance_pour
 
@@ -509,7 +510,11 @@ def construire_tools_generaliste(
             definition,
             tuple(outils)
             + construire_tools_lieux(definition, session_factory)
-            + outils_connaissance_pour(definition, session_factory),
+            + outils_connaissance_pour(definition, session_factory)
+            # Journal d'audit : monté seulement si le contrat le déclare ; le
+            # rôle est vérifié à chaque appel (un graphe est partagé entre
+            # comptes, un outil d'administrateur ne doit pas servir les autres).
+            + construire_tools_audit(definition, session_factory),
         ),
     )
 

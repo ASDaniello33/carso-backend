@@ -27,6 +27,10 @@ from uuid import UUID
 
 from app.core.errors import ValidationError
 
+#: Scope des documents **sans ancre métier** : le dossier de travail du
+#: compte propriétaire (``workdir/{compte}/{document}/``).
+SCOPE_PERSONNEL = "workdir"
+
 #: Arborescence confirmée (instruction/06 §3). Liste FERMÉE : un chemin dont le
 #: premier segment n'y figure pas n'est jamais résolu par le storage.
 SCOPES: frozenset[str] = frozenset(
@@ -62,10 +66,12 @@ SCOPES: frozenset[str] = frozenset(
         # que ``documents.organisation_id`` existe. Scope PROVISOIRE [?] — les
         # règles définitives de classement restent à confirmer avec CARSO.
         "organisations",
-        # Document sans ancre métier (génération ou dépôt hors fiche).
-        # Dossier : ``generated/{id_du_document}/`` — l'identifiant est celui
-        # de la ligne ``documents``, jamais un UUID inventé.
-        "generated",
+        # Document sans ancre métier, propriété d'un compte (ADR 0013).
+        # Dossier : ``workdir/{id_utilisateur}/{id_du_document}/`` — deux
+        # segments contrôlés, jamais un UUID inventé : le propriétaire puis
+        # la ligne ``documents``. Le document personnel vit dans le dossier
+        # de travail de son propriétaire.
+        SCOPE_PERSONNEL,
     }
 )
 
@@ -154,20 +160,49 @@ def sanitize_filename(nom: str) -> str:
     return normalise
 
 
-def build_logical_path(scope: str, entity_id: UUID, nom: str) -> str:
+def build_logical_path(
+    scope: str, entity_id: UUID, nom: str, *, proprietaire_id: UUID | None = None
+) -> str:
     """Construit le chemin logique ``{scope}/{entity_id}/{nom}``.
 
     Le scope appartient à ``SCOPES`` et l'identifiant est un ``UUID`` : aucun
     segment ne peut provenir d'une chaîne utilisateur libre.
 
+    ``proprietaire_id`` ajoute le segment du compte pour le scope personnel
+    (``workdir/{compte}/{document}/{nom}``). Il est **exigé** là et **refusé**
+    ailleurs : la propriété entre dans l'arborescence uniquement quand elle
+    est la seule clé de classement du document.
+
     Raises:
-        ValidationError: scope inconnu ou nom de fichier invalide.
+        ValidationError: scope inconnu, nom de fichier invalide, propriétaire
+            manquant pour un document personnel, ou propriétaire fourni pour
+            un document ancré sur un objet métier.
     """
     if scope not in SCOPES:
         msg = f"Scope documentaire inconnu : {scope!r}"
         raise ValidationError(msg, details={"scopes": sorted(SCOPES)})
 
-    return f"{scope}/{entity_id}/{sanitize_filename(nom)}"
+    nom_sur = sanitize_filename(nom)
+    if scope == SCOPE_PERSONNEL:
+        if proprietaire_id is None:
+            msg = (
+                "Un document personnel exige le compte propriétaire : sans lui, "
+                "aucun dossier de travail ne peut être déterminé"
+            )
+            raise ValidationError(
+                msg, details={"scope": scope, "entity_id": str(entity_id)}
+            )
+        return f"{scope}/{proprietaire_id}/{entity_id}/{nom_sur}"
+    if proprietaire_id is not None:
+        msg = (
+            "Un document ancré sur un objet métier suit le périmètre de cet "
+            "objet : il n'a pas de dossier personnel"
+        )
+        raise ValidationError(
+            msg, details={"scope": scope, "proprietaire_id": str(proprietaire_id)}
+        )
+
+    return f"{scope}/{entity_id}/{nom_sur}"
 
 
 def directory_of(scope: str, entity_id: UUID) -> str:

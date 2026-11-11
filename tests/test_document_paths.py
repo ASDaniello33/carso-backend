@@ -92,10 +92,23 @@ def test_chemin_logique_construit_depuis_segments_controles() -> None:
         == f"missions/{identifiant}/Fiche technique.pdf"
     )
     assert directory_of("offres_formation", identifiant) == f"offres_formation/{identifiant}"
+    compte = uuid4()
     assert (
-        build_logical_path("generated", identifiant, "rapport.docx")
-        == f"generated/{identifiant}/rapport.docx"
+        build_logical_path("workdir", identifiant, "rapport.docx", proprietaire_id=compte)
+        == f"workdir/{compte}/{identifiant}/rapport.docx"
     )
+
+
+def test_document_personnel_exige_un_proprietaire() -> None:
+    """Sans compte, le dossier de travail est indéterminé : refus, pas d'invention."""
+    with pytest.raises(ValidationError):
+        build_logical_path("workdir", uuid4(), "rapport.docx")
+
+
+def test_document_ancre_refuse_un_proprietaire() -> None:
+    """Un document ancré suit son objet : il n'a pas de dossier personnel."""
+    with pytest.raises(ValidationError):
+        build_logical_path("missions", uuid4(), "fiche.pdf", proprietaire_id=uuid4())
 
 
 @pytest.mark.parametrize("scope", ["", "..", "inconnu", "missions/../..", "MISSIONS"])

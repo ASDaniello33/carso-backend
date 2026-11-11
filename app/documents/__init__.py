@@ -14,6 +14,7 @@ aucune règle métier et n'ouvre aucune transaction.
 """
 
 from app.documents.paths import (
+    SCOPE_PERSONNEL,
     SCOPES,
     build_logical_path,
     directory_of,
@@ -38,6 +39,7 @@ from app.documents.validation import (
 __all__ = [
     "ALLOWED_EXTENSIONS",
     "FILE_TYPES",
+    "SCOPE_PERSONNEL",
     "SCOPES",
     "DocumentStorage",
     "FileTypeRule",

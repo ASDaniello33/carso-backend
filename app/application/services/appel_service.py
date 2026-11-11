@@ -33,6 +33,7 @@ from app.domain.enums import (
     TypeAppel,
     TypeProposition,
 )
+from app.domain.execution import Mission
 from app.domain.organization import Appel, Lot, Offre
 from app.domain.state_machines import validate_transition
 from app.infrastructure.repositories import (
@@ -322,6 +323,82 @@ class AppelService:
             event_metadata={"proposed_by_agent": proposed_by_agent},
         )
         return appel
+
+    # --- règle du dossier complet -------------------------------------------
+
+    def marquer_valide_si_complet(self, appel_id: UUID) -> bool:
+        """Passe l'appel à ``valide`` si son dossier porte une offre **et** une mission.
+
+        Règle confirmée le 10/11 : « un appel est validé s'il a au moins une
+        offre et une mission ». Elle comble un trou réel : un appel saisi à la
+        main n'a **aucune** proposition d'extraction, donc aucune décision à
+        prendre — ``approuver_extraction`` le refuse, et la fiche ne propose
+        même pas le bouton. Il restait ``recu`` à vie, y compris avec des offres
+        et une mission (constat sur ``DEMO-MODELE-2026``).
+
+        Ce n'est **pas** une validation d'extraction : rien n'est approuvé, la
+        zone *proposal* n'est pas lue. Seul le statut de l'appel change, tracé
+        en ``SYSTEME`` avec la règle qui l'a déclenché.
+
+        Garde-fous :
+
+        - seuls les appels ``recu`` sont candidats. Un appel ``propose`` ou
+          ``corrige`` attend une décision humaine : le faire avancer ici
+          approuverait en silence une proposition que personne n'a lue. Un
+          appel ``rejete`` le reste ;
+        - l'appel est **relu en base**, pas déduit de l'état en mémoire des
+          objets qui viennent d'être créés : la règle se juge sur ce qui est
+          réellement persisté dans la transaction courante.
+
+        Args:
+            appel_id: identifiant de l'appel à réévaluer.
+
+        Returns:
+            ``True`` si l'appel est passé à ``valide``, ``False`` sinon
+            (dossier incomplet, statut non candidat, appel absent).
+        """
+        appel = self.appels.get(appel_id)
+        if appel is None or appel.statut != StatutAppel.RECU.value:
+            return False
+        if not self._dossier_complet(appel_id):
+            return False
+
+        validate_transition(_ENTITY, appel.statut, StatutAppel.VALIDE.value)
+        appel.statut = StatutAppel.VALIDE
+        self._session.flush()
+        self._trace.record_event(
+            actor_type=ActorType.SYSTEME.value,
+            action=ActionAudit.APPEL_A_PROPOSITION_VALIDE.value,
+            entity_type=_ENTITY,
+            entity_id=appel.id,
+            after={"statut": StatutAppel.VALIDE.value},
+            event_metadata={
+                "automatique": True,
+                "regle": "au_moins_une_offre_et_une_mission",
+            },
+        )
+        return True
+
+    def _dossier_complet(self, appel_id: UUID) -> bool:
+        """Vrai si l'appel compte au moins une offre **et** une mission.
+
+        La mission se lit par le **lot** (``missions.lot_id``), pas par l'offre :
+        une mission peut naître avant l'approbation des offres du lot et n'en
+        référencer aucune. Compter les offres par ``appel_id`` et les missions
+        par ``lots.appel_id`` couvre donc les deux formes réelles.
+        """
+        nb_offres = self._session.scalar(
+            select(func.count()).select_from(Offre).where(Offre.appel_id == appel_id)
+        )
+        if not nb_offres:
+            return False
+        nb_missions = self._session.scalar(
+            select(func.count())
+            .select_from(Mission)
+            .join(Lot, Lot.id == Mission.lot_id)
+            .where(Lot.appel_id == appel_id)
+        )
+        return bool(nb_missions)
 
     def _dependances_officielles(self, appel_id: UUID) -> dict[str, Any]:
         """Offres déjà nées de cet appel — le seul lien officiel direct.

@@ -32,12 +32,17 @@ from app.application.trace import TraceContext
 from app.domain.enums import (
     ActionAudit,
     ActorType,
+    StatutAppel,
     StatutMission,
     StatutSessionFormation,
 )
 from app.domain.execution import Mission, SessionFormation
 from app.domain.state_machines import validate_transition
-from app.infrastructure.repositories import MissionRepository, SessionRepository
+from app.infrastructure.repositories import (
+    AppelRepository,
+    MissionRepository,
+    SessionRepository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +56,13 @@ _REGLE_MISSION_DEMARRAGE_SANS_SESSION = "mission.date_debut_atteinte"
 _REGLE_MISSION_CLOTURE = "session_cloturee"
 _REGLE_MISSION_CLOTURE_SANS_SESSION = "mission.date_fin_depassee"
 
+#: Règle du dossier complet (10/11) : un appel reçu devient ``valide`` dès
+#: qu'il porte au moins une offre **et** une mission. Le balayage la rejoue sur
+#: les appels déjà en base : sans lui, la règle ne s'appliquerait qu'aux
+#: dossiers complétés après son déploiement, et un appel saisi à la main
+#: resterait ``recu`` indéfiniment malgré des offres et une mission.
+_REGLE_APPEL_DOSSIER_COMPLET = "appel.au_moins_une_offre_et_une_mission"
+
 
 class CycleDeVieService:
     """Un seul use case : ``appliquer_transitions_dues(aujourd'hui)``."""
@@ -59,6 +71,7 @@ class CycleDeVieService:
         self._session = session
         self.missions = MissionRepository(session)
         self.sessions = SessionRepository(session)
+        self.appels = AppelRepository(session)
         self._trace = TraceContext(session, actor_id=actor_id)
 
     def appliquer_transitions_dues(self, aujourdhui: date) -> dict[str, int]:
@@ -80,6 +93,7 @@ class CycleDeVieService:
             _REGLE_MISSION_DEMARRAGE_SANS_SESSION: 0,
             _REGLE_MISSION_CLOTURE: 0,
             _REGLE_MISSION_CLOTURE_SANS_SESSION: 0,
+            _REGLE_APPEL_DOSSIER_COMPLET: 0,
         }
 
         for session_formation in self._sessions_a_demarrer(aujourdhui):
@@ -94,6 +108,16 @@ class CycleDeVieService:
         for mission, regle in self._missions_a_cloturer(aujourdhui):
             self._transition_mission(mission, StatutMission.CLOTURE, regle)
             compteurs[regle] += 1
+        # Règle du dossier complet : indépendante du calendrier, rejouée à
+        # chaque tour pour couvrir les dossiers complétés hors des services
+        # (import, script, correction manuelle). C'est la même règle que le
+        # chemin temps réel — une seule définition, dans ``AppelService``.
+        from app.application.services.appel_service import AppelService
+
+        appels = AppelService(self._session)
+        for appel in self.appels.list_by_statut(StatutAppel.RECU.value):
+            if appels.marquer_valide_si_complet(appel.id):
+                compteurs[_REGLE_APPEL_DOSSIER_COMPLET] += 1
         return compteurs
 
     # --- sélection des candidats --------------------------------------------

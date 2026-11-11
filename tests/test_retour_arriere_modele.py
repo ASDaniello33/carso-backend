@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from docx import Document as LireDocx
@@ -18,6 +18,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.application.dto import DocumentUploadInput
+from app.application.perimetre import Perimetre
 from app.application.services.document_service import DocumentService
 from app.application.services.modele_document_service import ModeleDocumentService
 from app.application.services.moteur_documentaire_service import MoteurDocumentaireService
@@ -45,7 +46,12 @@ def contexte(tmp_path: Path, db_session):
     organisation = Organisation(nom="Client Retour")
     db_session.add(organisation)
     db_session.flush()
-    documents = DocumentService(db_session, storage=stockage, actor_id="test")
+    documents = DocumentService(
+        db_session,
+        storage=stockage,
+        actor_id="test",
+        perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+    )
     document = documents.enregistrer_document(
         DocumentUploadInput(
             type_document="template",

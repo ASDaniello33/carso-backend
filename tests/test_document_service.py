@@ -15,13 +15,15 @@ import io
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, delete, event, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.application.dto import DecisionInput, DocumentUploadInput
+from app.application.perimetre import Perimetre
 from app.application.services import DocumentService, ModeleDocumentService
 from app.core.config import get_settings
 from app.core.errors import ConflictError, NotFoundError, ValidationError
@@ -33,14 +35,17 @@ from app.domain.enums import (
     ActionAudit,
     ActorType,
     DecisionApprobation,
+    RoleUtilisateur,
     StatutDocument,
     StatutMission,
     StatutOffre,
+    StatutUtilisateur,
     TypeDocument,
     TypeOffre,
     TypeProposition,
 )
 from app.domain.execution import Equipe, Mission
+from app.domain.identity import Utilisateur
 from app.domain.organization import Appel, Lot, Offre, Organisation
 from tests.document_fixtures import (
     build_docx,
@@ -72,8 +77,16 @@ def storage(tmp_path: Path) -> LocalDocumentStorage:
 
 
 @pytest.fixture
-def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
-    return DocumentService(session, storage=storage, actor_id="test")
+def perimetre() -> Perimetre:
+    """Périmètre d'un compte identifié : condition d'un dépôt personnel."""
+    return Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True)
+
+
+@pytest.fixture
+def service(
+    session: Session, storage: LocalDocumentStorage, perimetre: Perimetre
+) -> DocumentService:
+    return DocumentService(session, storage=storage, actor_id="test", perimetre=perimetre)
 
 
 @dataclass(frozen=True)
@@ -263,25 +276,42 @@ def test_ancre_multiple_refusee(service: DocumentService) -> None:
         )
 
 
-def test_ancre_absente_range_sous_generated(
-    service: DocumentService, storage: LocalDocumentStorage
+def test_ancre_absente_range_dans_le_dossier_du_compte(
+    service: DocumentService, storage: LocalDocumentStorage, perimetre: Perimetre
 ) -> None:
+    """Sans ancre : le document vit dans le dossier de travail de son compte."""
     document = service.enregistrer_document(_entree())
 
     assert document.type_document == TypeDocument.NON_CLASSE.value
     assert document.mission_id is None
-    assert document.storage_path == f"generated/{document.id}/Fiche technique.pdf"
+    assert document.storage_path == (
+        f"workdir/{perimetre.utilisateur_id}/{document.id}/Fiche technique.pdf"
+    )
+    assert document.proprietaire_id == perimetre.utilisateur_id
+    assert document.visibilite == "prive"
     assert _chemin(storage, document).is_file()
 
 
-def test_ancre_inexistante_range_sous_generated(
-    service: DocumentService, storage: LocalDocumentStorage
+def test_depot_personnel_sans_compte_refuse(
+    storage: LocalDocumentStorage, session: Session
+) -> None:
+    """Un appel sans compte n'a pas de dossier de travail : refus explicite."""
+    service = DocumentService(session, storage=storage, actor_id="test")
+
+    with pytest.raises(ValidationError):
+        service.enregistrer_document(_entree())
+
+
+def test_ancre_inexistante_range_dans_le_dossier_du_compte(
+    service: DocumentService, storage: LocalDocumentStorage, perimetre: Perimetre
 ) -> None:
     document = service.enregistrer_document(_entree(mission_id=uuid4()))
 
     assert document.type_document == TypeDocument.NON_CLASSE.value
     assert document.mission_id is None
-    assert document.storage_path.startswith(f"generated/{document.id}/")
+    assert document.storage_path.startswith(
+        f"workdir/{perimetre.utilisateur_id}/{document.id}/"
+    )
 
 
 def test_type_de_document_inconnu_refuse(
@@ -414,6 +444,146 @@ def test_archivage_trace_sans_suppression(
 
 
 # --- Versioning -----------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("champ", "nom_fichier"),
+    [
+        ("offre_id", "offre.pdf"),
+        ("appel_id", "appel.pdf"),
+        ("organisation_id", "modele.pdf"),
+    ],
+)
+def test_revision_conserve_l_ancre_principale(
+    service: DocumentService,
+    donnees: Donnees,
+    champ: str,
+    nom_fichier: str,
+) -> None:
+    """Une nouvelle version garde l'ancre de la fiche qu'elle révise.
+
+    Seule la paire mission/session était recopiée : réviser une pièce ancrée sur
+    une offre, un appel ou une organisation la faisait disparaître de l'écran de
+    cet objet, alors que le fichier restait dans son dossier.
+    """
+    identifiant = getattr(donnees, champ.removesuffix("_id"))
+    entree = dict(nom=nom_fichier, type_document=TypeDocument.AUTRE.value)
+    v1 = service.enregistrer_document(_entree(**entree, **{champ: identifiant.id}))
+    v2 = service.remplacer_document(v1.id, _entree(**entree))
+
+    assert v2.version == 2
+    assert getattr(v2, champ) == identifiant.id
+    assert service.lister_pour(champ, identifiant.id)
+
+
+def test_revision_refusee_quand_l_ancre_n_existe_plus(
+    service: DocumentService, session: Session, donnees: Donnees
+) -> None:
+    """Une ancre disparue donne un refus métier, jamais une violation SQL.
+
+    La révision recopie les ancres de la fiche révisée. Si l'objet a disparu
+    entre-temps, la contrainte de clé étrangère refuserait l'insertion : on
+    préfère un motif lisible, qui laisse la fiche et son fichier intacts.
+    """
+    v1 = service.enregistrer_document(
+        _entree(nom="offre.pdf", type_document=TypeDocument.AUTRE.value, offre_id=donnees.offre.id)
+    )
+    # L'objet disparaît en contournant le service (cas concurrent ou maintenance) :
+    # la fiche garde son identifiant d'ancre, qui ne pointe plus sur rien.
+    session.execute(delete(Offre).where(Offre.id == donnees.offre.id))
+    session.flush()
+
+    with pytest.raises(NotFoundError) as refus:
+        service.remplacer_document(
+            v1.id, _entree(nom="offre.pdf", type_document=TypeDocument.AUTRE.value)
+        )
+
+    assert "n'existe plus" in refus.value.message
+    assert refus.value.details["ancre"] == "offre_id"
+    # La fiche d'origine est intacte : rien n'a été écrit ni remplacé.
+    assert service.obtenir(v1.id).storage_path == v1.storage_path
+    assert service.obtenir(v1.id).version == 1
+
+
+@pytest.fixture
+def session_fk() -> Iterator[Session]:
+    """Session SQLite qui **applique** les clés étrangères (défaut : non)."""
+    moteur = create_engine("sqlite://")
+
+    @event.listens_for(moteur, "connect")
+    def _activer_fk(dbapi_connexion: Any, _enregistrement: Any) -> None:
+        dbapi_connexion.execute("PRAGMA foreign_keys=ON")
+
+    Base.metadata.create_all(moteur)
+    with sessionmaker(bind=moteur)() as active:
+        yield active
+    moteur.dispose()
+
+
+def _compte_administrateur(session: Session) -> Utilisateur:
+    """Compte réel : `proprietaire_id` et `created_by` sont des clés étrangères.
+
+    Un UUID inventé ferait échouer la contrainte sur le propriétaire avant celle
+    de l'ancre testée : les tests d'intégrité ne prouveraient plus ce qu'ils
+    annoncent.
+    """
+    compte = Utilisateur(
+        email=f"compte-{uuid4()}@carso.mg",
+        nom="Test",
+        prenom="Integrite",
+        password_hash="x",
+        role=RoleUtilisateur.ADMINISTRATEUR.value,
+        statut=StatutUtilisateur.ACTIF.value,
+    )
+    session.add(compte)
+    session.flush()
+    return compte
+
+
+def test_integrite_traduite_en_erreur_metier(
+    tmp_path: Path, session_fk: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Une FK cassée au flush devient un refus lisible, pas une erreur SQL.
+
+    Réglage du test : SQLite n'applique pas les clés étrangères par défaut, la
+    session les active pour reproduire ce que PostgreSQL refuse. La résolution
+    d'ancre est court-circuitée pour simuler une suppression concurrente, entre
+    la lecture et l'écriture : c'est la seule fenêtre où le cas se présente.
+    """
+    compte = _compte_administrateur(session_fk)
+    service = DocumentService(
+        session_fk,
+        storage=LocalDocumentStorage(tmp_path / "carso", max_bytes=4 * 1024 * 1024),
+        actor_id="test",
+        perimetre=Perimetre(role="administrateur", utilisateur_id=compte.id, est_complet=True),
+    )
+    monkeypatch.setattr(DocumentService, "_ancre_existe", lambda self, champ, eid: True)
+    fantome = uuid4()
+
+    with pytest.raises(NotFoundError) as refus:
+        service.enregistrer_document(
+            _entree(nom="offre.pdf", type_document=TypeDocument.AUTRE.value, offre_id=fantome)
+        )
+
+    assert "n'existe plus" in refus.value.message
+    assert refus.value.details["ancre"] == "offre_id"
+    # Compensation : l'échec base ne laisse pas de fichier orphelin.
+    assert not list((tmp_path / "carso").rglob("offre.pdf"))
+
+
+def test_revision_personnelle_reste_dans_le_dossier_du_compte(
+    service: DocumentService, perimetre: Perimetre
+) -> None:
+    """Une nouvelle version d'un document personnel ne change ni dossier ni propriétaire."""
+    v1 = service.enregistrer_document(_entree())
+    v2 = service.remplacer_document(v1.id, _entree(contenu=build_pdf("NOTE V2")))
+
+    dossier_v1 = v1.storage_path.rsplit("/", 1)[0]
+    dossier_v2 = v2.storage_path.rsplit("/", 1)[0]
+    assert dossier_v1 == dossier_v2 == f"workdir/{perimetre.utilisateur_id}/{v1.id}"
+    assert v2.storage_path.endswith("Fiche technique_v2.pdf")
+    assert v2.proprietaire_id == perimetre.utilisateur_id
+    assert v2.visibilite == "prive"
 
 
 def test_remplacement_cree_une_version_sans_ecraser_la_precedente(

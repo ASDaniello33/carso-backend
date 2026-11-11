@@ -210,7 +210,7 @@ def test_upload_extension_interdite(
 def test_upload_sans_ancre_metier_est_non_classe(documents_client: TestClient) -> None:
     """Un document sans objet métier reste un document (règle confirmée).
 
-    Aucune ancre ⇒ rangé sous ``generated/{id}/`` avec le type ``non_classe`` :
+    Aucune ancre ⇒ rangé dans le dossier du compte avec le type ``non_classe`` :
     l'agent peut toujours enregistrer ce que l'utilisateur demande.
     """
     reponse = _upload(documents_client)
@@ -218,11 +218,11 @@ def test_upload_sans_ancre_metier_est_non_classe(documents_client: TestClient) -
     assert reponse.status_code == 201
     corps = reponse.json()
     assert corps["type_document"] == TypeDocument.NON_CLASSE.value
-    assert corps["storage_path"].startswith("generated/")
+    assert corps["storage_path"].startswith("workdir/")
 
 
 def test_upload_ancre_inexistante_est_non_classe(documents_client: TestClient) -> None:
-    """Ancre introuvable ⇒ repli ``generated/{id}/`` (aucune FK inventée)."""
+    """Ancre introuvable ⇒ repli sur le dossier du compte (aucune FK inventée)."""
     reponse = _upload(
         documents_client,
         mission_id="00000000-0000-0000-0000-000000000000",
@@ -232,7 +232,7 @@ def test_upload_ancre_inexistante_est_non_classe(documents_client: TestClient) -
     corps = reponse.json()
     assert corps["type_document"] == TypeDocument.NON_CLASSE.value
     assert corps["mission_id"] is None
-    assert corps["storage_path"].startswith("generated/")
+    assert corps["storage_path"].startswith("workdir/")
 
 
 def test_telechargement_retourne_les_octets(

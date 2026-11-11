@@ -89,8 +89,8 @@ class ImportMediaService:
 
         Returns:
             Le document créé : rattaché au dossier métier si une ancre a été
-            fournie, ``non_classe`` sous ``generated/{id}/`` sinon — dans les
-            deux cas au statut du dépôt humain, provenance dans ses métadonnées.
+            fournie, ``non_classe`` dans ``workdir/{compte}/{id}/`` sinon — dans
+            les deux cas au statut du dépôt humain, provenance dans ses métadonnées.
 
         Raises:
             ValidationError: adresse refusée, hôte non public, média trop
@@ -129,7 +129,7 @@ class ImportMediaService:
                 # Ancre fournie par l'appelant (au plus une) : c'est elle qui
                 # range le média dans le dossier métier et le rend visible aux
                 # comptes restreints de son périmètre. Sans elle, le service
-                # documentaire impose ``non_classe`` sous ``generated/{id}/``.
+                # documentaire impose ``non_classe`` pour un dépôt sans ancre.
                 organisation_id=entree.organisation_id,
                 appel_id=entree.appel_id,
                 offre_id=entree.offre_id,

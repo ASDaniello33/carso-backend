@@ -1,0 +1,445 @@
+..........F...........................F........F........................ [ 32%]
+........................................................................ [ 64%]
+...........................................F...EEEEEEEEEEEEEEEEEEE...... [ 96%]
+.......                                                                  [100%]
+=================================== ERRORS ====================================
+______ ERROR at setup of test_generation_structurer_produit_docx_et_pdf _______
+
+session = <sqlalchemy.orm.session.Session object at 0x00000209903A7BD0>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x0000020990390810>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+_ ERROR at setup of test_generation_structurer_ne_renvoie_pas_l_image_base64 __
+
+session = <sqlalchemy.orm.session.Session object at 0x000002098EF64590>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x000002098E30B710>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+_ ERROR at setup of test_generation_structurer_signale_les_erreurs_de_validation _
+
+session = <sqlalchemy.orm.session.Session object at 0x0000020990491A90>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x00000209903A2F50>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+____ ERROR at setup of test_generation_structurer_refuse_un_spec_invalide _____
+
+session = <sqlalchemy.orm.session.Session object at 0x000002098E3F7150>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x0000020990463CD0>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+__________ ERROR at setup of test_generation_simple_reste_disponible __________
+
+session = <sqlalchemy.orm.session.Session object at 0x000002098EFB8510>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x000002098E366B10>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+________ ERROR at setup of test_generation_refusee_sans_spec_ni_titre _________
+
+session = <sqlalchemy.orm.session.Session object at 0x000002098EFBBC90>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x0000020990334110>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+_________________ ERROR at setup of test_valider_document_ok __________________
+
+session = <sqlalchemy.orm.session.Session object at 0x0000020990445410>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x00000209903FDB50>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+_________ ERROR at setup of test_valider_document_liste_les_constats __________
+
+session = <sqlalchemy.orm.session.Session object at 0x00000209905821D0>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x0000020990582290>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+_________ ERROR at setup of test_valider_document_portees_selectives __________
+
+session = <sqlalchemy.orm.session.Session object at 0x0000020990581B10>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x0000020990583090>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+_________ ERROR at setup of test_analyse_reference_rend_plan_et_style _________
+
+session = <sqlalchemy.orm.session.Session object at 0x00000209903CE9D0>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x00000209903CE2D0>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+______ ERROR at setup of test_analyse_reference_refuse_un_niveau_inconnu ______
+
+session = <sqlalchemy.orm.session.Session object at 0x00000209905862D0>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x000002099036B4D0>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+____ ERROR at setup of test_style_reference_reutilise_dans_une_generation _____
+
+session = <sqlalchemy.orm.session.Session object at 0x00000209903FFAD0>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x0000020990585610>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+__________ ERROR at setup of test_render_document_produit_les_pages ___________
+
+session = <sqlalchemy.orm.session.Session object at 0x0000020990583C10>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x00000209903CFA50>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+____________ ERROR at setup of test_render_document_est_idempotent ____________
+
+session = <sqlalchemy.orm.session.Session object at 0x0000020990581810>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x0000020990580550>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+____________ ERROR at setup of test_render_document_refuse_un_docx ____________
+
+session = <sqlalchemy.orm.session.Session object at 0x00000209903FF890>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x0000020990500F50>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+____________ ERROR at setup of test_apercu_page_absente_not_found _____________
+
+session = <sqlalchemy.orm.session.Session object at 0x0000020990505650>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x000002098EFB8950>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+_______ ERROR at setup of test_lecture_structuree_dune_reference_riche ________
+
+session = <sqlalchemy.orm.session.Session object at 0x000002099056D350>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x00000209904A8390>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+__ ERROR at setup of test_structure_d_un_gros_document_reste_dans_le_budget ___
+
+session = <sqlalchemy.orm.session.Session object at 0x000002098C91EA10>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x000002098D11E3D0>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+________ ERROR at setup of test_generer_document_accepte_le_spec_riche ________
+
+session = <sqlalchemy.orm.session.Session object at 0x0000020990536510>
+storage = <app.documents.storage.LocalDocumentStorage object at 0x00000209905364D0>
+
+    @pytest.fixture
+    def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
+        return DocumentService(
+            session,
+            storage=storage,
+            actor_id="test",
+>           perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+                                                                      ^^^^^
+        )
+E       NameError: name 'uuid4' is not defined
+
+tests\test_tools_documents_riche.py:80: NameError
+================================== FAILURES ===================================
+__________________ test_tool_sans_ancre_range_en_non_classe ___________________
+
+service = <app.application.services.document_service.DocumentService object at 0x000002098C658410>
+
+    def test_tool_sans_ancre_range_en_non_classe(service: DocumentService) -> None:
+        outil = _tools(service)["generer_document_professionnel"]
+        sortie = outil.invoke(_payload(None))
+    
+        assert sortie.get("non_classe") is True
+>       assert "dossier du compte" in sortie["message"]
+E       assert 'dossier du compte' in "Document déposé en statut 'proposed' sans rattachement métier (dossier personnel e9e82662-366d-4766-8656-7eeccb1cc019...der_document puis afficher_apercu_document pour montrer le rendu, et proposer_telechargement_document pour le fichier."
+
+tests\test_documents_professionnel.py:265: AssertionError
+________________ test_tool_pptx_sans_ancre_range_en_non_classe ________________
+
+service = <app.application.services.document_service.DocumentService object at 0x000002098D042390>
+
+    def test_tool_pptx_sans_ancre_range_en_non_classe(service: DocumentService) -> None:
+        outil = _tools(service)["generer_document_professionnel"]
+        sortie = outil.invoke(_payload(None))
+    
+        assert sortie.get("non_classe") is True
+>       assert "dossier du compte" in sortie["message"]
+E       assert 'dossier du compte' in "ATTENTION : le document n'est PAS conforme aux attentes de son profil. Document déposé en statut 'proposed' sans ratt...le rendu, et proposer_telechargement_document pour le fichier. Corriger d'abord les erreurs listées dans 'validation'."
+
+tests\test_documents_presentation.py:478: AssertionError
+_______________ test_generation_html_sans_ancre_est_non_classe ________________
+
+service = <app.application.services.document_service.DocumentService object at 0x000002098CDC0850>
+
+    def test_generation_html_sans_ancre_est_non_classe(
+        service: DocumentService,
+    ) -> None:
+        outil = _tools(service)["generer_document_html"]
+        sortie = outil.invoke(_payload(None))
+    
+        assert sortie.get("non_classe") is True
+>       assert "dossier du compte" in sortie["message"]
+E       assert 'dossier du compte' in "Document HTML converti et déposé en statut 'proposed' sans rattachement métier (dossier personnel 53bc2665-bd14-4f99-901d-b0b22896d409). Validation humaine requise. Appeler proposer_telechargement_document."
+
+tests\test_tools_documents_html.py:176: AssertionError
+___________ test_corriger_document_ne_restitue_plus_le_spec_complet ___________
+
+service = <app.application.services.document_service.DocumentService object at 0x00000209902601D0>
+organisation = <app.domain.organization.Organisation object at 0x0000020990335350>
+
+    def test_corriger_document_ne_restitue_plus_le_spec_complet(
+        service: DocumentService, organisation: Organisation
+    ) -> None:
+        outils_liste = build_document_tools(
+            identite=IDENTITE,
+            policy=POLICY,
+            service_factory=lambda: service,
+            dossier_brouillons=None,
+        )
+        catalogue = {outil.name: outil for outil in outils_liste}
+        spec = {
+            "metadata": {
+                "titre": "Offre technique — lot 2",
+                "reference": "CARSO-2026-100",
+                "type_document": "offre_technique",
+            },
+            "profil": "offre_technique",
+            "blocs": [
+                {"type": "titre", "texte": "Contexte"},
+                {"type": "paragraphe", "texte": "Le CARSO demande une formation."},
+            ],
+        }
+        sortie = catalogue["corriger_document"].invoke(
+            {
+                "document_spec": spec,
+                "operations": [
+                    {"type": "document", "champs": {"reference": "CARSO-2026-101"}}
+                ],
+                "format": "docx",
+                "nom_fichier": "offre_lot2_corrigee",
+                "type_document": "offre",
+                "ancre": "organisation",
+                "entity_id": str(organisation.id),
+                "propose_par": IDENTITE.agent_id,
+            }
+        )
+        assert sortie["ok"] is True
+        assert sortie["statut"] == "proposed"
+        assert sortie["operations_appliquees"]
+        # L'écho du spec complet a disparu : le modèle vient de l'écrire, le
+        # renvoyer doublerait la charge du tour suivant (INC-105).
+>       assert "document_spec" not in sortie
+E       AssertionError: assert 'document_spec' not in {'ok': True, 'document_id': 'd375ea74-064c-4260-8e38-775900f484c0', 'statut': 'proposed', 'nom': 'offre_lot2_corrigee.docx', ...}
+
+tests\test_tools_documents_brouillon.py:338: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_documents_professionnel.py::test_tool_sans_ancre_range_en_non_classe
+FAILED tests/test_documents_presentation.py::test_tool_pptx_sans_ancre_range_en_non_classe
+FAILED tests/test_tools_documents_html.py::test_generation_html_sans_ancre_est_non_classe
+FAILED tests/test_tools_documents_brouillon.py::test_corriger_document_ne_restitue_plus_le_spec_complet
+ERROR tests/test_tools_documents_riche.py::test_generation_structurer_produit_docx_et_pdf
+ERROR tests/test_tools_documents_riche.py::test_generation_structurer_ne_renvoie_pas_l_image_base64
+ERROR tests/test_tools_documents_riche.py::test_generation_structurer_signale_les_erreurs_de_validation
+ERROR tests/test_tools_documents_riche.py::test_generation_structurer_refuse_un_spec_invalide
+ERROR tests/test_tools_documents_riche.py::test_generation_simple_reste_disponible
+ERROR tests/test_tools_documents_riche.py::test_generation_refusee_sans_spec_ni_titre
+ERROR tests/test_tools_documents_riche.py::test_valider_document_ok - NameErr...
+ERROR tests/test_tools_documents_riche.py::test_valider_document_liste_les_constats
+ERROR tests/test_tools_documents_riche.py::test_valider_document_portees_selectives
+ERROR tests/test_tools_documents_riche.py::test_analyse_reference_rend_plan_et_style
+ERROR tests/test_tools_documents_riche.py::test_analyse_reference_refuse_un_niveau_inconnu
+ERROR tests/test_tools_documents_riche.py::test_style_reference_reutilise_dans_une_generation
+ERROR tests/test_tools_documents_riche.py::test_render_document_produit_les_pages
+ERROR tests/test_tools_documents_riche.py::test_render_document_est_idempotent
+ERROR tests/test_tools_documents_riche.py::test_render_document_refuse_un_docx
+ERROR tests/test_tools_documents_riche.py::test_apercu_page_absente_not_found
+ERROR tests/test_tools_documents_riche.py::test_lecture_structuree_dune_reference_riche
+ERROR tests/test_tools_documents_riche.py::test_structure_d_un_gros_document_reste_dans_le_budget
+ERROR tests/test_tools_documents_riche.py::test_generer_document_accepte_le_spec_riche
+EXIT=1

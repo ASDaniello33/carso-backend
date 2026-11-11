@@ -31,6 +31,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.application.dto import ImportMediaInput
+from app.application.perimetre import Perimetre
 from app.application.services import import_media_service as module_import
 from app.application.services.import_media_service import ImportMediaService
 from app.core.config import get_settings
@@ -88,7 +89,11 @@ def _service(
     """Service dont le client HTTP ne sort jamais du processus."""
     client = httpx.Client(transport=_transport(reponses), follow_redirects=False)
     return ImportMediaService(
-        session, storage=storage, actor_id=actor_id, client=client
+        session,
+        storage=storage,
+        actor_id=actor_id,
+        client=client,
+        perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
     )
 
 
@@ -115,7 +120,7 @@ def test_import_image_produit_une_fiche_complete(
     assert document.version == 1
     assert document.statut == StatutDocument.DRAFT.value
     assert document.created_by == "importeur"
-    assert document.storage_path.startswith("generated/")
+    assert document.storage_path.startswith("workdir/")
     assert document.storage_disk
     # Le fichier est bien sur le disque, à l'endroit annoncé.
     assert (storage.root / document.storage_path).read_bytes() == PNG
@@ -186,7 +191,7 @@ def test_provenance_conservee_avec_url_source_et_finale(
     assert provenance["url_finale"] == arrivee
     assert provenance["hote"] == f"cdn.{DOMAINE}"
     assert provenance["importe_le"]
-    assert document.storage_path.startswith("generated/")
+    assert document.storage_path.startswith("workdir/")
 
 
 def test_audit_trace_le_depot_humain(
@@ -342,7 +347,7 @@ def test_route_import_media_cree_un_document_draft(
     assert fiche["checksum_sha256"] == hashlib.sha256(PNG).hexdigest()
     assert fiche["version"] == 1
     assert fiche["statut"] == StatutDocument.DRAFT.value
-    assert fiche["storage_path"].startswith("generated/")
+    assert fiche["storage_path"].startswith("workdir/")
     assert fiche["created_by"]
     assert (storage_root / fiche["storage_path"]).read_bytes() == PNG
 
@@ -444,7 +449,7 @@ def test_route_import_media_rattache_a_une_ancre(
 
     C'est la différence entre « un média sur le disque » et « un document de
     CARSO » : la fiche porte l'ancre, et le fichier vit sous le dossier de
-    l'objet au lieu de ``generated/{id}/``.
+    l'objet au lieu du dossier personnel du compte.
     """
     reseau(_reponse(PNG, mime="image/png"))
     organisation = api_client.post(

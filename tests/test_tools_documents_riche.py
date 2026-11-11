@@ -19,12 +19,14 @@ from collections.abc import Iterator
 from datetime import date
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.application.dto import DocumentUploadInput
+from app.application.perimetre import Perimetre
 from app.application.services import DocumentService
 from app.documents.storage import LocalDocumentStorage
 from app.domain.base import Base
@@ -72,7 +74,12 @@ def storage(tmp_path: Path) -> LocalDocumentStorage:
 
 @pytest.fixture
 def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
-    return DocumentService(session, storage=storage, actor_id="test")
+    return DocumentService(
+        session,
+        storage=storage,
+        actor_id="test",
+        perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+    )
 
 
 @pytest.fixture
@@ -546,7 +553,7 @@ def test_structure_d_un_gros_document_reste_dans_le_budget(
 
 
 def _uuid(valeur: Any) -> Any:
-    from uuid import UUID
+    from uuid import UUID, uuid4
 
     return UUID(str(valeur))
 

@@ -374,11 +374,17 @@ async def tester_runtime(
             erreur=str(exc),
         )
     except Exception as exc:  # réseau, clé refusée, quota…
+        # Même lecture que le pont AG-UI (`app/api/agui.py`) : le refus du
+        # fournisseur est repris (quota, modèle inconnu) mais assaini — la
+        # version brute peut citer la clé refusée, et ce champ remonte au
+        # navigateur (AGENTS.md §9).
+        from app.api.agui import _message_erreur
+
         return AgentRuntimeTestRead(
             ok=False,
             provider=payload.provider,
             model=payload.model,
-            erreur=f"{type(exc).__name__} : {exc}",
+            erreur=_message_erreur(exc),
         )
     return AgentRuntimeTestRead(
         ok=True,

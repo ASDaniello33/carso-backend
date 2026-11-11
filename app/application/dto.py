@@ -72,9 +72,11 @@ class DocumentUploadInput:
     dépôt, quel qu'en soit l'auteur (règle 6 [C]).
 
     Les ancres métier : **au plus une**. Si elle existe en base, elle détermine
-    le dossier. Si elle est absente ou introuvable, le document est rangé sous
-    ``generated/{id}/`` (type ``non_classe``) — un document sans objet métier
-    reste un document. Plusieurs ancres restent refusées.
+    le dossier. Si elle est absente ou introuvable, le document est rangé dans
+    le dossier de travail de son compte, ``workdir/{compte}/{id}/`` (type
+    ``non_classe``) — un document sans objet métier reste un document
+    personnel, et n'existe que pour un compte identifié. Plusieurs ancres
+    restent refusées.
     """
 
     type_document: str
@@ -108,7 +110,7 @@ class ImportMediaInput:
 
     - une ancre fournie → document rattaché, rangé dans le dossier métier, type
       validé comme pour tout autre dépôt ;
-    - aucune ancre → document ``non_classe`` sous ``generated/{id}/`` ;
+    - aucune ancre → document ``non_classe`` sous ``workdir/{compte}/{id}/`` ;
     - plusieurs ancres → refus (``ValidationError``), règle du service
       documentaire : un document ne se rattache qu'à **une** ancre métier.
     """

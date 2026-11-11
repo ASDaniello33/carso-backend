@@ -22,13 +22,14 @@ import io
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from docx import Document as LireDocx
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.application.perimetre import Perimetre
 from app.application.services import DocumentService
 from app.documents.document_libre import (
     ECHELLE_TYPOGRAPHIQUE,
@@ -77,7 +78,12 @@ def session() -> Iterator[Session]:
 @pytest.fixture
 def service(session: Session, tmp_path: Path) -> DocumentService:
     storage = LocalDocumentStorage(tmp_path / "carso", max_bytes=16 * 1024 * 1024)
-    return DocumentService(session, storage=storage, actor_id="test")
+    return DocumentService(
+        session,
+        storage=storage,
+        actor_id="test",
+        perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+    )
 
 
 def _outils(service: DocumentService) -> dict[str, Any]:

@@ -20,13 +20,14 @@ import io
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from docx import Document as LireDocx
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.application.perimetre import Perimetre
 from app.application.services import DocumentService
 from app.documents.html_to_docx import ConversionHtmlError, html_string_to_docx_bytes
 from app.documents.storage import LocalDocumentStorage
@@ -74,7 +75,12 @@ def storage(tmp_path: Path) -> LocalDocumentStorage:
 
 @pytest.fixture
 def service(session: Session, storage: LocalDocumentStorage) -> DocumentService:
-    return DocumentService(session, storage=storage, actor_id="test")
+    return DocumentService(
+        session,
+        storage=storage,
+        actor_id="test",
+        perimetre=Perimetre(role="administrateur", utilisateur_id=uuid4(), est_complet=True),
+    )
 
 
 @pytest.fixture
@@ -167,7 +173,7 @@ def test_generation_html_sans_ancre_est_non_classe(
     sortie = outil.invoke(_payload(None))
 
     assert sortie.get("non_classe") is True
-    assert "generated/" in sortie["message"]
+    assert "dossier personnel" in sortie["message"]
 
 
 def test_generation_html_refusee_sans_permission(

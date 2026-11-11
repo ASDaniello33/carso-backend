@@ -34,7 +34,7 @@ Le circuit documentaire CARSO est **inchangé** (règle 6 [C])—la sortie est
 déposée via ``DocumentService.enregistrer_document`` avec
 ``proposed_by_agent`` → statut ``proposed`` (validation humaine requise) ;
 une ancre métier réelle classe le fichier sous l'objet, une ancre absente le
-range sous ``generated/{id}``. Aucune écriture disque directe—tout passe
+range dans le dossier du compte. Aucune écriture disque directe—tout passe
 par le service (AGENTS.md §2.5).
 """
 

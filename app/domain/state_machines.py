@@ -20,8 +20,19 @@ from app.domain.enums import (
 
 TRANSITIONS: dict[str, dict[str, set[str]]] = {
     "appel": {
+        # RECU → VALIDE : règle du **dossier complet** (10/11). Un appel saisi
+        # à la main n'a aucune proposition d'extraction : sans cette arête, il
+        # restait ``recu`` à vie, même avec des offres et une mission. L'arête
+        # n'est empruntée que par ``AppelService.marquer_valide_si_complet``,
+        # qui exige au moins une offre **et** une mission (voir la règle).
+        #
+        # Les états ``propose`` et ``corrige`` ne l'ont volontairement pas :
+        # une décision d'extraction y est en attente, et compléter le dossier
+        # ne doit pas approuver silencieusement une proposition que personne
+        # n'a lue.
         StatutAppel.RECU: {
             StatutAppel.EN_ANALYSE,
+            StatutAppel.VALIDE,
             StatutAppel.REJETE,
         },
         StatutAppel.EN_ANALYSE: {
