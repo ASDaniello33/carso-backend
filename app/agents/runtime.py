@@ -16,7 +16,6 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.errors import NotFoundError
-from app.core.errors import ValidationError as BusinessValidationError
 from app.domain.document import AgentTask
 from app.domain.enums import StatutAgentTask
 from app.domain.state_machines import validate_transition
@@ -135,9 +134,3 @@ class AgentTaskService:
         }
 
 
-def require_non_empty(value: str | None, field_name: str) -> str:
-    """Validation utilitaire : chaîne non vide obligatoire."""
-    if not value or not value.strip():
-        msg = f"{field_name} obligatoire"
-        raise BusinessValidationError(msg)
-    return value.strip()

@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from bs4 import BeautifulSoup, Comment, Tag
+from bs4 import BeautifulSoup, Comment, NavigableString, Tag
 
 from app.core.errors import ValidationError
 
@@ -249,6 +249,52 @@ def _filtrer_style_svg(style: str) -> str:
     return ";".join(gardees)
 
 
+#: Séquence littérale d'un saut de ligne écrite par le modèle.
+_SEQUENCE_SAUT_LITTERAL = "\\n"
+
+
+def _corriger_sauts_litteraux(racine: Tag | BeautifulSoup) -> None:
+    """Remplace les ``\\n`` **littéraux** du HTML de l'agent par un vrai saut.
+
+    Constat de recette (11/11) : quelques sections générées partie par partie
+    arrivaient avec un paragraphe dont le texte était la séquence ``\\n`` (deux
+    caractères, barre inversée puis n). Le convertisseur la recopiait fidèlement :
+    le document imprimait alors ``\\n`` au lieu d'un blanc entre deux
+    paragraphes. Le modèle écrit un HTML, mais recopie parfois des séquences
+    d'échappement au lieu des sauts réels.
+
+    Correction minimale et sûre :
+
+    - un élément dont le texte est exactement la séquence devient un **blanc**
+      (paragraphe vide) ;
+    - ailleurs dans un texte, la séquence devient une espace (jamais une balise
+      construite par substitution, qui casserait l'échappement) ;
+    - le contenu de ``<pre>`` et ``<code>`` n'est **jamais** touché : là, ``\\n``
+      peut être le texte voulu.
+    """
+    for noeud in list(racine.find_all(string=True)):
+        if not isinstance(noeud, NavigableString) or isinstance(noeud, Comment):
+            continue
+        if _SEQUENCE_SAUT_LITTERAL not in noeud:
+            continue
+        parent = noeud.parent
+        if parent is not None and parent.name in ("pre", "code"):
+            continue
+        if noeud.strip() == _SEQUENCE_SAUT_LITTERAL:
+            noeud.replace_with("")
+            if parent is not None and not parent.get_text(strip=True):
+                # L'élément ne portait que la séquence : il devient un vrai
+                # paragraphe vide, ce qu'un blanc doit être dans le document.
+                for enfant in list(parent.children):
+                    if isinstance(enfant, Comment) or (
+                        isinstance(enfant, NavigableString) and not enfant.strip()
+                    ):
+                        continue
+                    enfant.extract()
+            continue
+        noeud.replace_with(str(noeud).replace(_SEQUENCE_SAUT_LITTERAL, " "))
+
+
 def preparer(contenu: str) -> DocumentPrepare:
     """Nettoie le HTML, sépare la couverture et prépare le sommaire."""
     soup = BeautifulSoup(contenu or "", "html.parser")
@@ -272,6 +318,9 @@ def preparer(contenu: str) -> DocumentPrepare:
             del balise["href"]
     for svg in racine.find_all("svg"):
         _assainir_svg(svg)
+
+    # 1 bis. Sauts de ligne littéraux écrits par le modèle
+    _corriger_sauts_litteraux(racine)
 
     # 2. Couverture extraite (rendue sur une page séparée)
     couverture = None

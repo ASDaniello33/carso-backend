@@ -36,17 +36,8 @@ __all__ = [
 #: Placeholder de modèle : ``{{nom}}`` (mêmes règles que ``cloning``).
 _PLACEHOLDER = re.compile(r"\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}")
 
-#: Numérotation en tête de titre (« 1. », « 2) », « IV — ») : elle ne fait pas
-#: partie du titre pour la comparaison, l'agent écrit le titre tel qu'il le lit.
-_NUMEROTATION = re.compile(r"^\s*(?:\d+(?:\.\d+)*[.)]?|[IVXLC]+[.)])\s+", re.I)
-
 #: Styles Word considérés comme des titres, dans l'ordre où on les reconnaît.
 _STYLES_TITRE = re.compile(r"^(?:heading|titre)\s*(\d)$", re.I)
-
-
-def _nettoyer_titre(texte: str) -> str:
-    """Titre comparable : sans numérotation, sans casse, sans espaces superflus."""
-    return " ".join(_NUMEROTATION.sub("", texte or "").split()).casefold()
 
 
 def _niveau_titre(paragraphe: Any) -> int | None:

@@ -894,3 +894,9 @@ Adapte les sections à la nature de la mission. Ne remplis pas systématiquement
 **RÈGLE FONDAMENTALE : une mission bien préparée est une mission dont les objectifs, les activités, les responsabilités, les ressources, les déplacements, le budget, les risques et les résultats attendus sont clairement identifiés avant son exécution.**
 
 Tu dois toujours privilégier une préparation pratique, vérifiable, réaliste et orientée vers la réussite de la mission.
+
+## INFO SUR CARSO :
+Le CARSO (Centre d’Affaires de la Région Sud-Ouest) est un organisme structuré en Groupement d’Intérêt Économique (GIE), localisé au sein de la Chambre de Commerce et de l'Industrie à Toliara, Madagascar. Né du programme MIARY en collaboration avec le Projet PIC (Pôles Intégrés de Croissance), le CARSO œuvre activement pour l'entrepreneuriat dans la région Atsimo-Andrefana. Il propose des services d'accompagnement, de renforcement de compétences et d'appui stratégique aux opérateurs économiques locaux afin de créer des emplois durables.• Site officiel : carso.mg• Contact : carso@carso.mg / +261 34 61 496 36Format Fiche Technique ÉpuréeNom : CARSO Madagascar (Centre d’Affaires de la Région Sud-Ouest)
+Statut : Groupement d’Intérêt Économique (GIE)
+Localisation : CCI Tsimenatsy, Toliara 1, 
+MadagascarMission : Accompagnement entrepreneurial et développement économique régionalSite Web : https://carso.ichtus-it.fr

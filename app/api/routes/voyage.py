@@ -8,7 +8,7 @@ siège et le prix du litre sont des décisions d'organisation.
 
 from fastapi import APIRouter, Depends
 
-from app.api.deps import AdminUser, CurrentUser, DbSession, get_current_user
+from app.api.deps import AdminUser, DbSession, get_current_user
 from app.api.schemas import ParametresVoyageRead, ParametresVoyageUpdate
 from app.application.services.parametres_voyage_service import (
     ParametresVoyageMiseAJour,

@@ -359,3 +359,35 @@ def test_le_backend_n_importe_pas_playwright_au_chargement() -> None:
         text=True,
     )
     assert resultat.returncode == 0, resultat.stderr
+
+
+# --- Sauts de ligne littéraux écrits par le modèle ---------------------------
+
+
+def test_sequence_saut_litteral_devient_un_paragraphe_vide() -> None:
+    """Un ``\n`` littéral écrit par l'agent ne doit pas s'imprimer tel quel.
+
+    Constat de recette (11/11) : des sections générées partie par partie
+    arrivaient avec des paragraphes dont le texte était la séquence ``\n``. Le
+    convertisseur la recopiait fidèlement, le document imprimait ``\n`` au lieu
+    d'un blanc. Le HTML n'est pas modifié par l'agent : c'est ``preparer`` qui
+    normalise, au même endroit pour le DOCX et le PDF.
+    """
+    from docx import Document
+
+    barre = "\\"
+    html = (
+        f"<h2>Section</h2><p>Avant</p><p>{barre}n</p><p>Apres</p>"
+        f"<p>Mot{barre}nMot2</p><pre>garde{barre}nici</pre>"
+    )
+    rendu = rendre_professionnel(html, "Sauts littéraux", format="docx")
+    document = Document(io.BytesIO(rendu.octets))
+    textes = [paragraphe.text for paragraphe in document.paragraphs]
+
+    # La séquence seule devient un vrai blanc, pas un paragraphe « \n ».
+    assert "" in textes, textes
+    assert f"{barre}n" not in textes, textes
+    # Au milieu d'un texte, elle ne colle pas deux mots.
+    assert "Mot Mot2" in textes, textes
+    # Le contenu de <pre> est du texte voulu : il n'est jamais réécrit.
+    assert any(f"garde{barre}nici" in texte for texte in textes), textes

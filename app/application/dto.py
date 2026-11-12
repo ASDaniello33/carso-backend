@@ -84,6 +84,10 @@ class DocumentUploadInput:
     stream: BinaryIO
     created_by: str | None = None
     proposed_by_agent: str | None = None
+    #: Révision **imposée** par l'appelant (dépôt d'un jumeau PDF : même
+    #: révision que le DOCX qu'il double). Vide = la révision courante du
+    #: livrable est calculée par le service, comme d'habitude.
+    revision_imposee: int | None = None
     #: Métadonnées libres conservées avec la fiche (provenance d'un média
     #: importé du web, par exemple). Fusionnées avec la clé d'agent : une
     #: métadonnée fournie n'écrase jamais la trace de l'agent proposant.

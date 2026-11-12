@@ -47,7 +47,7 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
-from typing import Literal, Protocol
+from typing import Literal
 
 import httpx
 
@@ -423,20 +423,6 @@ def interpreter_points(
             "Réponse météo illisible", details={"fournisseur": fournisseur.cle}
         )
     return points
-
-
-class FournisseurMeteo(Protocol):
-    """Contrat d'un fournisseur de conditions — point d'extension documenté."""
-
-    info: FournisseurInfo
-
-    def points(
-        self,
-        coordonnees: Sequence[tuple[float, float]],
-        *,
-        heures: int = 24,
-        jour: date | None = None,
-    ) -> list[MeteoPoint]: ...
 
 
 class ClientOpenMeteo:

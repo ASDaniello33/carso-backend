@@ -116,17 +116,6 @@ def est_formateur(role: str | None) -> bool:
         return False
 
 
-def est_role_mission_valide(role: str | None) -> bool:
-    """Vrai si ``role`` appartient au vocabulaire confirmé ``RoleMission``."""
-    if role is None:
-        return False
-    try:
-        RoleMission(role)
-    except ValueError:
-        return False
-    return True
-
-
 class StatutMission(StrEnum):
     """Cycle de vie d'une mission (ADR 0012, validé avec CARSO le 26/10).
 

@@ -32,7 +32,6 @@ from app.domain.enums import (
     DecisionApprobation,
     StatutAppel,
     StatutOffre,
-    TypeAppel,
     TypeOffre,
     TypeProposition,
 )
@@ -54,23 +53,6 @@ _SUFFIXES_TYPES = {
     TypeOffre.OFFRE_FINANCIERE.value: "FIN",
     TypeOffre.AUTRE.value: "AUTRE",
 }
-
-#: Types d'offre acceptés pour **tout** type d'appel (règle confirmée CARSO,
-#: 04/11) : tout appel peut se répondre par une offre technique **et** une offre
-#: financière. ``AUTRE`` reste accepté — des offres « autre » existent (ex.
-#: manifestations d'intérêt) et restent lisibles/créables. Le type d'appel ne
-#: limite plus la réponse : la seule contrainte reste l'unicité ``(lot_id,
-#: type)``. Le type n'est jamais déduit du document.
-_TYPES_PAR_APPEL: dict[str, frozenset[str]] = {
-    type_appel.value: frozenset(t.value for t in TypeOffre)
-    for type_appel in TypeAppel
-}
-
-
-def types_offre_attendus(type_appel: str) -> frozenset[str]:
-    """Types d'offre acceptés pour ce type d'appel (règle du 04/11 : tous)."""
-    return _TYPES_PAR_APPEL.get(type_appel, frozenset(t.value for t in TypeOffre))
-
 
 def _iso(valeur: date | None) -> str | None:
     """Date → chaîne ISO : l'audit ne stocke que des valeurs sérialisables."""

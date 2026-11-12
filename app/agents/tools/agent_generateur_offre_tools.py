@@ -219,7 +219,7 @@ class OffreBrouillonInput(BaseModel):
     modele_document_id: UUID | None = None
 
 
-class LotUpdateInput(BaseModel):
+class PropositionLotInput(BaseModel):
     """Modification de lot : proposition (HITL) — aucun changement direct."""
 
     lot_id: UUID
@@ -672,12 +672,11 @@ def _create_offer_draft(session: Session, payload: dict[str, Any]) -> dict[str, 
 
 def _propose_lot_update(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     """Applique une correction de lot après HITL (LangGraph interrupt avant run)."""
-    from app.application.dto import LotUpdateInput as LotUpdateDto
 
-    entree = LotUpdateInput.model_validate(payload)
+    entree = PropositionLotInput.model_validate(payload)
     lot = LotService(session, actor_id=AGENT_ID).modifier(
         entree.lot_id,
-        LotUpdateDto(
+        LotUpdateInput(
             titre=entree.titre,
             zone=entree.zone,
             objectifs=entree.objectifs,
@@ -975,7 +974,7 @@ def construire_tools_generateur_offre(
             "Propose une correction de lot (titre, zone, objectifs) : aucune "
             "écriture directe, l'approbation humaine déclenche l'application."
         ),
-        input_schema=LotUpdateInput,
+        input_schema=PropositionLotInput,
         mutation=True,
         run=_propose_lot_update,
     ))

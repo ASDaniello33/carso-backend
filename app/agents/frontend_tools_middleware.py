@@ -22,7 +22,6 @@ voit, le ToolNode n'écrit rien, l'humain répond à la place.
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -174,6 +173,3 @@ class FrontendToolsMiddleware(_AgentMiddleware):
         return await handler(request.override(tools=fusion))
 
 
-def serialiser_stub(resultat: dict[str, Any]) -> str:
-    """Sortie JSON du stub (tests / messages outil)."""
-    return json.dumps(resultat, ensure_ascii=False)

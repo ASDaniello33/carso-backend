@@ -21,8 +21,9 @@ SÃ©mantique HTTP :
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Path, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Path, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse, StreamingResponse
+from starlette.datastructures import FormData as StarletteForm
 
 from app.api.deps import AdminUser, CurrentUser, DbSession, get_current_user
 from app.api.permissions import PerimetreDep, exiger_interne
@@ -32,9 +33,9 @@ from app.api.schemas import (
     DocumentDecisionCreate,
     DocumentImportMediaCreate,
     DocumentMetadonneesUpdate,
-    DocumentVisibiliteUpdate,
     DocumentPurgeCreate,
     DocumentRead,
+    DocumentVisibiliteUpdate,
     ExtractionRead,
     FicheNonPurgeeRead,
     PisteFluxRead,
@@ -120,6 +121,71 @@ def _corbeille_reponse(fiche: FicheCorbeille) -> DocumentCorbeilleRead:
     )
 
 
+#: Champs métier déposables en formulaire, hors fichier et métadonnées libres.
+#: Sert à refuser un champ d'ancrage inconnu (voir `_refuser_champs_inconnus`).
+_CHAMPS_CONNUS = frozenset(
+    {
+        "file",
+        "type_document",
+        "nom",
+        "proposed_by_agent",
+        "organisation_id",
+        "appel_id",
+        "offre_id",
+        "mission_id",
+        "equipe_id",
+        "session_id",
+    }
+)
+
+#: Ancres métier acceptées, nommées pour l'appelant qui s'est trompé de champ.
+_ANCRES_CONNUES = frozenset(
+    {"organisation_id", "appel_id", "offre_id", "mission_id", "equipe_id", "session_id"}
+)
+
+
+async def exiger_champs_connus(requete: Request) -> None:
+    """Dépendance : refuse un champ de formulaire hors contrat (B4).
+
+    Asynchrone parce que lire un formulaire l'est, même quand la route qui la
+    déclare est synchrone : FastAPI résout les dépendances dans sa propre boucle.
+    Starlette met le formulaire en cache sur la requête, donc le corps n'est
+    pas lu deux fois (la route déclare ensuite ses `Form()` normalement).
+
+    Raises:
+        ValidationError: un champ du formulaire sort de la liste connue.
+    """
+    _refuser_champs_inconnus(await requete.form())
+
+
+def _refuser_champs_inconnus(form: StarletteForm) -> None:
+    """Refuse un champ de formulaire inconnu au lieu de l'ignorer en silence.
+
+    Constat de recette (11/11, B4) : un appel envoyant ``ancre=appel`` et
+    ``entity_id=<uuid>`` au lieu des ancres nommées (``appel_id``…) recevait
+    ``201 Created``. FastAPI ne relaie que les champs qu'il déclare ; les autres
+    sont ignorés sans bruit, et le document partait en ``non_classe`` alors que
+    la requête exprimait une intention de rattachement.
+
+    Le client croyait avoir ancré son fichier. Un refus explicite vaut mieux
+    qu'un document orphelin : il nomme le champ fautif et rappelle les ancres
+    attendues.
+
+    Raises:
+        ValidationError: un champ du formulaire sort de la liste connue.
+    """
+    inconnus = sorted(set(form.keys()) - _CHAMPS_CONNUS)
+    if not inconnus:
+        return
+    raise ValidationError(
+        "Champ de formulaire inconnu : " + ", ".join(inconnus) + ".",
+        details={
+            "champs_inconnus": inconnus,
+            "ancres_attendues": sorted(_ANCRES_CONNUES),
+        },
+    )
+
+
 def _entree(
     file: UploadFile,
     type_document: str | None,
@@ -145,6 +211,7 @@ def upload_document(
     type_document: Annotated[str, Form(description="Type de document CARSO")],
     session: DbSession,
     user: CurrentUser,
+    _champs: Annotated[None, Depends(exiger_champs_connus)],
     nom: Annotated[str | None, Form()] = None,
     proposed_by_agent: Annotated[str | None, Form()] = None,
     organisation_id: Annotated[UUID | None, Form()] = None,
@@ -159,6 +226,11 @@ def upload_document(
 
     Un formateur ne dépose que sur une ancre de son périmètre (sa mission, sa
     session, sa fiche) — le service refuse le reste (404).
+
+    Un champ de formulaire hors contrat est **refusé** (422) plutôt qu'ignoré :
+    un client qui écrit ``ancre`` et ``entity_id`` au lieu de ``appel_id``
+    croyait ancrer son fichier alors que le document partait en ``non_classe``
+    (B4).
     """
     service = DocumentService(session, actor_id=str(user.id), perimetre=perimetre)
     return service.enregistrer_document(

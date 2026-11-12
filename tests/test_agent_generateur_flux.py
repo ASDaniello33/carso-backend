@@ -880,3 +880,23 @@ class TestOffresEtDocuments:
         )
         assert sortie["ok"] is False
         assert "rejeté" in sortie["error"]["message"]
+
+
+def test_proposition_lot_ne_masque_plus_le_dto() -> None:
+    """La proposition HITL et le DTO de mise à jour restent deux contrats.
+
+    Le schéma local s'appelait ``LotUpdateInput`` et masquait l'import du DTO :
+    ``situer_zone_lot`` construisait alors la proposition (qui exige ``lot_id``)
+    avec ``lieu_id``, et échouait. Le nom local est désormais explicite.
+    """
+    from uuid import uuid4
+
+    from app.agents.tools import agent_generateur_offre_tools as outils
+    from app.application.dto import LotUpdateInput as DtoLot
+
+    assert outils.LotUpdateInput is DtoLot
+    assert outils.PropositionLotInput is not DtoLot
+
+    lieu = uuid4()
+    assert DtoLot(lieu_id=lieu).lieu_id == lieu
+    assert outils.PropositionLotInput(lot_id=uuid4(), titre="Lot 1").titre == "Lot 1"

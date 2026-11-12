@@ -97,6 +97,43 @@ class RenduProfessionnel:
         return "Rendu sans avertissement : verifie tout de meme l'apercu des pages."
 
 
+def _graphiques_valides(
+    graphiques: Mapping[str, Mapping[str, Any]] | None,
+    avertissements: list[str],
+) -> dict[str, dict[str, Any]] | None:
+    """Écarte les graphiques dont les données sont inutilisables.
+
+    Constat du 11/11 : la même spec défectueuse (camembert dont la somme des
+    valeurs est nulle, séries désalignées) faisait **échouer** un DOCX et un
+    PDF par ``ValidationError``, alors qu'un classeur la signalait seulement en
+    avertissement. Un graphique raté ne doit pas coûter le document entier :
+    l'agent reçoit un avertissement explicite, corrige sa spec, régénère.
+
+    Ce qui reste bloquant n'est pas ici : une ancre sans graphique déclaré, ou
+    un graphique déclaré sans ancre, sont des erreurs de **structure** que
+    ``injecter_graphiques`` continue de refuser (le document mentirait sur son
+    contenu).
+
+    Les règles sont celles du classeur (``xlsx_graphiques._probleme``) : une
+    seule vérité, sinon les formats divergeraient sur ce qu'ils acceptent.
+    """
+    if not graphiques:
+        return None
+    from .xlsx_graphiques import _probleme
+
+    retenus: dict[str, dict[str, Any]] = {}
+    for identifiant, spec in graphiques.items():
+        probleme = _probleme(spec)
+        if probleme:
+            avertissements.append(
+                f"Graphique {identifiant!r} ignoré : {probleme} Corrige la spec "
+                "puis régénère le document."
+            )
+            continue
+        retenus[identifiant] = dict(spec)
+    return retenus or None
+
+
 def _rendre_classeur(
     contenu_html: str,
     titre: str,
@@ -123,11 +160,9 @@ def _rendre_classeur(
             details={"themes_disponibles": list(THEMES)},
         )
     avertissements: list[str] = []
-    if graphiques:
-        avertissements.append(
-            "Paramètre 'graphiques' sans effet sur un classeur xlsx : les "
-            "graphiques ne s'intègrent qu'aux formats pdf, docx et pptx."
-        )
+    # Les graphiques deviennent des objets Excel **natifs** (voir
+    # xlsx_graphiques) : plus de paramètre ignoré, comme c'était le cas avant
+    # le 11/11 pour les classeurs.
     # Nettoyage de sécurité commun (scripts, on*, SVG assainis) ; la couverture
     # est remise en tête pour ne rien perdre, puis on extrait les tableaux.
     document = preparer(contenu_html)
@@ -143,6 +178,7 @@ def _rendre_classeur(
             titre=titre,
             auteur=auteur,
             avertissements=constats,
+            graphiques=graphiques,
         )
         avertissements.extend(constats)
         octets = Path(chemin).read_bytes()
@@ -388,10 +424,17 @@ def rendre_professionnel(
             graphiques=graphiques,
         )
 
+    # Un graphique aux données inutilisables est signalé, pas bloquant : le
+    # document se rend sans lui et l'agent corrige sa spec (même règle qu'un
+    # classeur). Les erreurs de structure (ancre sans spec, spec sans ancre)
+    # restent refusées par `_preparer_document`.
+    constats_graphiques: list[str] = []
+    graphiques_retenus = _graphiques_valides(graphiques, constats_graphiques)
     doc, avertissements_insertion = _preparer_document(
-        contenu_html, format, orientation, theme, graphiques
+        contenu_html, format, orientation, theme, graphiques_retenus
     )
     avertissements = [
+        *constats_graphiques,
         *avertissements_insertion,
         # Le contrôle qualité porte sur le HTML ORIGINAL (et non le corps nettoyé) :
         # preparer retire <style> et consomme les ancres de graphique, donc les

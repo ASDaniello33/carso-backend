@@ -36,16 +36,22 @@ Classes de ligne : ``total`` / ``sous-total`` (gras, fond doux, filet haut) et
 ``alerte`` (fond rouge clair). Le style reste celui du thème : l'agent ne choisit
 qu'un rôle, jamais une couleur arbitraire.
 
-Une valeur non convertible pour le format demandé **reste du texte** et produit
-un avertissement : aucune donnée n'est inventée ni silencieusement perdue.
+Une cellule **numérique** (``class="num"``, ``data-format`` numérique, ou
+colonne dont l'en-tête est numérique) est écrite comme un **nombre** : sans
+cela, ``2 500 000`` restait une chaîne et ``=SOMME(B3:B4)`` renvoyait 0 dans le
+tableur. Une valeur non convertible reste du texte et produit un avertissement :
+aucune donnée n'est inventée ni silencieusement perdue. Le classeur demande un
+recalcul complet à l'ouverture, les formules n'ayant pas de résultat mémorisé.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from bs4 import BeautifulSoup, Tag
 from openpyxl import Workbook
@@ -56,6 +62,7 @@ from openpyxl.worksheet.properties import PageSetupProperties
 from app.core.errors import ValidationError
 
 from .themes import BORDURE, MUTED, TEXTE, Theme, get_theme
+from .xlsx_graphiques import GraphiqueClasseur
 
 __all__ = ["rendre_xlsx"]
 
@@ -242,11 +249,26 @@ def _nombre(texte: str) -> float:
     return float(brut)
 
 
-def _valeur(cellule: Cellule, reference: str, avertissements: list[str]) -> object:
-    """Valeur écrite dans la cellule : formule, nombre, date ou texte."""
+def _valeur(
+    cellule: Cellule,
+    reference: str,
+    avertissements: list[str],
+    colonne_numerique: bool = False,
+) -> object:
+    """Valeur écrite dans la cellule : formule, nombre, date ou texte.
+
+    Une cellule **numérique** est écrite comme un nombre, pas comme du texte :
+    ``class="num"``, un ``data-format`` numérique ou une colonne dont l'en-tête
+    est numérique suffisent. Sans cette conversion, ``2 500 000`` restait une
+    chaîne et ``=SOMME(...)`` renvoyait 0, alors que le classeur affichait le
+    bon montant. Un texte qui n'est pas un nombre reste du texte, avec un
+    avertissement — aucune valeur n'est inventée.
+    """
     if cellule.formule:
         return cellule.formule
-    if cellule.format_nombre is None or cellule.texte == "":
+    if cellule.texte == "":
+        return cellule.texte
+    if cellule.format_nombre is None and not (cellule.num or colonne_numerique):
         return cellule.texte
     if cellule.format_nombre == _FORMATS_FIXES["date"]:
         for motif in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
@@ -269,6 +291,9 @@ def _valeur(cellule: Cellule, reference: str, avertissements: list[str]) -> obje
         return cellule.texte
     if cellule.format_nombre == _FORMATS_FIXES["entier"]:
         return int(round(nombre))
+    # Sans format déclaré : un entier reste un entier (12, pas 12,0).
+    if cellule.format_nombre is None and nombre.is_integer():
+        return int(nombre)
     return nombre
 
 
@@ -519,6 +544,81 @@ def _alignement(cellule: Cellule, defaut: str) -> str:
     return defaut
 
 
+def _anneau_vide(anneau: Tag) -> bool:
+    """Vrai si l'élément ne porte que des attributs (aucun contenu visible).
+
+    C'est la forme d'une ancre de graphique : ``<figure data-graphique="id">``.
+    Un ``<figure>`` qui contient déjà une image ou une légende n'est pas une
+    ancre : le moteur ne la remplit pas et le classeur n'a rien à poser.
+    """
+    return not _texte(anneau) and anneau.find(["img", "svg", "table"]) is None
+
+
+def _graphiques(
+    racine: Tag,
+    tables: list[tuple[str, list[Cellule], list[Ligne]]],
+    spec: Mapping[str, Mapping[str, Any]] | None,
+    avertissements: list[str],
+) -> list[GraphiqueClasseur]:
+    """Apparie chaque ancre de graphique à sa feuille et à sa spec.
+
+    Le parcours est **documentaire** : les tables et les ancres sont lus dans
+    l'ordre du HTML, et une ancre appartient à la dernière table rencontrée
+    au-dessus d'elle. C'est ce qui fait que le graphique se pose à côté du
+    tableau qu'il illustre, sans que l'agent ait à nommer la feuille.
+
+    Une ancre sans spec, ou une spec sans ancre, produit un **avertissement** :
+    le premier cas laisse un trou visible dans le document, le second annonce
+    un graphique que personne ne verra. Aucun des deux n'est silencieux.
+    """
+    specs = dict(spec or {})
+    noms = [nom for nom, _entetes, _lignes in tables]
+    trouves: list[GraphiqueClasseur] = []
+    feuille_courante: str | None = None
+    index_table = 0
+    for element in racine.find_all(["table", "figure", "div", "aside"]):
+        if element.name == "table" and "data" in _classes(element):
+            if index_table < len(noms):
+                feuille_courante = noms[index_table]
+            index_table += 1
+            continue
+        identifiant = _attribut(element, "data-graphique")
+        if not identifiant or not _anneau_vide(element):
+            continue
+        definition = specs.get(identifiant)
+        if definition is None:
+            avertissements.append(
+                f"Ancre de graphique {identifiant!r} sans définition : le "
+                "paramètre 'graphiques' ne contient pas cet identifiant, "
+                "aucun graphique n'est posé à cet endroit."
+            )
+            continue
+        trouves.append(
+            GraphiqueClasseur(
+                identifiant=identifiant,
+                spec=definition,
+                feuille=feuille_courante,
+            )
+        )
+    # Une spec sans ancre : soit l'ancre manque vraiment, soit elle existe mais
+    # porte un autre identifiant. Ce sont deux causes différentes et deux
+    # corrections différentes : on ne les confond pas dans un seul message.
+    ancres = {graphique.identifiant for graphique in trouves}
+    vues = {
+        _attribut(element, "data-graphique")
+        for element in racine.find_all(["figure", "div", "aside"])
+        if _attribut(element, "data-graphique")
+    }
+    for identifiant in specs:
+        if identifiant in ancres or identifiant in vues:
+            continue
+        avertissements.append(
+            f"Graphique {identifiant!r} défini mais sans ancre : ajouter "
+            f"<figure data-graphique=\"{identifiant}\"></figure> dans le corps."
+        )
+    return trouves
+
+
 def _feuille_tableau(
     wb: Workbook,
     nom: str,
@@ -576,7 +676,9 @@ def _feuille_tableau(
         colonne = 1
         for index, cellule in enumerate(ligne.cellules):
             reference = f"« {nom} » ligne {rang - 2}"
-            valeur = _valeur(cellule, reference, avertissements)
+            valeur = _valeur(
+                cellule, reference, avertissements, index in numeriques
+            )
             c = ws.cell(row=rang, column=colonne, value=valeur)
             if cellule.format_nombre is not None:
                 c.number_format = cellule.format_nombre
@@ -688,6 +790,7 @@ def rendre_xlsx(
     titre: str = "",
     auteur: str = "",
     avertissements: list[str] | None = None,
+    graphiques: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> Path:
     """Écrit le classeur et retourne son chemin.
 
@@ -700,6 +803,10 @@ def rendre_xlsx(
         auteur: métadonnée du classeur.
         avertissements: liste optionnelle où sont ajoutés les constats
             (formule refusée, valeur non convertible…).
+        graphiques: ``{id: spec}`` — chaque ancre ``<figure data-graphique>``
+            du corps reçoit un graphique Excel **natif**, lié à une feuille de
+            données dédiée. Une spec inutilisable produit un avertissement et
+            aucun graphique, jamais un dessin faux.
 
     Raises:
         ValidationError: corps vide, thème inconnu, ou aucun tableau
@@ -729,8 +836,20 @@ def rendre_xlsx(
     if kpis:
         _feuille_kpis(wb, t, kpis, titre)
 
+    # Graphiques : les ancres du corps désignent l'emplacement, la spec porte
+    # les données. Sans ancre ni spec, rien n'est posé (et rien n'est caché).
+    a_poser = _graphiques(racine, tables, graphiques, constats)
+    if a_poser:
+        from .xlsx_graphiques import posers_graphiques
+
+        posers_graphiques(wb, t, a_poser, constats)
+
     wb.properties.title = titre or "Classeur"
     wb.properties.creator = auteur
+    # Les formules sont écrites sans résultat mémorisé (openpyxl ne calcule
+    # pas) : le tableur doit donc recalculer à l'ouverture, sinon certaines
+    # visionneuses affichent une cellule vide pour ``=SOMME(...)``.
+    wb.calculation.fullCalcOnLoad = True
 
     chemin = Path(chemin)
     chemin.parent.mkdir(parents=True, exist_ok=True)

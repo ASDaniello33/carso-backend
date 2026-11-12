@@ -97,6 +97,9 @@ INTERDITS = frozenset(
         "http",
         "urllib",
         "ctypes",
+        # Acces direct a la bibliotheque native : contournerait ``ctypes``
+        # interdit ci-dessus.
+        "_ctypes",
         "multiprocessing",
         "importlib",
         "builtins",
@@ -353,6 +356,45 @@ def _refus(message):
 _SECRETS_INTERDITS = ("[.]env", "[.]dev[.]vars", "[.]streamlit")
 _DOSSIERS_INTERDITS = ("app", "tests", ".venv", "site-packages")
 
+#: Dossiers ou Windows cherche une DLL designee par son seul nom.
+_DOSSIERS_DLL = [
+    os.path.join(SYSTEME[0], "System32"),
+    os.path.join(SYSTEME[0], "SysWOW64"),
+    SYSTEME[0],
+]
+
+
+def _dll_autorisee(nom):
+    """Vrai si la bibliotheque native demandee vient du systeme ou de Python.
+
+    NumPy, SciPy et scikit-learn importent ``ctypes`` et chargent leurs
+    bibliotheques natives au demarrage : refuser tout ``dlopen`` rendait ces
+    paquets inutilisables. Le chargement reste donc borne a deux origines :
+    les dossiers systeme de Windows (nom simple, ou chemin sous ``SYSTEME``)
+    et l'installation Python (``LECTURE``, deja utilisee pour les imports).
+    Une DLL deposee dans l'espace de travail, ou ailleurs sur le disque, reste
+    refusee : un script d'agent n'execute pas son propre binaire natif.
+    """
+    if not isinstance(nom, (str, bytes, os.PathLike)):
+        return False
+    try:
+        texte = os.fspath(nom)
+    except TypeError:
+        return False
+    if isinstance(texte, bytes):
+        texte = texte.decode("utf-8", "replace")
+    if not texte:
+        return False
+    if os.path.isabs(texte) or RE_SEPARATEURS.search(texte):
+        return _sous(texte, DLL_ROOTS) or _sous(texte, SYSTEME)
+    # Windows ajoute ``.dll`` a un nom sans extension (``windll.kernel32``).
+    noms = (texte,) if os.path.splitext(texte)[1] else (texte, texte + ".dll")
+    return any(
+        os.path.isfile(os.path.join(base, nom))
+        for base in _DOSSIERS_DLL
+        for nom in noms
+    )
+
 
 
 def _fichier_interdit(chemin):
@@ -367,6 +409,18 @@ def _fichier_interdit(chemin):
             return True
     morceaux = RE_SEPARATEURS.split(texte)
     return any(m in _DOSSIERS_INTERDITS for m in morceaux[:-1])
+
+
+#: Origines admises pour une bibliotheque native : l'installation Python
+#: (stdlib, site-packages) et le systeme. L'espace de travail en est exclu,
+#: meme s'il figure dans les chemins d'import : un script n'execute pas une
+#: DLL qu'il vient d'ecrire.
+DLL_ROOTS = [p for p in sys.path if p and not _sous(p, [ESPACE])]
+DLL_ROOTS += [
+    sys.prefix,
+    sys.base_prefix,
+    os.path.dirname(os.path.realpath(sys.executable)),
+]
 
 
 def _garde(event, args):
@@ -409,20 +463,22 @@ def _garde(event, args):
     ):
         _refus("Operation interdite dans un script d'agent : %s" % event)
     elif event == "ctypes.dlopen":
-        # openpyxl a besoin du zip natif de Windows (``zipfile`` s'appuie sur
-        # ``shutil``). Le chargement reste refuse : il ouvre les DLL de l'hote
-        # (sqlite3, ssl du serveur), ce qu'un script de document n'a pas a
-        # manipuler. ``zipfile`` reste utilisable pour les fichiers SANS
-        # compression ; c'est annonce dans la description du tool.
-        _refus(
-            "Chargement de bibliotheque native refuse (openpyxl et ctypes sont bloques) : "
-            "pour un classeur, importe l'aide 'classeur' de ton espace de travail"
-        )
+        # Bibliotheques natives des paquets de calcul (numpy, scipy,
+        # scikit-learn) : admises depuis le systeme et l'installation Python,
+        # refusees depuis l'espace de travail (voir _dll_autorisee).
+        if not args or not _dll_autorisee(args[0]):
+            _refus(
+                "Chargement de bibliotheque native refuse hors du systeme et de "
+                "l'installation Python : %s" % (args[0] if args else "?",)
+            )
     elif event == "ctypes.dlsym":
-        # Resolution d'un symbole dans une DLL deja chargee : openpyxl s'en sert
-        # (zip natif de Windows). L'adresse seule n'ouvre aucun fichier.
-        if not args or not _sous(os.fspath(args[0]), SYSTEME):
-            _refus("Resolution de symbole refusee : %s" % (args[0] if args else "?",))
+        # Resolution d'un symbole dans une DLL deja chargee : meme origine
+        # admise que le chargement (l'argument est l'objet CDLL, on lit son
+        # nom ; un handle entier designe une bibliotheque deja approuvee).
+        if args:
+            source = getattr(args[0], "_name", args[0])
+            if not isinstance(source, int) and not _dll_autorisee(source):
+                _refus("Resolution de symbole refusee : %s" % (source,))
 
 
 sys.addaudithook(_garde)
@@ -958,13 +1014,20 @@ def build_run_python_script(
             "redémarrer le serveur, piloter un service ou un autre programme, "
             "accéder au réseau, lire un fichier de secrets, écrire hors de ton "
             "espace. "
-            "MODULES : les paquets installés (pandas, docx, pypdf…) sont "
-            "importables ; restent refusés os, sys, subprocess, socket, "
-            "ctypes et les bibliothèques réseau. openpyxl est bloqué : pour un "
-            "classeur Excel, utilise l'aide fournie — import classeur ; "
-            "classeur.ecrire_classeur('liste.xlsx', 'Bénéficiaires', lignes, "
-            "titre='Liste') — ou, pour un livrable stylé, "
-            "``generer_document_professionnel`` avec format='xlsx'."
+            "MODULES : les paquets installés sont importables, dont numpy, "
+            "pandas et scikit-learn (analyse de données, nettoyage, "
+            "entraînement d'un modèle et score), ainsi que docx, pypdf et "
+            "openpyxl en lecture ; restent refusés os, sys, subprocess, "
+            "socket, ctypes et les bibliothèques réseau. Le chargement des "
+            "bibliothèques natives de ces paquets est admis depuis le système "
+            "et l'installation Python, jamais depuis l'espace de travail. "
+            "openpyxl écrit un fichier temporaire hors de l'espace de travail : "
+            "pour créer un classeur, utilise l'aide fournie — import classeur ; "
+            "classeur.ecrire_classeur('etude.xlsx', 'Feuille', lignes) — ou "
+            "``generer_document_professionnel`` avec format='xlsx'. Une "
+            "prédiction se publie avec son score mesuré sur les données de "
+            "test (pourcentage) et les limites du modèle ; un chiffre n'est "
+            "jamais annoncé sans ce score."
         ),
         handler=_handler,
         input_schema=RunPythonScriptInput,

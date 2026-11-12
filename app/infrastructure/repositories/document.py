@@ -14,6 +14,8 @@ et ``list_versions`` garde l'historique lisible.
 """
 
 import uuid
+from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import func, or_, select
@@ -71,6 +73,50 @@ class DocumentRepository(BaseRepository[Document]):
             Document.type_document == type_document,
         )
         return int(self.session.scalar(stmt) or 0)
+
+    def versions_du_livrable(
+        self,
+        tige: str,
+        type_document: str,
+        ancres: Mapping[str, uuid.UUID] | None = None,
+    ) -> list[Document]:
+        """Versions exploitables d'un **livrable** sur son rattachement.
+
+        Un livrable est identifié par la **racine de son nom** (nom sans
+        extension) et son type, dans le périmètre d'une ancre :
+        `offre_technique.docx` et `offre_technique.pdf` sont le même livrable
+        en deux formats, donc la même révision. Sans cette règle, chaque format
+        ouvrait sa propre série et la révision n'était plus continue pour un
+        livrable donné (constat du 11/11 sur l'offre HI-LAB).
+
+        La comparaison de racine se fait en Python, **exactement** :
+        `offre_technique` ne doit pas capturer `offre_technique_hi_lab…`, ce
+        qu'une comparaison de préfixe ferait. Les candidats sont bornés par le
+        type et l'ancre, donc la liste reste courte.
+
+        Les fiches **archivées** ou **supprimées** ne comptent pas : elles ne
+        sont plus des versions de travail.
+
+        Args:
+            tige: racine du nom sans extension (`offre_technique`).
+            type_document: type effectif du dépôt.
+            ancres: champs d'ancre et identifiants à respecter (un livrable de
+                même nom sur une autre offre est un autre livrable).
+        """
+        stmt = select(Document).where(
+            Document.type_document == type_document,
+            Document.statut.notin_(_STATUTS_INEXPLOITABLES),
+        )
+        for champ, identifiant in (ancres or {}).items():
+            colonne = getattr(Document, champ, None)
+            if colonne is not None:
+                stmt = stmt.where(colonne == identifiant)
+        attendue = tige.strip().lower()
+        return [
+            document
+            for document in self.session.scalars(stmt)
+            if Path(document.nom).stem.strip().lower() == attendue
+        ]
 
     def list_versions(self, nom: str, type_document: str) -> list[Document]:
         """Historique des versions, de la plus récente à la plus ancienne."""

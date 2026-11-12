@@ -829,3 +829,38 @@ def test_purge_corbeille_ignore_et_nomme_une_fiche_referencee(
     assert "encore référencé" in corps["ignores"][0]["motif"]
     restantes = documents_client.get(f"{PRÉFIXE}/documents/corbeille").json()
     assert [fiche["document_id"] for fiche in restantes] == [gabarit["id"]]
+
+
+# --- Champs de formulaire hors contrat (B4) ------------------------------------
+
+
+def test_depot_refuse_un_champ_d_ancrage_inconnu(
+    documents_client: TestClient, donnees: Donnees
+) -> None:
+    """Un champ d'ancrage inconnu est refusé, pas ignoré.
+
+    Constat de recette (11/11) : ``ancre=appel`` et ``entity_id=<uuid>`` au lieu
+    de ``appel_id`` recevaient ``201``, le document partant en ``non_classe``
+    alors que la requête exprimait un rattachement. FastAPI ne relaie que les
+    champs qu'il déclare : les autres disparaissent sans bruit. Le refus doit
+    nommer le champ fautif et rappeler les ancres attendues.
+    """
+    reponse = _upload(
+        documents_client,
+        nom="essaie.pdf",
+        appel_id=str(donnees.appel.id),
+        ancre="appel",
+        entity_id=str(donnees.appel.id),
+    )
+    assert reponse.status_code == 422, reponse.text
+    # Forme d'erreur du socle : {"error": {"code", "message", "details"}}.
+    erreur = reponse.json()["error"]
+    assert "ancre" in erreur["message"], erreur
+    assert "appel_id" in erreur["details"]["ancres_attendues"], erreur
+
+
+def test_depot_accepte_les_ancres_nommees(documents_client: TestClient, donnees: Donnees) -> None:
+    """Le contrat normal reste accepté : un dépôt ancré passe en 201."""
+    reponse = _upload(documents_client, nom="fiche.pdf", mission_id=str(donnees.mission.id))
+    assert reponse.status_code == 201, reponse.text
+    assert reponse.json()["mission_id"] == str(donnees.mission.id)

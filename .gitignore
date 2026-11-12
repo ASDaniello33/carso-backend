@@ -23,3 +23,18 @@ migrations/versions/__pycache__/
 
 .vercel
 .env*
+
+# Journaux et sorties d execution (hygiene 11/11)
+# Les scripts de mesure et de preuve cites par docs/validation/ restent suivis.
+*.log
+_ck_*.txt
+_lint.out
+_t*.out
+_tests_*.out
+agui_test.out
+var/*.log
+
+# Sorties et journaux ad hoc (hygiene 11/11)
+var/_*.txt
+.log_backend.txt
+*_agui.txt

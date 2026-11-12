@@ -106,6 +106,18 @@ web = [
     "curl_cffi>=0.7",
 ]
 
+# Analyse de données et modèle de prédiction par script (agent statistique,
+# tool ``run_python_script``). ``pandas`` pour les tableaux, ``numpy`` pour le
+# calcul numérique, ``scikit-learn`` pour l'entraînement, l'évaluation et le
+# score d'un modèle. Ces paquets embarquent des bibliothèques natives : la
+# garde d'exécution admet leur chargement depuis l'installation Python et
+# refuse toute bibliothèque native venant de l'espace de travail.
+analytique = [
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "scikit-learn>=1.5",
+]
+
 # Agents métier exécutés par Deep Agents (instruction/05). Optionnel : le backend
 # démarre sans ces paquets, et un appel d'agent sans modèle configuré échoue avec
 # un message explicite (jamais un modèle silencieusement dégradé).

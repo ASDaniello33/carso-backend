@@ -25,8 +25,7 @@ trace. La suppression d'un journal est un lot distinct, décidé séparément.
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Annotated, Any
-from uuid import UUID
+from typing import Any
 
 from pydantic import BaseModel, Field
 

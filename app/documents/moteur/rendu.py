@@ -53,13 +53,6 @@ def _texte(valeur: Any) -> str:
     return str(valeur)
 
 
-def _controle_du_tag(racine: Any, tag: str) -> Any | None:
-    for controle in racine.iter(_balise("sdt")):
-        if instrumentation_docx._tag_de(controle) == tag:
-            return controle
-    return None
-
-
 def _detacher(controle: Any) -> None:
     """Retire l'enveloppe ``w:sdt`` en conservant son contenu, à la même place."""
     parent = controle.getparent()
