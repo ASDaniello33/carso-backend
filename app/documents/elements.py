@@ -18,7 +18,8 @@ Types d'éléments par format (``TYPES_ELEMENTS``) :
 
 - ``docx`` : ``element`` (flux), ``paragraphe``, ``tableau``, ``entete``, ``pied`` ;
 - ``pdf``  : ``element`` (= page), ``page`` ;
-- ``xlsx`` : ``element`` (= ligne), ``ligne``, ``feuille``.
+- ``xlsx`` : ``element`` (= ligne), ``ligne``, ``feuille`` ;
+- ``csv``  : ``element`` (= ligne du fichier, en-tête comprise), ``ligne``.
 
 Tout retour est **borné** (lignes d'un tableau, caractères d'une page) et dit ce
 qu'il a borné (``tronque``) : jamais de troncature silencieuse.
@@ -30,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from app.core.errors import ValidationError
+from app.documents.csv_lecture import lire_element_csv
 from app.documents.extraction.base import require_library
 
 __all__ = [
@@ -42,11 +44,17 @@ __all__ = [
     "elements_docx",
     "lire_docx_elements",
     "lire_element",
+    "lire_element_csv",
     "zones_docx",
 ]
 
 #: Types d'éléments lisibles, par format.
+#:
+#: Un CSV n'a qu'une table : ``element`` et ``ligne`` sont le même repère (la
+#: ligne du fichier, en-tête comprise). Il n'a ni ``feuille`` ni ``tableau`` —
+#: les accepter laisserait croire à une structure qu'il n'a pas.
 TYPES_ELEMENTS: dict[str, tuple[str, ...]] = {
+    "csv": ("element", "ligne"),
     "docx": ("element", "paragraphe", "tableau", "entete", "pied"),
     "pdf": ("element", "page"),
     "xlsx": ("element", "ligne", "feuille"),
@@ -663,6 +671,7 @@ def lire_element(
     max_lignes: Any = None,
     max_caracteres: Any = None,
     ligne_debut: Any = None,
+    separateur: Any = None,
 ) -> dict[str, Any]:
     """Lit un élément d'un document, quel que soit son format (docx, pdf, xlsx).
 
@@ -686,7 +695,8 @@ def lire_element(
     if ligne_debut not in (None, ""):
         raise ValidationError(
             "ligne_debut s'applique aux tableaux d'un DOCX : ce document n'en a pas "
-            "(utiliser max_caracteres pour une page PDF, max_lignes pour une feuille XLSX)",
+            "(utiliser max_caracteres pour une page PDF, max_lignes pour une feuille "
+            "XLSX, read_document_range pour une plage de lignes d'un CSV)",
             details={"format": suffixe.lstrip(".")},
         )
     if suffixe == ".pdf":
@@ -695,6 +705,13 @@ def lire_element(
             type_element=type_element,
             index=index,
             max_caracteres=max_caracteres,
+        )
+    if suffixe == ".csv":
+        return lire_element_csv(
+            chemin,
+            type_element=type_element,
+            index=index,
+            separateur=separateur,
         )
     if suffixe == ".xlsx":
         return lire_element_xlsx(
@@ -706,6 +723,6 @@ def lire_element(
         )
     raise ValidationError(
         f"Lecture d'élément non supportée pour {suffixe or 'ce fichier'} "
-        "(formats : docx, pdf, xlsx)",
+        "(formats : docx, pdf, xlsx, csv)",
         details={"extension": suffixe},
     )

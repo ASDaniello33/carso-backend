@@ -161,7 +161,7 @@ class RechercheService:
         return [
             {
                 "famille": "offres",
-                "label": "Offres de formation",
+                "label": "Offres",
                 "total": len(lignes),
                 "resultats": [
                     {

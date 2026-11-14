@@ -168,8 +168,13 @@ class DocumentService(
                 session_formation.mission_id
             ):
                 return
-        if filtre == "equipe_id" and perimetre.equipe_autorisee(entity_id):
-            return
+        if filtre == "equipe_id":
+            # Le CV d'une personne est lisible par tout compte actif (décision
+            # CARSO 13/11) : la fiche d'un formateur hors missions reste donc
+            # consultable pour ses CV. ``lister_pour`` ne rend que les CV dans
+            # ce cas — les autres pièces de la personne restent cloisonnées.
+            if perimetre.equipe_autorisee(entity_id) or perimetre.utilisateur_id is not None:
+                return
         raise NotFoundError(
             "Documents introuvables pour votre périmètre",
             details={"filtre": filtre},

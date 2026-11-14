@@ -117,7 +117,6 @@ NOMS_TOOLS: tuple[str, ...] = (
     "search_beneficiaires",
     "search_documents",
     "lire_document",
-    "read_document",
     "get_document_structure",
     "chercher_dans_document",
     "lire_element_document",
@@ -1170,7 +1169,7 @@ def construire_tools_rh(
     ))
     kit.enregistrer(OperationSpec(
         name="search_offres",
-        description="Offres de formation (statut, organisation) — lecture seule.",
+        description="Offres (statut, organisation) — lecture seule.",
         input_schema=OffreSearchInput,
         run=rechercher_offres,
     ))

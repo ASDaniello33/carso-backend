@@ -369,7 +369,7 @@ OUTILS_FRONTEND: tuple[OutilFrontend, ...] = (
         agents=frozenset({AGENT_STATISTIQUE}),
         usage=(
             "Quand l'utilisateur veut une vue visuelle, une synthèse ou un "
-            "rapport : composer avec query_analytics, read_document et "
+            "rapport : composer avec query_analytics, lire_document et "
             "langsearch_web_search, puis déclarer chaque source."
         ),
     ),
@@ -528,7 +528,14 @@ class PayloadTableau(BaseModel):
 
 
 class PayloadNavigation(BaseModel):
-    """Arguments de ``naviguer_vers``."""
+    """Arguments de ``naviguer_vers``.
+
+    ``extra="allow"`` : le hook client peut enrichir le payload, et un outil
+    d'affichage ne doit pas refuser un champ qu'il n'utilise pas (la règle
+    stricte des outils métier ne s'applique pas ici).
+    """
+
+    model_config = ConfigDict(extra="allow")
 
     url: str = Field(description="Chemin d'une page, par exemple /offres/<id>.")
     libelle: str | None = Field(default=None, description="Texte du bouton.")
@@ -548,6 +555,8 @@ class PayloadPageActuelle(BaseModel):
 class PayloadImage(BaseModel):
     """Arguments de ``afficher_image`` (INC-135) — même contrat que le hook."""
 
+    model_config = ConfigDict(extra="allow")
+
     document_id: str = Field(
         description=(
             "UUID du document image déjà déposé (generer_image ou "
@@ -560,6 +569,8 @@ class PayloadImage(BaseModel):
 
 class PayloadTelechargement(BaseModel):
     """Arguments de ``proposer_telechargement_document``."""
+
+    model_config = ConfigDict(extra="allow")
 
     document_id: str = Field(
         description="UUID du document déjà enregistré. Ne pas inventer.",
@@ -832,6 +843,8 @@ class QuestionQuestionnaire(BaseModel):
 class PayloadQuestionnaire(BaseModel):
     """Arguments de ``poser_questionnaire`` — même contrat que le hook client."""
 
+    model_config = ConfigDict(extra="allow")
+
     titre: str | None = Field(
         default=None,
         description="En-tête du questionnaire, s'il y en a un.",
@@ -1081,6 +1094,8 @@ class PayloadPropositionEdition(BaseModel):
     son geste exécute l'écriture : un modèle ne peut donc ni inventer une
     valeur, ni présenter une modification comme déjà faite.
     """
+
+    model_config = ConfigDict(extra="allow")
 
     ressource: Literal[
         "appel", "offre", "mission", "session", "equipe", "beneficiaire"

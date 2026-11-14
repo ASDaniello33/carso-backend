@@ -268,7 +268,7 @@ l'endroit voulu, puis déclare les données dans le paramètre `graphiques` du t
 | `id` unique | Le corps et `graphiques` doivent se correspondre exactement : ancre sans spec ou spec sans ancre = erreur explicite |
 | `type` | `bar` (comparer des séries) · `line` (évolution) · `pie` (répartition, ≤ 5–6 parts) · `donut` (répartition + total au centre) |
 | `series` / `valeurs` | `series` pour bar/line, `valeurs` pour pie/donut — jamais les deux |
-| Valeurs | Issues d'une lecture (`search_*`, `read_document`) ou de l'utilisateur : jamais inventées ; en barres, les négatives sont acceptées (axe zéro tracé) |
+| Valeurs | Issues d'une lecture (`search_*`, `lire_document`) ou de l'utilisateur : jamais inventées ; en barres, les négatives sont acceptées (axe zéro tracé) |
 | PDF / DOCX | PDF : graphique **vectoriel** (net à l'impression). DOCX : converti en PNG haute résolution automatiquement |
 | Placement | L'ancre se place APRÈS le paragraphe qui commente le graphique ; chaque figure porte sa `legende` (figcaption) |
 
@@ -498,7 +498,7 @@ Le retour porte `statut`, `nom`, `type_document`, `pages`, `avertissements`,
 - Jamais de Markdown dans le HTML. Jamais de placeholders `[Nom]` : demande
   l'information ou utilise « (à compléter) » en le signalant à l'utilisateur.
 - **Aucune donnée inventée** : les montants, dates, effectifs, lieux et
-  disponibilités viennent d'une lecture réelle (`search_*`, `read_document`) ou de
+  disponibilités viennent d'une lecture réelle (`search_*`, `lire_document`) ou de
   l'utilisateur. Une donnée absente s'écrit « (à compléter) » — jamais un blanc
   silencieux, jamais une valeur plausible.
 - Le `type_document` de dépôt est un vocabulaire **fermé**, à reprendre

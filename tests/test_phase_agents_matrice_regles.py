@@ -175,6 +175,9 @@ def test_agents_lecture_seule_n_ont_aucun_outil_de_mutation() -> None:
                 "composer_image",
                 "verifier_image_svg",
                 "importer_tableau_xlsx",
+                # Journal d'audit : lecture seule (aucune écriture), ouverte au
+                # seul compte administrateur — la garde est appliquée à l'appel.
+                "consulter_journal_audit",
                 # INC-145 : renommer ne touche que le nom (contenu, version,
                 # statut intacts) ; supprimer met à la corbeille. Ce second geste
                 # n'est admis ici que parce que la validation humaine est

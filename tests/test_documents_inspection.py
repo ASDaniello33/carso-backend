@@ -214,3 +214,34 @@ class TestXlsxStructure:
         plage = lire_xlsx_plage(xlsx_riche, from_row=2, to_row=3)
         assert plage["lignes"][0][0] == "Nom"
         assert plage["lignes"][1][0] == "Karimi"
+
+
+def test_structure_document_reutilise_l_inspection(
+    monkeypatch: pytest.MonkeyPatch, docx_riche: Path
+) -> None:
+    """Deux inspections du même fichier ne repaient pas l'analyse.
+
+    ``get_document_structure`` était rappelé dans un même tour (relire avant de
+    corriger) et reparsait le fichier : pdfplumber coûtait plusieurs secondes
+    par PDF. Le cache est indexé sur (chemin, mtime, taille, niveau) et rend
+    une copie, donc un appelant ne peut pas le corrompre.
+    """
+    import app.documents.inspection as inspection
+
+    appels = {"n": 0}
+    vrai = inspection.inspecter_docx
+
+    def compter(*args: object, **kwargs: object) -> dict[str, object]:
+        appels["n"] += 1
+        return vrai(*args, **kwargs)
+
+    monkeypatch.setattr(inspection, "inspecter_docx", compter)
+
+    premier = inspection.structure_document(docx_riche)
+    second = inspection.structure_document(docx_riche)
+
+    assert premier == second
+    assert appels["n"] == 1
+
+    premier["format"] = "altéré"
+    assert inspection.structure_document(docx_riche)["format"] == "docx"

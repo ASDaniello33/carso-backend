@@ -46,7 +46,7 @@ from app.tools.permissions import PermissionPolicy
 AGENT_ID = "agent_personnel"
 
 #: Nom du tool de lecture documentaire (fourni par ``app.tools.documents``).
-READ_DOCUMENT_TOOL = "read_document"
+READ_DOCUMENT_TOOL = "lire_document"
 
 #: Tools documentaires de l'agent personnel, **en proposition** uniquement.
 #:
@@ -113,6 +113,14 @@ DEFINITION = AgentDefinition(
     collaboration=(),
     prompt=prompt.PERSONNEL_SYSTEM_PROMPT,
     output_schema_name="PersonnelAnswer",
+    # Outils réels du compte : lecture DOCX/PDF, génération de livrables et
+    # script confiné — les guides correspondants doivent être chargeables.
+    skills=(
+        "pdf-officiels",
+        "docx-officiels",
+        "generation-document",
+        "scripts-python",
+    ),
     hitl_scenarios=SCENARIOS_HITL,
     # Le graphe se résout par compte : instructions, outils retirés et
     # connecteurs personnels entrent dans la clé de cache du runtime.
@@ -142,7 +150,7 @@ class AgentPersonnel:
                 leur, une transaction par appel).
             session_factory: fabrique de sessions des tools (défaut :
                 fabrique applicative).
-            read_document_tool: tool ``read_document`` câblé sur
+            read_document_tool: tool ``lire_document`` câblé sur
                 ``DocumentService`` — injecté par l'appelant, comme pour le
                 généraliste (indépendance du câblage documentaire).
         """

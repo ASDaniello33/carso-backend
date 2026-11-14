@@ -95,14 +95,18 @@ def _tools(service: DocumentService) -> dict[str, Any]:
 
 
 def test_les_29_outils_sont_tous_construits(service: DocumentService) -> None:
-    """Le découpage par famille n'a perdu aucun outil au passage."""
+    """Le découpage par famille n'a perdu aucun outil au passage.
+
+    28 depuis la suppression de l'alias ``read_document`` : deux noms pour le
+    même geste laissaient le modèle choisir au hasard (audit du 13/11).
+    """
     outils = _tools(service)
-    assert len(outils) == 29
+    assert len(outils) == 28
     attendus = {
         "generer_document",
         "generer_document_professionnel",
         "lire_document",
-        "read_document",
+        "lire_document",
         "analyze_document_reference",
         "valider_document",
         "chercher_dans_document",

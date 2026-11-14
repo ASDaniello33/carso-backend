@@ -117,6 +117,36 @@ def test_arguments_non_serialisable_replie_sur_vide():
     assert (arguments, change) == (ARGUMENTS_VIDES, True)
 
 
+def test_chaine_json_non_objet_devient_un_objet_vide():
+    """Constat du 13/11 : args = 'lecture_csv_chemin_absolu' bloquait le fil.
+
+    ``json.loads`` réussit sur cette chaîne, donc l'ancienne réparation la
+    laissait passer ; ``AIMessage`` exige ensuite un dictionnaire et lève une
+    ``ValidationError`` avant même l'appel au modèle.
+    """
+    arguments, change = reparer_arguments('"lecture_csv_chemin_absolu"')
+    assert (arguments, change) == (ARGUMENTS_VIDES, True)
+
+
+def test_liste_json_devient_un_objet_vide():
+    arguments, change = reparer_arguments("[1, 2, 3]")
+    assert (arguments, change) == (ARGUMENTS_VIDES, True)
+
+
+def test_premiere_valeur_non_objet_devient_un_objet_vide():
+    """Fragments collés dont la première valeur n'est pas un objet."""
+    arguments, change = reparer_arguments('"nom"{"lot": 1}')
+    assert (arguments, change) == (ARGUMENTS_VIDES, True)
+
+
+def test_entree_avec_arguments_non_objet_devient_un_objet():
+    """L'entrée relayée ne porte plus jamais d'arguments non dictionnaire."""
+    entree = Entree([Message([Appel('"lecture_csv_chemin_absolu"')])])
+    rendue, reparations = assainir_entree_agui(entree)
+    assert reparations == 1
+    assert json.loads(rendue.messages[0].tool_calls[0].function.arguments) == {}
+
+
 # --- entrée complète ---------------------------------------------------------
 
 

@@ -629,6 +629,25 @@ class SocialService:
             )
         )
 
+    def compter_commentaires(self, annonce_ids: list[UUID]) -> dict[UUID, int]:
+        """Nombre de commentaires visibles par annonce (une requête, pas N).
+
+        Le fil affiche ce compteur **sans déplier** les commentaires : la
+        liste resterait sinon muette tant que l'utilisateur n'a pas ouvert la
+        conversation. Les commentaires supprimés ne comptent pas.
+        """
+        if not annonce_ids:
+            return {}
+        lignes = self._session.execute(
+            select(Commentaire.annonce_id, func.count(Commentaire.id))
+            .where(
+                Commentaire.annonce_id.in_(annonce_ids),
+                Commentaire.supprime_at.is_(None),
+            )
+            .group_by(Commentaire.annonce_id)
+        ).all()
+        return {annonce_id: total for annonce_id, total in lignes}
+
     def supprimer_annonce(self, annonce_id: UUID, *, utilisateur_id: UUID) -> None:
         annonce = self._session.get(Annonce, annonce_id)
         if annonce is None or annonce.supprime_at is not None:

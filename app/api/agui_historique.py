@@ -89,15 +89,21 @@ def reparer_arguments(brut: Any) -> tuple[Any, bool]:
 
     * ``None`` / chaîne vide : déjà acceptés par ``ag-ui-langgraph``
       (sa garde ``if tc.function.arguments`` rend ``{}``) → inchangés ;
-    * chaîne JSON valide → inchangée ;
+    * chaîne JSON valide **d'un objet** → inchangée ;
+    * chaîne JSON valide d'autre chose (``"lecture_csv_chemin_absolu"``,
+      ``[]``, ``null``) → ``{}`` : ``AIMessage`` exige un dictionnaire, et un
+      nom d'outil reçu comme arguments n'est pas une donnée rejouable ;
     * chaîne avec ordures **après** une première valeur complète → la
-      première valeur, re-sérialisée ;
+      première valeur si c'est un objet, sinon ``{}`` ;
     * chaîne tronquée / illisible → ``{}`` ;
-    * valeur non-chaîne (dict déjà parsé par un client) → sérialisée.
+    * valeur non-chaîne : dict déjà parsé par un client → sérialisée,
+      toute autre valeur → ``{}``.
     """
     if brut is None:
         return brut, False
     if not isinstance(brut, str):
+        if not isinstance(brut, dict):
+            return ARGUMENTS_VIDES, True
         try:
             return json.dumps(brut, ensure_ascii=False), True
         except (TypeError, ValueError):
@@ -106,14 +112,22 @@ def reparer_arguments(brut: Any) -> tuple[Any, bool]:
     if not texte:
         return brut, False
     try:
-        json.loads(texte)
-        return brut, False
+        valeur = json.loads(texte)
     except ValueError:
         pass
-    # Fragments concaténés : garder la première valeur JSON complète.
+    else:
+        if isinstance(valeur, dict):
+            return brut, False
+        # JSON valide mais pas un objet d'arguments : jamais transmis tel quel,
+        # sinon la reconstruction AIMessage échoue et le fil reste bloqué.
+        return ARGUMENTS_VIDES, True
+    # Fragments concaténés : garder la première valeur JSON complète si c'est
+    # un objet d'arguments.
     try:
         premiere, _ = _DECODEUR.raw_decode(texte)
     except ValueError:
+        return ARGUMENTS_VIDES, True
+    if not isinstance(premiere, dict):
         return ARGUMENTS_VIDES, True
     try:
         return json.dumps(premiere, ensure_ascii=False), True

@@ -120,7 +120,6 @@ BLOC_ESPACE_TRAVAIL = charger_prompt("blocs/espace_travail")
 TOOLS_DOCUMENTS: frozenset[str] = frozenset(
     {
         "lire_document",
-        "read_document",
         "get_document_structure",
         "read_document_range",
         "chercher_dans_document",

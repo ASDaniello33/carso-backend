@@ -55,6 +55,11 @@ class AgentDefinition:
             l'utilisateur relit et modifie, puis l'outil part avec ses valeurs.
         output_schema_name: schéma de sortie structurée attendu (documentaire ;
             le schéma Pydantic lui-même est fourni au harnais).
+        blocs_inline: blocs de prompt **déjà** documentés dans ``prompt`` (par
+            exemple ``("generation", "modele")`` pour un agent dont les
+            instructions décrivent lui-même ces outils). Le harnais n'ajoute
+            alors pas le bloc générique correspondant : mêmes règles, une seule
+            fois. Nom de bloc inconnu ⇒ erreur au montage.
         skills: noms des skills Deep Agents (répertoires ``SKILL.md``) que
             cet agent a le droit de charger. Vide = aucun skill. Le harnais
             résout ces noms via ``app.agents.registre_skills`` — jamais un chemin
@@ -84,6 +89,7 @@ class AgentDefinition:
     approval_editable: tuple[str, ...] = field(default=())
     output_schema_name: str | None = None
     skills: tuple[str, ...] = field(default=())
+    blocs_inline: tuple[str, ...] = field(default=())
     hitl_scenarios: tuple[HitlScenario, ...] = field(default=())
     par_utilisateur: bool = False
 

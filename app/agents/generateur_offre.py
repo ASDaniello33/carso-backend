@@ -117,7 +117,19 @@ DEFINITION = AgentDefinition(
     output_schema_name="OffreBrouillon",
     # ``generation-document`` : la méthode et les composants HTML du générateur
     # professionnel, le chemin prioritaire du livrable docx/pdf de l'offre.
-    skills=("docx-officiels", "pdf-officiels", "generation-document"),
+    # Ses instructions décrivent déjà la génération (4.9.2ter/quater) et la
+    # chaîne « copier le modèle puis l'éditer » (4.9.2bis/bister) : les blocs
+    # génériques feraient doublon à chaque tour.
+    blocs_inline=("generation", "modele"),
+    skills=(
+        "docx-officiels",
+        "pdf-officiels",
+        "generation-document",
+        # Outils réels de l'agent : import d'un tableau XLSX et script ancré
+        # pour un traitement en série.
+        "xlsx-officiels",
+        "scripts-python",
+    ),
     hitl_scenarios=(
         HitlScenario(
             id="reception_appel",

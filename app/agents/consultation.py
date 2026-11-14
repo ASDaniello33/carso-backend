@@ -359,7 +359,7 @@ class RechercheDocumentsInput(PageSearchInput):
 def rechercher_documents(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     """Documents par ancre métier (une seule) et type. Seules les métadonnées
     sont renvoyées — jamais le contenu ni le chemin physique (le contenu passe
-    par ``read_document``, soumis à permission)."""
+    par ``lire_document``, soumis à permission)."""
     filtres = RechercheDocumentsInput.model_validate(payload)
     ancres = {
         "organisation_id": filtres.organisation_id,

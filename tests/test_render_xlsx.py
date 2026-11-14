@@ -348,6 +348,27 @@ def test_rendre_tableur_une_seule_feuille() -> None:
     assert classeur.sheetnames == ["Liste des bénéficiaires"]
 
 
+def test_rendre_tableur_une_ligne_ne_cree_pas_de_ligne_vide() -> None:
+    """Un tableau d'une seule ligne ne doit pas en produire deux.
+
+    Le repere de gel etait pose via ``onglet.cell(row=2, column=1)``, ce qui
+    **cree** la cellule A2 : ``max_row`` valait 2 pour un classeur qui n'avait
+    qu'une ligne. Un modele a remplir (en-tetes seules) se relisait donc avec
+    une ligne vide, que l'apercu d'import comptait comme une ligne incomplete.
+    """
+    octets = rendre_tableur(
+        titre_feuille="Beneficiaires",
+        lignes=[["Nom", "Prenom"]],
+        style=CARSO_DEFAUT,
+    )
+    feuille = _classeur(octets).worksheets[0]
+
+    assert feuille.max_row == 1
+    # Le repere de gel et le filtre restent poses : la correction ne les perd pas.
+    assert feuille.freeze_panes == "A2"
+    assert feuille.auto_filter.ref == "A1:B1"
+
+
 def test_rendre_tableur_librairie_absente(monkeypatch: pytest.MonkeyPatch) -> None:
     """Sans openpyxl : erreur explicite, jamais un fichier vide."""
     from app.core import errors

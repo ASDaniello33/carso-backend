@@ -11,14 +11,14 @@ Tools :
 - ``search_organisations``—organisations par nom ;
 - ``search_appels``—appels + lots ;
 - ``search_lots``—lots par appel / numéro ;
-- ``search_offres``—offres de formation (+ budget total) ;
+- ``search_offres``—offres (+ budget total) ;
 - ``search_missions``—missions + effectifs ;
 - ``search_sessions``—sessions d'une mission ;
 - ``search_beneficiaires``—bénéficiaires par nom (données minimisées) ;
 - ``search_equipes``—vivier (CV exclus) ;
 - ``search_affectations``—affectations d'une mission ;
 - ``search_documents``—documents par ancre métier (métadonnées seules) ;
-- ``read_document`` (fourni par ``app.tools.documents``) ;
+- ``lire_document`` (fourni par ``app.tools.documents``) ;
 - ``query_analytics``—agrégations déterministes nommées.
 """
 
@@ -64,7 +64,9 @@ from app.domain.organization import Lot, Offre
 
 AGENT_ID = "agent_generaliste_readonly"
 TASK_TYPE = "consultation_generale"
-READ_DOCUMENT_TOOL = "read_document"
+#: Nom exposé de l'outil de lecture, injecté par l'appelant. Nom unique :
+#: ``read_document`` n'est plus un second outil (même geste, deux noms).
+READ_DOCUMENT_TOOL = "lire_document"
 
 #: Agrégations autorisées à ``query_analytics`` (périmètre fermé, pas de SQL).
 ANALYTIQUES_AUTORISEES = (
@@ -121,6 +123,15 @@ NOMS_TOOLS: tuple[str, ...] = (
     "rechercher_video",
 )
 
+#: Périmètre du **généraliste** : la surface lecture seule partagée, plus le
+#: journal d'audit (lecture seule, gardé à l'appel par le rôle administrateur).
+#: Il reste hors de ``NOMS_TOOLS`` : l'agent personnel réutilise cette surface
+#: et ne doit pas voir le journal.
+NOMS_TOOLS_GENERALISTE: tuple[str, ...] = (
+    *NOMS_TOOLS,
+    "consulter_journal_audit",
+)
+
 
 class LotSearchInput(PageSearchInput):
     """Filtres contrôlés des lots."""
@@ -129,7 +140,7 @@ class LotSearchInput(PageSearchInput):
 
 
 class OffreSearchInput(PageSearchInput):
-    """Filtres contrôlés des offres de formation."""
+    """Filtres contrôlés des offres."""
 
     statut: str | None = Field(default=None, max_length=50)
     organisation_id: UUID | None = None
@@ -224,7 +235,7 @@ def rechercher_lots(session: Session, payload: dict[str, Any]) -> dict[str, Any]
 
 
 def rechercher_offres(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
-    """Offres de formation (statut, organisation) + total budgétaire connu.
+    """Offres (statut, organisation) + total budgétaire connu.
 
     Sous périmètre restreint : vide — les offres portent des données budgétaires
     hors du périmètre d'un formateur.
@@ -316,7 +327,7 @@ def rechercher_affectations(session: Session, payload: dict[str, Any]) -> dict[s
 
 
 def compter_offres_par_statut(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
-    """Agrégation déterministe : offres de formation par statut.
+    """Agrégation déterministe : offres par statut.
 
     Sous périmètre restreint : aucun compteur d'offres (hors de ses données).
     """
@@ -402,7 +413,7 @@ def construire_tools_generaliste(
     Args:
         definition: contrat de l'agent (allow-list appliquée par le harnais).
         session_factory: fabrique de sessions des tools (1 transaction par appel).
-        read_document_tool: tool ``read_document`` câblé par l'appelant
+        read_document_tool: tool ``lire_document`` câblé par l'appelant
             (indépendance du câblage documentaire).
     """
     kit = AgentTools(definition, readonly=True, session_factory=session_factory)
@@ -426,7 +437,7 @@ def construire_tools_generaliste(
     ))
     kit.enregistrer(OperationSpec(
         name="search_offres",
-        description="Offres de formation (statut, organisation, texte) + missions liées.",
+        description="Offres (statut, organisation, texte) + missions liées.",
         input_schema=OffreSearchInput,
         run=rechercher_offres,
     ))
@@ -485,7 +496,7 @@ def construire_tools_generaliste(
     if read_document_tool is not None:
         outils.append(read_document_tool)
     # Les tools documentaires déclarés au contrat ne sortent pas du kit : sans
-    # cet assemblage, ``read_document``, ``lire_image`` et les générations
+    # cet assemblage, ``lire_document``, ``lire_image`` et les générations
     # (``generer_document_professionnel``, ``generer_image``…) figuraient au
     # contrat sans exister pour le modèle — même défaut que l'agent personnel
     # avant INC-118, constaté à l'écran en INC-135 (« l'outil n'est pas
@@ -554,6 +565,7 @@ __all__ = [
     "AGENT_ID",
     "ANALYTIQUES_AUTORISEES",
     "NOMS_TOOLS",
+    "NOMS_TOOLS_GENERALISTE",
     "READ_DOCUMENT_TOOL",
     "TASK_TYPE",
     "SCENARIOS_HITL",

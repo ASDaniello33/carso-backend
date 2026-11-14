@@ -15,7 +15,7 @@ séparé soumis à HITL.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -41,7 +41,7 @@ NOMS_TOOLS: tuple[str, ...] = (
     "inspect_beneficiaires_xlsx",
     "preview_import_beneficiaires",
     "import_beneficiaires",
-    "list_mission_documents",
+    "list_documents",
     # --- documents : lire, comprendre, écrire, vérifier ---------------------
     # « Tous les outils de manipulation de documents » (demande 04/10) : la
     # lecture (fiche, structure, plage, tableau XLSX, référence de style),
@@ -53,7 +53,6 @@ NOMS_TOOLS: tuple[str, ...] = (
     # (``copier_modele_document``, ancre mission/session comprise) : le moteur
     # refuse la génération libre dès qu'une copie ou un modèle s'applique.
     "lire_document",
-    "read_document",
     "get_document_structure",
     "read_document_range",
     "chercher_dans_document",
@@ -138,8 +137,26 @@ class ImportBeneficiairesInput(BaseModel):
     session_id: UUID | None = None
 
 
-class MissionDocumentsInput(BaseModel):
-    mission_id: UUID
+#: Ancres documentaires que cet agent a le droit de lire, alignées sur
+#: ``DocumentService._LISTERS``. La mission et sa session sont les deux faces du
+#: même dossier (une pièce déposée sur l'une appartient à l'autre), et c'est tout
+#: ce que la matrice d'accès valide pour l'assistant formateur : il ne lit pas les
+#: pièces d'une organisation ni d'un appel.
+_ANCRES_DOCUMENTS: dict[str, str] = {
+    "mission": "mission_id",
+    "session": "session_id",
+}
+
+
+class DocumentsAncreInput(BaseModel):
+    """Documents rattachés à un objet métier, une ancre à la fois.
+
+    ``ancre`` doit rester aligné sur ``_ANCRES_DOCUMENTS`` : le vocabulaire est
+    fermé pour que le modèle ne puisse pas demander une ancre hors matrice.
+    """
+
+    ancre: Literal["mission", "session"]
+    entity_id: UUID
 
 
 class MissionIdInput(BaseModel):
@@ -209,9 +226,20 @@ def _import_beneficiaires(session: Session, payload: dict[str, Any]) -> dict[str
     }
 
 
-def _list_mission_documents(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
-    service = DocumentService(session, actor_id=AGENT_ID)
-    documents = service.lister_pour("mission_id", UUID(str(payload["mission_id"])))
+def _list_documents(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Documents d'une mission ou d'une session (lecture seule).
+
+    L'ancre vivante d'un import est la **session** : le classeur de bénéficiaires
+    se dépose depuis la page Session, et le prompt ne porte que ce ``session_id``.
+    Sans cette lecture, l'agent n'avait aucun moyen de retrouver le classeur et
+    recyclait l'identifiant de session comme ``document_id``. Les métadonnées
+    suffisent à choisir le bon document (type ``liste_beneficiaires``) ; le
+    contenu se lit ensuite avec ``lire_document``, sous permission.
+    """
+    entree = DocumentsAncreInput.model_validate(payload)
+    documents = DocumentService(session, actor_id=AGENT_ID).lister_pour(
+        _ANCRES_DOCUMENTS[entree.ancre], entree.entity_id
+    )
     return {
         "documents": [
             {
@@ -404,10 +432,14 @@ def construire_tools_assistant_formateur(
         run=_import_beneficiaires,
     ))
     kit.enregistrer(OperationSpec(
-        name="list_mission_documents",
-        description="Documents rattachés à une mission.",
-        input_schema=MissionDocumentsInput,
-        run=_list_mission_documents,
+        name="list_documents",
+        description=(
+            "Documents rattachés à une mission ou à une session, métadonnées "
+            "seules : sert à retrouver l'identifiant d'un classeur déposé, "
+            "sans le deviner."
+        ),
+        input_schema=DocumentsAncreInput,
+        run=_list_documents,
     ))
     kit.enregistrer(OperationSpec(
         name="get_mission",
@@ -435,7 +467,7 @@ def construire_tools_assistant_formateur(
     ))
     kit.enregistrer(OperationSpec(
         name="get_mission_offre",
-        description="Offre de formation rattachée à la mission (lecture).",
+        description="Offre rattachée à la mission (lecture).",
         input_schema=MissionIdInput,
         run=_get_mission_offre,
     ))

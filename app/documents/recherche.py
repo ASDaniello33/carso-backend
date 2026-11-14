@@ -29,13 +29,16 @@ Le tool reste à la frontière—voir ``app.tools.documents`` (permission
 from __future__ import annotations
 
 import re
+import unicodedata
 from pathlib import Path
 from typing import Any
 
 from app.core.errors import ValidationError
+from app.documents.csv_lecture import charger_csv
 from app.documents.extraction.base import require_library
 
 __all__ = [
+    "chercher_dans_csv",
     "chercher_dans_docx",
     "chercher_dans_pdf",
     "chercher_dans_xlsx",
@@ -425,4 +428,150 @@ def chercher_dans_xlsx(
         correspondances,
         tronque,
         complements={"feuilles": [feuil.title for feuil in cibles]},
+    )
+
+
+def _normaliser_texte(texte: Any) -> str:
+    """Texte comparable : sans accent, sans casse, sans espaces superflus.
+
+    Un en-tête s'écrit ``Bénéficiaires`` dans le fichier et ``beneficiaires``
+    dans l'appel : refuser cette différence ferait échouer l'agent pour une
+    raison que l'utilisateur ne comprendrait pas.
+    """
+    decompose = unicodedata.normalize("NFKD", str(texte or ""))
+    sans_accent = "".join(c for c in decompose if not unicodedata.combining(c))
+    return " ".join(sans_accent.split()).casefold()
+
+
+def _colonne_csv(noms: list[str], colonne: Any) -> str | None:
+    """Nom de colonne ciblé, ou ``None`` pour fouiller toute la ligne.
+
+    Accepte le nom d'en-tête (insensible aux accents et à la casse) ou un
+    numéro de colonne 1-indexé. Une colonne inconnue est **refusée avec la
+    liste réelle** : chercher dans une colonne mal nommée rendrait zéro
+    résultat, ce que l'agent lirait comme « la donnée n'existe pas ».
+
+    Raises:
+        ValidationError: colonne absente du fichier.
+    """
+    if colonne in (None, ""):
+        return None
+    brut = str(colonne).strip()
+    if brut.isdigit():
+        position = int(brut)
+        if 1 <= position <= len(noms):
+            return noms[position - 1]
+        raise ValidationError(
+            f"Colonne {position} hors fichier : {len(noms)} colonne(s) au total",
+            details={"colonnes": noms},
+        )
+    cible = _normaliser_texte(brut)
+    for nom in noms:
+        if _normaliser_texte(nom) == cible:
+            return nom
+    raise ValidationError(
+        f"Colonne inconnue : {brut!r}",
+        details={"colonnes": noms},
+    )
+
+
+def chercher_dans_csv(
+    chemin: Path,
+    mot_cle: Any,
+    *,
+    colonne: Any = None,
+    separateur: Any = None,
+    max_resultats: Any = None,
+) -> dict[str, Any]:
+    """Recherche un mot-clé dans un CSV, **ligne par ligne et en flux**.
+
+    L'unité est la ligne du fichier (l'en-tête est la ligne 1), donc ``relire``
+    pointe ``lire_element_document(type_element='ligne', index=…)`` et le hit se
+    relit à l'identique — même contrat que les trois autres formats. Un hit
+    porte aussi ``valeurs`` (la ligne entière en dictionnaire) : l'agent cite
+    ``colonne=valeur`` sans relire.
+
+    Le fichier n'est jamais chargé en mémoire : chaque ligne est examinée puis
+    oubliée, seuls les hits sont conservés. Un export de plusieurs mégaoctets
+    reste donc fouillable, et le total exact est compté pendant le parcours.
+
+    ``colonne`` restreint la fouille à une colonne (nom d'en-tête ou numéro) :
+    chercher « 2026 » dans une colonne de dates n'a pas le même sens que le
+    chercher dans les montants.
+
+    Raises:
+        ValidationError: CSV illisible, colonne inconnue, mot-clé trop court.
+    """
+    mot_propre, motif = _motif_recherche(mot_cle)
+    limite = _limite_resultats(max_resultats)
+    resultats: list[dict[str, Any]] = []
+    correspondances = 0
+    tronque = False
+    # Résolue une seule fois, dès que les noms de colonnes sont connus : une
+    # colonne inconnue est refusée avec la liste réelle, jamais silencieusement.
+    cible: list[str | None] = [None]
+
+    def sur_entete(noms: list[str]) -> None:
+        cible[0] = _colonne_csv(noms, colonne)
+
+    def sur_ligne(numero: int, valeurs: dict[str, str]) -> None:
+        nonlocal correspondances, tronque
+        if len(resultats) >= limite:
+            # Le plafond est atteint et il reste des lignes : la réponse dit
+            # qu'elle est partielle, même si ces lignes ne correspondent pas.
+            tronque = True
+            return
+        paires = [
+            (nom, valeur)
+            for nom, valeur in valeurs.items()
+            if cible[0] is None or nom == cible[0]
+        ]
+        texte = " | ".join(f"{nom}={valeur}" for nom, valeur in paires if valeur)
+        if not texte:
+            return
+        nb, depart = _occurrences(texte, motif)
+        if not nb:
+            return
+        correspondances += nb
+        resultats.append(
+            {
+                "page": numero,
+                "unite": "lignes",
+                "type_bloc": "ligne",
+                "occurrences": nb,
+                # Les colonnes réellement trouvées : l'agent sait si le
+                # mot-clé est tombé dans un nom ou dans un montant.
+                "colonnes_correspondantes": [
+                    nom for nom, valeur in paires if motif.search(valeur)
+                ],
+                "content": _extrait_contexte(texte, depart, len(mot_propre)),
+                "valeurs": valeurs,
+                "relire": _relire({"type_element": "ligne", "index": numero}),
+            }
+        )
+
+    table = charger_csv(
+        chemin,
+        separateur=separateur,
+        garder=lambda _numero: False,
+        sur_entete=sur_entete,
+        sur_ligne=sur_ligne,
+    )
+
+    return _reponse_recherche(
+        "csv",
+        mot_propre,
+        "lignes",
+        table.total_lignes,
+        resultats,
+        correspondances,
+        tronque,
+        complements={
+            "colonne": cible[0],
+            "colonnes": table.noms,
+            "separateur": table.separateur,
+            "encodage": table.encodage,
+            "problemes": table.problemes,
+            "lecture_en_flux": True,
+        },
     )

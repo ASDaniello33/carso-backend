@@ -220,6 +220,10 @@ class Settings(BaseSettings):
     # Borne d'itérations du graphe LangGraph (``recursion_limit``). Passée
     # à chaque run AG-UI. 25 (défaut LangGraph) coupe un parcours outils
     # réaliste ; surchargeable via ``AGENT_MAX_ITERATIONS`` dans ``.env``.
+    # Pas de borne basse : couper un run en cours jette le travail déjà payé
+    # (contexte, lectures, documents produits) et le tour suivant repart de
+    # zéro. La valeur haute reste un garde-fou contre la boucle infinie, pas
+    # une limite de production.
     agent_max_iterations: int = Field(default=1000, ge=1, le=10_000)
     # Persistance LangGraph des threads d'agents (ADR 0009) : un PostgresSaver
     # partagé remplace le MemorySaver process (contexte conservé entre les

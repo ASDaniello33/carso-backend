@@ -3,7 +3,7 @@
 Deux demandes distinctes, un même point de contrôle : **les tools déclarés au
 contrat doivent réellement être construits**. Un nom présent dans ``tools`` mais
 absent du graphe ne sert à rien (c'est exactement ce qui manquait au statistique :
-``read_document`` était déclaré dans son module de tools mais filtré par l'allow-list
+``lire_document`` était déclaré dans son module de tools mais filtré par l'allow-list
 de son contrat — donc jamais câblé).
 
 - **agent_assistant_formateur** : tous les outils de manipulation de documents,
@@ -31,7 +31,6 @@ from app.domain.base import Base
 #: Outils de **lecture** documentaire (aucun dépôt, aucune modification).
 OUTILS_LECTURE = (
     "lire_document",
-    "read_document",
     "get_document_structure",
     "read_document_range",
     "chercher_dans_document",
@@ -91,7 +90,7 @@ def test_statistique_lit_les_documents_et_ne_produit_qu_un_livrable() -> None:
             ),
             None,
         )
-        assert lecture is not None, "read_document n'est pas construit pour le statistique"
+        assert lecture is not None, "lire_document n'est pas construit pour le statistique"
         noms = {
             tool.name
             for tool in build_statistique(

@@ -26,6 +26,7 @@ from app.documents.paths import (
 from app.domain.document import Document
 from app.domain.enums import (
     RoleUtilisateur,
+    TypeDocument,
 )
 from app.infrastructure.repositories import (
     SessionRepository,
@@ -115,6 +116,17 @@ def document_dans_perimetre(
     de consultation (généraliste, statistique) l'appellent pour leurs propres
     lectures — une seule définition, jamais deux lectures divergentes.
     """
+    # --- CV : un document de personne lisible par tous ---------------------
+    # Décision CARSO (13/11) : le CV appartient au dossier personnel de la
+    # personne, mais il sert à constituer les équipes — tout compte actif le
+    # consulte, même hors de son périmètre de missions. L'ancre ``equipe_id``
+    # continue de ranger le fichier au bon endroit ; elle ne le cloisonne plus.
+    # Un appel sans compte (script, balayage) garde la règle commune ci-dessous.
+    if (
+        document.type_document == TypeDocument.CV.value
+        and perimetre.utilisateur_id is not None
+    ):
+        return True
     if document.mission_id is not None:
         return perimetre.mission_autorisee(document.mission_id) or _est_administrateur(
             perimetre

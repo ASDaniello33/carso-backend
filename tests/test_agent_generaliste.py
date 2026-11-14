@@ -456,7 +456,7 @@ def test_deep_tools_allow_list_du_contrat(
 def test_deep_tools_avec_lecture_document(
     usine_sessions: sessionmaker,
 ) -> None:
-    """``read_document`` est injecté par l'appelant, jamais construit par
+    """``lire_document`` est injecté par l'appelant, jamais construit par
     l'agent : l'agent reste indépendant du câblage documentaire."""
     from pydantic import BaseModel
 
@@ -464,7 +464,7 @@ def test_deep_tools_avec_lecture_document(
         document_id: str
 
     faux_tool = TypedTool(
-        name="read_document",
+        name="lire_document",
         description="Lecture documentaire (câblage appelant).",
         input_schema=_In,
         handler=lambda payload: {"texte": "extrait"},
@@ -479,7 +479,7 @@ def test_deep_tools_avec_lecture_document(
         noms = {tool.name for tool in agent.deep_tools()}
     finally:
         trace.close()
-    assert "read_document" in noms
+    assert "lire_document" in noms
 
 
 def test_recherche_documents_exige_une_seule_ancre(

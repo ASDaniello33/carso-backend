@@ -530,3 +530,94 @@ def test_generer_document_accepte_un_bloc_graphique(
     _nom, chemin = service.telecharger(UUID(sortie["document_id"]))
     # Le DOCX porte le graphique et le SVG (tous deux rasterisés par resvg).
     assert len(_images_du_docx(chemin.read_bytes())) == 2
+
+
+def test_generation_deduit_le_format_de_l_extension(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """Sans ``format``, un nom ``.pdf`` produit un **vrai** PDF.
+
+    Régression : le défaut implicite était toujours ``docx`` ; les octets DOCX
+    étaient ensuite déposés sous un nom ``.pdf``, refusés par la validation
+    (« signature binaire invalide »).
+    """
+    sortie = _tools(service)["generer_document"].invoke(
+        {
+            "nom_fichier": "note_sans_format.pdf",
+            "type_document": "rapport",
+            "ancre": "organisation",
+            "entity_id": str(organisation.id),
+            "propose_par": IDENTITE.agent_id,
+            "html": HTML_EXEMPLE,
+        }
+    )
+    assert sortie["ok"] is True, sortie
+    assert sortie["format"] == "pdf"
+    nom, chemin = service.telecharger(UUID(sortie["document_id"]))
+    assert nom.endswith(".pdf")
+    assert chemin.read_bytes().startswith(b"%PDF")
+
+
+def test_correction_sans_document_deduit_le_format_du_nom(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """``corriger_document`` sans version visée suit aussi l'extension du nom."""
+    sortie = _tools(service)["corriger_document"].invoke(
+        {
+            "nom_fichier": "corrige_sans_format.pdf",
+            "type_document": "rapport",
+            "ancre": "organisation",
+            "entity_id": str(organisation.id),
+            "propose_par": IDENTITE.agent_id,
+            "document_spec": {
+                "metadata": {"titre": "Note corrigée"},
+                "blocs": [
+                    {"type": "titre", "niveau": 1, "texte": "Note corrigée"},
+                    {"type": "paragraphe", "texte": "Contenu initial."},
+                ],
+            },
+            "operations": [{"type": "bloc", "bloc": 1, "champs": {"texte": "Contenu corrigé."}}],
+        }
+    )
+    assert sortie["ok"] is True, sortie
+    nom, chemin = service.telecharger(UUID(sortie["document_id"]))
+    assert nom.endswith(".pdf")
+    assert chemin.read_bytes().startswith(b"%PDF")
+
+
+def test_generer_document_html_deduit_le_format_du_nom(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """``generer_document_html`` : format omis, l'extension du nom décide."""
+    sortie = _tools(service)["generer_document_html"].invoke(
+        {
+            "html": HTML_EXEMPLE,
+            "nom_fichier": "libre_sans_format.pdf",
+            "type_document": "rapport",
+            "ancre": "organisation",
+            "entity_id": str(organisation.id),
+        }
+    )
+    assert sortie["ok"] is True, sortie
+    nom, chemin = service.telecharger(UUID(sortie["document_id"]))
+    assert nom.endswith(".pdf")
+    assert chemin.read_bytes().startswith(b"%PDF")
+
+
+def test_propose_par_omis_prend_l_agent_appelant(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """L'attribution ne doit pas être recopiée par le modèle : l'identité
+    authentifiée du contexte fait foi quand ``propose_par`` est omis."""
+    sortie = _tools(service)["generer_document"].invoke(
+        {
+            "html": HTML_EXEMPLE,
+            "nom_fichier": "sans_propose_par",
+            "type_document": "rapport",
+            "ancre": "organisation",
+            "entity_id": str(organisation.id),
+        }
+    )
+    assert sortie["ok"] is True, sortie
+    document = service.obtenir(UUID(sortie["document_id"]))
+    assert (document.doc_metadata or {}).get("proposed_by_agent") == IDENTITE.agent_id

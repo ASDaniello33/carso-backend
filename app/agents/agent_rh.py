@@ -97,7 +97,13 @@ DEFINITION = AgentDefinition(
     output_schema_name="AssignmentProposal",
     # ``generation-document`` : la méthode et les composants HTML du générateur
     # professionnel — la référence des documents de l'agent (CV, notes).
-    skills=("generation-document",),
+    skills=(
+        "generation-document",
+        # Structure/lisibilité d'un PDF et scripts ancrés : outils réels de
+        # l'agent, leurs guides doivent être chargeables.
+        "pdf-officiels",
+        "scripts-python",
+    ),
     hitl_scenarios=(
         HitlScenario(
             id="proposition_affectation",

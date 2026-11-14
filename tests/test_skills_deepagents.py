@@ -134,7 +134,7 @@ def test_le_graphe_expose_les_skills_au_modele(tmp_path: Path) -> None:
     harnais (route `/skills/` + `SkillsMiddleware`) et le modèle scripté relit
     le message système qu'il a reçu.
     """
-    from app.agents import GENERATEUR_DEFINITION
+    from app.agents import RH_DEFINITION as GENERATEUR_DEFINITION
     from app.agents.harness import AgentRuntimeConfig, create_carso_deep_agent
     from app.core.config import Settings
     from tests.agent_fixtures import ScriptedChatModel, final_message
@@ -152,7 +152,7 @@ def test_le_graphe_expose_les_skills_au_modele(tmp_path: Path) -> None:
     )
 
     prompt = str(modele.received[0][0].content)
-    assert "docx-officiels" in prompt
+    assert "generation-document" in prompt
     assert f"{SOURCE_SKILLS}generation-document/SKILL.md" in prompt
     # Un skill non déclaré par cet agent ne doit pas apparaître.
     assert "xlsx-officiels" not in prompt

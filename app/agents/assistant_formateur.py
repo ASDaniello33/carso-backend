@@ -71,6 +71,7 @@ DEFINITION = AgentDefinition(
     skills=(
         "xlsx-officiels",
         "docx-officiels",
+        "pdf-officiels",
         "generation-document",
         "scripts-python",
     ),

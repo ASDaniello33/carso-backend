@@ -21,7 +21,7 @@ from app.core.errors import ConflictError, ValidationError
 from app.documents.paths import extension_of, sanitize_filename
 from app.documents.validation import ALLOWED_EXTENSIONS
 from app.domain.document import Document
-from app.domain.enums import ActionAudit, ActorType
+from app.domain.enums import ActionAudit, ActorType, TypeDocument
 
 
 class VisibiliteDocumentMixin:
@@ -168,7 +168,16 @@ class VisibiliteDocumentMixin:
             msg = f"Filtre de listing documentaire inconnu : {filtre!r}"
             raise ValidationError(msg, details={"filtres_possibles": sorted(_LISTERS)})
         self._exiger_ancre_autorisee(filtre, entity_id)
-        return list(getattr(self.documents, methode)(entity_id))
+        documents = list(getattr(self.documents, methode)(entity_id))
+        # Hors périmètre, une fiche de personne n'ouvre que ses CV : le reste
+        # de son dossier reste réservé à ses missions et à l'administration.
+        if filtre == "equipe_id" and not self._perimetre.equipe_autorisee(entity_id):
+            return [
+                document
+                for document in documents
+                if document.type_document == TypeDocument.CV.value
+            ]
+        return documents
 
     def lister_personnels(self) -> list[Document]:
         """Documents personnels du compte connecté (dossier privé).

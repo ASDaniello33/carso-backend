@@ -147,7 +147,7 @@ def test_proposer_affectation(session: Session) -> None:
         "rechercher_video",
         "envoyer_email",
     } <= noms
-    assert "read_document" in noms
+    assert "lire_document" in noms
     assert "generer_document" in noms
     assert "propose_equipe_update" in noms
     assert "search_organisations" in noms

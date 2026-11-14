@@ -13,6 +13,7 @@ aucun mock de la génération, du rendu ou de la validation.
 
 from __future__ import annotations
 
+import base64
 import io
 import json
 from collections.abc import Iterator
@@ -217,6 +218,124 @@ def test_generation_structurer_ne_renvoie_pas_l_image_base64(
 
     assert "base64" not in str(sortie["document_spec"])
     assert any("inline" in message for message in sortie["warnings"])
+
+
+def test_generation_structurer_integre_une_image_deposee(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """Un PNG déposé dans le dossier du compte est **inséré** dans le livrable.
+
+    Régression : le rendu structuré appelait ``rendre(spec)`` sans fournisseur
+    d'images (« Image référencée sans fournisseur d'images ») — l'agent ne
+    pouvait pas coller le fichier réel, seulement le redessiner.
+    """
+    visuel = service.enregistrer_document(
+        DocumentUploadInput(
+            type_document="non_classe",
+            nom="visuel.png",
+            stream=io.BytesIO(
+                base64.b64decode(
+                    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8"
+                    "z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+                )
+            ),
+            created_by="test",
+        )
+    )
+    spec = _offre_spec()
+    spec["blocs"].append(
+        {
+            "type": "image",
+            "document_id": str(visuel.id),
+            "largeur_mm": 40,
+            "legende": "Visuel du client",
+        }
+    )
+    sortie = _tools(service)["generer_document"].invoke(
+        {
+            "format": "docx",
+            "nom_fichier": "offre_avec_visuel",
+            "type_document": "offre",
+            "ancre": "organisation",
+            "entity_id": str(organisation.id),
+            "propose_par": IDENTITE.agent_id,
+            "document_spec": spec,
+        }
+    )
+
+    assert sortie["statut"] == "proposed"
+    assert sortie["documents"]["pdf"]  # le jumeau PDF porte la même image
+    assert not any("fournisseur d'images" in message for message in sortie.get("warnings", []))
+
+
+def test_corriger_un_pdf_remplace_un_bloc_par_une_image(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """Corriger un PDF garde son format et insère l'image référencée.
+
+    Régression signalée : ``corriger_document`` rendait un DOCX par défaut
+    (``format`` absent) puis le versionnait sous le nom ``.pdf`` du document
+    corrigé — « signature binaire invalide ». Le format vient désormais du
+    document versionné.
+    """
+    visuel = service.enregistrer_document(
+        DocumentUploadInput(
+            type_document="non_classe",
+            nom="visuel_correction.png",
+            stream=io.BytesIO(
+                base64.b64decode(
+                    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8"
+                    "z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+                )
+            ),
+            created_by="test",
+        )
+    )
+    outils = _tools(service)
+    generation = outils["generer_document"].invoke(
+        {
+            "format": "pdf",
+            "nom_fichier": "offre_a_corriger",
+            "type_document": "offre",
+            "ancre": "organisation",
+            "entity_id": str(organisation.id),
+            "propose_par": IDENTITE.agent_id,
+            "document_spec": _offre_spec(),
+        }
+    )
+    pdf_id = generation["documents"]["principal"]
+    spec = generation["document_spec"]
+    remplace = len(spec["blocs"]) - 1
+
+    correction = outils["corriger_document"].invoke(
+        {
+            "document_id": pdf_id,
+            "document_spec": spec,
+            "operations": [
+                {
+                    "type": "bloc",
+                    "bloc": remplace,
+                    "valeur": {
+                        "type": "image",
+                        "document_id": str(visuel.id),
+                        "largeur_mm": 80,
+                        "legende": "Visuel corrigé",
+                    },
+                }
+            ],
+        }
+    )
+
+    assert correction["documents"]["format"] == "pdf"
+    corrige = service.obtenir(_uuid(correction["documents"]["principal"]))
+    assert corrige.nom.endswith(".pdf")
+    octets = (service.storage.root / corrige.storage_path).read_bytes()
+    assert octets.startswith(b"%PDF")
+
+    from pypdf import PdfReader
+
+    lecteur = PdfReader(io.BytesIO(octets))
+    assert sum(len(page.images) for page in lecteur.pages) >= 1
 
 
 def test_generation_structurer_signale_les_erreurs_de_validation(

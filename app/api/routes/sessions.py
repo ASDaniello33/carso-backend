@@ -15,7 +15,7 @@ from io import BytesIO
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from app.api.deps import CurrentUser, DbSession, get_current_user
 from app.api.permissions import InterneUser, PerimetreDep, exiger_interne
@@ -55,7 +55,11 @@ from app.application.services import (
     PresenceService,
     SessionService,
 )
-from app.application.services.import_beneficiaires_service import LigneImport
+from app.application.services.import_beneficiaires_service import (
+    COLONNES_FACULTATIVES,
+    COLONNES_REQUISES,
+    LigneImport,
+)
 from app.core.errors import ValidationError
 from app.documents.generation import build_xlsx
 from app.domain.document import Document
@@ -298,6 +302,53 @@ def pointer_presences(
             )
             for ligne in payload.lignes
         ],
+    )
+
+
+@router.get(
+    "/sessions/{session_id}/imports/beneficiaires/modele",
+    response_class=Response,
+)
+def modele_import_beneficiaires(
+    session_id: UUID,
+    session: DbSession,
+    utilisateur: CurrentUser,
+    perimetre: PerimetreDep,
+) -> Response:
+    """Classeur modele a remplir, avec les colonnes reconnues par l'import.
+
+    Les en-tetes sont **derivees** de ``ImportBeneficiairesService`` (colonnes
+    requises puis facultatives) : le modele ne peut donc pas annoncer une
+    colonne que l'import ne lit pas, ni oublier une colonne obligatoire. Un
+    modele recopie a la main serait la premiere chose a diverger.
+
+    Une seule ligne : les en-tetes. Aucune ligne d'exemple n'est ajoutee, car
+    l'apercu la compterait comme une personne a importer : la faire supprimer a
+    la main serait un piege, pas une aide.
+    """
+    SessionService(session, perimetre=perimetre).obtenir(session_id)
+
+    # Les colonnes facultatives sont multiples pour un meme champ (``contact``,
+    # ``email``, ``telephone`` -> contact) : on ne garde que la **premiere** de
+    # chaque champ, comme le fait la lecture du classeur.
+    facultatives: list[str] = []
+    champs_vus: set[str] = set()
+    for colonne, champ in COLONNES_FACULTATIVES.items():
+        if champ in champs_vus:
+            continue
+        champs_vus.add(champ)
+        facultatives.append(colonne)
+
+    entetes = [colonne.capitalize() for colonne in COLONNES_REQUISES + tuple(facultatives)]
+    contenu = build_xlsx(titre_feuille="Beneficiaires", lignes=[entetes])
+    return Response(
+        content=contenu,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": (
+                'attachment; filename="modele_beneficiaires_session.xlsx"'
+            )
+        },
     )
 
 

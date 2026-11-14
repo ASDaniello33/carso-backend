@@ -487,14 +487,19 @@ def lister_membres(conversation_id: UUID, session: DbSession, utilisateur: Curre
 
 @router.get("/annonces", response_model=list)
 def lister_annonces(session: DbSession, utilisateur: CurrentUser):
-    annonces = SocialService(session).lister_annonces()
+    service = SocialService(session)
+    annonces = service.lister_annonces()
     reactions = _reactions_agregees(
         session, "annonce", [a.id for a in annonces], utilisateur.id
     )
+    # Compteur de commentaires **avec** la liste : le fil l'affiche replié,
+    # sans requête par carte ni dépliage (retour utilisateur 13/11).
+    commentaires = service.compter_commentaires([a.id for a in annonces])
     resultat = []
     for annonce in annonces:
         donnees = lire_annonce(annonce).model_dump(mode="json")
         donnees["reactions"] = reactions.get(str(annonce.id), {})
+        donnees["nb_commentaires"] = commentaires.get(annonce.id, 0)
         resultat.append(donnees)
     return resultat
 

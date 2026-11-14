@@ -486,7 +486,7 @@ class MetadonneesDocumentMixin:
         return self.enregistrer_document(entree)
 
     def generer_document_offre(self, offre_id: UUID) -> Document:
-        """Génère le document de l'offre de formation (chemin déterministe).
+        """Génère le document de l'offre (chemin déterministe).
 
         Compose les données réelles (offre + lot + organisation) en un DOCX
         déposé comme **proposition** rattachée à l'offre : l'humain télécharge,

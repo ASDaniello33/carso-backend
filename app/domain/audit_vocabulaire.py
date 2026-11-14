@@ -39,7 +39,7 @@ ACTIONS_PAR_ENTITE: frozenset[str] = frozenset(
 #: Les clés sont celles de ``ServiceSuppression`` (``TYPES_SUPPRIMABLES``).
 ENTITES_SUPPRIMEES: dict[str, str] = {
     "appels": "d'un appel",
-    "offres": "d'une offre de formation",
+    "offres": "d'une offre",
     "missions": "d'une mission",
     "sessions": "d'une session",
     "documents": "d'un document",
@@ -62,7 +62,7 @@ LIBELLES_ACTION: dict[str, str] = {
     #: une offre et une mission, sans décision d'extraction à approuver.
     ActionAudit.APPEL_A_PROPOSITION_VALIDE.value: "Appel validé",
     ActionAudit.LOTS_MATERIALISES.value: "Lots créés depuis l'appel",
-    # Offres de formation
+    # Offres
     ActionAudit.OFFRE_CREEE.value: "Brouillon d'offre créé",
     ActionAudit.OFFRE_SOUMISE.value: "Offre soumise à revue",
     ActionAudit.OFFRE_PUBLIEE.value: "Offre publiée",
@@ -207,7 +207,7 @@ LIBELLES_HISTORIQUES: dict[str, str] = {
     "document_officiel": "Document officiel approuvé",
     "extraction_appel_a_proposition": "Extraction d'appel proposée",
     "publication_offre": "Offre publiée",
-    "publication_offre_formation": "Offre de formation publiée",
+    "publication_offre_formation": "Offre publiée",
     "chat_orphelins.purges": "Fichiers de conversation purgés",
 }
 

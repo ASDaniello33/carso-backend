@@ -391,3 +391,20 @@ def test_sequence_saut_litteral_devient_un_paragraphe_vide() -> None:
     assert "Mot Mot2" in textes, textes
     # Le contenu de <pre> est du texte voulu : il n'est jamais réécrit.
     assert any(f"garde{barre}nici" in texte for texte in textes), textes
+
+
+def test_tool_sans_format_produit_un_docx(
+    service: DocumentService, organisation: Organisation
+) -> None:
+    """``format`` omis ne doit pas produire le format ``"None"``.
+
+    Le schéma le rend facultatif ; le handler faisait ``str(payload["format"])``
+    et le moteur recevait la chaîne ``"None"`` — échec incompréhensible pour un
+    appel pourtant valide. Défaut retenu : extension du nom, sinon DOCX.
+    """
+    payload = _payload(organisation)
+    payload.pop("format")
+    sortie = _tools(service)["generer_document_professionnel"].invoke(payload)
+
+    assert sortie["ok"] is True, sortie
+    assert sortie["nom"].endswith(".docx")

@@ -253,17 +253,16 @@ def test_document_id_non_uuid_refuse(
     assert "UUID" in sortie["error"]["message"]
 
 
-def test_alias_read_document_identique_a_lire_document(
-    service: DocumentService, organisation: Organisation
-) -> None:
-    """Le contrat des agents déclare ``read_document`` : l'alias doit exister."""
+def test_read_document_alias_supprime(service: DocumentService) -> None:
+    """Un seul nom pour la lecture : ``read_document`` n'est plus un outil.
+
+    Deux noms pour le même geste (même handler, même schéma) laissaient le
+    modèle choisir au hasard et empêchaient la déduplication des appels : le
+    contrat n'expose plus que ``lire_document``.
+    """
     outils = _tools(service)
-    assert "read_document" in outils
-    generer = outils["generer_document"]
-    depose = generer.invoke(_payload(organisation, nom_fichier="alias_lecture"))
-    sortie = outils["read_document"].invoke({"document_id": depose["document_id"]})
-    assert sortie["document_id"] == depose["document_id"]
-    assert "chemin" not in sortie
+    assert "lire_document" in outils
+    assert "read_document" not in outils
 
 
 # --- Lot 2 : schémas typés des outils documentaires ---------------------------

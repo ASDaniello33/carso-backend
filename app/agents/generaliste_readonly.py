@@ -11,7 +11,7 @@ Sécurité (clinrules 06 §Sécurité) :
   ``PermissionDeniedError`` à la construction, avant tout appel de modèle ;
 - ``query_analytics`` n'expose que des agrégations nommées, calculées par le
   service (instruction/10 §9)—jamais de SQL libre (clinrules 08) ;
-- ``read_document`` renvoie le texte extrait, soumis à la permission
+- ``lire_document`` renvoie le texte extrait, soumis à la permission
   ``document_read`` (traçage, type autorisé) ; ``lire_image`` fait **voir**
   l'image au modèle (scan, capture, schéma) ;
 - ``generer_document_professionnel`` dépose un livrable en **proposition**
@@ -49,7 +49,8 @@ from app.tools.permissions import PermissionPolicy
 AGENT_ID = "agent_generaliste_readonly"
 
 #: Nom du tool de lecture documentaire (fourni par ``app.tools.documents``).
-READ_DOCUMENT_TOOL = "read_document"
+#: Un seul nom exposé : ``read_document`` n'existe plus comme second outil.
+READ_DOCUMENT_TOOL = "lire_document"
 
 TASK_TYPE = "consultation_generale"
 
@@ -130,6 +131,9 @@ DEFINITION = AgentDefinition(
     collaboration=(),
     prompt=prompt.GENERALISTE_SYSTEM_PROMPT,
     output_schema_name="GeneralistAnswer",
+    # L'agent lit des DOCX/PDF et produit un livrable professionnel : il lui
+    # manquait les guides correspondants (lecture fine, génération).
+    skills=("pdf-officiels", "docx-officiels", "generation-document"),
     hitl_scenarios=SCENARIOS_HITL,
 )
 
@@ -153,7 +157,7 @@ class AgentGeneralisteReadOnly:
         Args:
             session: session de l'appelant (trace ``agent_tasks`` uniquement).
             session_factory: sessions des tools (défaut : fabrique applicative).
-            read_document_tool: tool ``read_document`` câblé sur
+            read_document_tool: tool ``lire_document`` câblé sur
                 ``DocumentService`` — fourni par l'appelant pour garder
                 l'agent indépendant du câblage documentaire.
         """

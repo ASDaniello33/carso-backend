@@ -660,7 +660,12 @@ def rendre_tableur(
                         taille_pt=tokens.taille_pt,
                         bordures=tokens.bordure_couleur if tokens.bordures else None,
                     )
-            redacteur.onglet.freeze_panes = redacteur.onglet.cell(row=2, column=1)
+            # Repere de gel ecrit en **reference textuelle** ("A2"), jamais via
+            # `onglet.cell(row=2, column=1)` : cet appel *cree* la cellule A2,
+            # ce qui porte `max_row` a 2 meme quand le tableau n'a qu'une ligne.
+            # Un classeur d'en-tete seule (modele a remplir) se relisait alors
+            # avec une ligne vide fantome, comptee comme une ligne incomplete.
+            redacteur.onglet.freeze_panes = "A2"
             redacteur.onglet.auto_filter.ref = (
                 f"A1:{redacteur.libs.get_column_letter(largeur)}{len(lignes)}"
             )

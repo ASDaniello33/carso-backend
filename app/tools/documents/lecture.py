@@ -16,7 +16,33 @@ from pathlib import Path
 from typing import Any
 
 from app.core.errors import ValidationError
+from app.documents.csv_lecture import lire_csv, lire_csv_plage
+from app.documents.recherche import chercher_dans_csv
 from app.tools.documents.schemas import APERCU_EXTRACTION, APERCU_TEXTE
+
+
+def _refuser_options_csv(
+    extension: str, payload: dict[str, Any], cles: tuple[str, ...]
+) -> None:
+    """Refuse les options propres au CSV sur un autre format.
+
+    ``separateur``, ``encodage``, ``max_lignes`` et ``colonne`` n'agissent que
+    sur un CSV. Les ignorer en silence ferait croire à l'agent qu'ils ont
+    produit l'effet demandé — le défaut exact qu'on cherche à supprimer : un
+    appel qui « réussit » sans faire ce qui était demandé.
+
+    Raises:
+        ValidationError: option fournie sur un document d'un autre format.
+    """
+    if extension == "csv":
+        return
+    fournies = [cle for cle in cles if payload.get(cle) not in (None, "")]
+    if fournies:
+        raise ValidationError(
+            f"{', '.join(fournies)} ne s'appliquent qu'à un CSV (ce document est un "
+            f"{extension or 'fichier sans extension'})",
+            details={"options": fournies, "format": extension},
+        )
 
 
 def _lire(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
@@ -36,6 +62,7 @@ def _lire(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
     document = service.obtenir(document_id)
     _nom_fichier, chemin = service.telecharger(document_id)
     extension = chemin.suffix.lower().lstrip(".")
+    _refuser_options_csv(extension, payload, ("separateur", "encodage", "max_lignes"))
     sortie: dict[str, Any] = {
         "document_id": str(document.id),
         "nom": document.nom,
@@ -55,6 +82,44 @@ def _lire(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
                 "document existe, son contenu n'est pas lisible par les outils."
             ),
         }
+    if extension == "csv":
+        # Un CSV n'est pas de la prose : l'aperçu texte de 4 000 caractères
+        # (« a;b;c ») ne donnait ni colonnes nommées ni lignes citables, et
+        # aucun outil ne savait ensuite le fouiller. On rend la structure.
+        table = lire_csv(
+            chemin,
+            separateur=payload.get("separateur"),
+            encodage=payload.get("encodage"),
+            max_lignes=payload.get("max_lignes"),
+        )
+        sortie.update(
+            {
+                "texte_lisible": True,
+                "apercu_texte": None,
+                "apercu_tronque": table["tronque"],
+                "colonnes": table["colonnes"],
+                "separateur": table["separateur"],
+                "encodage": table["encodage"],
+                "nb_lignes": table["nb_lignes"],
+                "nb_donnees": table["nb_donnees"],
+                "nb_colonnes": table["nb_colonnes"],
+                "apercu_lignes": table["apercu_lignes"],
+                "problemes": table["problemes"],
+            }
+        )
+        sortie["message"] = (
+            "CSV lu PAR COLONNES : ``apercu_lignes`` rend les premières lignes en "
+            "dictionnaires {colonne: valeur} (repère ``ligne`` = ligne du fichier, "
+            "en-tête = ligne 1). Pour une valeur précise : chercher_dans_document "
+            "(``mot_cle``, et ``colonne`` pour restreindre) puis "
+            "lire_element_document avec hit['relire'] ; read_document_range pour "
+            "une plage de lignes — jamais relire le fichier entier. "
+            "``separateur``/``encodage`` annoncent la détection retenue, "
+            "``problemes`` signale une ligne de largeur inégale (séparateur mal "
+            "détecté ? le passer explicitement)."
+        )
+        return sortie
+
     extrait = service.extraire_texte(document_id, max_chars=APERCU_EXTRACTION)
     apercu = extrait.texte[:APERCU_TEXTE]
     sortie.update(
@@ -166,19 +231,27 @@ def _lire_image(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
 
 def _inspecter(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
     ctx.policy.require(ctx.identite.agent_id, "document_read")
-    from app.documents.inspection import inspecter_docx, inspecter_pdf, inspecter_xlsx
+    from app.documents.inspection import structure_document
 
     service = ctx.service_factory()
     document_id = ctx.uuid(payload["document_id"], "document_id")
     document = service.obtenir(document_id)
     _nom, chemin = service.telecharger(document_id)
     suffixe = chemin.suffix.lower()
-    if suffixe == ".docx":
-        structure = inspecter_docx(chemin)
-    elif suffixe == ".pdf":
-        structure = inspecter_pdf(chemin)
-    elif suffixe == ".xlsx":
-        structure = inspecter_xlsx(chemin)
+    if suffixe in {".docx", ".pdf", ".xlsx"}:
+        # Mémoïsé : un même document relu dans le même tour ne repaie pas
+        # l'analyse (pdfplumber sur un PDF coûtait plusieurs secondes).
+        structure = structure_document(chemin)
+    elif suffixe == ".csv":
+        # Un CSV n'a ni styles ni pages : sa structure est une table —
+        # colonnes, exemples réels et dimensions, lues en flux.
+        from app.documents.csv_lecture import structure_csv
+
+        structure = {
+            **structure_csv(chemin),
+            "unite_pagination": "lignes",
+            "nb_pages": None,
+        }
     else:
         raise ValidationError(f"Inspection non supportée pour {document.nom}")
     # Le transport vers le modèle est borné (``_borner_structure``) : une
@@ -211,6 +284,8 @@ def _lire_plage(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
     suffixe = chemin.suffix.lower()
 
     def lire_une(debut: int | None, fin: int | None) -> dict[str, Any]:
+        if suffixe == ".csv":
+            return lire_csv_plage(chemin, from_row=debut, to_row=fin)
         if suffixe == ".docx":
             return lire_docx_plage(chemin, from_page=debut, to_page=fin)
         if suffixe == ".pdf":
@@ -345,9 +420,18 @@ def _chercher(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
     _nom, chemin = service.telecharger(document_id)
     suffixe = chemin.suffix.lower()
     mots_cles: list[str] = list(payload.get("mot_cle") or [])
+    _refuser_options_csv(suffixe.lstrip("."), payload, ("colonne", "separateur"))
     options = {"max_resultats": payload.get("max_resultats")}
 
     def fouiller(mot_cle: str) -> dict[str, Any]:
+        if suffixe == ".csv":
+            return chercher_dans_csv(
+                chemin,
+                mot_cle,
+                colonne=payload.get("colonne"),
+                separateur=payload.get("separateur"),
+                **options,
+            )
         if suffixe == ".docx":
             return chercher_dans_docx(chemin, mot_cle, **options)
         if suffixe == ".pdf":
@@ -361,7 +445,7 @@ def _chercher(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
             )
         raise ValidationError(
             f"Recherche non supportée pour {document.nom} "
-            "(formats acceptés : docx, pdf, xlsx)"
+            "(formats acceptés : docx, pdf, xlsx, csv)"
         )
 
     def enrichir(resultat: dict[str, Any]) -> dict[str, Any]:
@@ -485,6 +569,7 @@ def _lire_element(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
             feuille=payload.get("feuille"),
             max_lignes=plafond or payload.get("max_lignes"),
             max_caracteres=payload.get("max_caracteres"),
+            separateur=payload.get("separateur"),
         )
 
     if cibles:

@@ -22,6 +22,85 @@ from app.tools.documents.ancrage import _format_depot
 from app.tools.documents.schemas import _FORMAT_PPTX, _FORMATS
 
 
+def _format_effectif(payload: dict[str, Any]) -> str:
+    """Format du rendu : explicite, sinon déduit du nom de fichier, sinon DOCX.
+
+    Un nom ``.pdf`` sans ``format`` était rendu en DOCX puis déposé sous un nom
+    ``.pdf`` (ou renommé ``.pdf.docx``) : l'agent demandait un PDF et recevait
+    un DOCX. L'extension du nom est une intention explicite — elle fait foi
+    quand ``format`` est absent.
+    """
+    demande = payload.get("format")
+    if demande is not None and str(demande).strip():
+        return _format_depot(demande)
+    nom = str(payload.get("nom_fichier") or "").strip()
+    extension = Path(nom).suffix.lower().lstrip(".")
+    if extension in _FORMATS:
+        return extension
+    return "docx"
+
+
+def _images_de(spec: DocumentSpec) -> Any:
+    """Parcourt un spec et rend chaque bloc ``Image`` rencontré."""
+    from pydantic import BaseModel
+
+    from app.documents.spec import Image
+
+    def parcourir(valeur: Any) -> Any:
+        if isinstance(valeur, Image):
+            yield valeur
+        elif isinstance(valeur, BaseModel):
+            for nom in type(valeur).model_fields:
+                yield from parcourir(getattr(valeur, nom))
+        elif isinstance(valeur, (list, tuple)):
+            for element in valeur:
+                yield from parcourir(element)
+
+    return parcourir(spec)
+
+
+def _fournisseur_images(ctx: Any, spec: DocumentSpec) -> Any:
+    """Résout les images d'un spec depuis le stockage (ADR 0005).
+
+    Sans fournisseur, un bloc ``Image(document_id=…)`` ou ``Image(chemin=…)``
+    échouait toujours (« Image référencée sans fournisseur d'images ») : un
+    agent ne pouvait donc pas coller un PNG déposé dans le dossier du compte.
+
+    Chaque ``document_id`` est résolu par ``DocumentService.obtenir`` — donc
+    **avec le périmètre du compte** : une fiche hors périmètre est refusée par
+    un message explicite, jamais insérée. Les chemins logiques sont confinés à
+    la racine de stockage par ``ImagesDisque``. Les images ``base64`` et ``svg``
+    n'ont besoin d'aucun fournisseur et traversent telles quelles.
+    """
+    from app.documents.assets import ImagesDisque
+    from app.documents.paths import resolve_within_root
+
+    service = ctx.service_factory()
+    racine = getattr(service.storage, "root", None)
+    fournisseur = ImagesDisque(racine=racine)
+    for image in _images_de(spec):
+        if image.document_id is None:
+            continue
+        try:
+            document = service.obtenir(image.document_id)
+        except NotFoundError as erreur:
+            raise ValidationError(
+                "Image référencée introuvable ou hors de votre périmètre : "
+                f"document {image.document_id}",
+                details={"document_id": str(image.document_id)},
+            ) from erreur
+        if racine is None:
+            raise ValidationError(
+                "Racine de stockage indisponible : impossible de lire l'image "
+                f"référencée ({image.document_id}).",
+                details={"document_id": str(image.document_id)},
+            )
+        fournisseur.ajouter_fichier(
+            image.document_id, resolve_within_root(racine, document.storage_path)
+        )
+    return fournisseur
+
+
 def _generer_libre(ctx: Any, payload: dict[str, Any], fmt: str) -> dict[str, Any]:
     """Corps HTML + classes CARSO → DOCX/PDF (INC-137).
 
@@ -76,7 +155,7 @@ def _generer_libre(ctx: Any, payload: dict[str, Any], fmt: str) -> dict[str, Any
 def _generer(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
     ctx.policy.require(ctx.identite.agent_id, "document_propose")
     _refuser_generation_si_modele(ctx, payload)
-    fmt = _format_depot(payload.get("format"))
+    fmt = _format_effectif(payload)
     if payload.get("html"):
         return _generer_libre(ctx, payload, fmt)
     if payload.get("document_spec"):
@@ -136,7 +215,16 @@ def _generer_html(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
     _refuser_generation_si_modele(ctx, payload)
     from app.documents.generation_html import convertir_html_bytes
 
-    fmt = str(payload["format"]).strip().lower()
+    # Le format suit l'intention exprimée par le nom quand il est omis :
+    # exiger un champ que le schéma rend obligatoire bloquait un appel
+    # légitime (« format : champ requis ») alors que le nom disait déjà .pdf.
+    fmt = _format_effectif(payload)
+    if fmt not in {"docx", "pdf"}:
+        raise ValidationError(
+            "Le mode HTML produit un DOCX ou un PDF (reçu "
+            f"'{fmt}'). Pour un classeur, utiliser importer_tableau_xlsx ou "
+            "un document_spec."
+        )
     octets = convertir_html_bytes(
         payload["html"],
         format=fmt,
@@ -189,7 +277,9 @@ def _generer_professionnel(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
     rendu = rendre_professionnel(
         payload["contenu_html"],
         payload["titre"],
-        format=str(payload["format"]),
+        # ``format`` est facultatif au schéma : ``str(None)`` envoyait la
+        # chaîne "None" au moteur et échouait sur un appel valide.
+        format=_format_effectif(payload),
         auteur=payload.get("auteur") or "",
         theme=payload.get("theme") or "corporate",
         orientation=payload.get("orientation") or "portrait",
@@ -316,11 +406,14 @@ def _generer_structurer(ctx: Any, payload: dict[str, Any], fmt: str) -> dict[str
         rapport = _valider_spec(spec, payload.get("profil"))
 
     extension, _mime = _FORMATS[fmt]
-    sortie = ctx.deposer(rendre(spec, format=fmt), payload, extension)
+    # Les images du spec (document_id / chemin) sont résolues ici : le renderer
+    # ne connaît ni la base ni le stockage (séparation des couches).
+    fournisseur = _fournisseur_images(ctx, spec)
+    sortie = ctx.deposer(rendre(spec, format=fmt, images=fournisseur), payload, extension)
     documents: dict[str, Any] = {"principal": sortie["document_id"], "format": fmt}
     if fmt != "pdf":
         jumeau = ctx.deposer(
-            rendre(spec, format="pdf"),
+            rendre(spec, format="pdf", images=fournisseur),
             {
                 **payload,
                 "nom_fichier": f"{Path(str(payload['nom_fichier'])).stem}.pdf",
@@ -479,8 +572,33 @@ def _corriger(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
         ),
     ][:12]
 
-    fmt = _format_depot(payload.get("format") or "docx")
     document_id = payload.get("document_id")
+    if document_id:
+        # Une nouvelle version garde le nom — donc l'extension — du document
+        # corrigé : rendre un DOCX sous un nom .pdf produisait « signature
+        # binaire invalide ». Le format effectif vient du fichier, pas d'un
+        # défaut implicite (l'agent ne peut plus se tromper de format).
+        courant = ctx.service_factory().obtenir(
+            ctx.uuid(str(document_id), "document_id")
+        )
+        extension = Path(courant.nom).suffix.lower().lstrip(".")
+        if extension in {"docx", "pdf"}:
+            fmt = extension
+            demande = payload.get("format")
+            if demande and str(demande).strip().lower() != fmt:
+                avertissements.append(
+                    f"Format '{demande}' ignoré : une nouvelle version conserve "
+                    f"le format du document corrigé (.{fmt})."
+                )
+        else:
+            raise ValidationError(
+                f"Ce document est un .{extension or '?'} : corriger_document ne "
+                "produit que des DOCX ou des PDF. Déposer le fichier corrigé "
+                "comme un nouveau document pour un autre format.",
+                details={"document_id": str(document_id), "extension": extension},
+            )
+    else:
+        fmt = _format_effectif(payload)
     if not document_id:
         if not payload.get("nom_fichier") or not payload.get("type_document"):
             raise ValidationError(
@@ -505,7 +623,7 @@ def _corriger(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
         )
         documents: dict[str, Any] = {
             "principal": principal["document_id"],
-            "format": fmt,
+            "format": principal.get("format", fmt),
         }
         if payload.get("document_pdf_id"):
             jumeau = _versionner(ctx, 
@@ -543,10 +661,21 @@ def _versionner(ctx: Any,
 
     service = ctx.service_factory()
     courant = service.obtenir(document_id)
+    # Sécurité de dernier recours : le format du rendu suit l'extension du
+    # document versionné. Un appel direct à `_versionner` ne peut donc pas
+    # écrire des octets DOCX dans un fichier .pdf.
+    extension = Path(courant.nom).suffix.lower().lstrip(".")
+    fmt_effectif = extension if extension in {"docx", "pdf"} else fmt
     entree = DocumentUploadInput(
         type_document=courant.type_document,
         nom=courant.nom,
-        stream=io.BytesIO(rendre(spec, format=fmt)),
+        stream=io.BytesIO(
+            rendre(
+                spec,
+                format=fmt_effectif,
+                images=_fournisseur_images(ctx, spec),
+            )
+        ),
         proposed_by_agent=payload.get("propose_par") or ctx.identite.agent_id,
         created_by=payload.get("propose_par") or ctx.identite.agent_id,
     )
@@ -556,6 +685,7 @@ def _versionner(ctx: Any,
         "version": document.version,
         "nom": document.nom,
         "statut": document.statut,
+        "format": fmt_effectif,
     }
 
 

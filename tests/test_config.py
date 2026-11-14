@@ -13,7 +13,9 @@ def test_settings_defaults() -> None:
     assert settings.api_v1_prefix == "/api/v1"
     assert settings.database_url.startswith("postgresql+psycopg://")
     assert settings.run_db_tests is False
+    # Pas de borne basse : un run coupé jette le travail déjà payé.
     assert settings.agent_max_iterations == 1000
+    assert not hasattr(settings, "agent_max_echecs_outils")
     assert settings.agent_attachment_excerpt_chars == 4000
 
 

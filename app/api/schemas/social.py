@@ -136,6 +136,8 @@ class AnnonceRead(BaseModel):
     created_at: object
     # Pièces multiples (incrément 33) : l'ordre (position) est conservé.
     pieces: list[PieceAnnonceRead] = []
+    #: Commentaires visibles, comptés à part du dépliage (13/11).
+    nb_commentaires: int = 0
 
 
 class CommentaireCreate(BaseModel):

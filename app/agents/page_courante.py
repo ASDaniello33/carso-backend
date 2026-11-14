@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
@@ -51,7 +52,7 @@ DESCRIPTION_CONTEXTE = "Page ouverte dans l'interface CARSO"
 
 #: Types acceptés, avec leur libellé français (jamais un type libre).
 TYPES: dict[str, str] = {
-    "offre": "offre de formation",
+    "offre": "offre",
     "mission": "mission",
     "session": "session",
     "page": "page",
@@ -70,7 +71,7 @@ class PageCourante:
 
     @property
     def libelle(self) -> str:
-        """Libellé lisible du type (« mission », « offre de formation »…)."""
+        """Libellé lisible du type (« mission », « offre »…)."""
         return TYPES[self.type]
 
     def reference(self) -> str:
@@ -173,12 +174,43 @@ def _poser_entete(contenu: Any, page: PageCourante) -> tuple[Any, bool]:
     return contenu, False
 
 
+def _retirer_entete(contenu: Any) -> Any:
+    """Contenu sans sa ligne d'en-tête de page (une seule, en tête).
+
+    Sert à oublier les pages des messages antérieurs : une ligne
+    ``[Page ouverte …]`` laissée dans l'historique décrivait une page que
+    l'utilisateur a quittée, et le modèle la relisait comme la page courante.
+    """
+    entete = re.compile(r"^\[Page ouverte :[^\]\n]*\]\n?")
+    if isinstance(contenu, str):
+        return entete.sub("", contenu, count=1)
+    if isinstance(contenu, list):
+        retiree = False
+        restant: list[Any] = []
+        for partie in contenu:
+            texte = partie.get("text") if isinstance(partie, dict) else None
+            if not retiree and isinstance(texte, str) and texte.startswith(
+                "[Page ouverte :"
+            ):
+                sans = entete.sub("", texte, count=1)
+                if sans:
+                    restant.append({**partie, "text": sans})
+                retiree = True
+                continue
+            restant.append(partie)
+        return restant
+    return contenu
+
+
 def injecter_page_dans_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    """Préfixe le dernier message utilisateur de la page ouverte.
+    """Marque la page ouverte sur le **dernier** message utilisateur.
 
     Le texte de l'utilisateur n'est pas modifié : seule une ligne de contexte
-    est ajoutée devant. Rend le payload **inchangé (même objet)** quand aucune
-    page n'est ouverte ou que l'en-tête est déjà là.
+    est ajoutée devant. Les en-têtes des messages antérieurs sont retirés :
+    ils décrivaient une page quittée et le modèle les relisait comme la page
+    courante (constat : il restait sur /Dashboard après un passage sur
+    /offres/<id>). Rend le payload **inchangé (même objet)** quand rien ne
+    change.
     """
     try:
         page = page_depuis_payload(payload)
@@ -189,14 +221,20 @@ def injecter_page_dans_payload(payload: dict[str, Any]) -> dict[str, Any]:
             return payload
 
         nouveau_contenu, modifie = _poser_entete(message.get("content"), page)
+        messages: list[Any] = []
+        for autre in payload["messages"]:
+            if autre is message:
+                messages.append({**message, "content": nouveau_contenu})
+                continue
+            if isinstance(autre, dict) and autre.get("role") == "user":
+                sans = _retirer_entete(autre.get("content"))
+                if sans is not autre.get("content"):
+                    messages.append({**autre, "content": sans})
+                    modifie = True
+                    continue
+            messages.append(autre)
         if not modifie:
             return payload
-
-        nouveau_message = {**message, "content": nouveau_contenu}
-        messages = [
-            nouveau_message if autre is message else autre
-            for autre in payload["messages"]
-        ]
         return {**payload, "messages": messages}
     except Exception:  # pragma: no cover - forme inattendue côté réseau
         _logger.warning("Page courante : en-tête impossible", exc_info=True)
@@ -210,12 +248,14 @@ Quand l'utilisateur regarde une fiche, son message est précédé d'une ligne
 `[Page ouverte : mission <uuid> (route /missions/<uuid>)]` — de même pour une
 offre ou une session. C'est **cette** fiche que désignent les alias :
 - `@MissionActuel` : la mission ouverte ;
-- `@OffreActuel` : l'offre de formation ouverte ;
+- `@OffreActuel` : l'offre ouverte ;
 - `@SessionActuel` : la session ouverte ;
 - `@PageActuel` : la page courante, quel que soit son type.
 L'alias ne remplace pas l'identifiant : il renvoie à la ligne ci-dessus.
 - Utilise l'identifiant de cette ligne tel quel pour lire la fiche ou y
   rattacher un document : ne le redemande pas, ne l'invente jamais.
+- La ligne du **dernier** message fait foi. Une ligne d'un message antérieur
+  décrit une page déjà quittée : ne t'en sers jamais.
 - Sans ligne `[Page ouverte …]`, aucune fiche n'est ouverte : demande laquelle,
   ou propose de la choisir.
 - Si l'alias ne correspond pas au type de la page ouverte (`@OffreActuel` alors

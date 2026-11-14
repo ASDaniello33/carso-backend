@@ -71,7 +71,6 @@ DEFINITION = AgentDefinition(
         # (lignes/paragraphes/pages) et tableau XLSX prêt à tabuler. Tous
         # exigent ``document_read`` et n'écrivent rien.
         "lire_document",
-        "read_document",
         "get_document_structure",
         "read_document_range",
         "chercher_dans_document",        "lire_element_document",
@@ -118,7 +117,14 @@ DEFINITION = AgentDefinition(
     collaboration=(),
     approval_required=("supprimer_document",),
     output_schema_name="StatistiqueReponse",
-    skills=(),
+    # Il lit des classeurs, calcule par script confiné et produit des
+    # livrables : ces trois guides sont ceux de ses outils réels.
+    skills=(
+        "xlsx-officiels",
+        "pdf-officiels",
+        "generation-document",
+        "scripts-python",
+    ),
     hitl_scenarios=SCENARIOS_HITL,
 )
 
@@ -139,8 +145,9 @@ class AgentStatistique:
         self._tasks = AgentTaskService(session)
         self._session_factory = session_factory or SessionLocal
         self._extra_tools = extra_tools
-        # ``read_document`` est injecté par l'appelant (manager) : l'agent reste
-        # indépendant du câblage documentaire, comme le généraliste.
+        # L'outil de lecture (``lire_document``) est injecté par l'appelant
+        # (manager) : l'agent reste indépendant du câblage documentaire, comme
+        # le généraliste. Le paramètre garde son nom historique.
         self._read_document_tool = read_document_tool
 
     def kpi(self, metrique: str, **params: Any) -> dict[str, Any]:

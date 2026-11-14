@@ -159,11 +159,8 @@ class Titre(_BlocBase):
 class Segment(BaseModel):
     """Fragment de texte d'un paragraphe ou d'une cellule (INC-130).
 
-    Le spec garde **un** texte par bloc pour les cas simples ; ce fragment sert
-    quand une partie seulement de la phrase change de forme (un mot en gras, un
-    montant en couleur, une mention surlignée). Le style du bloc reste la base :
-    un champ laissé à ``None`` n'est pas modifié, il n'y a donc pas de valeur
-    implicite inventée.
+    Sert quand une partie de la phrase change de forme (mot en gras, montant en
+    couleur). Les champs laissés à ``None`` gardent le style du bloc.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -236,18 +233,12 @@ class Liste(_BlocBase):
 
 
 class Cellule(BaseModel):
-    """Cellule de tableau : contenu + présentation **propre à la cellule**.
+    """Cellule de tableau : contenu et présentation propre à la cellule.
 
-    Une cellule ordinaire s'écrit comme une simple chaîne (``"Mois 1"``). Cette
-    forme explicite n'est utile que pour fusionner, tramer ou mettre en gras.
-
-    Règles de fusion (comme HTML ``colspan``/``rowspan``) :
-
-    - ``fusion_colonnes`` occupe plusieurs colonnes de la **même** ligne ;
-    - ``fusion_lignes`` occupe plusieurs lignes : les lignes suivantes
-      n'écrivent alors **rien** pour ces colonnes (elles n'ont pas de cellule) ;
-    - ``"fin"`` étend la cellule jusqu'à la dernière colonne — pas besoin de
-      compter les colonnes soi-même (source d'erreur fréquente).
+    Une cellule ordinaire s'écrit comme une chaîne. Cette forme sert à fusionner,
+    tramer ou mettre en gras. Fusions comme HTML : ``fusion_colonnes`` occupe des
+    colonnes de la même ligne, ``fusion_lignes`` réserve les lignes suivantes
+    (elles n'écrivent rien à ces colonnes), ``"fin"`` va jusqu'à la dernière.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -319,16 +310,10 @@ class _CellulePlacée(NamedTuple):
 
 
 class Tableau(_BlocBase):
-    """Tableau : en-tête(s) optionnel(s), lignes, fusions, largeurs par colonne.
+    """Tableau : en-tête(s), lignes, fusions, largeurs par colonne.
 
-    Deux façons d'écrire l'en-tête, jamais les deux ensemble :
-
-    - ``entete`` : une ligne d'en-tête simple (``["Période", "Activité"]``) ;
-    - ``entetes`` : plusieurs lignes d'en-tête (en-tête à deux niveaux, avec
-      fusions) ; les deux dernières colonnes d'un planning en sont l'exemple.
-
-    Sans ``entete`` **ni** ``entetes``, aucune ligne d'en-tête n'est produite
-    (jamais de bandeau vide) : la première ligne de ``lignes`` reste une donnée.
+    En-tête : ``entete`` (une ligne) OU ``entetes`` (plusieurs, avec fusions),
+    jamais les deux. Sans en-tête, la première ligne de ``lignes`` est une donnée.
     """
 
     type: Literal["tableau"] = "tableau"
@@ -546,21 +531,12 @@ def format_image(octets: bytes) -> str | None:
 
 
 class Image(_BlocBase):
-    """Image référencée : par document enregistré, chemin logique confiné, SVG **ou** base64.
+    """Image référencée : document enregistré, chemin logique, SVG ou base64.
 
-    Aucun chemin disque absolu n'est accepté dans un spec : la résolution passe
-    par le stockage (``app.documents.assets``), donc pas de traversée possible.
-
-    Quatre sources possibles, **exclusives** :
-
-    - ``document_id``—un document déjà enregistré (stockage contrôlé) ;
-    - ``chemin``—un chemin logique relatif au stockage (traversée refusée) ;
-    - ``svg``—un SVG écrit par l'agent (INC-123) : assaini puis rendu par
-      ``app.documents.figures``, en vectoriel pour le HTML et en PNG pour les
-      formats qui ne lisent pas le SVG (DOCX, PDF du spec, XLSX) ;
-    - ``base64``—une image inline (INC-133) : aucun fichier, aucun fournisseur.
-      Les tools de génération la **réduisent avant insertion** quand elle
-      dépasse les bornes utiles (INC-134) et signalent la transformation.
+    Aucun chemin absolu : la résolution passe par le stockage, donc pas de
+    traversée. Une seule source, exclusive : ``document_id`` (document
+    enregistré), ``chemin`` (relatif au stockage), ``svg`` (assaini puis rendu,
+    en PNG pour les formats sans SVG) ou ``base64`` (réduit avant insertion).
     """
 
     type: Literal["image"] = "image"
@@ -716,20 +692,12 @@ class SerieGraphique(BaseModel):
 
 
 class Graphique(_BlocBase):
-    """Graphique de données (INC-123) : le serveur dessine, l'agent donne les chiffres.
+    """Graphique de données : le serveur dessine, l'agent donne les chiffres.
 
-    Le SVG est construit par ``app.documents.figures`` (``render_chart``) : un
-    libellé ne peut ni fermer une balise ni injecter de script, et la palette et
-    les graduations sont fixes — même document, mêmes octets.
-
-    Deux familles, donc deux formes :
-
-    - ``bar``/``line`` exigent ``series`` (une série = un nom + une valeur par
-      label) ;
-    - ``pie``/``donut`` exigent ``valeurs`` (une par label, toutes ≥ 0).
-
-    ``legende`` devient la légende de figure imprimée sous le graphique ; sans
-    elle, l'agent a un graphique sans intitulé — permis, jamais inventé.
+    SVG construit par ``figures.render_chart`` (palette et graduations fixes,
+    libellés échappés). ``bar``/``line`` exigent ``series`` (un nom, une valeur
+    par label) ; ``pie``/``donut`` exigent ``valeurs`` (une par label, ≥ 0).
+    ``legende`` devient la légende imprimée ; absente, elle n'est pas inventée.
     """
 
     type: Literal["graphique"] = "graphique"
@@ -825,13 +793,10 @@ class ItemIllustration(BaseModel):
 
 
 class Illustration(_BlocBase):
-    """Illustration de composition (INC-123) : géométrie et couleurs serveur.
+    """Illustration de composition : géométrie et couleurs fixées par le serveur.
 
-    L'agent choisit une **composition** et fournit des libellés courts ; les
-    espacements, tailles de police et couleurs du thème sont fixés par le
-    serveur (``illustrations.render_illustration``). C'est la voie qui évite les
-    schémas dessinés à la main (coordonnées qui se chevauchent, texte qui
-    déborde) — erreur de design la plus coûteuse du produit.
+    L'agent choisit une composition et fournit des libellés courts ; espacements,
+    tailles et couleurs viennent du thème. Évite les schémas dessinés à la main.
     """
 
     type: Literal["illustration"] = "illustration"
@@ -860,10 +825,8 @@ class SautDePage(_BlocBase):
 class Sommaire(_BlocBase):
     """Table des matières paginée (champ Word ``TOC``), pas une liste recopiée.
 
-    Le champ est calculé par le lecteur à partir des styles de titre : Word le
-    remplit à l'ouverture (``w:updateFields``), LibreOffice sur demande. Les
-    numéros de page ne peuvent pas être écrits par le serveur — un DOCX n'a pas
-    de pagination avant rendu, et l'inventer produirait un sommaire faux.
+    Les numéros de page sont calculés par le lecteur à partir des styles de
+    titre : le serveur ne peut pas les écrire avant rendu, il ne les invente pas.
     """
 
     type: Literal["sommaire"] = "sommaire"
@@ -875,8 +838,8 @@ class Sommaire(_BlocBase):
 class Forme(_BlocBase):
     """Élément graphique de mise en page (bandeau, filet, étiquette).
 
-    Ces formes sont dessinées par le serveur en SVG puis rendues comme les
-    figures : l'agent choisit une intention et un texte, jamais des coordonnées.
+    Dessiné par le serveur en SVG : l'agent donne une intention et un texte,
+    jamais des coordonnées.
     """
 
     type: Literal["forme"] = "forme"
@@ -997,11 +960,10 @@ class Geometrie(BaseModel):
 
 
 class MiseEnPage(BaseModel):
-    """Surcharges de mise en page **propres au document** (le style donne le défaut).
+    """Surcharges de mise en page propres au document (le style donne le défaut).
 
-    ``format``/``orientation``/``marges`` valent ``None`` par défaut : le style
-    décide. Renseigner un champ ici l'emporte explicitement — jamais de valeur
-    implicite cachée.
+    Un champ renseigné ici l'emporte explicitement ; ``None`` laisse le style
+    décider — aucune valeur implicite cachée.
     """
 
     model_config = ConfigDict(extra="forbid")

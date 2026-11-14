@@ -106,7 +106,6 @@ NOMS_TOOLS: tuple[str, ...] = (
     "search_affectations",
     "search_documents",
     "lire_document",
-    "read_document",
     "generer_document",
     "generer_document_professionnel",
     "generer_document_html",
@@ -1003,7 +1002,7 @@ def construire_tools_generateur_offre(
     ))
     kit.enregistrer(OperationSpec(
         name="search_offres",
-        description="Offres de formation (statut, organisation) — lecture seule.",
+        description="Offres (statut, organisation) — lecture seule.",
         input_schema=OffreSearchInput,
         run=rechercher_offres,
     ))

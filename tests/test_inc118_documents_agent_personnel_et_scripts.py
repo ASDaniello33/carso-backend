@@ -116,7 +116,7 @@ def test_deep_tools_de_l_agent_personnel_portent_la_generation(session: Session)
     noms = {outil.name for outil in agent.deep_tools()}
     assert "generer_document_professionnel" in noms
     assert "corriger_document" in noms
-    assert "read_document" in noms or "lire_document" in noms
+    assert "lire_document" in noms
     # Pas de doublon de nom : deux outils homonymes seraient indiscernables.
     tous = [outil.name for outil in agent.deep_tools()]
     assert len(tous) == len(set(tous))

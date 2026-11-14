@@ -65,6 +65,12 @@ def test_deep_tools_apercu_seulement() -> None:
     # L'aperçu n'écrit jamais : seul le tool HITL séparé importe.
     assert "import_beneficiaires" in noms
     assert "get_mission" in noms
+    # Le classeur d'un import se dépose depuis une session : l'agent doit
+    # pouvoir lire les pièces de la session comme celles de la mission, par une
+    # seule lecture à ancre.
+    assert "list_documents" in noms
+    assert "list_mission_documents" not in noms
+    assert "list_session_documents" not in noms
     assert "get_mission_offre" in noms
     assert "get_mission_lots" in noms
     assert "list_mission_equipe" in noms

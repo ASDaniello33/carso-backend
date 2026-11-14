@@ -229,7 +229,7 @@ def test_plusieurs_types_d_entite_pour_une_meme_ressource(
     ]
     # Même un nom d'action hérité est rendu lisible, jamais brut.
     assert [e["libelle"] for e in corps["elements"]] == [
-        "Offre de formation publiée",
+        "Offre publiée",
         "Offre soumise à revue",
     ]
     # Deux types vides ou répétés ne changent pas le résultat d'un type simple.
@@ -307,7 +307,7 @@ def test_suppression_par_entite_dans_le_filtre(
         {
             "action": ActionAudit.SUPPRESSION_EFFECTUEE.value,
             "entity_type": "offres",
-            "libelle": "Suppression d'une offre de formation",
+            "libelle": "Suppression d'une offre",
         }
     ]
     # Aucune entrée pour une entité jamais supprimée : le filtre ne propose que
@@ -317,7 +317,7 @@ def test_suppression_par_entite_dans_le_filtre(
     element = api_client.get(f"{PRÉFIXE}/audit", params={"action": "suppression.effectuee"}).json()[
         "elements"
     ][0]
-    assert element["libelle"] == "Suppression d'une offre de formation"
+    assert element["libelle"] == "Suppression d'une offre"
     assert element["motif"] == "offre émise en double"
 
 

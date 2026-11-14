@@ -24,8 +24,8 @@ dashboard s'affiche directement dans la **page Rapports et indicateurs**
 
 - **Valeurs**—uniquement le résultat réel de `query_analytics`
   (base de données), du texte d'un document lu via `read_document_range`
-  (pages PDF, éléments DOCX, lignes XLSX—`read_document` et
-  `lire_document` rendent la fiche + un aperçu borné du texte ;
+  (pages PDF, éléments DOCX, lignes XLSX—`lire_document` rend la fiche +
+  un aperçu borné du texte ;
   `get_document_structure` dit les feuilles, les pages et
   `nb_pages`/`unite_pagination`, `chercher_dans_document` localise la
   donnée (élément + extrait borné + `relire`) AVANT la lecture,

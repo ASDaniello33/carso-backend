@@ -148,7 +148,7 @@ def test_preparer_lot_valide_brouillon(session: Session) -> None:
     } <= noms
     assert "request_agent_task" in noms
     assert "get_agent_task_result" in noms
-    assert "read_document" in noms
+    assert "lire_document" in noms
     assert "search_organisations" in noms
     assert "search_missions" in noms
     assert "web_search" in DEFINITION.capabilities

@@ -199,6 +199,8 @@ def test_annonce_commentaires_et_suppression_auteur(api_session_factory) -> None
             annonce.id, auteur_id=bob.id, contenu="Bien noté"
         )
         assert service.lister_commentaires(annonce.id)[0].id == commentaire.id
+        # Compteur du fil : il se lit sans déplier (retour utilisateur 13/11).
+        assert service.compter_commentaires([annonce.id]).get(annonce.id) == 1
 
         with pytest.raises(PermissionDeniedError):
             service.supprimer_annonce(annonce.id, utilisateur_id=bob.id)
@@ -211,6 +213,8 @@ def test_annonce_commentaires_et_suppression_auteur(api_session_factory) -> None
         with pytest.raises(PermissionDeniedError):
             service.supprimer_commentaire(commentaire.id, utilisateur_id=alice.id)
         service.supprimer_commentaire(commentaire.id, utilisateur_id=bob.id)
+        # Un commentaire supprimé ne compte plus.
+        assert service.compter_commentaires([annonce.id]).get(annonce.id, 0) == 0
     finally:
         session.close()
 

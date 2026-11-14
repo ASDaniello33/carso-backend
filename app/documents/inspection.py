@@ -26,6 +26,7 @@ s'arrête, et l'information est renvoyée dans ``limites``.
 
 from __future__ import annotations
 
+import copy
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +35,7 @@ from app.documents.extraction.base import require_library
 from app.documents.styles import EMU_PAR_MM
 
 __all__ = [
+    "structure_document",
     "inspecter_docx",
     "inspecter_pdf",
     "inspecter_xlsx",
@@ -50,6 +52,51 @@ MAX_BLOCS = 400
 MAX_CELLULES = 2000
 ANALYSE_MAX_PAGES = 10
 _EXTRAIT_RESUME = 240
+
+#: Cache d'inspection par (chemin, mtime, taille, niveau).
+#:
+#: ``get_document_structure`` était appelé plusieurs fois dans un même tour
+#: (l'agent relit avant de corriger) et reparsait le fichier à chaque fois :
+#: pdfplumber (typographie + tableaux) coûte plusieurs secondes sur un PDF.
+#: La clé inclut mtime et taille : un fichier remplacé est réinspecté, aucune
+#: donnée périmée ne peut sortir. Le retour est une copie : l'appelant peut
+#: modifier son dict sans altérer le cache.
+_CACHE: dict[tuple[str, int, int, str], dict[str, Any]] = {}
+_CACHE_MAX = 16
+
+
+def structure_document(chemin: Path, *, niveau: str = "resume") -> dict[str, Any]:
+    """Inspecte un DOCX/PDF/XLSX, avec mémoïsation par fichier et niveau.
+
+    Même contrat et même résultat que ``inspecter_docx``/``inspecter_pdf``/
+    ``inspecter_xlsx`` : aucune analyse n'est modifiée, seule la répétition
+    d'un même calcul est évitée. Un fichier modifié (mtime/taille différentes)
+    est réinspecté.
+
+    Raises:
+        ValidationError: format non inspectable ou fichier illisible.
+    """
+    suffixe = chemin.suffix.lower()
+    detail = _niveau(niveau)
+    stat = chemin.stat()
+    cle = (str(chemin), stat.st_mtime_ns, stat.st_size, detail)
+    memoise = _CACHE.get(cle)
+    if memoise is not None:
+        return copy.deepcopy(memoise)
+    if suffixe == ".docx":
+        resultat = inspecter_docx(chemin, niveau=detail)
+    elif suffixe == ".pdf":
+        resultat = inspecter_pdf(chemin, niveau=detail)
+    elif suffixe == ".xlsx":
+        resultat = inspecter_xlsx(chemin, niveau=detail)
+    else:
+        raise ValidationError(
+            f"Inspection non supportée pour {chemin.suffix or 'un fichier sans extension'}"
+        )
+    _CACHE[cle] = copy.deepcopy(resultat)
+    while len(_CACHE) > _CACHE_MAX:
+        _CACHE.pop(next(iter(_CACHE)))
+    return resultat
 
 
 def _niveau(valeur: str) -> str:

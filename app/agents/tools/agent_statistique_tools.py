@@ -11,7 +11,7 @@ Tools :
 - ``search_missions`` / ``search_sessions`` / ``search_beneficiaires`` /
   ``search_offres`` : lectures nommées bornées utiles au ciblage d'une
   agrégation (mêmes fonctions que le généraliste, readonly) ;
-- ``read_document`` / ``lire_document`` : fiche d'un document (nom, type,
+- ``lire_document`` : fiche d'un document (nom, type,
   version, taille) + aperçu borné de son texte ;
 - ``get_document_structure`` / ``read_document_range`` : structure (feuilles
   XLSX, pages PDF, styles DOCX, ``nb_pages`` + ``unite_pagination``) puis
@@ -74,7 +74,6 @@ NOMS_TOOLS: tuple[str, ...] = (
     "rechercher_lieu",
     "calculer_itineraire",
     "query_analytics",
-    "read_document",
     "lire_document",
     "get_document_structure",
     "read_document_range",
@@ -162,7 +161,7 @@ def construire_tools_statistique(
     Args:
         definition: contrat de l'agent (allow-list appliquée par le harnais).
         session_factory: fabrique de sessions des tools (1 transaction par appel).
-        read_document_tool: tool ``read_document`` câblé par l'appelant
+        read_document_tool: tool ``lire_document`` câblé par l'appelant
             (source « documents » des dashboards générés) — optionnel.
     """
     kit = AgentTools(definition, readonly=True, session_factory=session_factory)
@@ -195,7 +194,7 @@ def construire_tools_statistique(
     ))
     kit.enregistrer(OperationSpec(
         name="search_offres",
-        description="Offres de formation (statut, organisation).",
+        description="Offres (statut, organisation).",
         input_schema=OffreSearchInput,
         run=rechercher_offres,
     ))
@@ -246,7 +245,7 @@ def construire_tools_statistique(
 
     outils = (*outils, *tools_documents_pour(definition, session_factory))
 
-    # ``read_document`` injecté par l'appelant : conservé seulement s'il n'est pas
+    # ``lire_document`` injecté par l'appelant : conservé seulement s'il n'est pas
     # déjà construit ci-dessus (jamais deux fois le même nom dans le graphe).
     noms = {outil.name for outil in outils}
     if read_document_tool is not None and read_document_tool.name not in noms:

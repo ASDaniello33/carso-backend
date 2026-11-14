@@ -97,7 +97,7 @@ def test_entete_porte_le_type_l_uuid_et_la_route() -> None:
 
 
 def test_entete_offre_et_session() -> None:
-    assert "offre de formation" in entete_page(
+    assert "offre" in entete_page(
         PageCourante("offre", OFFRE, f"/offres/{OFFRE}")
     )
     assert "session" in entete_page(
@@ -144,7 +144,7 @@ def test_contenu_en_parties_de_texte_recoit_l_entete() -> None:
     ]
     sortie = injecter_page_dans_payload(payload)
     contenu = sortie["messages"][0]["content"]
-    assert contenu[0]["text"].startswith("[Page ouverte : offre de formation")
+    assert contenu[0]["text"].startswith("[Page ouverte : offre")
     assert contenu[1]["text"] == "Ajoute le CV à @OffreActuel."
 
 
@@ -218,3 +218,27 @@ def test_paliers_de_recherche_dans_le_prompt() -> None:
     assert "15 au maximum" in systeme
     assert "25 au maximum" in systeme
     assert "requetes" in systeme
+
+
+def test_l_entete_perimee_d_un_message_anterieur_est_retiree() -> None:
+    """La page quittée ne reste pas dans l'historique du modèle.
+
+    Constat : après /Dashboard → /offres/<id>, le message précédent portait
+    encore « [Page ouverte : page /dashboard] » et l'agent répondait sur le
+    tableau de bord. Un seul en-tête doit rester : celui du dernier message.
+    """
+    payload = _payload(page=_page("offre", OFFRE, f"/offres/{OFFRE}"))
+    payload["messages"] = [
+        {
+            "id": "m0",
+            "role": "user",
+            "content": "[Page ouverte : page (route /dashboard)]\nBonjour",
+        },
+        {"id": "m1", "role": "user", "content": "Et pour cette offre ?"},
+    ]
+
+    sortie = injecter_page_dans_payload(payload)
+
+    assert sortie["messages"][0]["content"] == "Bonjour"
+    assert entete_page(page_depuis_payload(payload)) in sortie["messages"][1]["content"]
+    assert sortie["messages"][1]["content"].count("[Page ouverte") == 1

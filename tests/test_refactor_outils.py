@@ -279,7 +279,10 @@ def test_assistant_couvre_lecture_mission_complet() -> None:
         "get_mission_offre",
         "get_mission_lots",
         "list_mission_equipe",
-        "list_mission_documents",
+        # Un import part d'une session : le classeur s'y est déposé. Un seul
+        # outil couvre la mission et la session ; sans lui, l'agent recevait un
+        # ``session_id`` sans moyen de retrouver le document.
+        "list_documents",
     }
     assert requis <= set(DEFINITION.tools)
 

@@ -153,7 +153,16 @@ def test_les_agents_producteurs_recoivent_le_bloc_de_generation() -> None:
     ):
         definition = PAR_AGENT[agent_id]
         assert TOOLS_GENERATION.intersection(definition.tools), agent_id
-        assert BLOC_GENERATION_DOCUMENTS.strip() in build_system_prompt(definition), agent_id
+        # Le bloc doit être présent, sauf si le prompt de l'agent le documente
+        # déjà lui-même (``blocs_inline``) : mêmes règles, une seule fois.
+        if "generation" in definition.blocs_inline:
+            assert not BLOC_GENERATION_DOCUMENTS.strip() in build_system_prompt(
+                definition
+            ), agent_id
+        else:
+            assert BLOC_GENERATION_DOCUMENTS.strip() in build_system_prompt(
+                definition
+            ), agent_id
 
 
 def test_le_bloc_du_modele_va_aux_agents_qui_editent_une_copie() -> None:
@@ -161,7 +170,14 @@ def test_le_bloc_du_modele_va_aux_agents_qui_editent_une_copie() -> None:
     for agent_id in ("agent_generateur_offre", "agent_assistant_formateur"):
         definition = PAR_AGENT[agent_id]
         assert TOOLS_MODELE_ORGANISATION.intersection(definition.tools), agent_id
-        assert BLOC_MODELE_ORGANISATION.strip() in build_system_prompt(definition), agent_id
+        if "modele" in definition.blocs_inline:
+            assert BLOC_MODELE_ORGANISATION.strip() not in build_system_prompt(
+                definition
+            ), agent_id
+        else:
+            assert BLOC_MODELE_ORGANISATION.strip() in build_system_prompt(
+                definition
+            ), agent_id
     autre = PAR_AGENT["agent_rh"]
     assert not TOOLS_MODELE_ORGANISATION.intersection(autre.tools)
     assert BLOC_MODELE_ORGANISATION.strip() not in build_system_prompt(autre)

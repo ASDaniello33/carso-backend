@@ -130,27 +130,32 @@ class GenererDocumentInput(BaseModel):
     de ``build_docx``/``build_pdf`` — ce tool générique reste la porte commune.
     """
 
-    format: TypeFormat = Field(description="Format cible : 'docx' | 'xlsx' | 'pdf'.")
+    format: TypeFormat | None = Field(
+        default=None,
+        description=(
+            "Format cible : 'docx' | 'xlsx' | 'pdf'. Omis, il est déduit de "
+            "l'extension de ``nom_fichier`` (.pdf -> PDF …), sinon DOCX."
+        ),
+    )
     nom_fichier: str = Field(
-        description="Nom logique du document (extension ajoutée selon le format)."
+        description=(
+            "Nom logique du document. Son extension fixe le format quand "
+            "``format`` est omis."
+        )
     )
     html: str | None = Field(
         default=None,
         max_length=400_000,
         description=(
-            "VOIE PRINCIPALE : corps du document en HTML sémantique. Le serveur "
-            "l'habille avec la feuille de style CARSO et le rend en DOCX ou PDF. "
-            "Structure attendue : <div class=\"document\"> puis des blocs : "
-            "<div class=\"h1\">…</div> (h1 à h6), <p class=\"p\">…</p>, "
-            "<ul class=\"liste\"><li>…</li></ul>, <table class=\"tableau\">, "
+            "VOIE PRINCIPALE : corps du document en HTML sémantique, habillé par "
+            "la feuille CARSO et rendu en DOCX ou PDF. Blocs : <div class=\"h1\"> "
+            "à h6, <p class=\"p\">, <ul class=\"liste\">, <table class=\"tableau\">, "
             "<div class=\"encadre\">, <blockquote class=\"citation\">, "
-            "<div class=\"legende\">, <div class=\"saut-page\"></div>. En ligne : "
-            "<span class=\"bold\">, <span class=\"italic\">, "
-            "<span class=\"souligne\">, <span class=\"reference\">. Aucun « — » : "
-            "utiliser « - » ou une virgule. Images : <img src=\"https://…\"> (le "
-            "serveur la télécharge, la vérifie et l'embarque) — jamais un base64 "
-            "écrit à la main. Graphiques : <figure data-graphique=\"id\"></figure> "
-            "rempli par le paramètre `graphiques`."
+            "<div class=\"saut-page\">. En ligne : bold, italic, souligne, "
+            "reference. Aucun « — » : « - » ou une virgule. Images : "
+            "<img src=\"https://…\"> (téléchargée, vérifiée, embarquée), jamais de "
+            "base64 écrit à la main. Graphiques : <figure data-graphique=\"id\"> "
+            "rempli par `graphiques`."
         ),
     )
     css: str | None = Field(
@@ -198,8 +203,12 @@ class GenererDocumentInput(BaseModel):
             "Ne jamais inventer d'identifiant."
         ),
     )
-    propose_par: str = Field(
-        description="Identifiant de l'agent proposant (ex. 'agent_generaliste')."
+    propose_par: str | None = Field(
+        default=None,
+        description=(
+            "Identifiant de l'agent proposant. Omis, l'agent authentifié du "
+            "contexte est inscrit : ne jamais recopier ni inventer un identifiant."
+        ),
     )
     titre: str | None = Field(
         default=None,
@@ -272,37 +281,26 @@ class SerieGraphiqueInput(BaseModel):
 
 
 class GraphiqueInput(BaseModel):
-    """Spec d'un graphique de données (INC-123 : tous les outils de documents).
+    """Spec d'un graphique de données, commun aux outils de documents.
 
-    Le SVG est construit **par le serveur** — l'agent ne fournit que des données
-    et ne peut donc pas injecter de balise. Les valeurs doivent venir d'une
-    lecture réelle (``search_*``, ``read_document``) ou de l'utilisateur : une
-    donnée absente s'écrit « (à compléter) », jamais une invention.
-
-    Utilisable de deux façons :
-
-    - dans ``generer_document_professionnel`` / ``generer_document_html`` :
-      ``graphiques: {id: spec}`` + ancre ``<figure data-graphique="id">`` ;
-    - dans ``generer_document`` : bloc ``{"type": "graphique", "variante": …}``
-      du ``document_spec`` (mêmes champs, sans ``id`` : la position du bloc fait
-      l'emplacement).
+    Le SVG est construit par le serveur : l'agent ne fournit que des données
+    réelles (lecture ou utilisateur), jamais une balise. Deux usages : paramètre
+    ``graphiques`` avec ancre ``<figure data-graphique="id">``, ou bloc
+    ``{"type": "graphique"}`` du ``document_spec`` (sans ``id``).
     """
 
     id: str = Field(
         min_length=1,
         max_length=64,
         description=(
-            "Identifiant d'ancrage, unique dans le document. Le corps HTML doit "
-            "porter <figure data-graphique=\"ce-meme-id\"></figure> là où le "
-            "graphique doit apparaître."
+            "Identifiant d'ancrage unique : le corps HTML porte "
+            "<figure data-graphique=\"ce-meme-id\"></figure> à cet endroit."
         ),
     )
     type: Literal["bar", "line", "pie", "donut"] = Field(
         description=(
-            "'bar' : barres groupées (comparer des séries par catégorie) ; "
-            "'line' : courbes (évolution dans le temps) ; "
-            "'pie' : camembert (répartition, ≤ 5-6 parts) ; "
-            "'donut' : anneau (répartition avec total au centre)."
+            "'bar' barres groupées ; 'line' courbes ; 'pie' camembert "
+            "(≤ 5-6 parts) ; 'donut' anneau avec total au centre."
         )
     )
     titre: str | None = Field(
@@ -312,23 +310,21 @@ class GraphiqueInput(BaseModel):
         min_length=1,
         max_length=60,
         description=(
-            "Étiquettes de l'axe X (bar/line) ou parts (pie/donut). Courts : les "
-            "libellés trop longs sont tronqués à l'affichage."
+            "Étiquettes de l'axe X (bar/line) ou parts (pie/donut) ; courtes "
+            "(tronquées à l'affichage)."
         ),
     )
     series: list[SerieGraphiqueInput] | None = Field(
         default=None,
         description=(
-            "bar/line uniquement : une ou plusieurs séries nommées, chacune avec "
-            "autant de valeurs que de labels. Deux séries donnent des barres "
-            "groupées ou deux courbes."
+            "bar/line : une ou plusieurs séries nommées, autant de valeurs que "
+            "de labels."
         ),
     )
     valeurs: list[float] | None = Field(
         default=None,
         description=(
-            "pie/donut uniquement : une valeur par label (toutes ≥ 0, somme > 0). "
-            "Valeurs négatives refusées."
+            "pie/donut : une valeur par label, toutes ≥ 0 et somme > 0."
         ),
     )
     y_label: str | None = Field(
@@ -337,26 +333,19 @@ class GraphiqueInput(BaseModel):
     legende: str | None = Field(
         default=None,
         max_length=300,
-        description=(
-            "Légende de la figure (figcaption), par exemple « Figure 1 – CA par "
-            "trimestre ». Sans légende, le titre est repris."
-        ),
+        description="Légende de figure ; sans elle, le titre est repris.",
     )
     total_reference: float | None = Field(
         default=None,
         gt=0,
         description=(
-            "pie/donut uniquement : total de référence des pourcentages, quand le "
-            "total réel n'est pas la somme des parts affichées (frais imprévus, "
-            "autres postes). Par défaut : la somme des valeurs."
+            "pie/donut : total des pourcentages quand il diffère de la somme des "
+            "parts ; par défaut la somme."
         ),
     )
     afficher_valeurs: bool = Field(
         default=False,
-        description=(
-            "pie/donut uniquement : écrire le montant de chaque part avant son "
-            "pourcentage dans la légende."
-        ),
+        description="pie/donut : montant de chaque part avant son pourcentage.",
     )
     largeur: int = Field(default=640, ge=200, le=2400, description="Largeur en pixels.")
     hauteur: int = Field(default=400, ge=150, le=1600, description="Hauteur en pixels.")
@@ -375,30 +364,22 @@ class ItemIllustrationInput(BaseModel):
         default=None,
         max_length=30,
         description=(
-            "Icône au trait, par nom : 'personne', 'equipe', 'cible', 'calendrier', "
-            "'graphique', 'check', 'croix', 'livre', 'horloge', 'carte', 'prix', "
-            "'bouclier', 'ampoule', 'lien', 'dossier', 'mail', 'telephone', "
-            "'globe', 'fleche', 'etoile', 'alerte'. Une icône inconnue est refusée "
-            "avec la liste des noms valides."
+            "Icône au trait, par nom ('personne', 'equipe', 'cible', 'calendrier', "
+            "'graphique', 'check', 'alerte'…) ; une icône inconnue est refusée avec "
+            "la liste des noms valides."
         ),
     )
 
 
 class IllustrationInput(BaseModel):
-    """Spec d'une illustration de composition (INC-123).
+    """Spec d'une illustration de composition.
 
-    L'agent choisit la **composition** et fournit des libellés courts ; la
-    géométrie, les espacements, les tailles et les couleurs du thème sont fixés
-    par le serveur. C'est la voie recommandée pour un visuel sans chiffres —
-    dessiner soi-même un schéma produit des chevauchements et du texte hors cadre.
-
-    Bornes d'items par composition (imposées par la mise en page) :
-    ``icones`` 2–4, ``etapes`` 2–5, ``cycle`` 2–5, ``pyramide`` 2–4, ``frise``
-    2–6, ``comparaison`` exactement 2.
-
+    L'agent choisit la composition et fournit des libellés courts ; géométrie,
+    espacements, tailles et couleurs viennent du serveur. Voie recommandée pour
+    un visuel sans chiffres. Bornes d'items : ``icones`` 2–4, ``etapes`` 2–5,
+    ``cycle`` 2–5, ``pyramide`` 2–4, ``frise`` 2–6, ``comparaison`` 2.
     Comme les graphiques : ``illustrations: {id: spec}`` + ancre
-    ``<figure data-illustration="id">`` (HTML), ou bloc
-    ``{"type": "illustration", "variante": …}`` du ``document_spec``.
+    ``<figure data-illustration="id">``, ou bloc du ``document_spec``.
     """
 
     id: str = Field(
@@ -444,8 +425,12 @@ class GenererDocumentHtmlInput(BaseModel):
     fusions réelles, PDF en grille aplatie (contenu identique).
     """
 
-    format: Literal["docx", "pdf"] = Field(
-        description="Format cible : 'docx' (fidèle au HTML+CSS) ou 'pdf'."
+    format: Literal["docx", "pdf"] | None = Field(
+        default=None,
+        description=(
+            "Format cible : 'docx' (fidèle au HTML+CSS) ou 'pdf'. Omis, il est "
+            "déduit de l'extension de ``nom_fichier`` (.pdf -> PDF), sinon DOCX."
+        ),
     )
     html: str = Field(
         min_length=1,
@@ -459,7 +444,7 @@ class GenererDocumentHtmlInput(BaseModel):
             "figures dessinées par le serveur, préférer 'graphiques' / "
             "'illustrations' avec une ancre <figure data-graphique|data-illustration>. "
             "Contenu des données : uniquement des informations réelles issues de "
-            "lectures (search_*, read_document) ou de l'utilisateur — une donnée "
+            "lectures (search_*, lire_document) ou de l'utilisateur — une donnée "
             "absente s'écrit '(à compléter)', jamais une invention."
         ),
     )
@@ -494,8 +479,12 @@ class GenererDocumentHtmlInput(BaseModel):
             "Ne jamais inventer d'identifiant."
         ),
     )
-    propose_par: str = Field(
-        description="Identifiant de l'agent proposant (ex. 'agent_generateur_offre')."
+    propose_par: str | None = Field(
+        default=None,
+        description=(
+            "Identifiant de l'agent proposant. Omis, l'agent authentifié du "
+            "contexte est inscrit : ne jamais recopier ni inventer un identifiant."
+        ),
     )
     css: str | None = Field(
         default=None,
@@ -586,7 +575,7 @@ class GenererDocumentProfessionnelInput(BaseModel):
             "Ne PAS écrire de <style> ni de CSS en ligne (le thème est injecté ; "
             "un <style> est supprimé et signalé en avertissement). "
             "Données : uniquement des informations réelles issues de lectures "
-            "(search_*, read_document) ou de l'utilisateur — une donnée absente "
+            "(search_*, lire_document) ou de l'utilisateur — une donnée absente "
             "s'écrit '(à compléter)', jamais une invention. "
             "DECK PPTX (format='pptx') : même paramètre, mais le corps est une "
             "suite de diapositives — une <section class='cover'> (title de "
@@ -636,7 +625,8 @@ class GenererDocumentProfessionnelInput(BaseModel):
     format: Literal["pdf", "docx", "pptx", "xlsx"] | None = Field(
         default=None,
         description=(
-            "Format cible, requis pour action='generer' et action='demarrer'. "
+            "Format cible. Omis : extension de ``nom_fichier`` (.pdf -> PDF), "
+            "sinon DOCX. "
             "'pdf' (défaut de fait pour un livrable à remettre), "
             "'docx' seulement si l'utilisateur doit modifier le fichier, "
             "'pptx' pour une présentation/deck 16:9 native (PowerPoint), "
@@ -736,8 +726,12 @@ class GenererDocumentProfessionnelInput(BaseModel):
             "Ne jamais inventer d'identifiant."
         ),
     )
-    propose_par: str = Field(
-        description="Identifiant de l'agent proposant (ex. 'agent_generateur_offre')."
+    propose_par: str | None = Field(
+        default=None,
+        description=(
+            "Identifiant de l'agent proposant. Omis, l'agent authentifié du "
+            "contexte est inscrit : ne jamais recopier ni inventer un identifiant."
+        ),
     )
 
     action: Literal["generer", "demarrer", "section", "finaliser"] = Field(
@@ -794,9 +788,10 @@ class GenererDocumentProfessionnelInput(BaseModel):
                     f"(≤ {_BORNE_SECTION_CARACTERES} caractères), puis "
                     "action='finaliser' avec brouillon_id."
                 )
-            if not self.titre or not self.type_document or not self.format:
+            if not self.titre or not self.type_document:
                 raise ValueError(
-                    "action='generer' exige titre, format et type_document."
+                    "action='generer' exige titre et type_document (format "
+                    "facultatif : extension du nom, sinon DOCX)."
                 )
         elif self.action == "demarrer":
             if self.contenu_html:
@@ -814,10 +809,11 @@ class GenererDocumentProfessionnelInput(BaseModel):
                     "action='demarrer' crée un NOUVEAU brouillon : ne pas "
                     "fournir brouillon_id."
                 )
-            if not self.titre or not self.type_document or not self.format:
+            if not self.titre or not self.type_document:
                 raise ValueError(
-                    "action='demarrer' exige titre, format et type_document : "
-                    "l'habillage est figé pour tout le brouillon."
+                    "action='demarrer' exige titre et type_document : "
+                    "l'habillage est figé pour tout le brouillon (format "
+                    "facultatif : extension du nom, sinon DOCX)."
                 )
         elif self.action == "section":
             if self.brouillon_id is None:
@@ -953,8 +949,13 @@ class CorrigerDocumentInput(BaseModel):
             "PDF (celui produit avec le DOCX par ``generer_document``)."
         ),
     )
-    format: TypeFormat = Field(
-        default="docx", description="Format cible : 'docx' | 'pdf' | 'xlsx'."
+    format: TypeFormat | None = Field(
+        default=None,
+        description=(
+            "Format cible : 'docx' | 'pdf' | 'xlsx'. Avec ``document_id``, le "
+            "format du document versionné fait foi ; sans, il est déduit de "
+            "l'extension de ``nom_fichier``, sinon DOCX."
+        ),
     )
     nom_fichier: str | None = Field(
         default=None, description="Nom logique du document (obligatoire sans ``document_id``)."
@@ -1079,9 +1080,38 @@ class ModifierSectionDocumentInput(BaseModel):
 
 
 class LireDocumentInput(BaseModel):
-    """Entrée typée de la lecture : un identifiant de document, rien d'autre."""
+    """Entrée typée de la lecture : un identifiant de document.
+
+    Un CSV rend une lecture **par colonnes** (``colonnes``, ``apercu_lignes`` en
+    dictionnaires, ``separateur``, ``encodage``, ``problemes``) au lieu d'un
+    bloc de texte : ses trois options ci-dessous n'agissent que sur lui, et
+    sont **refusées** sur un autre format plutôt qu'ignorées en silence.
+    """
 
     document_id: UUID = Field(description="UUID du document à lire.")
+    separateur: str | None = Field(
+        default=None,
+        max_length=12,
+        description=(
+            "CSV uniquement : séparateur du fichier (',' ';' '|' ou tabulation). "
+            "Omettre pour la détection automatique — la valeur retenue est rendue "
+            "dans ``separateur``. Sur un autre format, l'option est refusée."
+        ),
+    )
+    encodage: str | None = Field(
+        default=None,
+        max_length=20,
+        description=(
+            "CSV uniquement : 'utf-8' ou 'cp1252'. Omettre : UTF-8 essayé d'abord, "
+            "puis cp1252 (exports Excel français) — la valeur retenue est rendue."
+        ),
+    )
+    max_lignes: int | None = Field(
+        default=None,
+        ge=1,
+        le=200,
+        description="CSV uniquement : lignes d'aperçu rendues (défaut 40, plafond 200).",
+    )
 
 
 class InspecterDocumentInput(BaseModel):
@@ -1172,6 +1202,24 @@ class ChercherDocumentInput(BaseModel):
         default=None,
         description="XLSX uniquement : limiter la recherche à une feuille (sinon toutes).",
     )
+    colonne: str | None = Field(
+        default=None,
+        max_length=200,
+        description=(
+            "CSV uniquement : restreindre la fouille à une colonne — nom d'en-tête "
+            "(insensible aux accents et à la casse) ou numéro 1-indexé. Une colonne "
+            "inconnue est refusée avec la liste réelle des colonnes, jamais "
+            "silencieusement traduite en zéro résultat."
+        ),
+    )
+    separateur: str | None = Field(
+        default=None,
+        max_length=12,
+        description=(
+            "CSV uniquement : séparateur, quand la détection s'est trompée (le "
+            "signe : ``problemes`` de lire_document annonce des largeurs inégales)."
+        ),
+    )
 
     @field_validator("mot_cle", mode="before")
     @classmethod
@@ -1222,7 +1270,10 @@ class CibleLecture(BaseModel):
         default=None,
         ge=1,
         le=200,
-        description="Fenêtre de CETTE cible (tableau DOCX, feuille XLSX) ; absent = le plafond de l'appel.",
+        description=(
+            "Fenêtre de CETTE cible (tableau DOCX, feuille XLSX) ; absent = le "
+            "plafond de l'appel."
+        ),
     )
 
 
@@ -1306,6 +1357,14 @@ class LireElementInput(BaseModel):
         ge=1,
         le=40_000,
         description="Caractères lus au plus d'une page PDF — défaut 8 000, plafond 40 000.",
+    )
+    separateur: str | None = Field(
+        default=None,
+        max_length=12,
+        description=(
+            "CSV uniquement : séparateur du fichier, identique à celui de "
+            "chercher_dans_document (mêmes arguments que ``hit['relire']``)."
+        ),
     )
 
     @field_validator("index", mode="before")

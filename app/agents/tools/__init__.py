@@ -34,7 +34,7 @@ from app.agents.tools.agent_assistant_formateur_tools import (
     construire_tools_assistant_formateur,
 )
 from app.agents.tools.agent_generaliste_tools import (
-    NOMS_TOOLS as NOMS_TOOLS_GENERALISTE,
+    NOMS_TOOLS_GENERALISTE as NOMS_TOOLS_GENERALISTE,
 )
 from app.agents.tools.agent_generaliste_tools import (
     construire_tools_generaliste,

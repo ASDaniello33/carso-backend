@@ -617,7 +617,7 @@ def build_default_manager() -> AgentRuntimeManager:
         return _fabrique
 
     def _generaliste(session: Session) -> Any:
-        # ``read_document`` est injecté par l'appelant : l'agent reste indépendant
+        # ``lire_document`` est injecté par l'appelant : l'agent reste indépendant
         # du câblage documentaire (voir generaliste_readonly).
         lecture = next(
             (
@@ -632,7 +632,7 @@ def build_default_manager() -> AgentRuntimeManager:
         )
 
     def _statistique(session: Session) -> Any:
-        # ``read_document`` pour l'agent statistique : source « documents » des
+        # ``lire_document`` pour l'agent statistique : source « documents » des
         # dashboards générés — même principe d'injection que le généraliste.
         lecture = next(
             (
@@ -648,7 +648,7 @@ def build_default_manager() -> AgentRuntimeManager:
 
     def _personnel(session: Session) -> Any:
         # Même surface de lecture que le généraliste, contrat propre au compte :
-        # ``read_document`` est injecté comme partout, jamais construit ici.
+        # ``lire_document`` est injecté comme partout, jamais construit ici.
         lecture = next(
             (
                 tool

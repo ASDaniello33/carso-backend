@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.application.dto import DecisionInput, DocumentUploadInput
 from app.application.perimetre import Perimetre
 from app.application.services import DocumentService, ModeleDocumentService
+from app.application.services.document_service import document_dans_perimetre
 from app.core.config import get_settings
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.documents.previews import chemin_apercu
@@ -267,6 +268,69 @@ def test_cv_depose_par_agent_reste_une_proposition(
     )
 
     assert document.statut == StatutDocument.PROPOSED.value
+
+
+# --- CV lisible par tout compte (décision CARSO 13/11) ------------------------
+
+
+def test_cv_visible_pour_un_compte_hors_perimetre(
+    service: DocumentService,
+    session: Session,
+    storage: LocalDocumentStorage,
+    donnees: Donnees,
+) -> None:
+    """Le CV reste rangé dans la fiche de la personne, mais tout compte actif
+    le consulte — même sans mission commune (décision CARSO 13/11)."""
+    cv = service.enregistrer_document(
+        _entree(
+            type_document=TypeDocument.CV.value,
+            nom="CV Omar Haddad.pdf",
+            equipe_id=donnees.equipe.id,
+        )
+    )
+    perimetre_formateur = Perimetre(
+        role=RoleUtilisateur.FORMATEUR.value,
+        utilisateur_id=uuid4(),
+        equipe_id=uuid4(),
+        est_complet=False,
+    )
+    lecteur = DocumentService(session, storage=storage, perimetre=perimetre_formateur)
+
+    assert document_dans_perimetre(cv, perimetre_formateur, session) is True
+    assert [document.id for document in lecteur.lister_pour("equipe_id", donnees.equipe.id)] == [
+        cv.id
+    ]
+
+
+def test_fiche_de_personne_hors_perimetre_ne_livre_que_les_cv(
+    service: DocumentService,
+    session: Session,
+    storage: LocalDocumentStorage,
+    donnees: Donnees,
+) -> None:
+    """Ouvrir les CV ne doit pas ouvrir le reste du dossier d'une personne :
+    hors périmètre, le listing d'une fiche ne rend que les CV."""
+    cv = service.enregistrer_document(
+        _entree(
+            type_document=TypeDocument.CV.value,
+            nom="CV Omar Haddad.pdf",
+            equipe_id=donnees.equipe.id,
+        )
+    )
+    autre = service.enregistrer_document(
+        _entree(nom="Attestation.pdf", equipe_id=donnees.equipe.id)
+    )
+    perimetre_formateur = Perimetre(
+        role=RoleUtilisateur.FORMATEUR.value,
+        utilisateur_id=uuid4(),
+        equipe_id=uuid4(),
+        est_complet=False,
+    )
+    lecteur = DocumentService(session, storage=storage, perimetre=perimetre_formateur)
+
+    livres = {document.id for document in lecteur.lister_pour("equipe_id", donnees.equipe.id)}
+    assert livres == {cv.id}
+    assert autre.id not in livres
 
 
 def test_ancre_multiple_refusee(service: DocumentService) -> None:

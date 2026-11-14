@@ -13,13 +13,101 @@ LLM n'est jamais exécutée sans validation (instruction/05 §11).
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from functools import cache
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from pydantic import ValidationError as PydanticValidationError
 
 from app.core.errors import CarsoError
 from app.core.errors import ValidationError as BusinessValidationError
+
+#: Actions qu'un outil peut demander au modèle après un échec. Vocabulaire
+#: fermé : le prompt s'appuie dessus pour décider s'il corrige, change d'outil
+#: ou arrête d'appeler.
+ACTIONS_ERREUR = ("corriger_argument", "changer_outil", "ne_pas_reessayer")
+
+#: Action par défaut d'un code d'erreur métier. Une erreur qui ne dépend pas
+#: des arguments (panne, quota, permission) ne doit pas provoquer de relance.
+_ACTION_PAR_CODE: dict[str, str] = {
+    "business_validation_error": "corriger_argument",
+    "not_found": "corriger_argument",
+    "conflict": "corriger_argument",
+    "document_generation_error": "corriger_argument",
+    "permission_denied": "changer_outil",
+    "read_only_violation": "changer_outil",
+    "unauthenticated": "ne_pas_reessayer",
+    "service_externe": "ne_pas_reessayer",
+    "agent_timeout": "ne_pas_reessayer",
+    "agent_loop": "ne_pas_reessayer",
+    "invalid_agent_response": "ne_pas_reessayer",
+    "internal_error": "ne_pas_reessayer",
+}
+
+
+def _sans_libelles(noeud: Any) -> Any:
+    """Retire du schéma JSON les clés que le modèle n'utilise pas.
+
+    Pydantic écrit ``title`` sur chaque champ (301 occurrences, ~6 500 car. pour
+    ``generer_document``) alors que la clé du champ porte déjà son nom, et
+    ``default`` sur chaque champ optionnel (219 occurrences) alors que la valeur
+    par défaut est appliquée par la validation, pas par le modèle. Ces libellés
+    ne changent ni l'acceptation ni le refus d'un payload : ils alourdissent
+    seulement ce qui est renvoyé à **chaque** itération.
+    """
+    if isinstance(noeud, dict):
+        return {
+            cle: _sans_libelles(valeur)
+            for cle, valeur in noeud.items()
+            if cle not in ("title", "default")
+        }
+    if isinstance(noeud, list):
+        return [_sans_libelles(element) for element in noeud]
+    return noeud
+
+
+def _schema_allege(cls: type[BaseModel], **options: Any) -> dict[str, Any]:
+    """``model_json_schema`` du schéma strict, sans ``title`` ni ``default``."""
+    brut = BaseModel.model_json_schema.__func__(cls, **options)
+    return _sans_libelles(brut)
+
+
+@cache
+def schema_entree_outil(schema: type[BaseModel]) -> type[BaseModel]:
+    """Schéma d'entrée strict pour le modèle, allégé des libellés inutiles.
+
+    Pydantic ignore par défaut les champs non déclarés : un modèle qui écrit
+    ``document_name`` au lieu de ``document_nom`` recevait « champ requis » et
+    corrigeait à l'aveugle. Le refus explicite (« champ inconnu ») est rendu au
+    modèle, qui corrige la bonne clé en un seul tour.
+
+    Un schéma qui déclare **explicitement** ``extra="allow"`` garde son choix :
+    les outils d'affichage frontend tolèrent des champs ajoutés par le client,
+    et une règle globale ne doit pas le leur retirer.
+
+    La classe dérivée expose aussi un ``model_json_schema`` allégé (voir
+    ``_sans_libelles``) : LangChain sérialise le schéma par cette méthode, donc
+    le gain vaut aussi pour ce qui part réellement chez le fournisseur. La
+    validation, elle, reste celle de la même classe Pydantic : aucun champ
+    accepté ou refusé ne change.
+
+    Le résultat est mémorisé : même classe dérivée à chaque appel, donc pas de
+    schéma différent d'un tour à l'autre.
+    """
+    config = dict(schema.model_config)
+    if config.get("extra") not in ("forbid", "allow"):
+        config["extra"] = "forbid"
+    derive = type(
+        schema.__name__,
+        (schema,),
+        {
+            "model_config": ConfigDict(**config),
+            "__doc__": schema.__doc__,
+            "__module__": schema.__module__,
+            "model_json_schema": classmethod(_schema_allege),
+        },
+    )
+    return derive
 
 
 @dataclass(frozen=True)
@@ -53,7 +141,7 @@ class TypedTool:
         """
         try:
             if self.input_schema is not None:
-                validated = self.input_schema.model_validate(payload)
+                validated = schema_entree_outil(self.input_schema).model_validate(payload)
                 payload = validated.model_dump()
             resultat = self.handler(payload)
         except CarsoError as erreur:
@@ -205,19 +293,43 @@ def formater_erreur_schema(erreur: PydanticValidationError) -> dict[str, Any]:
     Pydantic resterait illisible (et non actionnable) pour un modèle.
     """
     erreurs = _erreurs_lisibles(erreur)
-    details: list[str] = []
+    lignes: list[str] = []
     for item in erreurs[:5]:
         ligne = f"{item['champ']} : {item['probleme']}"
         if item.get("valeurs_attendues"):
             ligne += f" (valeurs acceptées : {item['valeurs_attendues']})"
-        details.append(ligne)
+        lignes.append(ligne)
     total = len(erreur.errors())
-    message = "Entrée de tool invalide : " + " ; ".join(details)
+    message = "Entrée de tool invalide : " + " ; ".join(lignes)
     if total > len(erreurs):
         message += f" (+{total - len(erreurs)} autre(s) problème(s) de schéma)"
+    # Les champs inconnus sont nommés : « champ inconnu » sans le nom oblige le
+    # modèle à comparer tout le schéma à la main.
+    inconnus = [
+        item["champ"]
+        for item in erreurs
+        if "champ inconnu" in str(item.get("probleme", ""))
+    ]
+    details_erreur: dict[str, Any] = {"erreurs": erreurs, "action": "corriger_argument"}
+    if inconnus:
+        details_erreur["champs_inconnus"] = inconnus
     return formater_erreur_outil(
-        BusinessValidationError(message, details={"erreurs": erreurs})
+        BusinessValidationError(message, details=details_erreur)
     )
+
+
+def action_erreur(erreur: CarsoError) -> str:
+    """Action attendue du modèle après un échec d'outil.
+
+    Un outil peut imposer son action via ``details["action"]`` (cas d'une limite
+    d'environnement : réessayer ne peut pas réussir). Sinon le code d'erreur la
+    détermine : argument invalide à corriger, mauvais outil à changer, panne à
+    ne pas relancer.
+    """
+    demandee = erreur.details.get("action")
+    if demandee in ACTIONS_ERREUR:
+        return str(demandee)
+    return _ACTION_PAR_CODE.get(getattr(erreur, "code", ""), "corriger_argument")
 
 
 def formater_erreur_outil(erreur: CarsoError) -> dict[str, Any]:
@@ -226,16 +338,27 @@ def formater_erreur_outil(erreur: CarsoError) -> dict[str, Any]:
     Les ``details`` métier sont inclus : un agent doit savoir **ce qui** est
     refusé (champ invalide, valeurs possibles, format attendu) pour corriger sans
     deviner. Ils ne contiennent ni chemin physique, ni secret, ni trace.
+
+    ``action`` évite la relance à l'aveugle : ``corriger_argument`` (même outil,
+    arguments corrigés), ``changer_outil`` (l'outil n'est pas le bon) ou
+    ``ne_pas_reessayer`` (l'échec ne dépend pas des arguments).
+
+    ``outils_suivants`` n'est présent que si l'outil le déclare : jamais une
+    suggestion inventée par la couche d'erreur.
     """
     charge: dict[str, Any] = {
         "ok": False,
         "error": {
             "code": getattr(erreur, "code", "internal_error"),
             "message": str(erreur),
+            "action": action_erreur(erreur),
         },
     }
     if erreur.details:
         charge["error"]["details"] = erreur.details
+    suivants = erreur.details.get("outils_suivants")
+    if isinstance(suivants, list) and suivants:
+        charge["error"]["outils_suivants"] = [str(nom) for nom in suivants]
     return charge
 
 
@@ -324,7 +447,7 @@ def to_langchain_tool(tool: TypedTool) -> Any:
         func=_run,
         name=tool.name,
         description=tool.description,
-        args_schema=tool.input_schema,
+        args_schema=schema_entree_outil(tool.input_schema),
         # Erreur **métier** levée par le handler → ToolException ci-dessus.
         handle_tool_error=True,
         # Arguments invalides (`{}` émis par le modèle) : sans ce drapeau, la

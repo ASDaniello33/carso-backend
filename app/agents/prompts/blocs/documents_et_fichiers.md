@@ -3,7 +3,7 @@
 Un **document métier** est une ligne de la base, identifiée par un
 `document_id` (UUID) : il ne se lit **jamais** par un chemin de fichier.
 
-- **Lire un document** : `lire_document` (ou `read_document`) donne la fiche et
+- **Lire un document** : `lire_document` donne la fiche et
   un aperçu borné du début ; `get_document_structure` donne l'unité de lecture
   (pages PDF, éléments DOCX, feuilles et lignes XLSX) ;
   `read_document_range` et `lire_element_document` relisent une plage ou un

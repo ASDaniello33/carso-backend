@@ -80,6 +80,12 @@ _CADRE_CARSO = """
   mission, équipe, session) se génère quand même : omets l'ancre, n'invente
   aucun UUID. Après `generer_document`, appelle
   `proposer_telechargement_document` pour que l'utilisateur télécharge.
+- **Erreur d'outil : lis `action` avant de relancer.** Un échec rend
+  `error.action` : `corriger_argument` → rappelle le MÊME outil avec les
+  arguments corrigés (jamais un outil voisin « pour voir ») ;
+  `changer_outil` → change réellement de geste ; `ne_pas_reessayer` →
+  n'appelle plus rien et explique. Un échec ne clôt pas la tâche : si une
+  autre voie existe, tu la suis jusqu'au bout.
 - Quand le message te donne une ancre réelle (identifiant de l'offre, du lot,
   de l'appel, de la mission…), tu la poses : `ancre` + `entity_id` recopiés tels
   quels. Omettre une ancre connue n'est pas prudent, c'est une perte de
@@ -153,27 +159,46 @@ def build_system_prompt(definition: AgentDefinition, *, extra: str | None = None
     )
     # Règle unique documents/fichiers : seulement pour un agent qui a au moins
     # un outil documentaire — un contrat sans outil n'en reçoit pas le mode d'emploi.
+    # Blocs génériques déjà écrits dans les instructions de l'agent : ne pas
+    # les répéter (mêmes règles, une seule fois). Un nom inconnu est une faute
+    # de contrat, pas un silence : le montage échoue.
+    inline = set(definition.blocs_inline)
+    inconnus = inline - {"documents", "generation", "modele", "espace_travail"}
+    if inconnus:
+        raise BusinessValidationError(
+            f"Bloc de prompt inline inconnu pour {definition.agent_id!r} : "
+            f"{sorted(inconnus)}",
+            details={"blocs_valides": ["documents", "generation", "modele", "espace_travail"]},
+        )
     documents = (
-        BLOC_DOCUMENTS_ET_FICHIERS if TOOLS_DOCUMENTS.intersection(outils) else ""
+        BLOC_DOCUMENTS_ET_FICHIERS
+        if TOOLS_DOCUMENTS.intersection(outils) and "documents" not in inline
+        else ""
     )
     # Génération : seulement pour un agent qui peut réellement produire un
     # livrable (INC-125). Un agent purement lecteur ne reçoit pas le mode
     # d'emploi de `remplir_modele` ou de `generer_document` — c'est
     # ainsi qu'on évite les appels d'outils inexistants.
     generation = (
-        BLOC_GENERATION_DOCUMENTS if TOOLS_GENERATION.intersection(outils) else ""
+        BLOC_GENERATION_DOCUMENTS
+        if TOOLS_GENERATION.intersection(outils) and "generation" not in inline
+        else ""
     )
     # Route « modèle d'organisation » : seulement pour qui peut réellement le
     # remplir — sinon l'agent décrit un geste qu'il ne peut pas exécuter.
     modele_organisation = (
         BLOC_MODELE_ORGANISATION
-        if TOOLS_MODELE_ORGANISATION.intersection(outils)
+        if TOOLS_MODELE_ORGANISATION.intersection(outils) and "modele" not in inline
         else ""
     )
     # Espace de travail : seulement pour un agent qui peut réellement exécuter un
     # script (INC-116) — annoncer un dossier sans outil serait un mode d'emploi
     # impossible à suivre.
-    espace_travail = BLOC_ESPACE_TRAVAIL if "run_python_script" in outils else ""
+    espace_travail = (
+        BLOC_ESPACE_TRAVAIL
+        if "run_python_script" in outils and "espace_travail" not in inline
+        else ""
+    )
     parties = [
         definition.prompt.strip() or definition.description.strip(),
         _CADRE_CARSO,

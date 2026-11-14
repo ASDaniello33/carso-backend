@@ -156,16 +156,30 @@ def test_creer_budget_mission_et_lignes(factory: sessionmaker[Session]) -> None:
     assert sortie["requires_approval"] is True
     assert sortie["devise"] == "MGA"
 
+    # Un total fourni par le modèle est désormais **refusé** (champ inconnu),
+    # pas ignoré en silence : il croirait sinon que sa valeur a servi.
+    refus = outils["ajouter_ligne_budget"].invoke(
+        {
+            "budget_id": sortie["budget_id"],
+            "categorie": "Carburant",
+            "quantite": "4",
+            "cout_unitaire": "12000",
+            "cout_total": "999999",
+        }
+    )
+    assert refus["ok"] is False
+    assert refus["error"]["action"] == "corriger_argument"
+    assert refus["error"]["details"]["champs_inconnus"] == ["cout_total"]
+
     ligne = outils["ajouter_ligne_budget"].invoke(
         {
             "budget_id": sortie["budget_id"],
             "categorie": "Carburant",
             "quantite": "4",
             "cout_unitaire": "12000",
-            "cout_total": "999999",  # fourni par erreur : ignoré, recalculé
         }
     )
-    assert ligne["cout_total"] == 48000.0  # 4 × 12 000, pas la valeur fournie
+    assert ligne["cout_total"] == 48000.0  # 4 × 12 000, calculé par le serveur
 
     detail = outils["lire_budget"].invoke({"budget_id": sortie["budget_id"]})
     assert detail["total"] == 48000.0
