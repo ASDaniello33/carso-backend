@@ -32,6 +32,12 @@ def _format_effectif(payload: dict[str, Any]) -> str:
     """
     demande = payload.get("format")
     if demande is not None and str(demande).strip():
+        # ``pptx`` n'est pas un format de dépôt (``_FORMATS``) : c'est un deck
+        # natif rendu par le moteur professionnel, puis déposé avec son
+        # extension propre (``_FORMAT_PPTX``). Le refuser ici rendait la
+        # branche deck inatteignable malgré une description qui l'annonce.
+        if str(demande).strip().lower() == "pptx":
+            return "pptx"
         return _format_depot(demande)
     nom = str(payload.get("nom_fichier") or "").strip()
     extension = Path(nom).suffix.lower().lstrip(".")
@@ -379,7 +385,7 @@ def _generer_structurer(ctx: Any, payload: dict[str, Any], fmt: str) -> dict[str
     """
     from app.documents.renderers import rendre
 
-    spec, reductions = _spec_depuis(payload)
+    spec, reductions = _spec_depuis(ctx, payload)
     modele_utilise: dict[str, Any] | None = None
     reference = payload.get("modele")
     if reference:
@@ -435,6 +441,9 @@ def _generer_structurer(ctx: Any, payload: dict[str, Any], fmt: str) -> dict[str
     donnees_spec = spec.model_dump(mode="json")
     images_inline = _nombre_images_inline(donnees_spec)
     sortie["document_spec"] = _sans_base64(donnees_spec)
+    # Le spec est conservé avec la source technique : la prochaine correction
+    # ciblée n'aura qu'un `document_id` à fournir (plus de retransmission).
+    _conserver_spec(ctx, documents["principal"], donnees_spec, documents.get("pdf"), fmt)
     avertissements_images = [*reductions]
     if images_inline:
         avertissements_images.append(
@@ -551,7 +560,7 @@ def _corriger(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
     ctx.policy.require(ctx.identite.agent_id, "document_propose")
     from app.documents.repair import appliquer_patch
 
-    spec, reductions = _spec_depuis(payload)
+    spec, reductions = _spec_depuis(ctx, payload)
     corrige, journal = appliquer_patch(spec, payload["operations"])
     rapport = None
     if payload.get("valider", True):
@@ -680,6 +689,9 @@ def _versionner(ctx: Any,
         created_by=payload.get("propose_par") or ctx.identite.agent_id,
     )
     document = service.remplacer_document(document_id, entree)
+    # La nouvelle version porte aussi le spec : les corrections suivantes
+    # repartent de la dernière version, jamais d'un état périmé.
+    _conserver_spec(ctx, document.id, spec.model_dump(mode="json"), None, fmt_effectif)
     return {
         "document_id": str(document.id),
         "version": document.version,
@@ -689,16 +701,41 @@ def _versionner(ctx: Any,
     }
 
 
+def _conserver_spec(
+    ctx: Any, document_id: Any, spec: dict[str, Any], jumeau: Any, fmt: str
+) -> None:
+    """Écrit le spec à côté de la source technique — sans jamais bloquer le dépôt."""
+    from app.documents.sources import enregistrer as _ecrire_source
+
+    try:
+        _ecrire_source(
+            ctx.racine_sources_rendus(),
+            document_id,
+            corps="",
+            meta={"format": fmt, "type": "structure"},
+            principal_id=document_id,
+            jumeau_id=jumeau,
+            spec=spec,
+        )
+    except OSError:
+        # Le document est déposé : une source non écrite dégrade la correction
+        # ciblée (retour au spec complet), elle n'invalide pas le livrable.
+        return
+
+
 def _verifier(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
     ctx.policy.require(ctx.identite.agent_id, "document_read")
     # Validation seule : rien n'est inséré, donc rien à réduire ni à signaler.
-    spec, _reductions = _spec_depuis(payload)
+    spec, _reductions = _spec_depuis(ctx, payload)
     portees = payload.get("portees")
     if portees is not None and not isinstance(portees, list):
         raise ValidationError("portees doit être une liste : structure, contenu, style")
     rapport = _valider_spec(spec, payload.get("profil"), portees=portees)
+    # Le document visé est rendu à l'agent quand la validation porte sur un
+    # document déjà déposé (sinon il ne saurait plus laquelle il vient de vérifier).
+    vise = payload.get("document_id")
     return {
-        "document_id": None,
+        "document_id": str(vise) if vise else None,
         "ok": rapport.ok,
         "validation": _contrat_validation(rapport),
         "findings": [constat.model_dump() for constat in rapport.findings][:40],
@@ -776,6 +813,15 @@ def _modifier_section(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
             "corps HTML). Régénérer le document pour le modifier."
         )
     source, identifiant_source = trouvee
+    if not str(source.get("corps") or "").strip():
+        # Source déposée uniquement pour conserver le spec d'un livrable
+        # structuré : elle n'a pas de corps HTML, donc pas de section à éditer.
+        raise NotFoundError(
+            f"« {document.nom} » n'a pas de source éditable par section : seul un "
+            "document rendu par generer_document_professionnel se corrige ainsi. "
+            "Pour un document structuré, utiliser corriger_document avec son "
+            "document_id."
+        )
     meta = dict(source.get("meta") or {})
     format_document = str(meta.get("format") or "pdf")
     morceaux = decouper(str(source.get("corps") or ""))
@@ -800,13 +846,37 @@ def _modifier_section(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
         index = int(index)
         # 'ajouter' accepte un index une position au-delà de la dernière
         # section (insertion à la fin) : la borne le dit.
-        derniere = len(morceaux) if action in {"remplacer", "supprimer"} else len(morceaux) + 1
+        derniere = (
+            len(morceaux)
+            if action in {"lire", "remplacer", "supprimer"}
+            else len(morceaux) + 1
+        )
         if index > derniere:
             raise ValidationError(
                 f"section_index {index} hors bornes : le document contient "
                 f"{len(morceaux)} section(s) (indices 1 à {len(morceaux)}). "
                 "Appeler action='lister' pour les voir."
             )
+
+    if action == "lire":
+        # Source exacte de la section : de quoi la corriger sans relire tout le
+        # document ni le régénérer (constat 15/11 : `lister` ne donne que les
+        # titres, donc l'agent régénérait un document entier pour changer `**`).
+        fragment = morceaux[int(index) - 1]
+        return {
+            "action": "lire",
+            "document_id": str(document_id),
+            "nom": document.nom,
+            "format": format_document,
+            "section_index": int(index),
+            "section": fragment,
+            "caracteres": len(fragment),
+            "message": (
+                "Corriger : action='remplacer' avec section_index et le HTML de "
+                "cette section (une seule partie), ou 'supprimer'. Le reste du "
+                "document n'est jamais réécrit ni régénéré."
+            ),
+        }
 
     graphiques = list(source.get("graphiques") or [])
     if action == "supprimer":
@@ -963,7 +1033,44 @@ def _specs_illustrations(bruts: Any) -> dict[str, dict[str, Any]]:
     return specs
 
 
-def _spec_depuis(payload: dict[str, Any]) -> tuple[Any, list[str]]:
+def _spec_depose(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    """Spec d'un document déjà généré, relu depuis sa source technique.
+
+    Le spec est écrit au dépôt (``generer_document`` et nouvelle version de
+    ``corriger_document``) : le relire évite de faire retransmettre au modèle
+    des dizaines de milliers de caractères pour une retouche d'une cellule.
+
+    Raises:
+        ValidationError: ni ``document_id`` ni ``document_spec``, ou document
+            sans spec conservé (import, document libre, professionnel).
+    """
+    from app.documents.sources import charger_famille
+
+    document_id = payload.get("document_id")
+    if not document_id:
+        raise ValidationError(
+            "Fournir 'document_id' (document déjà généré) ou 'document_spec'."
+        )
+    identifiant = ctx.uuid(str(document_id), "document_id")
+    service = ctx.service_factory()
+    document = service.obtenir(identifiant)
+    trouvee = charger_famille(
+        ctx.racine_sources_rendus(), identifiant, service.versions(identifiant)
+    )
+    spec = (trouvee[0].get("spec") if trouvee else None)
+    if not isinstance(spec, dict):
+        raise ValidationError(
+            f"« {document.nom} » n'a pas de document structuré conservé : son "
+            "spec n'est disponible que pour un livrable produit par "
+            "generer_document (document_spec). Fournir 'document_spec', ou "
+            "corriger le document par 'modifier_section_document' s'il vient "
+            "de generer_document_professionnel.",
+            details={"document_id": str(document_id)},
+        )
+    return spec
+
+
+def _spec_depuis(ctx: Any, payload: dict[str, Any]) -> tuple[Any, list[str]]:
     """Construit un ``DocumentSpec`` depuis l'entrée du modèle.
 
     Les erreurs de schéma sont reformulées en liste champ/problème : l'agent
@@ -983,6 +1090,11 @@ def _spec_depuis(payload: dict[str, Any]) -> tuple[Any, list[str]]:
     from app.documents.styles import style_par_nom
 
     donnees = payload.get("document_spec")
+    if donnees is None:
+        # Voie préférée : le spec est relu depuis la source du document déposé.
+        # C'est ce qui permet à ``corriger_document`` / ``valider_document`` de
+        # ne plus transporter tout le vocabulaire du spec dans leur schéma.
+        donnees = _spec_depose(ctx, payload)
     if not isinstance(donnees, dict):
         raise ValidationError(
             "document_spec doit être un objet : {'metadata': {...}, 'blocs': [...]}"

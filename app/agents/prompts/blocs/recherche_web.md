@@ -17,6 +17,6 @@ Un appel peut porter **plusieurs mots-clés** (`requetes`) : regroupe dans UN
 seul appel les variantes, synonymes et langues d'une même question. Ne relance
 jamais une recherche déjà faite (les résultats sont mémorisés 30 minutes) et
 n'explore pas la même piste par dix formulations.
-Après une recherche, lis les pages utiles (`fetch_url`, `read_urls`) au lieu de
+Après une recherche, lis les pages utiles (`read_urls`) au lieu de
 chercher encore, et cite l'URL réellement lue. Si l'outil refuse pour budget
 épuisé : conclus avec les sources déjà obtenues et dis ce qui reste à vérifier.

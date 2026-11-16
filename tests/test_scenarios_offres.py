@@ -18,7 +18,8 @@ réseau) :
    traités.
 
 Scénarios : AMI, appel à proposition avec lots, modèle client imposé, données
-manquantes (dont le tiret cadratin signalé puis corrigé).
+manquantes (dont le tiret cadratin signalé puis corrigé), garde anti-répétition
+en run réel (un modèle scripté qui boucle reçoit le refus et conclut).
 
 Limite assumée : le modèle de langage n'est pas appelé (le projet n'a pas de
 provider dans les tests). Ce qui est rejoué est la chaîne outils/services et le
@@ -57,20 +58,20 @@ from tests.test_moteur_documentaire import modele_docx
 
 REGLES_PROMPT: dict[str, tuple[str, ...]] = {
     "ami": (
-        "Ne pas transformer un AMI en offre technique et financière complète",
-        "respecter exactement les pièces demandées",
+        "Pour une manifestation d'intérêt, fournis exactement les pièces demandées",
+        "La technique et la financière sont possibles sur tout appel",
     ),
     "lots": (
-        "une par lot et par type",
-        "Budget par lot",
+        "Un lot porte au plus une offre par type",
+        "Un document ne traite qu'un lot",
     ),
     "modele": (
-        "copier puis modifier",
-        "ne se « réinterprète » ni ne se redessine",
+        "**copie le modèle** et modifie ses éléments",
+        "Le fichier du modèle n'est jamais modifié",
     ),
     "donnees_manquantes": (
-        "Tu n'inventes AUCUN montant, AUCUN taux, AUCUN prix unitaire",
-        "Tu ne le remplis pas d'office.",
+        "montant, taux, prix unitaire, quantité",
+        "Elle n'entre dans le document qu'après accord de l'utilisateur",
     ),
 }
 
@@ -230,6 +231,15 @@ def _document_offre(
         {"document_id": sortie["document_id"]}
     )["texte"]
     return sortie, texte
+
+
+def _sorties_outils(resultat: dict[str, Any]) -> list[str]:
+    """Contenus des messages d'outil de l'état final (un par appel exécuté)."""
+    return [
+        str(message.content)
+        for message in resultat.get("messages") or []
+        if message.__class__.__name__ == "ToolMessage"
+    ]
 
 
 def _verifier_livrable_acceptable(
@@ -503,6 +513,318 @@ class TestDonneesManquantes:
         # 3. Le premier jet reste une proposition datée, pas une officialisation.
         assert premier["statut"] == StatutDocument.PROPOSED.value
         assert "—" not in texte_premier
+
+
+def _verifier_message_final(texte: str) -> None:
+    """Aucun document n'est déclaré approuvé, signé ou envoyé par l'agent."""
+    interdits = (
+        "approuvé",
+        "approuvee",
+        "approuvée",
+        "signé",
+        "signe",
+        "envoyé",
+        "envoye",
+        "officiel",
+    )
+    minuscule = texte.lower()
+    trouves = [mot for mot in interdits if re.search(rf"\b{mot}\b", minuscule)]
+    assert not trouves, f"le message déclare un état officiel : {trouves}"
+
+
+class TestBoucleCompleteScriptee:
+    """Boucle complète de l'agent générateur, modèle scripté, sans réseau.
+
+    Le modèle ne décide rien ici : il rejoue un plan (lire l'appel, produire le
+    document, conclure). Ce qui est vérifié est le **harnais réel** : quels
+    outils sont appelés, dans quel ordre, avec quels résultats rendus au modèle,
+    et ce que devient le document.
+    """
+
+    def test_outils_dans_l_ordre_et_document_jamais_approuve(
+        self,
+        factory: sessionmaker[Session],
+        organisation: Organisation,
+        agent: AgentGenerateurOffre,
+        outils: dict[str, TypedTool],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from app.agents.harness import AgentRuntimeConfig, create_carso_deep_agent
+        from tests.agent_fixtures import ScriptedChatModel, final_message, tool_call
+
+        # Aucun appel réseau : construire un vrai modèle échouerait ici. Le
+        # harnais doit se contenter du modèle scripté fourni par le runtime.
+        def _modele_interdit(*args: Any, **kwargs: Any) -> Any:
+            raise AssertionError(
+                "un scénario hors ligne ne doit construire aucun modèle réseau"
+            )
+
+        monkeypatch.setattr("app.agents.harness.build_chat_model", _modele_interdit)
+        monkeypatch.setattr("app.agents.providers.build_chat_model", _modele_interdit)
+
+        appel_id, lots = _appel_avec_lots(
+            factory,
+            organisation,
+            reference="AO-2026-42",
+            titre="Appel à proposition — éducation",
+            type_appel=TypeAppel.APPEL_A_PROPOSITION.value,
+            lots=[{"numero": "1", "titre": "Gestion financière"}],
+        )
+        offre = _offre(
+            outils, lots["1"], TypeOffre.OFFRE_TECHNIQUE.value, "OF-TECH-1"
+        )
+
+        modele = ScriptedChatModel(
+            responses=[
+                tool_call("read_appel", {"appel_id": str(appel_id)}),
+                tool_call(
+                    "generer_document",
+                    {
+                        "format": "docx",
+                        "nom_fichier": "Offre technique lot 1",
+                        "type_document": TypeDocument.OFFRE.value,
+                        "ancre": "offre",
+                        "entity_id": offre["offre_id"],
+                        "propose_par": DEFINITION.agent_id,
+                        "titre": "Offre technique lot 1",
+                        "html": (
+                            "<div class='h1'>Offre technique</div>"
+                            "<p class='p'>Méthodologie : (à compléter)</p>"
+                        ),
+                    },
+                ),
+                final_message(
+                    "L'offre technique du lot 1 est préparée en proposition. "
+                    "Le document reste à valider par vous."
+                ),
+            ]
+        )
+        graphe = create_carso_deep_agent(
+            definition=DEFINITION,
+            tools=agent.deep_tools(),
+            runtime=AgentRuntimeConfig(model=modele),
+        )
+        resultat = graphe.invoke(
+            {"messages": [{"role": "user", "content": "Prépare l'offre du lot 1"}]},
+            # Fil de démonstration : le checkpointer du harnais l'exige.
+            config={"configurable": {"thread_id": "scenario-boucle-complete"}},
+        )
+
+        # Le modèle a reçu le vrai prompt et les vrais outils de l'agent.
+        def _texte(message: Any) -> str:
+            """Contenu texte d'un message (str ou blocs structurés du provider)."""
+            contenu = message.content
+            if isinstance(contenu, str):
+                return contenu
+            if isinstance(contenu, list):
+                return "".join(
+                    bloc.get("text", "")
+                    for bloc in contenu
+                    if isinstance(bloc, dict)
+                )
+            return str(contenu)
+
+        prompt_recu = _texte(modele.received[0][0])
+        assert "sans approbation implicite" in prompt_recu
+        assert "read_appel" in modele.bound_tools
+        assert "generer_document" in modele.bound_tools
+
+        # Ordre des outils : lire l'appel, puis générer, puis conclure.
+        appels = [
+            appel["name"]
+            for message in resultat["messages"]
+            for appel in (getattr(message, "tool_calls", None) or [])
+        ]
+        assert appels == ["read_appel", "generer_document"]
+        assert modele.invocations == 3
+
+        # Les résultats rendus au modèle disent l'état réel : proposition.
+        resultats = modele.tool_messages_recus()
+        assert "AO-2026-42" in resultats
+        assert "proposed" in resultats
+
+        # Le message final ne revendique aucune officialisation.
+        contenu_final = str(resultat["messages"][-1].content)
+        _verifier_message_final(contenu_final)
+        assert "proposition" in contenu_final.lower()
+        assert "à valider" in contenu_final.lower()
+
+        # Le modèle scripté a bien fait tout le tour : aucune boucle en plus.
+        assert modele.invocations == 1 + len(appels)
+
+        # En base, le document produit reste une proposition.
+        with factory() as active:
+            document = active.scalars(
+                select(Document).where(Document.offre_id == UUID(offre["offre_id"]))
+            ).one()
+            assert document.statut == StatutDocument.PROPOSED.value
+
+    def test_un_message_qui_declare_un_document_approuve_est_refuse(self) -> None:
+        _verifier_message_final("Le document est prêt, en attente de validation.")
+        with pytest.raises(AssertionError):
+            _verifier_message_final("Le document est approuvé et signé par CARSO.")
+
+
+class TestGardeAntiRepetitionEnRunReel:
+    """Un modèle scripté qui boucle sur le même appel reçoit le refus et conclut.
+
+    La garde est vérifiée ici **dans le harnais**, pas sur ``TypedTool.invoke``
+    seul : ce qui compte est que le refus arrive au modèle sous forme de message
+    d'outil (c'est ce message qui lui permet de changer de stratégie) et que la
+    suite du parcours reste libre. Un refus invisible côté modèle ne ferait que
+    déplacer la boucle.
+
+    Le contexte de garde est ouvert autour de l'invocation, comme le fait la
+    garde d'entrée AG-UI pour un tour utilisateur.
+    """
+
+    def _graphe(self, agent: AgentGenerateurOffre, modele: Any) -> Any:
+        from app.agents.harness import AgentRuntimeConfig, create_carso_deep_agent
+
+        return create_carso_deep_agent(
+            definition=DEFINITION,
+            tools=agent.deep_tools(),
+            runtime=AgentRuntimeConfig(model=modele),
+        )
+
+    def _sans_reseau(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Aucun provider : un run scripté ne doit construire aucun modèle réel."""
+
+        def _modele_interdit(*args: Any, **kwargs: Any) -> Any:
+            raise AssertionError(
+                "un scénario hors ligne ne doit construire aucun modèle réseau"
+            )
+
+        monkeypatch.setattr("app.agents.harness.build_chat_model", _modele_interdit)
+        monkeypatch.setattr("app.agents.providers.build_chat_model", _modele_interdit)
+
+    def test_troisieme_appel_identique_refuse_puis_conclusion(
+        self,
+        factory: sessionmaker[Session],
+        organisation: Organisation,
+        agent: AgentGenerateurOffre,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from app.tools.garde_repetition import fermer_garde, ouvrir_garde, resume
+        from tests.agent_fixtures import ScriptedChatModel, final_message, tool_call
+
+        self._sans_reseau(monkeypatch)
+        appel_id, _ = _appel_avec_lots(
+            factory,
+            organisation,
+            reference="AO-BOUCLE-1",
+            titre="Appel à proposition — boucle d'outil",
+            type_appel=TypeAppel.APPEL_A_PROPOSITION.value,
+            lots=[{"numero": "1", "titre": "Gestion financière"}],
+        )
+
+        lire = {"appel_id": str(appel_id)}
+        modele = ScriptedChatModel(
+            responses=[
+                tool_call("read_appel", lire),
+                tool_call("read_appel", lire),
+                tool_call("read_appel", lire),
+                # Le refus doit laisser le parcours libre : autre outil, autre but.
+                tool_call("list_lots", lire),
+                final_message(
+                    "Le même appel était déjà lu : je m'arrête là et je vous "
+                    "signale la répétition. La suite reste à votre main."
+                ),
+            ]
+        )
+
+        ouvrir_garde()
+        try:
+            resultat = self._graphe(agent, modele).invoke(
+                {"messages": [{"role": "user", "content": "Traite l'appel"}]},
+                config={"configurable": {"thread_id": "scenario-garde-repetition"}},
+            )
+            compteurs = resume()
+        finally:
+            fermer_garde()
+
+        # 1. Le modèle a bien demandé quatre appels : trois identiques, un autre.
+        appels = [
+            appel["name"]
+            for message in resultat["messages"]
+            for appel in (getattr(message, "tool_calls", None) or [])
+        ]
+        assert appels == ["read_appel", "read_appel", "read_appel", "list_lots"]
+        assert modele.invocations == 5
+
+        # 2. Le troisième appel identique a été refusé, et le refus est **dans le
+        #    fil** : c'est ce que le modèle lit pour conclure. On lit l'état
+        #    final (un message d'outil par appel), pas l'historique cumulé.
+        sorties = _sorties_outils(resultat)
+        assert len(sorties) == 4
+        assert "AO-BOUCLE-1" in sorties[0] and "AO-BOUCLE-1" in sorties[1]
+        assert (
+            "a déjà été appelé 2 fois avec exactement les mêmes arguments"
+            in sorties[2]
+        )
+        assert "conclus" in sorties[2]
+        # Le refus arrive comme message d'outil **en erreur**, pas comme succès.
+        erreurs = [
+            message
+            for message in resultat["messages"]
+            if getattr(message, "status", None) == "error"
+        ]
+        assert len(erreurs) == 1
+
+        # 3. Le parcours n'est pas bridé : l'outil suivant a bien tourné et le
+        #    modèle a reçu son résultat réel.
+        assert "Gestion financière" in sorties[3]
+
+        # 4. Compteurs du run exposés à la trace : quatre tentatives, un refus.
+        assert compteurs == {
+            "appels": 4,
+            "refus_repetition": 1,
+            "par_outil": {"list_lots": 1, "read_appel": 3},
+        }
+
+        # 5. Conclusion : aucune officialisation revendiquée.
+        contenu_final = str(resultat["messages"][-1].content)
+        _verifier_message_final(contenu_final)
+        assert "répétition" in contenu_final
+
+    def test_hors_garde_le_meme_script_n_est_pas_refuse(
+        self,
+        factory: sessionmaker[Session],
+        organisation: Organisation,
+        agent: AgentGenerateurOffre,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Sans garde ouverte (script, tâche inter-agent), rien n'est borné."""
+        from tests.agent_fixtures import ScriptedChatModel, final_message, tool_call
+
+        self._sans_reseau(monkeypatch)
+        appel_id, _ = _appel_avec_lots(
+            factory,
+            organisation,
+            reference="AO-HORS-GARDE-1",
+            titre="Appel hors garde",
+            type_appel=TypeAppel.APPEL_A_PROPOSITION.value,
+            lots=[{"numero": "1", "titre": "Lot unique"}],
+        )
+        lire = {"appel_id": str(appel_id)}
+        modele = ScriptedChatModel(
+            responses=[
+                tool_call("read_appel", lire),
+                tool_call("read_appel", lire),
+                tool_call("read_appel", lire),
+                final_message("Les trois lectures sont faites, voici le résumé."),
+            ]
+        )
+
+        resultat = self._graphe(agent, modele).invoke(
+            {"messages": [{"role": "user", "content": "Traite l'appel"}]},
+            config={"configurable": {"thread_id": "scenario-hors-garde"}},
+        )
+
+        sorties = _sorties_outils(resultat)
+        assert len(sorties) == 3
+        assert all("AO-HORS-GARDE-1" in sortie for sortie in sorties)
+        assert not any("a déjà été appelé" in sortie for sortie in sorties)
 
 
 class TestGardeFousDuJeuDeScenarios:

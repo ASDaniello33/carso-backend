@@ -49,6 +49,8 @@ def upgrade() -> None:
     connexion = op.get_bind()
 
     # Budgets vides : rien de monétaire à conserver, la correction est sûre.
+    # L'instruction est **émise** dans les deux modes (en offline, elle part dans
+    # le script SQL) : aucun résultat n'est lu ici.
     connexion.execute(
         sa.text(
             "UPDATE budgets SET devise = :nouvelle "
@@ -57,6 +59,15 @@ def upgrade() -> None:
         ),
         {"nouvelle": _NOUVELLE_DEVISE, "ancienne": _ANCIENNE_DEVISE},
     )
+
+    # --- Contrôle des budgets chiffrés : base réelle seulement -----------------
+    # En mode offline (``alembic upgrade --sql``, et les tests de DDL), le bind
+    # est un ``MockConnection`` : ``execute()`` imprime l'instruction et rend
+    # ``None`` — un ``.scalar_one()`` y lèverait
+    # « 'NoneType' object has no attribute 'scalar_one' ». Ce contrôle interroge
+    # l'état des données ; il n'a de sens et n'est possible qu'en ligne.
+    if op.get_context().as_sql:
+        return
 
     # Budgets chiffrés encore dans l'ancienne devise : refus explicite plutôt
     # qu'une conversion muette d'un montant validé.

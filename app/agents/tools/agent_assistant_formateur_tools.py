@@ -28,6 +28,8 @@ from app.application.services import (
     ImportBeneficiairesService,
     MissionService,
 )
+from app.core.errors import NotFoundError
+from app.domain.organization import Organisation
 
 AGENT_ID = "agent_assistant_formateur"
 TASK_TYPE = "preparer_documents_mission"
@@ -81,9 +83,8 @@ NOMS_TOOLS: tuple[str, ...] = (
     # souvent sa fiche technique, sa liste de présence ou son rapport. La copie
     # s'ancre sur la mission ou la session ouverte.
     "lister_modeles_documents",
-    "obtenir_structure_modele",
+    "obtenir_structure",
     "copier_modele_document",
-    "obtenir_structure_document",
     "remplacer_element_model",
     "remplir_modele",
     "valider_document",
@@ -95,6 +96,10 @@ NOMS_TOOLS: tuple[str, ...] = (
     "corriger_document",
     "modifier_section_document",
     "get_mission",
+    # La session vers la mission (et son organisation) : sans elle, un
+    # ``session_id`` ne menait à aucune organisation, donc à aucun modèle — la
+    # recherche de gabarit tournait en boucle (constat 16/11).
+    "get_session",
     "list_mission_sessions",
     "list_session_beneficiaires",
     "search_beneficiaires",
@@ -104,7 +109,6 @@ NOMS_TOOLS: tuple[str, ...] = (
     "langsearch_web_search",
     # Lecture d'une page trouvée (``app.tools.web``) : un modèle de document ou
     # une référence externe se lit, borné, au lieu d'être reconstitué de mémoire.
-    "fetch_url",
     "read_urls",
     # Recherche de vidéos (``app.tools.recherche_video``) : même surface de
     # recherche externe que les autres agents (capacité ``web_search``).
@@ -257,6 +261,50 @@ def _list_documents(session: Session, payload: dict[str, Any]) -> dict[str, Any]
 def _get_mission(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     mission = MissionService(session).obtenir(UUID(str(payload["mission_id"])))
     return serialiser_entite(mission, *_CHAMPS_MISSION)
+
+
+def _get_session(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Fiche session, **avec sa mission et l'organisation cliente** (lecture).
+
+    Même périmètre que ``list_mission_sessions`` : lire une session et la
+    mission à laquelle elle appartient. L'ajout comble un trou dans la chaîne
+    d'identifiants — un ``session_id`` ne donnait accès ni au ``mission_id`` ni à
+    l'organisation, alors que copier un modèle ou lister les modèles de
+    l'organisation exige l'un ou l'autre. L'agent bouclait sans pouvoir agir.
+
+    La règle d'appartenance est celle du moteur documentaire : session →
+    mission → organisation (``moteur_documentaire_service._sujet``), jamais une
+    autre.
+    """
+    from app.domain.execution import SessionFormation
+
+    identifiant = SessionIdInput.model_validate(payload).session_id
+    cible = session.get(SessionFormation, identifiant)
+    if cible is None:
+        raise NotFoundError(f"Session {identifiant} introuvable")
+
+    mission = cible.mission
+    organisation = (
+        session.get(Organisation, mission.organisation_id) if mission is not None else None
+    )
+    return {
+        **serialiser_entite(cible, *_CHAMPS_SESSION),
+        "mission": (
+            None
+            if mission is None
+            else {
+                "id": str(mission.id),
+                "reference": mission.reference,
+                "titre": mission.titre,
+                "statut": mission.statut,
+            }
+        ),
+        "organisation": (
+            None
+            if organisation is None
+            else {"id": str(organisation.id), "nom": organisation.nom}
+        ),
+    }
 
 
 def _list_mission_sessions(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
@@ -446,6 +494,15 @@ def construire_tools_assistant_formateur(
         description="Fiche mission (dates, lieu, statut).",
         input_schema=MissionIdInput,
         run=_get_mission,
+    ))
+    kit.enregistrer(OperationSpec(
+        name="get_session",
+        description=(
+            "Fiche session avec sa mission (id, référence) et l'organisation "
+            "cliente (id, nom) : le chemin session → mission → organisation."
+        ),
+        input_schema=SessionIdInput,
+        run=_get_session,
     ))
     kit.enregistrer(OperationSpec(
         name="list_mission_sessions",

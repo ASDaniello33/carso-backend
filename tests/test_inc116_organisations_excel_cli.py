@@ -176,6 +176,31 @@ def test_outils_agent_listent_et_lisent_les_modeles(session: Session) -> None:
     assert filtre["nb_modeles"] == 0
     assert "Aucun modèle" in filtre["message"]
 
+    # ``actif=True`` rend le modèle appliqué de ce type (ex-``get_document_template``
+    # absorbé le 15/11) : même service, un seul outil pour lister et résoudre.
+    actif = _lister_modeles_organisation(
+        session,
+        {
+            "organisation_id": str(organisation.id),
+            "type_document": "modele_offre_technique",
+            "actif": True,
+        },
+    )
+    assert actif["actif"] is True
+    assert actif["id"] == modele["id"]
+    assert actif["document_template_id"] == modele["document_id"]
+
+    # Aucun modèle de ce type : refus explicite (jamais un gabarit inventé).
+    with pytest.raises(NotFoundError):
+        _lister_modeles_organisation(
+            session,
+            {
+                "organisation_id": str(organisation.id),
+                "type_document": "charte_graphique",
+                "actif": True,
+            },
+        )
+
     # Un fichier disparu est signalé, jamais remplacé par un contenu inventé.
     document_id = modele["document_id"]
     session.query(Document).filter(Document.id == UUID(document_id)).delete()

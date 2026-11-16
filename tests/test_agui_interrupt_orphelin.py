@@ -6,6 +6,9 @@ import asyncio
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
+from app.api.agui import StreamingRunError, _code_erreur
 from app.api.agui_interrupt_orphelin import (
     MOTIF_REFUS,
     MOTIF_SANS_REPONSE,
@@ -80,11 +83,11 @@ def _entree(*, thread_id: str = "fil-1", resume: Any = None) -> dict[str, Any]:
     return {"thread_id": thread_id, "run_id": "run-1", "messages": [], "resume": resume}
 
 
-def _executer(purge: PurgeInterruptOrphelin, entree: Any) -> list[dict[str, Any]]:
+def _executer(decorateur: Any, entree: Any) -> list[Any]:
     """Le projet teste l'asynchrone via ``asyncio.run`` (pas de pytest-asyncio)."""
 
-    async def _collecter() -> list[dict[str, Any]]:
-        return [event async for event in purge.run(entree)]
+    async def _collecter() -> list[Any]:
+        return [event async for event in decorateur.run(entree)]
 
     return asyncio.run(_collecter())
 
@@ -214,6 +217,77 @@ def test_run_sans_thread_id_ne_touche_pas_au_graphe() -> None:
     _executer(PurgeInterruptOrphelin(FauxAgent(), graphe), {"threadId": None, "messages": []})
 
     assert graphe.appels_etat == []
+
+
+def _refus(statut: int, corps: str) -> Exception:
+    """Erreur de fournisseur telle que les SDK la lèvent (statut + corps)."""
+    exc = RuntimeError(corps)
+    exc.status_code = statut  # type: ignore[attr-defined]
+    return exc
+
+
+class FauxGrapheQuiEchoueAuRun(FauxGraphe):
+    """L'état se lit, la **reprise** échoue : panne de run, pas d'accès."""
+
+    def __init__(self, erreur: BaseException) -> None:
+        super().__init__(_snapshot(nexts=("model",), action_requests=1))
+        self.erreur = erreur
+
+    async def ainvoke(self, command: Any, config: dict[str, Any]) -> None:
+        raise self.erreur
+
+
+def test_panne_de_run_dans_la_purge_remonte_au_client() -> None:
+    """Constat 16/11 : un 503 pendant la reprise était avalé, tour « réussi ».
+
+    La purge consomme un appel modèle qui appartient à l'utilisateur. Une panne
+    classée autrement que ``erreur_run`` ne doit donc pas disparaître.
+    """
+    echec = _refus(503, "Internal server error")
+    graphe = FauxGrapheQuiEchoueAuRun(echec)
+    agent = FauxAgent()
+    purge = PurgeInterruptOrphelin(agent, graphe, classer_erreur=_code_erreur)
+
+    with pytest.raises(RuntimeError, match="Internal server error"):
+        _executer(purge, _entree())
+
+    # Rien n'a été traité : le message ne part pas sur un fil dans un état douteux.
+    assert agent.entrees == []
+
+
+def test_echec_interne_de_la_purge_reste_best_effort() -> None:
+    """Une cause non classée (``erreur_run``) ne bloque toujours pas le chat."""
+    graphe = FauxGrapheQuiEchoueAuRun(TypeError("reprise mal formée"))
+    agent = FauxAgent()
+    purge = PurgeInterruptOrphelin(agent, graphe, classer_erreur=_code_erreur)
+
+    evenements = _executer(purge, _entree())
+
+    assert [e["type"] for e in evenements] == ["RUN_STARTED", "RUN_FINISHED"]
+    assert agent.entrees == [_entree()]
+
+
+def test_la_panne_de_la_purge_devient_un_run_error() -> None:
+    """Ordre de montage de production : pont **autour** de la purge."""
+    graphe = FauxGrapheQuiEchoueAuRun(_refus(503, "Internal server error"))
+    purge = PurgeInterruptOrphelin(FauxAgent(), graphe, classer_erreur=_code_erreur)
+    pont = StreamingRunError(purge)
+
+    evenements = _executer(pont, _entree())
+
+    types = [e["type"] if isinstance(e, dict) else e.type for e in evenements]
+    assert types == ["RUN_ERROR"]
+    assert "503" in evenements[-1].message
+    assert evenements[-1].code == "fournisseur_en_erreur"
+
+
+def test_clone_conserve_le_classificateur() -> None:
+    """Un clone par requête garde la politique d'erreur de la production."""
+    purge = PurgeInterruptOrphelin(
+        FauxAgent(), FauxGraphe(), classer_erreur=_code_erreur
+    ).clone()
+
+    assert purge._classer_erreur is _code_erreur  # noqa: SLF001 - contrat du clone
 
 
 def test_clone_conserve_le_graphe_et_reutilise_l_agent() -> None:

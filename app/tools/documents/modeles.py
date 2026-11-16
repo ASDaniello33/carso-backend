@@ -94,6 +94,23 @@ def _copier_modele(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _obtenir_structure(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
+    """Structure d'un modèle OU d'une copie — un seul geste, deux cibles.
+
+    Fusion de ``obtenir_structure_modele`` et ``obtenir_structure_document``
+    (15/11) : les deux outils rendaient les mêmes éléments éditables, seule la
+    cible différait. Le dispatch lit les champs fournis, sans rien inventer.
+    """
+    if payload.get("ancre") is not None:
+        return _structure_document(ctx, payload)
+    if payload.get("organisation_id") is not None:
+        return _structure_modele(ctx, payload)
+    raise ValidationError(
+        "Préciser la cible : `ancre` + `entity_id` (copie de modèle), ou "
+        "`organisation_id` + `modele_id`/`type_document` (modèle)."
+    )
+
+
 def _structure_document(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
     """Éléments éditables de la copie en cours, avec leurs identifiants."""
     ctx.policy.require(ctx.identite.agent_id, "document_read")

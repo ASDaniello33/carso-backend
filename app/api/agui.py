@@ -604,12 +604,21 @@ def _ajouter_endpoint(
             agent = AgentFluxIdsUniques(agent)
             # La fin brutale d'un run (provider coupé…) devient un événement
             # RUN_ERROR : le client affiche l'échec au lieu d'un flux tronqué.
-            agent = StreamingRunError(agent)
             # Un questionnaire HITL resté sans réponse bloquait le fil : tout
             # run sans `resume` sur un fil interrompu était court-circuité par
             # ag-ui-langgraph (message jamais traité). La purge refuse les
             # actions en attente avant de déléguer (voir agui_interrupt_orphelin).
-            agent = PurgeInterruptOrphelin(agent, graph)
+            #
+            # Le classificateur est celui du pont : une panne de **run**
+            # survenue dans la reprise (le fournisseur répond 503 pendant que
+            # la purge relance le graphe) est relancée, pas avalée. Elle
+            # consomme un appel modèle à l'utilisateur — la masquer faisait
+            # réussir le tour en silence (constat 16/11, sonde
+            # scripts/repro_histoire_apres_503.py).
+            agent = PurgeInterruptOrphelin(agent, graph, classer_erreur=_code_erreur)
+            # Posé **après** la purge, donc à l'extérieur d'elle : c'est ce pont
+            # qui transforme l'échec de la purge en RUN_ERROR visible.
+            agent = StreamingRunError(agent)
             # Un run coupé en plein appel d'outil (flux SSE du fournisseur
             # interrompu) laisse des arguments JSON cassés dans l'historique du
             # client : ag-ui-langgraph les relisait à chaque tour (JSONDecodeError

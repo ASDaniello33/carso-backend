@@ -215,7 +215,7 @@ class VisibiliteDocumentMixin:
         La chaîne modèle (INC-129) retrouve la copie par
         ``modele-<référence>.docx`` sur l'objet : la renommer la rend
         introuvable pour ``remplir_modele``, ``remplacer_element_model`` et
-        ``obtenir_structure_document``, et l'agent n'a plus aucun moyen
+        ``obtenir_structure``, et l'agent n'a plus aucun moyen
         d'éditer le document qu'il vient de copier. Le refus est porté par le
         service — l'interdiction dans la description de l'outil ne suffit pas.
 

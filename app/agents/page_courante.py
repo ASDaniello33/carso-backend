@@ -16,6 +16,22 @@ Deux responsabilités, une seule source :
    texte. Le message lui-même n'est **jamais réécrit** : ce que l'utilisateur a
 tapé reste ce qu'il a tapé (et ce que le fil affiche).
 
+**Constat de recette (15/11) — le message du second tour disparaissait.**
+Le retrait des en-têtes périmés se faisait dans le payload du run, donc sur des
+messages **déjà présents dans le fil**. Au tour suivant, le client renvoyait le
+message tel que l'instantané le lui avait rendu (avec l'en-tête) ; le payload,
+lui, le dépouillait. ``ag-ui-langgraph`` compare les messages entrants à ceux du
+checkpoint par identifiant : même identifiant, contenu différent ⇒ il conclut à
+une **réédition** du message par l'utilisateur, revient en arrière et rejoue le
+tour précédent. La réponse déjà donnée était régénérée et le message neuf
+n'était jamais traité (il disparaissait de l'instantané).
+
+Correctif : le payload ne touche **que** le dernier message, qui n'existe pas
+encore côté serveur — un message déjà envoyé garde exactement le contenu que le
+client renverra. Le nettoyage des en-têtes périmés se fait plus loin, dans la
+**requête du modèle** (``EntetePageCouranteMiddleware``) : l'état reste fidèle,
+le modèle ne lit qu'une seule page, celle du dernier message.
+
 Les alias (`@MissionActuel`, `@OffreActuel`, `@SessionActuel`, `@PageActuel`)
 renvoient à cette ligne ; le bloc de prompt explique la correspondance, y
 compris le cas où l'alias ne correspond pas au type de la page ouverte. Un
@@ -44,6 +60,11 @@ from uuid import UUID
 #: Le dernier message d'un tour est la même notion pour les pièces jointes et
 #: pour les alias : une seule implémentation, dans le module des pièces jointes.
 from app.agents.pieces_jointes_contexte import dernier_message_utilisateur
+
+try:  # pragma: no cover - dépendance toujours présente en production
+    from langchain.agents.middleware.types import AgentMiddleware as _AgentMiddleware
+except ImportError:  # pragma: no cover
+    _AgentMiddleware = object  # type: ignore[misc,assignment]
 
 _logger = logging.getLogger(__name__)
 
@@ -202,15 +223,45 @@ def _retirer_entete(contenu: Any) -> Any:
     return contenu
 
 
+def retirer_entetes_anciennes(messages: Any) -> Any:
+    """Messages dont les en-têtes de page antérieurs sont retirés.
+
+    Seul le **dernier** message utilisateur garde le sien : les précédents
+    décrivaient une page quittée, que le modèle relisait comme la page courante
+    (constat : il restait sur /Dashboard après un passage sur /offres/<id>).
+    Rend la liste **inchangée (même objet)** quand il n'y a rien à retirer.
+    """
+    if not messages:
+        return messages
+    dernier = max(
+        (
+            indice
+            for indice, message in enumerate(messages)
+            if getattr(message, "type", None) == "human"
+        ),
+        default=-1,
+    )
+    propres: list[Any] = []
+    modifie = False
+    for indice, message in enumerate(messages):
+        contenu = getattr(message, "content", None)
+        if indice != dernier and getattr(message, "type", None) == "human":
+            sans = _retirer_entete(contenu)
+            if sans != contenu:
+                propres.append(message.model_copy(update={"content": sans}))
+                modifie = True
+                continue
+        propres.append(message)
+    return propres if modifie else messages
+
+
 def injecter_page_dans_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Marque la page ouverte sur le **dernier** message utilisateur.
 
     Le texte de l'utilisateur n'est pas modifié : seule une ligne de contexte
-    est ajoutée devant. Les en-têtes des messages antérieurs sont retirés :
-    ils décrivaient une page quittée et le modèle les relisait comme la page
-    courante (constat : il restait sur /Dashboard après un passage sur
-    /offres/<id>). Rend le payload **inchangé (même objet)** quand rien ne
-    change.
+    est ajoutée devant. Aucun message antérieur n'est réécrit — leur en-tête est
+    retiré plus tard, dans la requête du modèle (``retirer_entetes_anciennes``).
+    Rend le payload **inchangé (même objet)** quand rien ne change.
     """
     try:
         page = page_depuis_payload(payload)
@@ -221,24 +272,51 @@ def injecter_page_dans_payload(payload: dict[str, Any]) -> dict[str, Any]:
             return payload
 
         nouveau_contenu, modifie = _poser_entete(message.get("content"), page)
-        messages: list[Any] = []
-        for autre in payload["messages"]:
-            if autre is message:
-                messages.append({**message, "content": nouveau_contenu})
-                continue
-            if isinstance(autre, dict) and autre.get("role") == "user":
-                sans = _retirer_entete(autre.get("content"))
-                if sans is not autre.get("content"):
-                    messages.append({**autre, "content": sans})
-                    modifie = True
-                    continue
-            messages.append(autre)
         if not modifie:
             return payload
+        # Seul le dernier message est touché : il n'est pas encore dans l'état du
+        # fil, donc son contenu ne peut pas entrer en conflit avec le checkpoint.
+        # Réécrire un message antérieur le faisait passer pour une édition de
+        # l'utilisateur au tour suivant (voir l'en-tête du module).
+        messages: list[Any] = [
+            {**autre, "content": nouveau_contenu} if autre is message else autre
+            for autre in payload["messages"]
+        ]
         return {**payload, "messages": messages}
     except Exception:  # pragma: no cover - forme inattendue côté réseau
         _logger.warning("Page courante : en-tête impossible", exc_info=True)
         return payload
+
+
+class EntetePageCouranteMiddleware(_AgentMiddleware):  # type: ignore[misc,valid-type]
+    """Dernier passage avant le modèle : une seule page ouverte, la courante.
+
+    Le payload du run garde le texte exact de l'utilisateur (les en-têtes des
+    messages déjà envoyés sont conservés tels quels, sinon ``ag-ui-langgraph``
+    les prend pour des messages réédités et rejoue le tour précédent). C'est ici,
+    sur la requête adressée au fournisseur, que les en-têtes périmés sont
+    retirés : le modèle ne lit que la ligne du dernier message.
+    """
+
+    @property
+    def name(self) -> str:
+        return "EntetePageCouranteMiddleware"
+
+    @staticmethod
+    def _nettoyer(request: Any) -> Any:
+        messages = getattr(request, "messages", None)
+        if not messages:
+            return request
+        propre = retirer_entetes_anciennes(messages)
+        if propre is messages:
+            return request
+        return request.override(messages=propre)
+
+    def wrap_model_call(self, request: Any, handler: Any) -> Any:
+        return handler(self._nettoyer(request))
+
+    async def awrap_model_call(self, request: Any, handler: Any) -> Any:
+        return await handler(self._nettoyer(request))
 
 
 #: Bloc de prompt — ajouté à tous les agents exposés (``harness.build_system_prompt``).
@@ -268,10 +346,12 @@ L'alias ne remplace pas l'identifiant : il renvoie à la ligne ci-dessus.
 __all__ = [
     "BLOC_PAGE_COURANTE",
     "DESCRIPTION_CONTEXTE",
+    "EntetePageCouranteMiddleware",
     "PageCourante",
     "TYPES",
     "dernier_message_utilisateur",
     "entete_page",
     "injecter_page_dans_payload",
     "page_depuis_payload",
+    "retirer_entetes_anciennes",
 ]

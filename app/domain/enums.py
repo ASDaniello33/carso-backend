@@ -6,6 +6,7 @@ natifs PostgreSQL) : faire évoluer un vocabulaire ne coûte alors aucune
 migration ``ALTER TYPE``. Les enums ci-dessous sont la source de vérité Python.
 """
 
+import unicodedata
 from enum import StrEnum
 
 #: Devise de travail de CARSO (Toliara, Madagascar) : l'ariary.
@@ -32,6 +33,58 @@ class TypeAppel(StrEnum):
     APPEL_A_PROPOSITION = "appel_a_proposition"
     APPEL_A_MANIFESTATION_INTERET = "appel_a_manifestation_interet"
     AUTRE = "autre"
+
+
+#: Libellés d'interface des trois natures canoniques.
+#:
+#: Une nature d'appel a deux écritures légitimes : le **code** stocké en base
+#: (``appel_a_manifestation_interet``) et le **libellé** lu par l'utilisateur
+#: ("Appel à manifestation d'intérêt"). Une saisie libre a pu retenir le
+#: libellé : la liste proposée doit y reconnaître la même nature, sans réécrire
+#: l'appel. Cette table est la **source unique** : le fichier d'affichage
+#: ``frontend/src/lib/vocabulaires/types-appel.ts`` est généré à partir d'elle par
+#: ``scripts/exporter_vocabulaire_types_appel.py``, et
+#: ``tests/test_vocabulaire_types_appel.py`` échoue dès qu'il diverge.
+LIBELLES_TYPE_APPEL: dict[TypeAppel, str] = {
+    TypeAppel.APPEL_A_PROPOSITION: "Appel à proposition",
+    TypeAppel.APPEL_A_MANIFESTATION_INTERET: "Appel à manifestation d'intérêt",
+    TypeAppel.AUTRE: "Autre type d'appel",
+}
+
+
+def cle_type_appel(valeur: str) -> str:
+    """Clé de comparaison d'une nature saisie, neutre à la casse, aux accents
+    et à la ponctuation, espaces normalisés."""
+    sans_accents = "".join(
+        caractere
+        for caractere in unicodedata.normalize("NFKD", valeur)
+        if not unicodedata.combining(caractere)
+    )
+    lettres = "".join(
+        caractere if caractere.isalnum() else " "
+        for caractere in sans_accents.casefold()
+    )
+    return " ".join(lettres.split())
+
+
+def identite_type_appel(valeur: str) -> str:
+    """Identité d'une nature d'appel, au-delà de son écriture.
+
+    Le code canonique et son libellé désignent la **même** nature : c'est ce qui
+    empêche la liste proposée d'afficher deux fois la manifestation d'intérêt.
+    Une valeur libre garde son identité propre (même repliée).
+    """
+    brut = valeur.strip()
+    if not brut:
+        return ""
+    code = brut.casefold()
+    cle = cle_type_appel(brut)
+    for type_appel in TypeAppel:
+        if code == type_appel.value.casefold():
+            return f"canonique:{type_appel.value}"
+        if cle == cle_type_appel(LIBELLES_TYPE_APPEL[type_appel]):
+            return f"canonique:{type_appel.value}"
+    return f"libre:{cle}"
 
 
 class StatutAppel(StrEnum):
@@ -586,3 +639,9 @@ class ActionAudit(StrEnum):
     CONNAISSANCE_INDEXEE = "connaissance.indexee"
     CONNAISSANCE_INDEXATION_ECHOUEE = "connaissance.indexation_echouee"
     CONFIGURATION_EMBEDDING_MODIFIEE = "configuration_embedding.modifiee"
+    # Variables du fichier ``.env`` modifiées depuis Paramètres > Secrets
+    # (décision du 16/11). L'événement ne porte **jamais** la valeur : seulement
+    # le nom de la variable et s'il s'agit d'une création ou d'un remplacement
+    # (AGENTS.md §9).
+    SECRET_ENV_MODIFIE = "secret_env.modifie"
+    SECRET_ENV_SUPPRIME = "secret_env.supprime"

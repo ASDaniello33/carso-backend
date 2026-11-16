@@ -26,6 +26,28 @@ class AgentRuntimeValuesRead(BaseModel):
     )
 
 
+class FenetreModeleRead(BaseModel):
+    """Fenêtre d'entrée retenue pour le modèle appliqué, et d'où elle vient.
+
+    Elle pilote le résumé d'historique (seuil et part conservée, en fraction de
+    cette fenêtre) et la coupe de queue au-delà du budget d'entrée : invisible
+    jusque-là, elle l'est désormais dans Paramètres.
+    """
+
+    modele: str
+    base_url: str | None = None
+    jetons: int = Field(description="Fenêtre d'entrée retenue (jetons)")
+    provenance: str = Field(
+        description="'publiee' (annoncée par le fournisseur), 'non_publiee' "
+        "(il a répondu sans l'annoncer) ou 'non_lue' (lecture impossible)"
+    )
+    raison: str | None = Field(
+        default=None, description="Détail technique court de la provenance"
+    )
+    seuil_resume: int = Field(description="Jetons d'entrée qui déclenchent le résumé")
+    garde_resume: int = Field(description="Jetons conservés tels quels après le résumé")
+
+
 class AgentRuntimeStateRead(BaseModel):
     """État complet du runtime d'agents."""
 
@@ -34,6 +56,7 @@ class AgentRuntimeStateRead(BaseModel):
     agents: list[str]
     built_agents: list[str]
     last_error: str | None = None
+    fenetre_modele: FenetreModeleRead | None = None
 
 
 class AgentRuntimeUpdate(BaseModel):

@@ -137,6 +137,17 @@ agents = [
     # HITL) conservés entre les redémarrages, dans PostgreSQL. psycopg 3 est
     # déjà une dépendance applicative ; psycopg_pool vient avec ce paquet.
     "langgraph-checkpoint-postgres>=3.1",
+    # Plancher **explicite** sur le paquet de checkpointing : ``…-postgres``
+    # 3.2.0 (et au-delà) importe ``writes_sort_key`` depuis
+    # ``langgraph.checkpoint.base``, symbole apparu dans ``langgraph-checkpoint``
+    # 4.3.0. Sans ce plancher, ``langgraph`` (qui accepte ``>=4.1``) peut
+    # réinstaller 4.2.0 et l'import échoue : la fabrique retombe alors en mémoire
+    # process (``etat_checkpointer()["mode"] == "memoire"``) sans autre signal —
+    # exactement la panne silencieuse constatée le 15/11/2026. Ne jamais retirer
+    # cette borne sans vérifier ``mode == "postgres"`` sur ``/api/v1/health``.
+    # Contexte et preuve :
+    # ``docs/validation/HISTORIQUE-CHECKPOINTER-OU-NAVIGATEUR-2026-11-15.md``.
+    "langgraph-checkpoint>=4.3.0,<5",
 ]
 
 # Base de connaissance (RAG) : index vectoriel **local** (Qdrant embarqué, aucun

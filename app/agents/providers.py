@@ -24,10 +24,13 @@ messages d'erreur, ni dans les logs, ni dans une ``AgentTask`` (instruction/08 �
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 from app.core.config import Settings, get_settings
 from app.core.errors import CarsoError
+
+_logger_agents = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 
@@ -362,6 +365,201 @@ def _client_httpx(verifier_ssl: bool, *, asynchrone: bool = False) -> Any:
     )
 
 
+#: Fenêtres **définitives** seulement, par ``(base_url, modèle)``. ``None`` y signifie
+#: « le fournisseur a répondu, et ne publie pas de fenêtre pour ce modèle ».
+#: Un échec de lecture n'y entre **jamais** : un blip réseau ne doit pas figer un
+#: repli pour toute la vie du processus (voir ``_LectureFenetre``).
+_FENETRES_PUBLIEES: dict[tuple[str, str], int | None] = {}
+
+#: Délai de la lecture ``/models``. Court : c'est une métadonnée, pas un appel de
+#: production — un fournisseur muet ne doit pas retarder la construction d'un
+#: agent de plusieurs dizaines de secondes.
+_TIMEOUT_METADONNEES = 6.0
+
+
+@dataclass(frozen=True)
+class _LectureFenetre:
+    """Résultat d'une lecture de fenêtre : la valeur, et **sa solidité**.
+
+    ``definitive`` distingue deux choses que le code confondait :
+
+    - ``True`` — le fournisseur a répondu sur ce modèle : il publie
+      ``context_length`` (``valeur``) ou ne le publie pas (``valeur=None``).
+      Cela peut être mémorisé : relire ne donnera pas autre chose.
+    - ``False`` — la lecture n'a pas abouti (réseau, HTTP, réponse illisible).
+      Cela **ne doit pas** être mémorisé : un incident passager ferait croire
+      à une absence définitive, et le modèle resterait sur le repli jusqu'au
+      prochain redémarrage.
+
+    ``raison`` porte le détail pour le journal, jamais la clé du fournisseur.
+    """
+
+    valeur: int | None
+    definitive: bool
+    raison: str | None = None
+
+
+def _fenetre_publiee(settings: Settings, model: str) -> _LectureFenetre:
+    """Fenêtre d'entrée annoncée par le fournisseur pour ce modèle.
+
+    La passerelle compatible OpenAI publie ``context_length`` dans ``/models``
+    (constaté le 15/11 : ``deepseek-v4.1-flash:free`` → 1 048 576 jetons,
+    ``qwen3.8-27b`` → 1 000 000). C'est la **seule** source qui ne soit pas une
+    supposition : un chiffre écrit à la main dans la configuration est une
+    hypothèse sur un modèle qui peut changer.
+
+    Seules les réponses **définitives** sont mises en cache ; une lecture qui
+    échoue est retentée à la construction suivante. Un modèle absent de la liste
+    n'est pas non plus mémorisé : la liste peut être partielle ou filtrée par
+    l'abonnement, donc ce n'est pas une réponse définitive.
+
+    Est définitive : une valeur publiée, un ``context_length`` explicitement
+    ``null``, ou un point d'entrée ``/models`` absent (404/405/501) — un
+    fournisseur qui n'expose pas ce chemin ne l'exposera pas davantage au
+    prochain run.
+    """
+    if not settings.agent_base_url:
+        return _LectureFenetre(None, False, "aucune AGENT_BASE_URL")
+    cache = (settings.agent_base_url, model)
+    if cache in _FENETRES_PUBLIEES:
+        return _LectureFenetre(_FENETRES_PUBLIEES[cache], True)
+
+    try:
+        import httpx
+    except ImportError as erreur:  # pragma: no cover - httpx vient avec langchain-openai
+        return _LectureFenetre(None, False, type(erreur).__name__)
+
+    cle = settings.agent_api_key.get_secret_value() if settings.agent_api_key else ""
+    try:
+        reponse = httpx.get(
+            settings.agent_base_url.rstrip("/") + "/models",
+            headers={"Authorization": f"Bearer {cle}"},
+            timeout=_TIMEOUT_METADONNEES,
+            verify=settings.agent_ssl_verify,
+        )
+        reponse.raise_for_status()
+        donnees = reponse.json()
+    except httpx.HTTPStatusError as erreur:
+        statut = erreur.response.status_code
+        if statut in {404, 405, 501}:
+            # Le fournisseur n'expose pas ce point d'entrée : définitif.
+            _FENETRES_PUBLIEES[cache] = None
+            return _LectureFenetre(None, True, f"/models absent (HTTP {statut})")
+        return _LectureFenetre(None, False, f"HTTP {statut}")
+    except Exception as erreur:  # noqa: BLE001 - métadonnée optionnelle
+        return _LectureFenetre(None, False, type(erreur).__name__)
+
+    liste = donnees.get("data") if isinstance(donnees, dict) else donnees
+    for entree in liste if isinstance(liste, list) else []:
+        if not isinstance(entree, dict) or entree.get("id") != model:
+            continue
+        publiee = entree.get("context_length")
+        if isinstance(publiee, int) and not isinstance(publiee, bool):
+            _FENETRES_PUBLIEES[cache] = publiee
+            return _LectureFenetre(publiee, True)
+        # Le modèle est listé et ne dit rien de sa fenêtre : définitif.
+        _FENETRES_PUBLIEES[cache] = None
+        return _LectureFenetre(None, True, "context_length absent ou null")
+
+    # Modèle absent de la liste : non mémorisé (liste peut-être partielle).
+    return _LectureFenetre(None, False, "modèle absent de la liste /models")
+
+
+#: Provenances de la fenêtre retenue, telles que l'interface les distingue.
+PROVENANCE_PUBLIEE = "publiee"
+PROVENANCE_NON_PUBLIEE = "non_publiee"
+PROVENANCE_NON_LUE = "non_lue"
+
+
+def fenetre_effective(settings: Settings, model: str) -> dict[str, object]:
+    """Fenêtre d'entrée **retenue** pour ce modèle, et d'où elle vient.
+
+    C'est le seul endroit qui décide de la valeur utilisée : le calcul du profil
+    et l'affichage en Paramètres lisent tous deux ce résultat, donc l'écran ne
+    peut pas décrire autre chose que ce que le harnais applique.
+
+    Returns:
+        ``{"jetons": int, "provenance": str, "raison": str | None,
+        "seuil_resume": int, "garde_resume": int}``. ``provenance`` vaut
+        :data:`PROVENANCE_PUBLIEE` (le fournisseur annonce la fenêtre),
+        :data:`PROVENANCE_NON_PUBLIEE` (il a répondu, il n'annonce rien) ou
+        :data:`PROVENANCE_NON_LUE` (la lecture a échoué : l'absence de valeur
+        ne prouve rien). ``seuil_resume`` et ``garde_resume`` sont les seuils
+        effectifs du résumé d'historique, en jetons.
+    """
+    lecture = _fenetre_publiee(settings, model)
+    if lecture.valeur is not None:
+        provenance = PROVENANCE_PUBLIEE
+        jetons = lecture.valeur
+    elif lecture.definitive:
+        provenance = PROVENANCE_NON_PUBLIEE
+        jetons = settings.agent_max_input_tokens
+    else:
+        provenance = PROVENANCE_NON_LUE
+        jetons = settings.agent_max_input_tokens
+    return {
+        "jetons": jetons,
+        "provenance": provenance,
+        "raison": lecture.raison,
+        "seuil_resume": int(jetons * settings.agent_resume_historique_fraction),
+        "garde_resume": int(
+            jetons * settings.agent_resume_historique_fraction_gardee
+        ),
+    }
+
+
+def _profil_modele(settings: Settings, model: str) -> dict[str, int]:
+    """Profil de modèle : la fenêtre d'entrée, publiée par le fournisseur.
+
+    Sans ``max_input_tokens``, LangChain **refuse** un seuil exprimé en fraction
+    (``ValueError`` à la construction) et Deep Agents retombe sur son défaut
+    absolu (170 000 jetons). La valeur vient de ``/models`` quand le fournisseur
+    la publie ; ``AGENT_MAX_INPUT_TOKENS`` n'est qu'un **repli**, que le journal
+    doit dire exactement pour ce qu'il est.
+
+    Deux replis, deux messages — jamais confondus :
+
+    - **non publiée** : le fournisseur a répondu, il n'annonce pas de fenêtre ;
+    - **non lue** : la lecture a échoué (réseau, HTTP, réponse illisible), donc
+      l'absence de valeur ne prouve rien sur le modèle et la lecture sera
+      retentée au prochain montage d'agent.
+
+    Les autres champs du profil (`tool_calling`, vision…) ne sont pas déclarés :
+    les inventer ferait dire au harnais des capacités que le modèle n'a pas
+    forcément — seule la fenêtre est nécessaire ici.
+    """
+    lecture = _fenetre_publiee(settings, model)
+    if lecture.valeur is not None:
+        _logger_agents.info(
+            "Fenêtre d'entrée lue chez %s pour %r : %d jetons",
+            settings.agent_base_url,
+            model,
+            lecture.valeur,
+        )
+        return {"max_input_tokens": lecture.valeur}
+
+    if lecture.definitive:
+        _logger_agents.warning(
+            "Fenêtre d'entrée non publiée par %s pour %r (%s) : repli sur "
+            "AGENT_MAX_INPUT_TOKENS=%d (hypothèse à vérifier)",
+            settings.agent_base_url,
+            model,
+            lecture.raison or "aucune valeur annoncée",
+            settings.agent_max_input_tokens,
+        )
+    else:
+        _logger_agents.warning(
+            "Fenêtre d'entrée NON LUE chez %s pour %r (%s) : repli sur "
+            "AGENT_MAX_INPUT_TOKENS=%d ; la lecture sera retentée (ce repli "
+            "n'est pas une valeur annoncée par le fournisseur)",
+            settings.agent_base_url,
+            model,
+            lecture.raison or "cause inconnue",
+            settings.agent_max_input_tokens,
+        )
+    return {"max_input_tokens": settings.agent_max_input_tokens}
+
+
 def _build_openai(settings: Settings, *, model: str, api_key: str | None) -> Any:
     chat_openai = _require_package("langchain_openai", paquet="langchain-openai")
     classe = _classe_contenu_texte(chat_openai)
@@ -374,6 +572,9 @@ def _build_openai(settings: Settings, *, model: str, api_key: str | None) -> Any
         model=model,
         api_key=api_key,
         temperature=settings.agent_temperature,
+        # Fenêtre d'entrée : les fractions du résumé d'historique (seuil 75 %,
+        # conservation 10 %) en dépendent. Lue chez le fournisseur.
+        profile=_profil_modele(settings, model),
         # Modèles raisonneurs (grok, o1…) : de longues pauses sans chunk
         # pendant le raisonnement interne — le défaut de la lib (120 s) est
         # trop court et interrompt des runs valides.
@@ -407,6 +608,10 @@ def _build_openai_compatible(settings: Settings, *, model: str, api_key: str | N
         base_url=settings.agent_base_url,
         api_key=api_key,
         temperature=settings.agent_temperature,
+        # Fenêtre d'entrée : c'est elle qui donne un sens aux fractions du résumé
+        # d'historique (75 % / 10 %) — sans profil, la bibliothèque refuse ces
+        # seuils et retombe sur un défaut absolu. Lue chez le fournisseur.
+        profile=_profil_modele(settings, model),
         # Modèles raisonneurs (grok, o1…) : de longues pauses sans chunk
         # pendant le raisonnement interne — le défaut de la lib (120 s) est
         # trop court et interrompt des runs valides.

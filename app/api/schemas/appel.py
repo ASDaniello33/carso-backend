@@ -68,3 +68,24 @@ class AppelRead(BaseModel):
     date_reception: date | None = None
     date_limite: date | None = None
     donnees_extraites: dict[str, Any] | None = None
+
+
+class TypeAppelRetireCreate(BaseModel):
+    """Retrait d'un type d'appel de la liste proposee (decision du 15/11/2026).
+
+    Aucun appel n'est modifie : le type sort seulement de la liste du formulaire.
+    Les dossiers qui le portent gardent leur valeur et restent lisibles.
+    """
+
+    type_appel: str = Field(min_length=1, max_length=50)
+    motif: str | None = Field(default=None, max_length=2000)
+
+
+class TypeAppelRetireRead(BaseModel):
+    """Type retire, tel qu'il est stocke (valeur exacte d'origine)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    type_appel: str
+    motif: str | None = None

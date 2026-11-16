@@ -87,8 +87,16 @@ def enregistrer(
     graphiques: list[dict[str, Any]] | None = None,
     principal_id: Any = None,
     jumeau_id: Any = None,
+    spec: dict[str, Any] | None = None,
 ) -> None:
-    """Écrit (ou réécrit) la source d'un document rendu — écriture atomique."""
+    """Écrit (ou réécrit) la source d'un document rendu — écriture atomique.
+
+    ``spec`` conserve le ``DocumentSpec`` d'un livrable structuré. Sans lui, une
+    correction ciblée devait renvoyer le document entier (des dizaines de
+    milliers de caractères) pour pouvoir être appliquée ; avec lui,
+    ``corriger_document`` et ``valider_document`` travaillent sur un
+    ``document_id`` et ne transportent plus ce vocabulaire dans leur schéma.
+    """
     chemin = _chemin(racine, document_id)
     chemin.parent.mkdir(parents=True, exist_ok=True)
     maintenant = datetime.now(UTC).isoformat()
@@ -102,6 +110,8 @@ def enregistrer(
         "cree": maintenant,
         "maj": maintenant,
     }
+    if spec is not None:
+        etat["spec"] = spec
     temporaire = chemin.with_suffix(".tmp")
     temporaire.write_text(
         json.dumps(etat, ensure_ascii=False, default=str), encoding="utf-8"

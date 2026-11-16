@@ -246,6 +246,7 @@ agents = [
     { name = "langchain-google-genai" },
     { name = "langchain-mcp-adapters" },
     { name = "langchain-openai" },
+    { name = "langgraph-checkpoint" },
     { name = "langgraph-checkpoint-postgres" },
     { name = "mcp" },
 ]
@@ -334,6 +335,7 @@ requires-dist = [
     { name = "langchain-mcp-adapters", marker = "extra == 'dev'", specifier = ">=0.2" },
     { name = "langchain-openai", marker = "extra == 'agents'", specifier = ">=1.6" },
     { name = "langchain-openai", marker = "extra == 'dev'", specifier = ">=1.6" },
+    { name = "langgraph-checkpoint", marker = "extra == 'agents'", specifier = ">=4.3.0,<5" },
     { name = "langgraph-checkpoint-postgres", marker = "extra == 'agents'", specifier = ">=3.1" },
     { name = "mcp", marker = "extra == 'agents'", specifier = ">=1.9" },
     { name = "mcp", marker = "extra == 'dev'", specifier = ">=1.9" },
@@ -1633,15 +1635,15 @@ wheels = [
 
 [[package]]
 name = "langgraph-checkpoint"
-version = "4.2.0"
+version = "4.3.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "langchain-core" },
     { name = "ormsgpack" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/dc/e1/089c4c9e0a2fec7f883f82ae8e6a727138d50074cfeb6644bc2d13b1019b/langgraph_checkpoint-4.2.0.tar.gz", hash = "sha256:51a593b6bee684b0818e5d6e58e28ab340c6db7794575056ce7bd1b746a84ed7", size = 180239, upload-time = "2026-08-07T20:05:03.756Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/27/1e/8c885180ba6a57bff177b9ecb2e273aa32d9d29a093ba0a5214ef8f5136f/langgraph_checkpoint-4.3.2.tar.gz", hash = "sha256:fcab8468c7e965d7055e2a35c253d73a145624ef4728b150ca7c361f4afca286", size = 185401, upload-time = "2026-11-14T01:31:05.25Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/05/71/3b475f09bd57d3a5649792c66353312b4432afd843f301739dfcebd157f0/langgraph_checkpoint-4.2.0-py3-none-any.whl", hash = "sha256:0547fd228935a0b758865de3a3d6d7a2537c308895d0f9ab092ce9151b5da942", size = 56833, upload-time = "2026-08-07T20:05:02.655Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/f1/c84ac1431857640bfb9ea811a58ab5b9c040da3842fd1bcf080655184db0/langgraph_checkpoint-4.3.2-py3-none-any.whl", hash = "sha256:60e02eb2c2eefc4c22fb1549f1c90b85ce9617377604596c5f34fbd6af0bd6e9", size = 58321, upload-time = "2026-11-14T01:31:03.733Z" },
 ]
 
 [[package]]

@@ -5,9 +5,9 @@ lequel tu peux créer des fichiers : il persiste d'une conversation à l'autre e
 aucun autre compte n'y accède.
 
 ```text
-run_python_script(source=…, nom=…)
+run_python_script(source=…, nom=…, donnees=…)
   → exécute le script DANS cet espace (cwd = ton dossier)
-  → retourne code_retour, stdout, stderr, script, fichiers
+  → retourne code_retour, stdout, stderr, script, fichiers, donnees
 ```
 
 Usage prévu : les traitements **longs, complexes ou répétitifs** — consolider
@@ -16,6 +16,33 @@ générer un DOCX/XLSX en série. Écris le script **entier en un appel** (les
 boucles et les fonctions sont normales) plutôt que de le découper en appels
 successifs. Pour un document simple, le chemin normal reste
 `generer_document_professionnel`.
+
+### Analyser un tableur de données (CSV, TSV, XLSX/XLS, JSON)
+
+Un tableur de **données** — liste de bénéficiaires, recensement, bordereau,
+tableau à agréger — n'est pas un document à lire ligne à ligne :
+`read_document_range` n'en rend que les premières lignes et remplit la
+conversation sans rien calculer. Le fichier entre dans l'exécution par
+`donnees`, qui le copie dans le dossier d'exécution du script :
+
+```jsonc
+{
+  "source": "import pandas as pd\ndf = pd.read_csv('donnees.csv')\nprint(df.head())\nprint(df.groupby('Continent')['Population'].sum())",
+  "donnees": [{"document_id": "<uuid réel>", "fichier": "donnees.csv"}]
+}
+```
+
+- formats acceptés : `csv`, `tsv`, `xlsx`, `xls`, `json`. Un PDF ou un DOCX est
+  refusé — il se lit par `lire_document` / `read_document_range` ;
+- le retour porte `donnees` (`fichier`, `nom`, `octets`, `document_id`) : lis le
+  nom **rendu**, ne le suppose pas ;
+- la copie est **supprimée** à la fin de l'exécution (`donnees_retirees`) et
+  n'apparaît jamais dans `fichiers` : ce n'est pas un fichier de ton espace, un
+  second script la redépose ;
+- l'agrégation se calcule **dans le script** ; on ne recopie pas les lignes à la
+  main et on ne relit pas le fichier plage par plage ;
+- une valeur estimée se dit comme telle (formule, colonne source, limite) — un
+  chiffre recopié n'est pas un chiffre calculé.
 
 ### Produire un livrable rattaché à un objet métier (INC-124)
 

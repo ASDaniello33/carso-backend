@@ -16,6 +16,32 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
+class SecretEnvRead(BaseModel):
+    """Variable du fichier ``.env``, **sans sa valeur** : elle n'est jamais relue."""
+
+    cle: str
+    present_environnement: bool = Field(
+        default=False,
+        description=(
+            "La variable est aussi posée dans l'environnement du processus : "
+            "elle y est prioritaire sur le fichier."
+        ),
+    )
+
+
+class SecretsEnvEtatRead(BaseModel):
+    """Variables déclarées dans le fichier d'environnement du backend."""
+
+    fichier: str = Field(description="Chemin du fichier modifié, relatif au dépôt")
+    entrees: list[SecretEnvRead] = Field(default_factory=list)
+
+
+class SecretEnvUpdate(BaseModel):
+    """Nouvelle valeur d'une variable (jamais relue ensuite)."""
+
+    valeur: str = Field(max_length=4000)
+
+
 class SurchargeAgentRead(BaseModel):
     """Réglages administrés effectifs d'un agent."""
 

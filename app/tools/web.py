@@ -16,11 +16,11 @@ la recherche web classique et son opérateur ``filetype:`` (``… filetype:pdf``
 ``… filetype:xlsx``, ``… filetype:jpg``), sans tool dédié. Les moteurs publics
 qui honorent l'opérateur rendent directement l'adresse du fichier ; l'agent dit
 lequel il a obtenu, et ne présente jamais une page comme un fichier.
-- ``fetch_url``—contenu lisible d'une adresse—texte extrait d'une page HTML,
-  JSON reformaté, ou texte brut.
-- ``read_urls``—la même lecture sur plusieurs adresses en un appel, sous un
-  budget de caractères global—cinq pages entières ne doivent pas noyer le
-  modèle.
+- ``read_urls``—contenu lisible d'**une ou plusieurs** adresses : texte extrait
+  d'une page HTML, JSON reformaté ou texte brut ; sur plusieurs adresses, un
+  budget de caractères global évite de noyer le modèle. Une seule adresse rend
+  la page elle-même (GET, ou POST pour interroger un service). L'ancien outil
+  ``fetch_url`` a été absorbé ici (même geste, un seul outil).
 
 Garde commune—toute adresse est vérifiée par ``url_publique_verifiee`` avant
 qu'un octet ne parte, **à chaque saut de redirection**—la boucle locale, le
@@ -74,11 +74,9 @@ from app.tools.permissions import AgentIdentity, PermissionPolicy
 
 __all__ = [
     "CACHE_RECHERCHE_WEB",
-    "FetchUrlInput",
     "ReadUrlsInput",
     "WebSearchInput",
     "attacher_outils_web",
-    "build_fetch_url_tool",
     "build_read_urls_tool",
     "build_web_search_tool",
 ]
@@ -240,7 +238,7 @@ class WebSearchInput(BaseModel):
             "Fournisseurs interrogés : langsearch (API) et moteurs (Bing, Yahoo, "
             "Brave, Mojeek, DuckDuckGo, essayés tour à tour). Par défaut les "
             "deux : celui qui refuse n'empêche pas l'autre de répondre. Pour "
-            "lire une page trouvée, utilise fetch_url ou read_urls."
+            "lire une page trouvée, utilise read_urls."
         ),
     )
 
@@ -622,7 +620,7 @@ def build_web_search_tool(
             "« budget filetype:xlsx », « tour Eiffel filetype:jpg » ; le lien "
             "rendu est alors celui du fichier, pas d'une page. "
             "Lecture seule : rien n'est écrit, aucun fichier n'est conservé. Pour "
-            "lire le contenu d'une page trouvée, utilise fetch_url ou read_urls. "
+            "lire le contenu d'une page trouvée, utilise read_urls. "
             "Source complémentaire, jamais la vérité métier."
         ),
         handler=_handler,
@@ -634,44 +632,36 @@ def build_web_search_tool(
 # --- Lecture de pages --------------------------------------------------------
 
 
-class FetchUrlInput(BaseModel):
-    """Entrée typée de ``fetch_url``."""
+class ReadUrlsInput(BaseModel):
+    """Entrée typée de ``read_urls`` — une adresse **ou** plusieurs.
+
+    Une seule adresse (chaîne) rend la page directement (même retour qu'ex-fetch
+    ``fetch_url``) et accepte ``methode``/``parametres`` pour interroger un
+    service ; une liste rend un résultat **par** adresse. La fusion évite deux
+    outils pour un même geste (lecture d'une page web).
+    """
 
     model_config = ConfigDict(extra="forbid")
 
-    url: str = Field(
-        min_length=8,
-        max_length=2000,
-        description="Adresse http(s) à lire (hôte public uniquement).",
+    urls: str | list[str] = Field(
+        description=(
+            "Une adresse http(s), ou une liste d'adresses à lire dans l'ordre où "
+            "les contenus sont attendus."
+        )
     )
     methode: Literal["GET", "POST"] = Field(
         default="GET",
-        description="GET (défaut) ou POST. Rien n'est envoyé au site au-delà des paramètres.",
+        description=(
+            "GET (défaut) ou POST — une seule adresse uniquement. Rien n'est "
+            "envoyé au site au-delà des paramètres."
+        ),
     )
     parametres: dict[str, Any] | None = Field(
         default=None,
         description=(
-            "GET : paramètres de requête ajoutés à l'adresse ; POST : corps JSON "
-            "envoyé au service."
+            "Une seule adresse : GET, paramètres de requête ajoutés à "
+            "l'adresse ; POST, corps JSON envoyé au service."
         ),
-    )
-    max_caracteres: int | None = Field(
-        default=None,
-        ge=200,
-        le=200_000,
-        description="Plafond du texte rendu (défaut : borne de configuration).",
-    )
-
-
-class ReadUrlsInput(BaseModel):
-    """Entrée typée de ``read_urls``."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    urls: list[str] = Field(
-        min_length=1,
-        max_length=_MAX_URLS,
-        description="Adresses http(s) à lire, dans l'ordre où les contenus sont attendus.",
     )
     max_caracteres: int | None = Field(
         default=None,
@@ -679,6 +669,18 @@ class ReadUrlsInput(BaseModel):
         le=200_000,
         description="Plafond de texte **par page** (défaut : borne de configuration).",
     )
+
+    @field_validator("urls")
+    @classmethod
+    def _valider_urls(cls, valeur: str | list[str]) -> str | list[str]:
+        """Une chaîne vide ou une liste vide n'est pas une lecture."""
+        if isinstance(valeur, str):
+            if len(valeur.strip()) < 8:
+                raise ValueError("Adresse http(s) trop courte pour être lue.")
+            return valeur.strip()
+        if not 1 <= len(valeur) <= _MAX_URLS:
+            raise ValueError(f"Fournir entre 1 et {_MAX_URLS} adresses par appel.")
+        return [url.strip() for url in valeur]
 
 
 def _texte_lisible(html: str, url: str) -> tuple[str, str]:
@@ -919,68 +921,6 @@ def _lire_page(
     return entree
 
 
-def build_fetch_url_tool(
-    *,
-    identite: AgentIdentity,
-    policy: PermissionPolicy,
-    settings: Any,
-    client: httpx.Client | None = None,
-) -> Any:
-    """Construit le ``TypedTool`` ``fetch_url`` pour UN agent.
-
-    Args:
-        identite: identité de l'agent appelant (traçabilité).
-        policy: permissions de l'agent — la capacité ``web_search`` est exigée :
-            un agent qui n'a pas le droit de chercher sur le web n'a pas celui
-            d'en lire les pages.
-        settings: ``Settings`` (plafond de texte, délai).
-        client: ``httpx.Client`` injectable (tests hors réseau).
-
-    Returns:
-        Un ``TypedTool`` nommé ``fetch_url`` (schéma ``FetchUrlInput``).
-    """
-    plafond = int(getattr(settings, "web_fetch_max_chars", 20_000))
-    octets = int(getattr(settings, "web_fetch_max_bytes", 2_000_000))
-    timeout = float(getattr(settings, "web_fetch_timeout_seconds", 15.0))
-    client_fourni = client is not None
-
-    def _lire(cible: httpx.Client, payload: dict[str, Any]) -> dict[str, Any]:
-        policy.require(identite.agent_id, "web_search")
-        demande = int(payload.get("max_caracteres") or plafond)
-        return _lire_page(
-            cible,
-            url=payload["url"],
-            methode=payload.get("methode") or "GET",
-            parametres=payload.get("parametres"),
-            max_caracteres=min(demande, plafond),
-            max_octets=octets,
-            timeout=timeout,
-        )
-
-    def _handler(payload: dict[str, Any]) -> dict[str, Any]:
-        if client_fourni and client is not None:
-            return _lire(client, payload)
-        with httpx.Client(timeout=timeout, headers=EN_TETES) as temporaire:
-            return _lire(temporaire, payload)
-
-    from app.tools.base import TypedTool
-
-    return TypedTool(
-        name="fetch_url",
-        description=(
-            "Lit une adresse http(s) et rend son contenu lisible : texte extrait "
-            "d'une page HTML (titre + corps, menus et pieds de page retirés), JSON "
-            "reformaté, ou texte brut. GET avec paramètres de requête, ou POST "
-            "avec un corps JSON pour interroger un service. Lecture seule : rien "
-            "n'est écrit ni conservé, et les hôtes non publics (réseau interne, "
-            "boucle locale) sont refusés. Multiple adresses : read_urls."
-        ),
-        handler=_handler,
-        input_schema=FetchUrlInput,
-        tags=("web", "lecture"),
-    )
-
-
 def build_read_urls_tool(
     *,
     identite: AgentIdentity,
@@ -1008,7 +948,29 @@ def build_read_urls_tool(
 
     def _lire(cible: httpx.Client, payload: dict[str, Any]) -> dict[str, Any]:
         policy.require(identite.agent_id, "web_search")
-        urls: list[str] = list(payload["urls"])
+        brute = payload["urls"]
+        if isinstance(brute, str):
+            # Une adresse seule : même retour que l'ex-outil ``fetch_url`` (la
+            # page elle-même, pas une liste d'un élément), POST compris. Un refus
+            # de la garde anti-SSRF remonte comme avant, sans emballage.
+            demande = min(int(payload.get("max_caracteres") or plafond), plafond)
+            return _lire_page(
+                cible,
+                url=brute,
+                methode=payload.get("methode") or "GET",
+                parametres=payload.get("parametres"),
+                max_caracteres=demande,
+                max_octets=octets,
+                timeout=timeout,
+            )
+        if (payload.get("methode") or "GET") != "GET" or payload.get("parametres"):
+            # Un corps POST vaut pour UNE adresse : sur une liste, il serait
+            # silencieusement ignoré. Le refus le dit plutôt que de le perdre.
+            raise ValidationError(
+                "`methode='POST'` et `parametres` valent pour une seule adresse : "
+                "envoyer `urls` en chaîne, ou retirer ces champs pour lire une liste."
+            )
+        urls: list[str] = list(brute)
         if len(urls) > plafond_urls:
             # Refus explicite : tronquer la liste laisserait croire que tout a
             # été lu (plafond ``web_read_urls_max``).
@@ -1087,12 +1049,16 @@ def build_read_urls_tool(
     return TypedTool(
         name="read_urls",
         description=(
-            "Lit plusieurs adresses http(s) en un appel et rend, **pour chacune**, "
-            "son titre et son contenu lisible (texte de la page, JSON reformaté ou "
-            "texte brut) — ou la raison exacte de l'échec. Une adresse morte ne "
-            "fait pas échouer les autres. Un budget de caractères global borne "
-            "l'ensemble pour ne pas saturer la conversation ; une page qui dépasse "
-            "porte `tronque: true`. Lecture seule : rien n'est écrit ni conservé."
+            "Lit une adresse http(s), ou plusieurs en un appel, et rend son titre "
+            "et son contenu lisible : texte extrait d'une page HTML (menus et "
+            "pieds retirés), JSON reformaté, ou texte brut. **Une adresse seule** "
+            "rend la page directement (mêmes champs) ; GET avec paramètres de "
+            "requête, ou POST avec un corps JSON pour interroger un service. "
+            "**Plusieurs adresses** rendent un résultat par adresse — ou la raison "
+            "exacte de l'échec — sous un budget de caractères global ; une page "
+            "tronquée porte `tronque: true`, une adresse morte ne fait pas échouer "
+            "les autres. Lecture seule : rien n'est écrit ni conservé, et les "
+            "hôtes non publics (réseau interne, boucle locale) sont refusés."
         ),
         handler=_handler,
         input_schema=ReadUrlsInput,
@@ -1103,7 +1069,6 @@ def build_read_urls_tool(
 #: Tools web attachables à un contrat d'agent, dans l'ordre d'exposition.
 _CONSTRUCTEURS: dict[str, Any] = {
     "langsearch_web_search": build_web_search_tool,
-    "fetch_url": build_fetch_url_tool,
     "read_urls": build_read_urls_tool,
 }
 

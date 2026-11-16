@@ -378,6 +378,9 @@ class AgentGenerateurOffre:
             },
             correlation_id,
         )
+        import time
+
+        debut = time.monotonic()
         try:
             graphe = self.build_agent(runtime=runtime)
             resultat = graphe.invoke(
@@ -395,7 +398,12 @@ class AgentGenerateurOffre:
             self._clore_trace(task_id, error=f"{type(exc).__name__}")
             raise
 
-        reponse = self._clore_trace(task_id, result=self._resultat(resultat))
+        reponse = self._clore_trace(
+            task_id,
+            result=self._resultat(
+                resultat, duree_ms=int((time.monotonic() - debut) * 1000)
+            ),
+        )
         if "__interrupt__" in resultat:
             reponse["warnings"] = [
                 "Action soumise à approbation humaine : reprendre avec resume()"
@@ -510,12 +518,29 @@ class AgentGenerateurOffre:
             "recursion_limit": recursion_limit(runtime),
         }
 
-    def _resultat(self, resultat: dict[str, Any]) -> dict[str, Any]:
-        """Résumé exploitable d'un état de graphe (jamais le dump brut)."""
+    def _resultat(
+        self, resultat: dict[str, Any], *, duree_ms: int | None = None
+    ) -> dict[str, Any]:
+        """Résumé exploitable d'un état de graphe (jamais le dump brut).
+
+        Les compteurs de tour sont **mesurés**, pas devinés : sans eux, « plus
+        rapide » reste une impression et aucune régression de parcours (appels
+        en double, boucles) ne se voit dans la trace.
+        """
+        messages = resultat.get("messages") or []
+        appels = [
+            appel
+            for message in messages
+            for appel in (getattr(message, "tool_calls", None) or [])
+        ]
         return {
             "messages": _dernier_message(resultat),
             "interrompu": "__interrupt__" in resultat,
             "outils_utilises": _outils_utilises(resultat),
+            "nb_messages": len(messages),
+            "nb_appels_outils": len(appels),
+            "duree_ms": duree_ms,
+            "repetitions": _repetitions(),
         }
 
     def deep_tools(self) -> tuple[Any, ...]:
@@ -557,6 +582,13 @@ def build_generateur(
 
 
 # --- utilitaires ---------------------------------------------------------------
+
+
+def _repetitions() -> dict[str, Any] | None:
+    """Compteurs de la garde anti-répétition (``None`` hors conversation)."""
+    from app.tools.garde_repetition import resume
+
+    return resume()
 
 
 def _outils_utilises(resultat: dict[str, Any]) -> list[str]:

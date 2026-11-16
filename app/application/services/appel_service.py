@@ -32,9 +32,10 @@ from app.domain.enums import (
     StatutAppel,
     TypeAppel,
     TypeProposition,
+    identite_type_appel,
 )
 from app.domain.execution import Mission
-from app.domain.organization import Appel, Lot, Offre
+from app.domain.organization import Appel, Lot, Offre, TypeAppelRetire
 from app.domain.state_machines import validate_transition
 from app.infrastructure.repositories import (
     AppelRepository,
@@ -451,18 +452,35 @@ class AppelService:
         """Tous les appels (référentiel interne, volume limité)."""
         return self.appels.list_all()
 
-    def types_connus(self) -> list[str]:
-        """Types d'appel disponibles à la saisie (vocabulaire ouvert).
+    def types_retires(self) -> dict[str, TypeAppelRetire]:
+        """Types retires de la liste proposee, indexes par valeur (casse repliee)."""
+        lignes = self._session.execute(select(TypeAppelRetire)).scalars().all()
+        return {ligne.type_appel.casefold(): ligne for ligne in lignes}
 
-        Les trois types canoniques de ``TypeAppel`` d'abord, puis — dans l'ordre
-        alphabétique — chaque type distinct déjà porté par un appel en base.
-        La déduplication ignore la casse (« Appel à candidature » et
-        "appel à candidature" ne figurent qu'une fois) ; l'orthographe la plus
-        ancienne gagne. Un type « s'enregistre » en étant porté par un appel :
-        aucune table de référence dédiée aujourd'hui (décision du 04/11).
+    def types_connus(self) -> list[str]:
+        """Types d'appel **proposes a la saisie** (vocabulaire ouvert).
+
+        Les trois types canoniques de ``TypeAppel`` d'abord, puis, dans l'ordre
+        alphabetique, chaque type distinct deja porte par un appel en base.
+
+        La deduplication porte sur l'**identite** de la nature, pas sur son
+        ecriture (``identite_type_appel``) : le code canonique
+        ``appel_a_manifestation_interet`` et le libelle "Appel a manifestation
+        d'interet" saisi librement designent la meme nature, le premier gagne.
+        La casse, les accents et la ponctuation sont neutres.
+
+        Les types **retires** sont exclus de cette liste (decision du 15/11) :
+        c'est le seul effet d'une suppression. Les appels qui les portent ne sont
+        pas touches, ils gardent leur valeur et restent lisibles.
         """
-        connus = [t.value for t in TypeAppel]
-        vus = {t.casefold() for t in connus}
+        retires = {identite_type_appel(valeur) for valeur in self.types_retires()}
+        connus: list[str] = []
+        vus: set[str] = set()
+        for type_appel in TypeAppel:
+            identite = identite_type_appel(type_appel.value)
+            if identite not in retires:
+                connus.append(type_appel.value)
+            vus.add(identite)
         en_base = (
             self._session.execute(
                 select(Appel.type).distinct().order_by(Appel.type)
@@ -471,10 +489,74 @@ class AppelService:
             .all()
         )
         for valeur in en_base:
-            if valeur.casefold() not in vus:
-                vus.add(valeur.casefold())
-                connus.append(valeur)
+            identite = identite_type_appel(valeur)
+            if identite in vus or identite in retires:
+                continue
+            vus.add(identite)
+            connus.append(valeur)
         return connus
+
+    def _type_retire(self, valeur: str) -> TypeAppelRetire | None:
+        """Ligne de retrait qui designe cette nature, quelle que soit son
+        ecriture (code canonique ou libelle, casse et accents neutres)."""
+        identite = identite_type_appel(valeur)
+        for ligne in self._session.execute(select(TypeAppelRetire)).scalars():
+            if identite_type_appel(ligne.type_appel) == identite:
+                return ligne
+        return None
+
+    def retirer_type_appel(self, type_appel: str, motif: str | None = None) -> TypeAppelRetire:
+        """Retire un type de la liste proposee, **sans toucher aux appels**.
+
+        Retirer un type ne supprime aucune donnee : les appels qui le portent
+        gardent leur valeur (regle du 15/11, l'histoire d'un dossier ne se
+        reecrit pas), et l'utilisateur peut la corriger a tout moment.
+
+        Raises:
+            ValidationError: type vide, ou deja retire (casse repliee).
+        """
+        valeur = normaliser_type_appel(type_appel)
+        if valeur is None:
+            raise ValidationError("Le type d'appel fourni est vide")
+        if self._type_retire(valeur) is not None:
+            raise ValidationError(
+                "Ce type d'appel est deja retire de la liste",
+                details={"type_appel": valeur},
+            )
+        ligne = TypeAppelRetire(type_appel=valeur, motif=(motif or "").strip() or None)
+        self._session.add(ligne)
+        self._trace.record_event(
+            actor_type=ActorType.HUMAIN.value,
+            action=ActionAudit.APPEL_A_PROPOSITION_MODIFIE.value,
+            entity_type="type_appel",
+            entity_id=ligne.id,
+            after={"type_appel": valeur, "motif": ligne.motif},
+        )
+        return ligne
+
+    def restaurer_type_appel(self, type_appel: str) -> None:
+        """Remet un type retire dans la liste proposee (retour en arriere).
+
+        Les appels qui le portent n'ont jamais cesse de l'afficher : restaurer ne
+        fait que le reproposer au formulaire.
+        """
+        valeur = normaliser_type_appel(type_appel)
+        if valeur is None:
+            raise ValidationError("Le type d'appel fourni est vide")
+        ligne = self._type_retire(valeur)
+        if ligne is None:
+            raise NotFoundError(
+                "Ce type d'appel n'est pas retire",
+                details={"type_appel": valeur},
+            )
+        self._session.delete(ligne)
+        self._trace.record_event(
+            actor_type=ActorType.HUMAIN.value,
+            action=ActionAudit.APPEL_A_PROPOSITION_MODIFIE.value,
+            entity_type="type_appel",
+            entity_id=ligne.id,
+            after={"type_appel": valeur, "restaure": True},
+        )
 
     # --- internes ---------------------------------------------------------
 

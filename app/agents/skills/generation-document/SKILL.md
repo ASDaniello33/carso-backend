@@ -125,13 +125,19 @@ conservée au dépôt.
 
 1. `action="lister"` avec `document_id` → la liste des sections (index, titre,
    taille). C'est ce numéro qui sert ensuite, jamais un numéro recompté à la main.
-2. `action="remplacer"` avec `section_index` + `contenu_html` (**une** partie :
-   `<h1>…</h1>` + son contenu ; deux titres = deux appels).
-   Pour insérer : `action="ajouter"` (après `section_index`, à la fin si omis) ;
-   pour retirer : `action="supprimer"`.
-3. Le document est re-rendu et déposé en **nouvelle version** (v2, v3…) : nom,
+2. `action="lire"` avec `section_index` → le **HTML exact** de cette section :
+   c'est la source à corriger. Sans lui, `lister` ne donne que les titres, et on
+   est tenté de tout régénérer pour une faute ponctuelle (constat 15/11 : un
+   document de 6 parties régénéré deux fois pour du Markdown `**` résiduel).
+3. `action="remplacer"` avec `section_index` + `contenu_html` (**une** partie :
+   `<h1>…</h1>` + son contenu ; deux titres = deux appels), en repartant du HTML
+   lu à l'étape 2 corrigé. Pour insérer : `action="ajouter"` (après
+   `section_index`, à la fin si omis) ; pour retirer : `action="supprimer"`.
+4. Le document est re-rendu et déposé en **nouvelle version** (v2, v3…) : nom,
    type et rattachement conservés, ancienne version intacte, statut `proposed`.
    Le PDF jumeau suit. Puis `render_document` → `proposer_telechargement_document`.
+   Cette nouvelle version est le dépôt normal, pas une régénération : aucune
+   partie du contenu n'est réécrite par le modèle.
 
 Un deck PPTX se corrige pareil : **une** `<section class="slide">` par
 appel. Un document importé (ou produit par `generer_document`) n'a pas de

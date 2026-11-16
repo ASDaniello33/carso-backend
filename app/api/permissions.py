@@ -141,8 +141,13 @@ async def preparer_acces_agent(
     # plafond exécutable qui empêche une boucle de recherche de tourner sans fin.
     from app.core.config import get_settings
     from app.tools.budget_recherche import ouvrir_budget
+    from app.tools.garde_repetition import ouvrir_garde
 
     ouvrir_budget(get_settings().web_search_max_calls_per_turn)
+    # Garde anti-répétition : un run en boucle sur le même appel d'outil est
+    # arrêté au troisième essai identique consécutif, sans plafonner la longueur
+    # légitime d'un parcours (un autre appel remet le compteur à zéro).
+    ouvrir_garde()
 
 
 def garde_agui(agent_id: str) -> Callable[..., Awaitable[None]]:

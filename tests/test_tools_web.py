@@ -24,11 +24,9 @@ from app.core.errors import ValidationError
 from app.tools.budget_recherche import fermer_budget, ouvrir_budget
 from app.tools.permissions import AgentIdentity, PermissionPolicy
 from app.tools.web import (
-    FetchUrlInput,
     ReadUrlsInput,
     WebSearchInput,
     attacher_outils_web,
-    build_fetch_url_tool,
     build_read_urls_tool,
     build_web_search_tool,
 )
@@ -583,11 +581,11 @@ def test_fraicheur_en_date_avertit_pour_les_moteurs(monkeypatch: pytest.MonkeyPa
     assert any("moteurs publics" in motif for motif in sortie["avertissements"])
 
 
-# --- Lecture d'une page : ``fetch_url`` --------------------------------------
+# --- Lecture d'UNE page : ``read_urls`` (adresse seule, ex-``fetch_url``) -----
 
 
 def _fetch(route: Callable[[httpx.Request], httpx.Response], **overrides: Any) -> Any:
-    return build_fetch_url_tool(
+    return build_read_urls_tool(
         identite=IDENTITE,
         policy=POLICY_WEB,
         settings=_settings(**overrides),
@@ -595,14 +593,14 @@ def _fetch(route: Callable[[httpx.Request], httpx.Response], **overrides: Any) -
     )
 
 
-def test_fetch_url_extrait_titre_et_texte(hote_public: None) -> None:
+def test_read_urls_seule_extrait_titre_et_texte(hote_public: None) -> None:
     def _route(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200, text=PAGE, headers={"content-type": "text/html; charset=utf-8"}
         )
 
     tool = _fetch(_route)
-    sortie = tool.invoke({"url": ADRESSE})
+    sortie = tool.invoke({"urls": ADRESSE})
 
     assert sortie["ok"] is True
     assert sortie["statut"] == 200
@@ -613,7 +611,7 @@ def test_fetch_url_extrait_titre_et_texte(hote_public: None) -> None:
     assert sortie["tronque"] is False
 
 
-def test_fetch_url_rend_le_json() -> None:
+def test_read_urls_seule_rend_le_json() -> None:
     def _route(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200,
@@ -622,12 +620,12 @@ def test_fetch_url_rend_le_json() -> None:
         )
 
     tool = _fetch(_route)
-    sortie = tool.invoke({"url": ADRESSE})
+    sortie = tool.invoke({"urls": ADRESSE})
     assert sortie["ok"] is True
     assert json.loads(sortie["contenu"]) == {"mission": "M-1", "sessions": 3}
 
 
-def test_fetch_url_transmet_les_parametres_get(hote_public: None) -> None:
+def test_read_urls_seule_transmet_les_parametres_get(hote_public: None) -> None:
     vues: dict[str, Any] = {}
 
     def _route(request: httpx.Request) -> httpx.Response:
@@ -636,13 +634,13 @@ def test_fetch_url_transmet_les_parametres_get(hote_public: None) -> None:
         return httpx.Response(200, text="ok", headers={"content-type": "text/plain"})
 
     tool = _fetch(_route)
-    sortie = tool.invoke({"url": ADRESSE, "parametres": {"annee": "2026"}})
+    sortie = tool.invoke({"urls": ADRESSE, "parametres": {"annee": "2026"}})
     assert sortie["ok"] is True
     assert vues["methode"] == "GET"
     assert vues["params"] == {"annee": "2026"}
 
 
-def test_fetch_url_post_envoie_le_corps_json(hote_public: None) -> None:
+def test_read_urls_seule_post_envoie_le_corps_json(hote_public: None) -> None:
     vues: dict[str, Any] = {}
 
     def _route(request: httpx.Request) -> httpx.Response:
@@ -651,44 +649,44 @@ def test_fetch_url_post_envoie_le_corps_json(hote_public: None) -> None:
         return httpx.Response(200, text="{}", headers={"content-type": "application/json"})
 
     tool = _fetch(_route)
-    sortie = tool.invoke({"url": ADRESSE, "methode": "POST", "parametres": {"q": "missions"}})
+    sortie = tool.invoke({"urls": ADRESSE, "methode": "POST", "parametres": {"q": "missions"}})
     assert sortie["ok"] is True
     assert vues == {"methode": "POST", "corps": {"q": "missions"}}
 
 
-def test_fetch_url_type_non_supporte_dit(hote_public: None) -> None:
+def test_read_urls_seule_type_non_supporte_dit(hote_public: None) -> None:
     tool = _fetch(
         lambda r: httpx.Response(200, content=b"\x89PNG", headers={"content-type": "image/png"})
     )
-    sortie = tool.invoke({"url": ADRESSE})
+    sortie = tool.invoke({"urls": ADRESSE})
     assert sortie["ok"] is True
     assert sortie["contenu"] == ""
     assert "Type non supporté" in sortie["erreur"]
 
 
-def test_fetch_url_tronque_au_plafond(hote_public: None) -> None:
+def test_read_urls_seule_tronque_au_plafond(hote_public: None) -> None:
     long_page = PAGE.replace("Le barème", "Le barème " + "détaillé " * 400)
 
     def _route(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, text=long_page, headers={"content-type": "text/html"})
 
     tool = _fetch(_route, web_fetch_max_chars=300)
-    sortie = tool.invoke({"url": ADRESSE})
+    sortie = tool.invoke({"urls": ADRESSE})
     assert len(sortie["contenu"]) == 300
     assert sortie["tronque"] is True
 
 
-def test_fetch_url_refuse_un_hote_non_public() -> None:
+def test_read_urls_seule_refuse_un_hote_non_public() -> None:
     """Une adresse qui vise la boucle locale est refusée avant tout départ."""
     appels: list[str] = []
     tool = _fetch(lambda r: appels.append(str(r.url)) or httpx.Response(200, text=PAGE))
-    sortie = tool.invoke({"url": "http://127.0.0.1:8080/administration"})
+    sortie = tool.invoke({"urls": "http://127.0.0.1:8080/administration"})
     assert sortie["ok"] is False
     assert "publique" in sortie["error"]["message"]
     assert appels == []
 
 
-def test_fetch_url_refuse_une_redirection_vers_le_reseau_interne(hote_public: None) -> None:
+def test_read_urls_seule_refuse_une_redirection_vers_le_reseau_interne(hote_public: None) -> None:
     """Chaque saut repasse par la garde : une redirection ne contourne pas le refus."""
     vus: list[str] = []
 
@@ -697,31 +695,43 @@ def test_fetch_url_refuse_une_redirection_vers_le_reseau_interne(hote_public: No
         return httpx.Response(302, headers={"location": "http://10.1.2.3/interne"})
 
     tool = _fetch(_route)
-    sortie = tool.invoke({"url": ADRESSE})
+    sortie = tool.invoke({"urls": ADRESSE})
     assert sortie["ok"] is False
     assert "publique" in sortie["error"]["message"]
     assert vus == ["exemple.org"], "la cible interne n'est jamais contactée"
 
 
-def test_fetch_url_erreur_reseau_devient_une_entree_lisible(hote_public: None) -> None:
+def test_read_urls_seule_erreur_reseau_devient_une_entree_lisible(hote_public: None) -> None:
     def _route(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("connexion refusée")
 
     tool = _fetch(_route)
-    sortie = tool.invoke({"url": ADRESSE})
+    sortie = tool.invoke({"urls": ADRESSE})
     assert sortie["ok"] is True
     assert sortie["contenu"] == ""
     assert sortie["erreur"].startswith("Erreur réseau")
 
 
-def test_fetch_url_permission_absente(hote_public: None) -> None:
-    tool = build_fetch_url_tool(
+def test_read_urls_refuse_un_post_sur_une_liste(hote_public: None) -> None:
+    """Un corps POST vaut pour une adresse : sur une liste, il est refusé, pas ignoré."""
+    appels: list[str] = []
+    tool = _fetch(lambda r: appels.append(str(r.url)) or httpx.Response(200, text="ok"))
+    sortie = tool.invoke(
+        {"urls": [ADRESSE], "methode": "POST", "parametres": {"q": "x"}}
+    )
+    assert sortie["ok"] is False
+    assert "une seule adresse" in sortie["error"]["message"]
+    assert appels == []
+
+
+def test_read_urls_seule_permission_absente(hote_public: None) -> None:
+    tool = build_read_urls_tool(
         identite=IDENTITE,
         policy=POLICY_VIDE,
         settings=_settings(),
         client=_transport(lambda r: httpx.Response(200, text=PAGE)),
     )
-    sortie = tool.invoke({"url": ADRESSE})
+    sortie = tool.invoke({"urls": ADRESSE})
     assert sortie["ok"] is False
     assert sortie["error"]["code"] == "permission_denied"
 
@@ -845,7 +855,7 @@ class _Definition:
 
 def test_attacher_outils_web_attache_ce_que_le_contrat_declare() -> None:
     class _Complet(_Definition):
-        tools = ("langsearch_web_search", "fetch_url", "read_urls")
+        tools = ("langsearch_web_search", "read_urls")
 
     class _Rien(_Definition):
         tools = ("query_analytics",)
@@ -853,7 +863,6 @@ def test_attacher_outils_web_attache_ce_que_le_contrat_declare() -> None:
     attaches = attacher_outils_web(_Complet(), ())
     assert [outil.name for outil in attaches] == [
         "langsearch_web_search",
-        "fetch_url",
         "read_urls",
     ]
     assert attacher_outils_web(_Rien(), ("existante",)) == ("existante",)
@@ -862,13 +871,13 @@ def test_attacher_outils_web_attache_ce_que_le_contrat_declare() -> None:
 # --- Schémas -----------------------------------------------------------------
 
 
-@pytest.mark.parametrize("schema", [FetchUrlInput, ReadUrlsInput, WebSearchInput])
+@pytest.mark.parametrize("schema", [ReadUrlsInput, WebSearchInput])
 def test_les_schemas_sont_fermes(schema: type) -> None:
     """Un champ inconnu est refusé : le périmètre d'entrée n'est pas deviné."""
     import pydantic
 
     with pytest.raises(pydantic.ValidationError):
-        schema.model_validate({"url": ADRESSE, "urls": [ADRESSE], "requete": "x", "inconnu": 1})
+        schema.model_validate({"urls": ADRESSE, "urls": [ADRESSE], "requete": "x", "inconnu": 1})
 
 
 def test_parametres_par_defaut_documentes() -> None:

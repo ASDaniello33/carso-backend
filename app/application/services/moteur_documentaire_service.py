@@ -556,8 +556,11 @@ class MoteurDocumentaireService:
             # la liste réelle, plutôt que de prendre un autre modèle en silence.
             raise ValidationError(
                 f"Aucun modèle « {type_document or candidats[0]} » pour "
-                f"« {sujet.organisation_nom} ». Choisir un `modele_id` parmi "
-                "ceux du registre.",
+                f"« {sujet.organisation_nom} ». Le document se produit alors "
+                "avec `generer_document_professionnel` : un modèle d'un autre "
+                "type ne s'applique pas (un gabarit d'offre n'est jamais une "
+                "fiche de présence). Si un modèle du bon type existe sous un "
+                "autre nom, le désigner par `modele_id`.",
                 details={
                     "modeles": [
                         {
@@ -634,7 +637,13 @@ class MoteurDocumentaireService:
         octets = self._octets_modele(modele)
         nom = self._nom_travail(sujet, nom_fichier)
         depot = type_document or _TYPE_DEPOT_DEFAUT[ancre]
-        existant = self._document_nomme(sujet, nom)
+        # Une copie de travail se reconnaît à sa métadonnée, pas à son nom (le
+        # nom du livrable est libre, cf. `nom_fichier`). Sans cela, un second
+        # appel avec un autre nom empilait une deuxième copie du même modèle, et
+        # l'agent éditait celle qui ne portait pas le bon nom.
+        existant = self._document_travail(sujet, modele_id=modele.id)
+        if existant is None:
+            existant = self._document_nomme(sujet, nom)
         elements = edition_docx.indexer(octets)
         if existant is not None:
             return existant, modele, elements
@@ -686,7 +695,7 @@ class MoteurDocumentaireService:
         """
         sujet = self._sujet(ancre, entity_id)
         depot = (type_document or _TYPE_DEPOT_DEFAUT[ancre]).strip().lower()
-        copie = self._document_nomme(sujet, self._nom_travail(sujet))
+        copie = self._document_travail(sujet)
         if copie is not None and self._copie_couvre_le_type(sujet, copie):
             type_copie = (copie.doc_metadata or {}).get("type_depot") or copie.type_document
             if str(type_copie).lower() == depot:
@@ -694,7 +703,7 @@ class MoteurDocumentaireService:
                     f"« {sujet.libelle} » a déjà sa copie du modèle "
                     f"(document {copie.id}, version {copie.version}) : ce "
                     "document s'ÉDITE, il ne se régénère pas. Relire sa "
-                    "structure (obtenir_structure_document), puis remplacer "
+                    "structure (obtenir_structure), puis remplacer "
                     "les éléments (remplacer_element_model) et remplir les "
                     "sections (remplir_modele).",
                     details={
@@ -704,7 +713,7 @@ class MoteurDocumentaireService:
                         "version": copie.version,
                         "type_document": depot,
                         "outils": [
-                            "obtenir_structure_document",
+                            "obtenir_structure",
                             "remplacer_element_model",
                             "remplir_modele",
                         ],
@@ -729,7 +738,7 @@ class MoteurDocumentaireService:
                 "modeles": modeles,
                 "outils": [
                     "lister_modeles_documents",
-                    "obtenir_structure_modele",
+                    "obtenir_structure",
                     "copier_modele_document",
                     "remplacer_element_model",
                     "remplir_modele",
@@ -827,7 +836,7 @@ class MoteurDocumentaireService:
                 (``copier_modele_document``).
         """
         sujet = self._sujet(ancre, entity_id)
-        document = self._document_nomme(sujet, self._nom_travail(sujet))
+        document = self._document_travail(sujet)
         if document is None:
             raise NotFoundError(
                 f"Aucun document de travail pour « {sujet.libelle} » : copier "
@@ -926,7 +935,7 @@ class MoteurDocumentaireService:
             if not element_id:
                 raise ValidationError(
                     "Chaque remplacement doit nommer son `element_id` "
-                    "(identifiant lu par `obtenir_structure_document`)."
+                    "(identifiant lu par `obtenir_structure`)."
                 )
             if element_id in vus:
                 raise ValidationError(
@@ -1025,7 +1034,7 @@ class MoteurDocumentaireService:
             if not element_id:
                 raise ValidationError(
                     "Chaque remplissage doit nommer son `element_id` "
-                    "(identifiant lu par `obtenir_structure_document`)."
+                    "(identifiant lu par `obtenir_structure`)."
                 )
             if element_id in vus:
                 raise ValidationError(
@@ -1359,6 +1368,47 @@ class MoteurDocumentaireService:
                 continue
             return candidat
         return None
+
+    def _versions_travail(
+        self, sujet: _Sujet, *, modele_id: UUID | None = None
+    ) -> list[Document]:
+        """Copies de travail de l'objet, quel que soit leur nom, les plus récentes d'abord."""
+        return sorted(
+            (
+                candidat
+                for candidat in self._documents.lister_pour(
+                    _ANCRE_LISTER[sujet.ancre], sujet.id
+                )
+                if (candidat.doc_metadata or {}).get("role") == "copie_modele"
+                and candidat.statut not in ("archive", "supprime")
+                and (
+                    modele_id is None
+                    or str((candidat.doc_metadata or {}).get("modele_document_id"))
+                    == str(modele_id)
+                )
+            ),
+            key=lambda candidat: (candidat.version, candidat.created_at),
+            reverse=True,
+        )
+
+    def _document_travail(
+        self, sujet: _Sujet, *, modele_id: UUID | None = None
+    ) -> Document | None:
+        """Copie de travail **lisible** de l'objet, quel que soit son nom.
+
+        Le nom d'une copie est libre : `nom_fichier` permet de nommer le livrable
+        (``Offre technique OFFRE-TECH-L99.docx``). La seule signature stable reste
+        donc la métadonnée ``role = copie_modele``. Le nom déterministe
+        ``modele-<référence>`` reste le repli des copies déposées avant cette
+        règle, et des tests qui n'écrivent pas les métadonnées.
+        """
+        for candidat in self._versions_travail(sujet, modele_id=modele_id):
+            try:
+                self._documents.telecharger(candidat.id)
+            except Exception:  # noqa: BLE001 - fiche orpheline : on essaie la suivante
+                continue
+            return candidat
+        return self._document_nomme(sujet, self._nom_travail(sujet))
 
     def _copie_fantome(self, sujet: _Sujet, nom: str) -> list[Document]:
         """Fiches homonymes dont le fichier manque (diagnostic, jamais éditées)."""

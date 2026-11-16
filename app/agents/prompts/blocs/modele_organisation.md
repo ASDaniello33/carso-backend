@@ -23,14 +23,14 @@ unique. Sans modèle applicable, ces outils restent les bons.
 ```text
 1. lister_modeles_documents(organisation_id)
      → modele_id, nom, type, version   (liste vide ⇒ aucun modèle)
-2. obtenir_structure_modele(organisation_id, modele_id)
+2. obtenir_structure(organisation_id=…, modele_id=…)
      → éléments réels (element_id, texte, style, images), zones, {{clé}} éventuels
 3. copier_modele_document(ancre, entity_id, modele_id?)
      → document_id + la même liste d'éléments : la copie est le document de travail
 4. remplacer_element_model(ancre, entity_id, elements=[…], nouveaux_elements=[…])
      ← tous les titres/lignes à réécrire en UN appel (une seule version)
    remplir_modele(ancre, entity_id, remplissages=[{element_id, contenu_html}]) ← sections
-5. obtenir_structure_document(ancre, entity_id)   ← relire avant la suite (ids recalculés)
+5. obtenir_structure(ancre=…, entity_id=…)   ← relire avant la suite (ids recalculés)
 6. revenir_version_document(ancre, entity_id, version?)   ← si un lot a abîmé
      la copie : la version restaurée (défaut : la précédente) redevient
      le document de travail
@@ -69,13 +69,13 @@ Un lot HTML peut atterrir au mauvais endroit (mauvais `element_id`, `position`
 mal choisie, contenu trop long). Ne répare pas à l'aveugle par-dessus :
 
 ```text
-obtenir_structure_document(ancre, entity_id)   ← relire : `historique` liste les
+obtenir_structure(ancre=…, entity_id=…)   ← relire : `historique` liste les
                                                 versions (numero, nature, courante)
 revenir_version_document(ancre, entity_id)                 ← annule le dernier geste
 revenir_version_document(ancre, entity_id, version=2)      ← revient à la version 2
    → le contenu de la version choisie redevient la copie de travail, déposé comme
      NOUVELLE version (rien n'est supprimé, l'historique reste complet)
-obtenir_structure_document(ancre, entity_id)   ← relire les identifiants
+obtenir_structure(ancre=…, entity_id=…)   ← relire les identifiants
    → puis refaire le lot correctement
 ```
 
@@ -119,7 +119,7 @@ obtenir_structure_document(ancre, entity_id)   ← relire les identifiants
 | Symptôme | Cause | Correctif |
 |---|---|---|
 | `Aucun document de travail pour …` | édition avant copie | `copier_modele_document(ancre, entity_id, modele_id)` |
-| `Élément 'block_0xx' introuvable` | identifiant d'une version précédente | relire `obtenir_structure_document` |
+| `Élément 'block_0xx' introuvable` | identifiant d'une version précédente | relire `obtenir_structure` |
 | `L'élément … est un tableau` | texte visé sur un tableau | décrire le tableau en HTML |
 | `L'élément … contient une image` | texte visé sur un paragraphe illustré | `remplir_modele` avec l'image en base64 |
 | `HTML vide` / `aucun bloc Word` | contenu sans texte ni image | fournir un vrai fragment HTML |

@@ -24,6 +24,8 @@ from app.api.schemas.appel import (
     AppelUpdate,
     DecisionCreate,
     ExtractionProposeeCreate,
+    TypeAppelRetireCreate,
+    TypeAppelRetireRead,
 )
 from app.api.schemas.beneficiaire import (
     BeneficiaireCreate,

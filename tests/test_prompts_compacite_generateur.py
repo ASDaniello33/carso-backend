@@ -44,7 +44,7 @@ def test_les_regles_de_generation_restent_presentes() -> None:
         "proposer_telechargement_document",
         "graphiques",
         "base64",
-        "(à compléter)",
+        "(à compléter",
         "OFFRE_TECHNIQUE",
         "OFFRE_FINANCIERE",
         "Matrice de conformité",
@@ -53,7 +53,7 @@ def test_les_regles_de_generation_restent_presentes() -> None:
 
 
 def test_le_prompt_du_generateur_est_borne() -> None:
-    """Garde-fou de taille : ~20,5 k tokens au lieu de ~27,7 k avant."""
+    """Garde-fou de taille : prompt d'agent resserré + bloc documents ajouté."""
     assert len(build_system_prompt(DEFINITION)) < 90_000
 
 

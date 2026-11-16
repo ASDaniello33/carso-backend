@@ -983,7 +983,7 @@ def test_structure_modele_montre_les_elements_reeels(db_session, stockage, organ
     """L'agent doit voir les éléments qu'il pourra modifier — pas des champs inventés."""
     documents, modele = _deposer_modele(db_session, stockage, organisation, modele_docx())
 
-    sortie = _outils(documents)["obtenir_structure_modele"].invoke(
+    sortie = _outils(documents)["obtenir_structure"].invoke(
         {"organisation_id": str(organisation.id), "modele_id": str(modele.id)}
     )
 
@@ -1023,6 +1023,43 @@ def test_copier_le_modele_dans_l_offre_conserve_le_fichier(
     # Idempotent : relancer renvoie la copie en cours, sans empiler de doublon.
     encore, _modele, _elements = service.copier_modele_dans_objet("offre", offre.id)
     assert encore.id == document.id
+
+
+def test_une_copie_nommee_librement_reste_la_copie_de_travail(
+    db_session, stockage, organisation, offre
+) -> None:
+    """Le nom du livrable est libre ; la copie reste unique et éditable.
+
+    Constaté en run réel : la copie était nommée pour le livrable
+    (``Offre technique OFFRE-TECH-L99.docx``), puis l'agent recopiait le modèle
+    sous le nom par défaut — deux copies du même modèle, et l'édition portait
+    sur celle qui n'avait pas le bon nom. La copie se reconnaît donc à sa
+    métadonnée ``role = copie_modele``, pas à son nom.
+    """
+    documents, modele = _deposer_modele(db_session, stockage, organisation, modele_docx())
+    service = _service(db_session, documents)
+
+    nomme, _modele, _elements = service.copier_modele_dans_objet(
+        "offre", offre.id, nom_fichier="Offre technique OFFRE-TECH-L99.docx"
+    )
+    assert nomme.nom == "Offre technique OFFRE-TECH-L99.docx"
+
+    # Second appel, sans nom : la copie existante est rendue, pas dupliquée.
+    encore, _modele, _elements = service.copier_modele_dans_objet("offre", offre.id)
+    assert encore.id == nomme.id
+
+    from app.domain.document import Document as _Document
+
+    copies = [
+        candidat
+        for candidat in db_session.query(_Document).filter(_Document.offre_id == offre.id)
+        if (candidat.doc_metadata or {}).get("role") == "copie_modele"
+    ]
+    assert len(copies) == 1, [c.nom for c in copies]
+
+    # La structure de la copie se lit malgré le nom libre.
+    structure = service.structure_document("offre", offre.id)
+    assert structure["elements"], structure
 
 
 def test_sans_modele_la_chaine_oriente_vers_la_generation_professionnelle(
@@ -1134,6 +1171,47 @@ def test_editer_sans_copie_est_refuse(db_session, stockage, organisation, offre)
         _service(db_session, documents).structure_document("offre", offre.id)
 
 
+def test_obtenir_structure_sert_un_modele_ou_une_copie(
+    db_session, stockage, organisation, offre
+) -> None:
+    """Un seul outil, deux cibles (fusion du 15/11).
+
+    ``obtenir_structure_modele`` et ``obtenir_structure_document`` faisaient le
+    même geste ; l'outil unique doit rendre exactement les mêmes éléments selon
+    les champs fournis, et refuser une cible ambiguë plutôt que de deviner.
+    """
+    documents, modele = _deposer_modele(db_session, stockage, organisation, modele_docx())
+    outils = _outils(documents)
+
+    depuis_modele = outils["obtenir_structure"].invoke(
+        {"organisation_id": str(organisation.id), "modele_id": str(modele.id)}
+    )
+    assert depuis_modele["ok"] is True, depuis_modele
+    assert depuis_modele["nombre_elements"] >= 6
+
+    outils["copier_modele_document"].invoke(
+        {"ancre": "offre", "entity_id": str(offre.id), "modele_id": str(modele.id)}
+    )
+    depuis_copie = outils["obtenir_structure"].invoke(
+        {"ancre": "offre", "entity_id": str(offre.id)}
+    )
+    assert depuis_copie["ok"] is True, depuis_copie
+    assert depuis_copie["nombre_elements"] >= 6
+    assert depuis_copie["historique"][0]["courante"] is True
+
+    # Deux cibles à la fois : refus explicite, rien n'est deviné.
+    ambigu = outils["obtenir_structure"].invoke(
+        {
+            "organisation_id": str(organisation.id),
+            "modele_id": str(modele.id),
+            "ancre": "offre",
+            "entity_id": str(offre.id),
+        }
+    )
+    assert ambigu["ok"] is False
+    assert "Deux cibles" in ambigu["error"]["message"]
+
+
 def test_les_outils_modele_exposes_sont_la_chaine_copier_editer(
     db_session, stockage, organisation
 ) -> None:
@@ -1142,9 +1220,8 @@ def test_les_outils_modele_exposes_sont_la_chaine_copier_editer(
 
     assert {
         "lister_modeles_documents",
-        "obtenir_structure_modele",
+        "obtenir_structure",
         "copier_modele_document",
-        "obtenir_structure_document",
         "remplacer_element_model",
         "remplir_modele",
     } <= noms

@@ -86,7 +86,6 @@ NOMS_TOOLS: tuple[str, ...] = (
     "submit_rfp_extraction",
     "get_lot",
     "get_organization",
-    "get_document_template",
     # Modèles et actifs de l'organisation cliente (INC-116) : modèle d'offre,
     # logo, instructions de rédaction, charte. Lecture seule, jamais inventés.
     "lister_modeles_organisation",
@@ -127,9 +126,8 @@ NOMS_TOOLS: tuple[str, ...] = (
     # le fichier dans l'offre, puis éditer la copie (texte à style conservé ou
     # HTML stylisé avec images base64). Jamais de régénération.
     "lister_modeles_documents",
-    "obtenir_structure_modele",
+    "obtenir_structure",
     "copier_modele_document",
-    "obtenir_structure_document",
     "remplacer_element_model",
     "remplir_modele",
 
@@ -148,7 +146,6 @@ NOMS_TOOLS: tuple[str, ...] = (
     "langsearch_web_search",
     # Lecture d'une page trouvée : le texte réel d'un appel ou d'un cahier des
     # charges est lu dans la source, borné, jamais reconstitué de mémoire.
-    "fetch_url",
     "read_urls",
     # Recherche de vidéos (module ``app.tools.recherche_video``) : la surface de
     # recherche externe est la **même pour tous les agents** (capacité
@@ -183,13 +180,13 @@ class OrganisationIdInput(BaseModel):
     organisation_id: UUID
 
 
-class TemplateInput(BaseModel):
-    organisation_id: UUID
-    type_document: str = Field(default=TypeDocument.OFFRE.value)
-
-
 class ListeModelesInput(BaseModel):
-    """Modèles déposés par une organisation (INC-116)."""
+    """Modèles déposés par une organisation (INC-116).
+
+    ``actif=True`` rend le **modèle actif** d'un type (l'ancien outil
+    ``get_document_template``, absorbé ici le 15/11) au lieu de la liste : un
+    seul outil pour « quels modèles ? » et « quel modèle appliquer ? ».
+    """
 
     organisation_id: UUID
     type_document: str | None = Field(
@@ -197,6 +194,13 @@ class ListeModelesInput(BaseModel):
         max_length=50,
         description="Filtre facultatif : 'modele_offre_technique', 'logo', "
         "'instructions_redaction', 'charte_graphique'…",
+    )
+    actif: bool = Field(
+        default=False,
+        description=(
+            "True : rend le modèle actif du ``type_document`` (offre par "
+            "défaut) au lieu de la liste — 404 si aucun modèle n'est déposé."
+        ),
     )
 
 
@@ -401,20 +405,6 @@ def _get_organization(session: Session, payload: dict[str, Any]) -> dict[str, An
     return {"id": str(org.id), "nom": org.nom, "type": org.type}
 
 
-def _get_template(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
-    modele = ModeleDocumentService(session).resoudre_modele_actif(
-        UUID(str(payload["organisation_id"])),
-        payload.get("type_document") or TypeDocument.OFFRE_FORMATION.value,
-    )
-    return {
-        "id": str(modele.id),
-        "nom": modele.nom,
-        "version": modele.version,
-        "document_template_id": str(modele.document_template_id),
-        "type_document": modele.type_document,
-    }
-
-
 #: Au-delà, une image n'est pas renvoyée en data-URI (le prompt deviendrait
 #: énorme) : l'agent est invité à la traiter autrement.
 _TAILLE_MAX_IMAGE = 1_500_000
@@ -446,6 +436,24 @@ def _lister_modeles_organisation(
     """
     organisation_id = UUID(str(payload["organisation_id"]))
     type_filtre = (payload.get("type_document") or "").strip() or None
+    if payload.get("actif"):
+        # Ex-``get_document_template`` : le modèle appliqué pour ce type. Le
+        # service lève NotFoundError si aucun modèle n'est déposé — l'agent ne
+        # présente donc jamais un gabarit inexistant.
+        modele = ModeleDocumentService(session).resoudre_modele_actif(
+            organisation_id,
+            type_filtre or TypeDocument.OFFRE_FORMATION.value,
+        )
+        return {
+            "organisation_id": str(organisation_id),
+            "actif": True,
+            "id": str(modele.id),
+            "nom": modele.nom,
+            "version": modele.version,
+            "document_template_id": str(modele.document_template_id),
+            "type_document": modele.type_document,
+            "message": "Modèle actif de ce type : le copier avant de l'éditer.",
+        }
     modeles = ModeleDocumentService(session).lister(organisation_id)
     if type_filtre is not None:
         modeles = [m for m in modeles if m.type_document == type_filtre]
@@ -916,12 +924,6 @@ def construire_tools_generateur_offre(
         description="Lit une organisation cliente.",
         input_schema=OrganisationIdInput,
         run=_get_organization,
-    ))
-    kit.enregistrer(OperationSpec(
-        name="get_document_template",
-        description="Modèle de document actif de l'organisation (404 si absent).",
-        input_schema=TemplateInput,
-        run=_get_template,
     ))
     kit.enregistrer(OperationSpec(
         name="lister_modeles_organisation",

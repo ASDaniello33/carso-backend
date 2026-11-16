@@ -35,6 +35,7 @@ from app.domain.enums import (
     TypeOffre,
     TypeProposition,
 )
+from app.domain.document import Document
 from app.domain.organization import Budget, LigneBudget, Lot, Offre
 from app.domain.state_machines import validate_transition
 from app.infrastructure.repositories import (
@@ -159,8 +160,25 @@ class OffreService:
                 )
             reference = reference.strip()
 
-        if modele_document_id is not None and self.modeles.get(modele_document_id) is None:
-            raise NotFoundError(f"Modèle de document {modele_document_id} introuvable")
+        if modele_document_id is not None:
+            # Deux vocabulaires cohabitent : le registre des modèles
+            # (`modeles_documents`) et la fiche de dépôt (`documents`).
+            # `offres.modele_document_id` porte une clé étrangère vers
+            # `documents` : un identifiant du registre y provoquait une
+            # violation de contrainte PostgreSQL (500), donc un échec du run
+            # là où l'offre est justement en train de se créer. On accepte les
+            # deux en le traduisant, et un identifiant inconnu des deux reste
+            # refusé — jamais une erreur 500.
+            document_id = modele_document_id
+            if self.modeles.get(modele_document_id) is not None:
+                document_id = self.modeles.get(
+                    modele_document_id
+                ).document_template_id
+            elif self._session.get(Document, modele_document_id) is None:
+                raise NotFoundError(
+                    f"Modèle de document {modele_document_id} introuvable"
+                )
+            modele_document_id = document_id
 
         offre = Offre(
             organisation_id=appel.organisation_id,

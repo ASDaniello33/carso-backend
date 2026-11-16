@@ -148,7 +148,6 @@ NOMS_TOOLS: tuple[str, ...] = (
     # Recherche web fédérée + lecture de pages, et recherche de vidéos : la
     # même surface de lecture externe que les autres agents (``web_search``).
     "langsearch_web_search",
-    "fetch_url",
     "read_urls",
     "rechercher_video",
 )

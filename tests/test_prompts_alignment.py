@@ -98,9 +98,8 @@ def test_la_chaine_modele_est_declaree_chez_le_generateur_d_offre() -> None:
     prompt = build_system_prompt(definition)
     for nom in (
         "lister_modeles_documents",
-        "obtenir_structure_modele",
+        "obtenir_structure",
         "copier_modele_document",
-        "obtenir_structure_document",
         "remplacer_element_model",
         "remplir_modele",
     ):
@@ -156,7 +155,7 @@ def test_les_agents_producteurs_recoivent_le_bloc_de_generation() -> None:
         # Le bloc doit être présent, sauf si le prompt de l'agent le documente
         # déjà lui-même (``blocs_inline``) : mêmes règles, une seule fois.
         if "generation" in definition.blocs_inline:
-            assert not BLOC_GENERATION_DOCUMENTS.strip() in build_system_prompt(
+            assert BLOC_GENERATION_DOCUMENTS.strip() not in build_system_prompt(
                 definition
             ), agent_id
         else:
@@ -215,6 +214,49 @@ def test_le_bloc_du_modele_dit_qu_il_n_y_a_pas_de_placeholders() -> None:
 def test_le_bloc_de_generation_rappelle_le_contrat_d_outils() -> None:
     """Un mode d'emploi ne doit jamais autoriser un outil absent du contrat."""
     assert "Tu n'utilises que les outils de ton contrat" in BLOC_GENERATION_DOCUMENTS
+
+
+def test_les_agents_script_recoivent_la_regle_donnees() -> None:
+    """Un tableur de données se lit par ``donnees``, jamais ligne à ligne.
+
+    Les quatre agents qui exécutent un script reçoivent la règle. Sans elle, un
+    CSV joint était relu plage par plage : 200 lignes d'un coup, aucun calcul,
+    et le statisticien tournait en rond (16/11/2026).
+    """
+    avec_script = [
+        agent_id
+        for agent_id, definition in PAR_AGENT.items()
+        if "run_python_script" in definition.tools
+    ]
+    assert set(avec_script) >= {
+        "agent_statistique",
+        "agent_assistant_formateur",
+        "agent_generateur_offre",
+        "agent_personnel",
+        "agent_rh",
+    }
+
+    # La règle est écrite une seule fois, dans le bloc des agents qui ont un script.
+    assert "### Analyser un tableur de données" in BLOC_ESPACE_TRAVAIL
+    assert "donnees" in BLOC_ESPACE_TRAVAIL
+    assert "read_document_range" in BLOC_ESPACE_TRAVAIL
+
+    for agent_id in avec_script:
+        prompt = build_system_prompt(PAR_AGENT[agent_id])
+        assert "Analyser un tableur de données" in prompt, agent_id
+        assert "donnees" in prompt, agent_id
+        # Une seule source : le contrat vit dans le bloc, le prompt d'agent n'en
+        # garde au plus qu'un renvoi — jamais un second mode d'emploi.
+        assert prompt.count("pd.read_csv") == 1, agent_id
+        assert prompt.count("Analyser un tableur de données") == 1, agent_id
+
+    # Aucun agent sans script ne reçoit le mode d'emploi de cet outil.
+    for agent_id, definition in PAR_AGENT.items():
+        if "run_python_script" in definition.tools:
+            continue
+        assert "Analyser un tableur de données" not in build_system_prompt(definition), (
+            agent_id
+        )
 
 
 def test_le_bloc_espace_de_travail_decrit_le_mode_ancre() -> None:

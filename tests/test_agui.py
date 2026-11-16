@@ -132,6 +132,67 @@ def test_config_agui_passe_recursion_limit() -> None:
     assert recus[0]["emit_interrupt_outcome"] is True
 
 
+def test_le_montage_agui_place_la_purge_dans_le_pont_run_error() -> None:
+    """Ordre de montage : une panne de la purge doit devenir un RUN_ERROR.
+
+    ``PurgeInterruptOrphelin`` relance les pannes de run (fournisseur, quota,
+    transport) au lieu de les avaler — mais seulement si ``StreamingRunError``
+    l'**enveloppe**. Inverser les deux lignes de ``_ajouter_endpoint`` rendrait
+    l'échec de nouveau silencieux sans qu'aucun autre test ne rougisse : cette
+    garde fige l'ordre, pas seulement l'existence des deux décorateurs.
+    """
+    from app.api.agui import (
+        PurgeInterruptOrphelin,
+        StreamingRunError,
+        _ajouter_endpoint,
+        _code_erreur,
+    )
+
+    captes: list[object] = []
+
+    class _Wrapper:
+        """Double de ``LangGraphAgent`` : retient le graphe, ne lit rien."""
+
+        def __init__(self, **_kwargs) -> None:
+            self.graph = None
+
+    class _Paquet:
+        LangGraphAgent = _Wrapper
+
+        @staticmethod
+        def add_langgraph_fastapi_endpoint(*_args, **kwargs) -> None:
+            captes.append(kwargs["agent"])
+
+    class _Def:
+        agent_id = "agent_test"
+        description = "d"
+
+    _ajouter_endpoint(app, _Def(), graph=object(), path="/x", agui=_Paquet())
+    assert captes, "aucun agent monté"
+
+    # Chaîne réelle, de l'extérieur vers l'intérieur (les décorateurs du projet
+    # délèguent tous par ``_interne``).
+    couche: object | None = captes[0]
+    chaine: list[object] = []
+    while couche is not None:
+        chaine.append(couche)
+        couche = getattr(couche, "_interne", None)
+    noms = [type(element).__name__ for element in chaine]
+
+    assert StreamingRunError in [type(e) for e in chaine], noms
+    assert PurgeInterruptOrphelin in [type(e) for e in chaine], noms
+    rang_pont = next(i for i, e in enumerate(chaine) if isinstance(e, StreamingRunError))
+    rang_purge = next(
+        i for i, e in enumerate(chaine) if isinstance(e, PurgeInterruptOrphelin)
+    )
+    assert rang_pont < rang_purge, (
+        "la purge doit être montée DANS le pont RUN_ERROR (plus profond que "
+        f"StreamingRunError) : {noms}"
+    )
+    # Le classificateur de production, et non le défaut « tout avaler ».
+    assert chaine[rang_purge]._classer_erreur is _code_erreur  # noqa: SLF001
+
+
 def test_catalogue_agui_expose_scenarios_hitl() -> None:
     """Le catalogue AG-UI transporte les scénarios HITL (contrat CopilotKit)."""
     client = TestClient(app)

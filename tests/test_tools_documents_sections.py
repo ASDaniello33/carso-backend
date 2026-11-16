@@ -129,6 +129,61 @@ def test_lister_decrit_les_sections(outils: dict[str, Any]) -> None:
     assert "caracteres" in sections[1]
 
 
+def test_lire_donne_le_html_exact_d_une_section(outils: dict[str, Any]) -> None:
+    """Constater une faute et la corriger sans relire tout le document.
+
+    Constat du 15/11 (agent générateur) : `lister` ne rend que les titres ; ne
+    voyant pas le contenu, l'agent a régénéré un document de 6 parties deux fois
+    pour corriger du Markdown `**` résiduel. `lire` rend la source exacte de la
+    section, seule chose qui manquait pour une correction réellement ciblée.
+    """
+    depot = _generer(outils)
+
+    lu = _section(outils, depot["document_id"], action="lire", section_index=2)
+    assert lu["ok"] is True, lu
+    assert lu["section_index"] == 2
+    assert lu["section"] == (
+        "<h1>1. Contexte</h1><p>L'appel demande une formation en incubation.</p>"
+    )
+    assert lu["caracteres"] == len(lu["section"])
+    # Aucune autre section ne fuite dans la réponse.
+    assert "Méthodologie" not in lu["section"]
+
+    # La source lue se corrige à l'identique : le reste du document est intact.
+    corrige = lu["section"].replace("en incubation", "en incubation numérique")
+    correction = _section(
+        outils,
+        depot["document_id"],
+        action="remplacer",
+        section_index=2,
+        contenu_html=corrige,
+    )
+    assert correction["ok"] is True, correction
+    assert correction["version"] == 2
+    relu = _section(outils, correction["document_id"], action="lire", section_index=2)
+    assert "incubation numérique" in relu["section"]
+    assert (
+        _section(outils, correction["document_id"], action="lire", section_index=3)[
+            "section"
+        ]
+        == "<h1>2. Démarche</h1><p>Méthodologie en trois phases.</p>"
+    )
+
+
+def test_lire_hors_bornes_est_refuse(outils: dict[str, Any]) -> None:
+    depot = _generer(outils)
+    reponse = _section(outils, depot["document_id"], action="lire", section_index=99)
+    assert reponse["ok"] is False
+    assert "hors bornes" in reponse["error"]["message"]
+
+
+def test_lire_exige_un_index(outils: dict[str, Any]) -> None:
+    depot = _generer(outils)
+    reponse = _section(outils, depot["document_id"], action="lire")
+    assert reponse["ok"] is False
+    assert "section_index" in reponse["error"]["message"]
+
+
 def test_remplacer_une_section_cree_une_version(outils: dict[str, Any]) -> None:
     depot = _generer(outils)
     assert depot["version"] == 1

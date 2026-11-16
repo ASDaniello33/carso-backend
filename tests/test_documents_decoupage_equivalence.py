@@ -99,9 +99,16 @@ def test_les_29_outils_sont_tous_construits(service: DocumentService) -> None:
 
     28 depuis la suppression de l'alias ``read_document`` : deux noms pour le
     même geste laissaient le modèle choisir au hasard (audit du 13/11).
+
+    27 depuis le 15/11 : ``obtenir_structure_modele`` et
+    ``obtenir_structure_document`` sont fusionnés en ``obtenir_structure``
+    (une cible modèle, une cible copie) — même geste, un seul outil.
     """
     outils = _tools(service)
-    assert len(outils) == 28
+    assert len(outils) == 27
+    assert "obtenir_structure" in outils
+    assert "obtenir_structure_modele" not in outils
+    assert "obtenir_structure_document" not in outils
     attendus = {
         "generer_document",
         "generer_document_professionnel",

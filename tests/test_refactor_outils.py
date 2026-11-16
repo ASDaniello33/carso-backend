@@ -274,6 +274,9 @@ def test_assistant_couvre_lecture_mission_complet() -> None:
 
     requis = {
         "get_mission",
+        # session → mission → organisation : sans lui, un ``session_id`` ne
+        # menait ni à la mission ni au modèle (boucle du 16/11).
+        "get_session",
         "list_mission_sessions",
         "list_session_beneficiaires",
         "get_mission_offre",

@@ -50,7 +50,7 @@ def _reference(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
             "``copier_modele_document`` (le fichier est copié tel quel dans "
             "l'offre), puis ``remplacer_element_model`` / "
             "``remplir_modele`` avec les `element_id` de "
-            "``obtenir_structure_document``. Le contenu de la référence "
+            "``obtenir_structure``. Le contenu de la référence "
             "n'est jamais recopié."
         )
     return sortie

@@ -39,14 +39,27 @@ même donnée que le middleware utilise — et choisit par action :
 **Un run qui porte un ``resume`` n'est jamais touché** : l'utilisateur répond
 au questionnaire, c'est une décision humaine qui doit atteindre l'agent.
 
-La purge est **best-effort** : en cas d'échec (état illisible, base coupée),
-l'incident est journalisé et le run continue comme avant—une purge ratée ne
-doit pas empêcher de parler à l'agent.
+La purge est **best-effort** pour les pannes d'**accès à l'état** (état
+illisible, base coupée) : l'incident est journalisé et le run continue comme
+avant—une purge ratée ne doit pas empêcher de parler à l'agent.
+
+**Une panne de run ne s'avale pas (16/11/2026).** La reprise est un vrai run
+du graphe : elle consomme un appel modèle, qui appartient à l'utilisateur. Si
+cet appel échoue (503 du fournisseur, transport coupé), l'ancienne version
+l'avalait au même titre qu'une base injoignable—le tour réussissait alors **en
+silence**, après avoir payé un appel de plus. Un classificateur
+(``classer_erreur``, branché sur celui de ``app.api.agui``) sépare les deux
+familles : une cause classée ``erreur_run`` (inconnue, donc probablement
+interne à la purge) reste avalée ; une cause de **run** (fournisseur, quota,
+silence du flux, transport) est relancée pour que le pont ``RUN_ERROR``
+l'affiche. Le décorateur est monté **à l'intérieur** de ce pont pour cela
+(``app/api/agui._ajouter_endpoint``).
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
 try:  # pragma: no cover - dépend de l'installation de langgraph
@@ -168,9 +181,21 @@ def decisions_refus(snapshot: Any) -> list[dict[str, str]]:
 class PurgeInterruptOrphelin:
     """Décorateur : un fil bloqué sur une question sans réponse est libéré."""
 
-    def __init__(self, interne: Any, graph: Any) -> None:
+    def __init__(
+        self,
+        interne: Any,
+        graph: Any,
+        *,
+        classer_erreur: Callable[[BaseException], str] | None = None,
+    ) -> None:
+        """``classer_erreur`` : code machine d'une panne (``erreur_run`` = interne).
+
+        Sans classificateur, la purge garde son comportement historique
+        (best-effort total). La production branche ``app.api.agui._code_erreur``.
+        """
         self._interne = interne
         self._graph = graph
+        self._classer_erreur = classer_erreur
 
     def __getattr__(self, nom: str) -> Any:
         return getattr(self._interne, nom)
@@ -179,7 +204,9 @@ class PurgeInterruptOrphelin:
         """Un clone par requête : même graphe (résolu au run), chaîne réisolée."""
         cloner = getattr(self._interne, "clone", None)
         interne = cloner() if callable(cloner) else self._interne
-        return PurgeInterruptOrphelin(interne, self._graph)
+        return PurgeInterruptOrphelin(
+            interne, self._graph, classer_erreur=self._classer_erreur
+        )
 
     async def run(self, input_data: Any):
         await self._purger(input_data)
@@ -223,13 +250,21 @@ class PurgeInterruptOrphelin:
             # de ``app/agents/generateur_offre.py``.
             await self._graph.ainvoke(Command(resume={"decisions": decisions}), config)
         except Exception as exc:  # noqa: BLE001 - la purge ne bloque jamais le run
+            code = self._classer_erreur(exc) if self._classer_erreur else "erreur_run"
             _logger.warning(
-                "Purge d'interrupt orphelin impossible (fil %s) : %s: %s",
+                "Purge d'interrupt orphelin impossible (fil %s, code %s) : %s: %s",
                 thread_id,
+                code,
                 type(exc).__name__,
                 exc,
                 exc_info=exc,
             )
+            if code != "erreur_run":
+                # Panne de run (fournisseur, quota, transport) survenue dans la
+                # reprise : elle appartient à l'utilisateur et ne doit pas
+                # disparaître. Le pont ``RUN_ERROR`` qui enveloppe la purge
+                # l'affiche ; le run n'est pas rejoué en silence.
+                raise
 
 
 __all__ = [

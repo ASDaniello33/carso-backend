@@ -25,7 +25,9 @@ from app.agents.page_courante import (
     entete_page,
     injecter_page_dans_payload,
     page_depuis_payload,
+    retirer_entetes_anciennes,
 )
+from langchain_core.messages import AIMessage, HumanMessage
 from app.api.agui_pieces_jointes import reecrire_corps
 
 MISSION = "3f2a9c1e-4b7d-4e2a-9c5f-1a2b3c4d5e6f"
@@ -220,25 +222,61 @@ def test_paliers_de_recherche_dans_le_prompt() -> None:
     assert "requetes" in systeme
 
 
-def test_l_entete_perimee_d_un_message_anterieur_est_retiree() -> None:
-    """La page quittée ne reste pas dans l'historique du modèle.
+def test_un_message_deja_envoye_garde_le_contenu_que_le_client_renverra() -> None:
+    """Régression du 15/11 : le message du second tour disparaissait.
 
-    Constat : après /Dashboard → /offres/<id>, le message précédent portait
-    encore « [Page ouverte : page /dashboard] » et l'agent répondait sur le
-    tableau de bord. Un seul en-tête doit rester : celui du dernier message.
+    Le client renvoie l'historique tel que l'instantané le lui a rendu. Si le
+    payload réécrivait un message déjà présent dans le fil, ``ag-ui-langgraph``
+    comparait un contenu différent pour le même identifiant, concluait à une
+    **réédition** et rejouait le tour précédent — la réponse était régénérée et
+    le message neuf n'était jamais traité.
     """
     payload = _payload(page=_page("offre", OFFRE, f"/offres/{OFFRE}"))
+    ancien = "[Page ouverte : page (route /dashboard)]\nBonjour"
     payload["messages"] = [
-        {
-            "id": "m0",
-            "role": "user",
-            "content": "[Page ouverte : page (route /dashboard)]\nBonjour",
-        },
-        {"id": "m1", "role": "user", "content": "Et pour cette offre ?"},
+        {"id": "m0", "role": "user", "content": ancien},
+        {"id": "m1", "role": "assistant", "content": "Bonjour Daniello !"},
+        {"id": "m2", "role": "user", "content": "Et pour cette offre ?"},
     ]
 
     sortie = injecter_page_dans_payload(payload)
 
-    assert sortie["messages"][0]["content"] == "Bonjour"
-    assert entete_page(page_depuis_payload(payload)) in sortie["messages"][1]["content"]
-    assert sortie["messages"][1]["content"].count("[Page ouverte") == 1
+    # Identité du message déjà envoyé : contenu strictement identique.
+    assert sortie["messages"][0]["content"] == ancien
+    assert sortie["messages"][1]["content"] == "Bonjour Daniello !"
+    # Seul le message neuf (absent du fil) reçoit l'en-tête.
+    assert sortie["messages"][2]["content"].count("[Page ouverte") == 1
+    assert sortie["messages"][2]["content"].endswith("Et pour cette offre ?")
+
+
+def test_l_entete_perimee_d_un_message_anterieur_est_retiree_du_prompt() -> None:
+    """La page quittée ne reste pas dans l'historique **du modèle**.
+
+    Constat : après /Dashboard → /offres/<id>, le message précédent portait
+    encore « [Page ouverte : page /dashboard] » et l'agent répondait sur le
+    tableau de bord. Un seul en-tête doit rester : celui du dernier message —
+    retiré dans la requête du modèle, pas dans l'état du fil.
+    """
+    messages = [
+        HumanMessage(
+            id="m0",
+            content="[Page ouverte : page (route /dashboard)]\nBonjour",
+        ),
+        AIMessage(id="m1", content="Bonjour Daniello !"),
+        HumanMessage(
+            id="m2",
+            content=f"[Page ouverte : offre {OFFRE} (route /offres/{OFFRE})]\nEt pour cette offre ?",
+        ),
+    ]
+
+    propres = retirer_entetes_anciennes(messages)
+
+    assert propres[0].content == "Bonjour"  # page quittée oubliée
+    assert propres[0].id == "m0"  # identifiant conservé : pas de réédition
+    assert propres[2] is messages[2]  # le dernier message garde son en-tête
+    assert "[Page ouverte : offre" in propres[2].content
+
+
+def test_aucun_entete_a_retirer_rend_la_liste_inchangee() -> None:
+    messages = [HumanMessage(id="m0", content="Bonjour")]
+    assert retirer_entetes_anciennes(messages) is messages

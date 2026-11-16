@@ -374,13 +374,43 @@ class AgentRuntimeManager:
         """État du runtime pour l'API d'administration (aucun secret)."""
         with self._lock:
             valeurs = self._values or _valeurs_env()
+            configured = self.is_configured()
             return {
-                "configured": self.is_configured(),
+                "configured": configured,
                 "values": valeurs.as_dict() if valeurs else None,
                 "agents": list(self.agent_ids()),
                 "built_agents": list(self._last_agents),
                 "last_error": self._last_error,
+                "fenetre_modele": self._fenetre_du_modele(valeurs, configured),
             }
+
+    def _fenetre_du_modele(
+        self, valeurs: AgentRuntimeValues | None, configured: bool
+    ) -> dict[str, Any] | None:
+        """Fenêtre d'entrée retenue pour le modèle appliqué, et sa provenance.
+
+        Ce que l'écran Paramètres doit pouvoir dire sans le deviner : la valeur
+        utilisée, si elle est **publiée** par le fournisseur, non publiée, ou
+        non lue, et les seuils de résumé qui en découlent. Le calcul est celui
+        du harnais (``fenetre_effective``) : l'affichage ne peut pas dériver de
+        ce qui est réellement appliqué.
+
+        La lecture est best-effort et mémorisée (aucun secret journalisé) ; un
+        échec réseau rend simplement ``provenance=non_lue``.
+        """
+        if not configured or valeurs is None or not valeurs.model:
+            return None
+        try:
+            from app.agents.providers import fenetre_effective
+
+            reglages = self.effective_settings()
+            fenetre = dict(fenetre_effective(reglages, valeurs.model))
+        except Exception as exc:  # noqa: BLE001 - information d'affichage
+            _logger.warning("Fenêtre du modèle non calculée pour l'écran : %s", exc)
+            return None
+        fenetre["modele"] = valeurs.model
+        fenetre["base_url"] = valeurs.base_url
+        return fenetre
 
     def oublier_graphes(
         self, agent_id: str | None, utilisateur_id: UUID | str | None

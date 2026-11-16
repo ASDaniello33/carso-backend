@@ -109,8 +109,7 @@ DEFINITION = AgentDefinition(
         "langsearch_web_search",
         # Lecture d'une page trouvée (``app.tools.web``) : la donnée est lue dans
         # la source et citée, jamais estimée. Même capacité ``web_search``.
-        "fetch_url",
-        "read_urls",
+            "read_urls",
         # Recherche de vidéos : même capacité ``web_search``.
         "rechercher_video",
     ),

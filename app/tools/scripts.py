@@ -35,6 +35,7 @@ import ast
 import io
 import os
 import re
+import shutil
 import subprocess
 import sys
 import unicodedata
@@ -59,6 +60,8 @@ from app.tools.workspace import (
 )
 
 __all__ = [
+    "EXTENSIONS_DONNEES",
+    "DonneeScriptInput",
     "LivrableInput",
     "RunPythonScriptInput",
     "TypeAncreScript",
@@ -246,6 +249,31 @@ class LivrableInput(BaseModel):
     )
 
 
+#: Formats acceptés comme jeu de données par ``donnees`` : un tableur se lit
+#: par script, pas ligne à ligne dans la conversation.
+EXTENSIONS_DONNEES = frozenset({"csv", "tsv", "xlsx", "xls", "json"})
+
+
+class DonneeScriptInput(BaseModel):
+    """Un document de données à déposer auprès du script qui va le lire.
+
+    Le fichier est copié dans le dossier d'exécution du script : c'est le seul
+    chemin par lequel un CSV/XLSX métier entre dans la sandbox (le stockage
+    documentaire n'y est pas lisible).
+    """
+
+    document_id: UUID = Field(description="Document existant (CSV, TSV, XLSX/XLS, JSON).")
+    fichier: str | None = Field(
+        default=None,
+        max_length=255,
+        description=(
+            "Nom du fichier dans le dossier d'exécution. Sans nom, le nom du "
+            "document est repris. Le dossier est toujours ignoré : seul le nom "
+            "de fichier est retenu."
+        ),
+    )
+
+
 class RunPythonScriptInput(BaseModel):
     """Source Python à exécuter, dans l'espace du compte **ou** près d'un objet."""
 
@@ -283,6 +311,19 @@ class RunPythonScriptInput(BaseModel):
             "l'ancre, en statut 'proposed'. Seuls les fichiers DÉCLARÉS sont "
             "déposés ; les autres restent dans le dossier de travail, qui est "
             "supprimé. Même nom + même type + même ancre ⇒ nouvelle version."
+        ),
+    )
+    donnees: list[DonneeScriptInput] | None = Field(
+        default=None,
+        max_length=10,
+        description=(
+            "Documents de données (CSV, TSV, XLSX/XLS, JSON) déposés dans le "
+            "dossier d'exécution avant de lancer le script. **C'est le chemin "
+            "pour analyser un tableur joint** : `pandas.read_csv('donnees.csv')`, "
+            "`pandas.read_excel(...)` — jamais recopier les lignes dans le chat. "
+            "Chaque entrée: {document_id, fichier?} ; le retour liste les "
+            "fichiers réellement présents (nom, octets). Un PDF/DOCX est refusé "
+            "ici (utiliser lire_document / read_document_range)."
         ),
     )
 
@@ -707,6 +748,115 @@ def _uuid_ou_refus(valeur: Any) -> UUID:
         raise ValidationError("entity_id n'est pas un UUID valide") from erreur
 
 
+def _nom_donnee(demande: Any, nom_document: str, extension: str) -> str:
+    """Nom du fichier de données — un NOM, jamais un chemin.
+
+    ``Path(...).name`` jette tout dossier et toute remontée (``..``) : le
+    fichier déposé ne peut pas sortir du dossier d'exécution.
+    """
+    base = Path(str(demande or nom_document or f"donnees{extension}")).name.strip()
+    if base in ("", ".", ".."):
+        base = f"donnees{extension}"
+    if not base.lower().endswith(extension.lower()):
+        base = f"{base}{extension}"
+    return base
+
+
+def _preparer_donnees(
+    entrees: Any,
+    *,
+    service: Any,
+    service_factory: Callable[[], Any] | None,
+    dossier: Path,
+    identite: AgentIdentity,
+    policy: PermissionPolicy,
+) -> list[dict[str, Any]]:
+    """Dépose les documents de données à côté du script qui va les lire.
+
+    Un tableur joint (234 lignes de populations, une liste de bénéficiaires…)
+    ne se recopie pas dans la conversation : lu par ``read_document_range``, il
+    noie la fenêtre et l'agent finit par tourner en rond sans jamais calculer.
+    Le fichier est donc copié **dans le dossier d'exécution**, où le script le
+    lit avec pandas — la donnée ne passe jamais par le modèle.
+
+    Le périmètre documentaire de l'appel est celui du service (même contrôle
+    que ``lire_document``) et ``document_read`` est exigé.
+
+    Returns:
+        Une entrée par fichier déposé : ``fichier``, ``document_id``, ``nom``,
+        ``octets``.
+
+    Raises:
+        PermissionDeniedError: capacité ``document_read`` absente.
+        ValidationError: document illisible, ou format qui n'est pas un jeu de
+            données.
+    """
+    if not entrees:
+        return []
+    policy.require(identite.agent_id, "document_read")
+    if service is None:
+        if service_factory is None:
+            raise ValidationError(
+                "'donnees' indisponible : le service documentaire n'est pas "
+                "monté pour cet agent."
+            )
+        service = service_factory()
+
+    deposees: list[dict[str, Any]] = []
+    for entree in entrees:
+        document_id = entree["document_id"] if isinstance(entree, dict) else entree.document_id
+        demande = entree.get("fichier") if isinstance(entree, dict) else entree.fichier
+        nom, chemin = service.telecharger(document_id)
+        extension = chemin.suffix.lower()
+        if extension.lstrip(".") not in EXTENSIONS_DONNEES:
+            raise ValidationError(
+                f"« {nom} » n'est pas un jeu de données "
+                f"({extension or 'sans extension'}) : 'donnees' accepte CSV, "
+                "TSV, XLSX/XLS et JSON. Un PDF ou un DOCX se lit avec "
+                "lire_document / read_document_range.",
+                details={
+                    "document_id": str(document_id),
+                    "extension": extension.lstrip("."),
+                    "formats": sorted(EXTENSIONS_DONNEES),
+                },
+            )
+        cible = _nom_donnee(demande, nom, extension)
+        dossier.mkdir(parents=True, exist_ok=True)
+        destination = dossier / cible
+        shutil.copyfile(chemin, destination)
+        deposees.append(
+            {
+                "fichier": cible,
+                "document_id": str(document_id),
+                "nom": nom,
+                "octets": destination.stat().st_size,
+            }
+        )
+    return deposees
+
+
+def _retirer_donnees(donnees: list[dict[str, Any]], dossier: Path) -> int:
+    """Supprime les copies techniques des documents, l'exécution terminée.
+
+    Ces fichiers ne sont pas le travail du compte : ce sont des copies de
+    documents métier officiels, déposées le temps d'un script. Les laisser
+    derrière soi les faisait apparaître dans les fichiers de travail, sans
+    fiche documentaire — donc non référencés. L'agent qui en a besoin les
+    redépose en repassant ``donnees``.
+
+    Returns:
+        Le nombre de fichiers effectivement supprimés.
+    """
+    retires = 0
+    for entree in donnees:
+        try:
+            (dossier / entree["fichier"]).unlink()
+        except (FileNotFoundError, OSError):
+            continue
+        retires += 1
+    return retires
+
+
 def _deposer_livrables(
     service: Any,
     *,
@@ -884,6 +1034,17 @@ def build_run_python_script(
             ecriture = temporaire
         else:
             ecriture = espace
+        donnees = _preparer_donnees(
+            payload.get("donnees"),
+            service=service,
+            service_factory=service_factory,
+            dossier=ecriture,
+            identite=identite,
+            policy=policy,
+        )
+        # Une copie de document n'est pas un fichier de travail : elle n'est
+        # jamais listée, et disparaît avec l'exécution (voir ``_retirer_donnees``).
+        copies = frozenset(entree["fichier"] for entree in donnees)
         _tracer(
             "script.exec",
             {
@@ -940,7 +1101,8 @@ def build_run_python_script(
                 "timeout": True,
                 "espace": logique,
                 "script": relatif,
-                "fichiers": lister_fichiers(ecriture),
+                "donnees": donnees,
+                "fichiers": lister_fichiers(ecriture, exclure=copies),
             }
         else:
             resultat = {
@@ -950,7 +1112,8 @@ def build_run_python_script(
                 "timeout": False,
                 "espace": logique,
                 "script": relatif,
-                "fichiers": lister_fichiers(ecriture),
+                "donnees": donnees,
+                "fichiers": lister_fichiers(ecriture, exclure=copies),
             }
             if temporaire is not None:
                 resultat.update(
@@ -965,6 +1128,8 @@ def build_run_python_script(
                     )
                 )
         finally:
+            if donnees:
+                resultat["donnees_retirees"] = _retirer_donnees(donnees, ecriture)
             if temporaire is not None:
                 # Le dossier de travail ne survit jamais à l'appel : les fichiers
                 # non déclarés n'ont pas à traîner dans le stockage officiel.
@@ -1002,7 +1167,11 @@ def build_run_python_script(
             "type + ancre = nouvelle version) : seul moyen de rendre un livrable "
             "de script visible. Pour les traitements longs ou répétitifs "
             "(consolider des classeurs, nettoyer une liste, calculer un budget, "
-            f"générer des DOCX/XLSX en série). Écris le script complet en une "
+            f"générer des DOCX/XLSX en série). Un tableur joint s'analyse ici : "
+            "passe-le en `donnees: [{document_id}]` — il est déposé dans le "
+            "dossier d'exécution et lu par pandas (`read_csv('donnees.csv')`), "
+            "sans recopier une seule ligne dans le chat. "
+            f"Écris le script complet en une "
             f"fois, lis stdout. {perimetre} Budget : {max_source} caractères, "
             f"{timeout_s}s. Refusés : arrêter/redémarrer le serveur, piloter un "
             "programme, réseau, secrets, écrire hors de l'espace. MODULES : "

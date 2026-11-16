@@ -4,10 +4,10 @@ Demande utilisateur : « assurez-vous que tous les agents ont l'outil de recherc
 web complet et les outils fetch urls ». L'invariant est donc verrouillé ici, une
 fois pour tout le catalogue :
 
-1. chaque agent du **runtime** déclare les quatre tools de lecture externe —
+1. chaque agent du **runtime** déclare les trois tools de lecture externe —
    ``langsearch_web_search`` (recherche fédérée : pages, et fichiers via
-   ``filetype:``), ``fetch_url`` / ``read_urls`` (lecture d'une adresse, seule
-   ou par lot), ``rechercher_video`` (vidéos) ;
+   ``filetype:``), ``read_urls`` (lecture d'une adresse, seule ou par lot —
+   ``fetch_url`` y a été absorbé le 15/11), ``rechercher_video`` (vidéos) ;
 2. chaque agent porte la capacité ``web_search`` — sans elle, les tools
    lèveraient ``PermissionDeniedError`` à l'appel (garde de ``app.tools.web`` /
    ``app.tools.recherche_video``) : déclarer sans capacité serait un contrat mort ;
@@ -32,11 +32,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.agents.base import AgentDefinition
 from app.agents.catalogue import AGENT_RUNTIME
 
-#: Les quatre tools de lecture externe attendus sur **chaque** agent.
+#: Les trois tools de lecture externe attendus sur **chaque** agent.
 TOOLS_WEB: frozenset[str] = frozenset(
     {
         "langsearch_web_search",
-        "fetch_url",
         "read_urls",
         "rechercher_video",
     }

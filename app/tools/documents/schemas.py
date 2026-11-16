@@ -908,8 +908,14 @@ class CorrigerDocumentInput(BaseModel):
     la **version suivante** : l'ancienne reste sur disque, jamais d'écrasement.
     """
 
-    document_spec: DocumentSpec = Field(
-        description="Le document structuré à corriger (tel qu'obtenu précédemment)."
+    document_spec: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Document structuré à corriger. PRÉFÉRER ``document_id`` : le spec "
+            "déjà déposé est relu côté serveur, au lieu d'être retransmis en "
+            "entier. Fournir le spec seulement pour un document jamais déposé "
+            "({'metadata': {...}, 'blocs': [...]})."
+        ),
     )
     operations: list[Operation] = Field(
         min_length=1,
@@ -1005,11 +1011,14 @@ class ModifierSectionDocumentInput(BaseModel):
             "generer_document_professionnel. Ne jamais inventer d'identifiant."
         )
     )
-    action: Literal["lister", "remplacer", "ajouter", "supprimer"] = Field(
+    action: Literal["lister", "lire", "remplacer", "ajouter", "supprimer"] = Field(
         default="lister",
         description=(
             "'lister' (défaut) : rend les sections du document (index, balise, "
             "titre, taille) — à faire AVANT toute modification. "
+            "'lire' : rend le HTML **exact** d'UNE section (`section_index`) : "
+            "c'est la source à recopier corrigée dans 'remplacer', sans "
+            "relire tout le document ni le régénérer. "
             "'remplacer' : remplace la section `section_index` par le HTML "
             "fourni. 'ajouter' : insère une section après `section_index` "
             "(à la fin si omis). 'supprimer' : retire la section "
@@ -1021,7 +1030,7 @@ class ModifierSectionDocumentInput(BaseModel):
         ge=1,
         description=(
             "Numéro (1-based) de la section, tel que renvoyé par action='lister'. "
-            "Requis pour 'remplacer' et 'supprimer'. Pour 'ajouter' : la "
+            "Requis pour 'lire', 'remplacer' et 'supprimer'. Pour 'ajouter' : la "
             "nouvelle section est insérée APRÈS ce numéro (omis = à la fin)."
         ),
     )
@@ -1056,7 +1065,7 @@ class ModifierSectionDocumentInput(BaseModel):
                     "action='lister' ne modifie rien : retirer section_index et "
                     "contenu_html (ce sont les actions de modification)."
                 )
-        elif self.action in {"remplacer", "supprimer"}:
+        elif self.action in {"lire", "remplacer", "supprimer"}:
             if self.section_index is None:
                 raise ValueError(
                     f"action='{self.action}' exige section_index (le numéro "
@@ -1066,7 +1075,7 @@ class ModifierSectionDocumentInput(BaseModel):
             raise ValueError(
                 f"action='{self.action}' exige contenu_html : le HTML d'UNE section."
             )
-        if self.action in {"supprimer", "lister"} and self.contenu_html:
+        if self.action in {"supprimer", "lister", "lire"} and self.contenu_html:
             raise ValueError(
                 f"action='{self.action}' ne prend pas de contenu_html."
             )
@@ -1466,6 +1475,66 @@ class ObtenirStructureDocumentInput(BaseModel):
     entity_id: UUID = Field(description="Identifiant de cet objet.")
 
 
+class ObtenirStructureInput(BaseModel):
+    """Structure d'un **modèle** (avant copie) ou d'une **copie** de modèle.
+
+    Un seul outil pour deux cibles qui partagent le même geste (« quels
+    éléments puis-je éditer ? ») : la cible se déduit des champs fournis.
+
+    - un modèle : ``organisation_id`` + (``modele_id`` ou ``type_document``) ;
+    - une copie : ``ancre`` + ``entity_id``.
+
+    Les deux familles ne se mélangent pas : envoyer un identifiant de modèle et
+    une ancre serait ambigu, et le refus le dit plutôt que de deviner.
+    """
+
+    organisation_id: UUID | None = Field(
+        default=None,
+        description="Organisation propriétaire du modèle (cible « modèle »).",
+    )
+    modele_id: UUID | None = Field(
+        default=None,
+        description=(
+            "UUID du modèle ; sinon le modèle actif du type est pris "
+            "(cible « modèle »)."
+        ),
+    )
+    type_document: str | None = Field(
+        default=None,
+        description=(
+            "Type de modèle, requis seulement si `modele_id` est absent "
+            "(cible « modèle »)."
+        ),
+    )
+    ancre: ModeleAncre | None = Field(
+        default=None, description="Objet qui porte la copie (cible « copie »)."
+    )
+    entity_id: UUID | None = Field(
+        default=None, description="Identifiant de cet objet (cible « copie »)."
+    )
+
+    @model_validator(mode="after")
+    def _une_seule_cible(self) -> ObtenirStructureInput:
+        """Une cible à la fois — l'erreur dit quoi fournir."""
+        copie = self.ancre is not None or self.entity_id is not None
+        modele = self.organisation_id is not None
+        if copie and modele:
+            raise ValueError(
+                "Deux cibles à la fois : soit la copie (`ancre` + `entity_id`), "
+                "soit le modèle (`organisation_id` + `modele_id`/`type_document`)."
+            )
+        if copie and (self.ancre is None or self.entity_id is None):
+            raise ValueError(
+                "Pour lire une copie, fournir `ancre` ET `entity_id`."
+            )
+        if not copie and not modele:
+            raise ValueError(
+                "Préciser la cible : `ancre` + `entity_id` (copie), ou "
+                "`organisation_id` + `modele_id`/`type_document` (modèle)."
+            )
+        return self
+
+
 class RevenirVersionDocumentInput(BaseModel):
     """Restauration d'une version de l'historique d'une copie de modèle."""
 
@@ -1476,7 +1545,7 @@ class RevenirVersionDocumentInput(BaseModel):
         ge=1,
         description=(
             "Version à restaurer, lue dans `historique` de "
-            "`obtenir_structure_document` ou dans la réponse d'une édition. "
+            "`obtenir_structure` ou dans la réponse d'une édition. "
             "Omettre pour annuler simplement la dernière édition."
         ),
     )
@@ -1510,7 +1579,7 @@ class RemplacerElementModeleInput(BaseModel):
         min_length=1,
         max_length=40,
         description=(
-            "Identifiant lu dans `obtenir_structure_document` ou renvoyé par "
+            "Identifiant lu dans `obtenir_structure` ou renvoyé par "
             "`copier_modele_document` (ex. 'block_004'). Jamais inventé."
         ),
     )
@@ -1601,7 +1670,7 @@ class RemplirModeleInput(BaseModel):
         max_length=40,
         description=(
             "Un contenu par élément visé. Les identifiants viennent de "
-            "`obtenir_structure_document` ; ils ne changent pas d'un "
+            "`obtenir_structure` ; ils ne changent pas d'un "
             "remplissage à l'autre dans le même appel."
         ),
     )
@@ -1625,8 +1694,21 @@ class ReferenceDocumentInput(BaseModel):
 class ValiderDocumentInput(BaseModel):
     """Validation d'un document structuré avant ou après génération."""
 
-    document_spec: DocumentSpec = Field(
-        description="Document structuré à vérifier (même schéma que generer_document)."
+    document_id: UUID | None = Field(
+        default=None,
+        description=(
+            "UUID d'un document déjà généré depuis un ``document_spec`` : son "
+            "spec est relu côté serveur. Voie à préférer — éviter de "
+            "retransmettre le document entier."
+        ),
+    )
+    document_spec: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Document structuré à vérifier, quand il n'est pas encore déposé "
+            "({'metadata': {...}, 'blocs': [...]}). Sinon laisser vide et "
+            "fournir ``document_id``."
+        ),
     )
     profil: TypeProfil | None = Field(
         default=None,

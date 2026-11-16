@@ -36,6 +36,8 @@ from app.agents.contexte import ContexteUtilisateurMiddleware, UserContext
 from app.agents.exclusion_outils import ExclusionOutilsMiddleware
 from app.agents.frontend_tools_catalogue import bloc_outils_frontend
 from app.agents.historique_outils import HistoriqueOutilsCoherentMiddleware
+from app.agents.mesure_latence_modele import MesureLatenceModeleMiddleware
+from app.agents.page_courante import EntetePageCouranteMiddleware
 from app.agents.images_outils import ImagesOutilsMiddleware
 from app.agents.page_courante import BLOC_PAGE_COURANTE
 from app.agents.pieces_jointes_contexte import BLOC_PIECES_JOINTES
@@ -324,6 +326,33 @@ def create_carso_deep_agent(
     # ordre, l'historique est déjà conforme quand les images sont déplacées
     # vers un message utilisateur (voir app/agents/images_outils.py).
     middleware.append(HistoriqueOutilsCoherentMiddleware())
+    # En-têtes de page : le payload garde le texte exact de l'utilisateur (sinon
+    # le tour suivant passe pour une réédition et rejoue la réponse précédente) ;
+    # c'est ici que le modèle ne reçoit que la page du dernier message.
+    middleware.append(EntetePageCouranteMiddleware())
+    # Résumé d'historique : seuil en **fraction de la fenêtre déclarée** (75 %)
+    # et comptage de l'entrée réelle, au lieu du défaut de la bibliothèque
+    # (170 000 jetons absolus, déclenché aussi sur le total déclaré par le
+    # fournisseur, sortie et raisonnement compris). Il remplace le middleware
+    # par défaut **par son nom**, donc à sa place ; sans modèle il ne peut rien
+    # résumer et n'est pas monté.
+    if modele is not None:
+        from app.agents.resume_historique import construire_resume_historique
+
+        reglages = settings or get_settings()
+        middleware.append(
+            construire_resume_historique(
+                modele,
+                kwargs["backend"],
+                agent_id=definition.agent_id,
+                fraction_seuil=reglages.agent_resume_historique_fraction,
+                fraction_gardee=reglages.agent_resume_historique_fraction_gardee,
+                fenetre_jetons=reglages.agent_max_input_tokens,
+            )
+        )
+    # Durée de chaque étape « model » dans le journal : un incident de latence
+    # doit être attribuable au fournisseur sans campagne de mesures.
+    middleware.append(MesureLatenceModeleMiddleware(definition.agent_id))
     middleware.append(ImagesOutilsMiddleware())
     kwargs["middleware"] = middleware
     return create_deep_agent(**kwargs)
@@ -532,6 +561,14 @@ def _checkpointer(config: AgentRuntimeConfig, interrupt_on: dict[str, Any]) -> A
     Un ``MemorySaver`` est donc fourni **par défaut** ; un checkpointer
     persistant (PostgreSQL) peut le remplacer via ``config.checkpointer``
     quand les fils doivent survivre au processus.
+
+    En production, ``config.checkpointer`` vient de ``get_checkpointer()``
+    (``app/agents/checkpointer.py``) : le ``PostgresSaver`` partagé rend les fils
+    durablables — un fil survit au redémarrage du backend (preuve :
+    ``docs/validation/HISTORIQUE-CHECKPOINTER-OU-NAVIGATEUR-2026-11-15.md``).
+    Ce ``MemorySaver`` ci-dessous n'est donc qu'un repli (extra absent, base
+    injoignable, ``AGENT_CHECKPOINT_PERSISTANT=0``), visible sur ``/health`` via
+    ``checkpointer.mode == "memoire"``.
     """
     if config.checkpointer is not None:
         return config.checkpointer

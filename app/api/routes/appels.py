@@ -23,11 +23,13 @@ from app.api.schemas import (
     AppelUpdate,
     DecisionCreate,
     ExtractionProposeeCreate,
+    TypeAppelRetireCreate,
+    TypeAppelRetireRead,
 )
 from app.application.dto import AppelInput, AppelUpdateInput
 from app.application.services import AppelService
 from app.application.trace import Decision, demande_par
-from app.domain.organization import Appel
+from app.domain.organization import Appel, TypeAppelRetire
 
 router = APIRouter(
     prefix="/appels",
@@ -86,6 +88,50 @@ def lister_types_appel(session: DbSession) -> list[str]:
     paramètre de chemin et renverrait une 422 de parsing d'UUID.
     """
     return AppelService(session).types_connus()
+
+
+@router.get(
+    "/types-retires",
+    response_model=list[TypeAppelRetireRead],
+    dependencies=[Depends(exiger_interne)],
+)
+def lister_types_retires(session: DbSession) -> list[TypeAppelRetire]:
+    """Types retires de la liste proposee (les appels qui les portent restent entiers)."""
+    return list(AppelService(session).types_retires().values())
+
+
+@router.post(
+    "/types-retires",
+    response_model=TypeAppelRetireRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(exiger_interne)],
+)
+def retirer_type_appel(
+    payload: TypeAppelRetireCreate,
+    session: DbSession,
+) -> TypeAppelRetire:
+    """Retire un type de la liste proposee.
+
+    Aucun appel n'est modifie : la valeur reste portee par les dossiers deja
+    enregistres, elle s'affiche comme supprimee, et l'utilisateur peut la
+    corriger a tout moment.
+    """
+    service = AppelService(session)
+    ligne = service.retirer_type_appel(payload.type_appel, payload.motif)
+    session.commit()
+    return ligne
+
+
+@router.delete(
+    "/types-retires/{type_appel}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(exiger_interne)],
+)
+def restaurer_type_appel(type_appel: str, session: DbSession) -> None:
+    """Remet un type retire dans la liste proposee (retour en arriere)."""
+    service = AppelService(session)
+    service.restaurer_type_appel(type_appel)
+    session.commit()
 
 
 @router.get("/{appel_id}", response_model=AppelRead)

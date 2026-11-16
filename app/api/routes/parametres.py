@@ -12,10 +12,11 @@ reconstruits, donc l'effet du changement reste auditable.
 from __future__ import annotations
 
 import json
+import os
 from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -29,6 +30,9 @@ from app.api.schemas.parametres import (
     AutorisationMcpRead,
     McpPersonnelRead,
     ParametresEtatRead,
+    SecretEnvRead,
+    SecretEnvUpdate,
+    SecretsEnvEtatRead,
     ServeurMcpRead,
     ServeurMcpUpdate,
     SkillFichierCreate,
@@ -45,6 +49,7 @@ from app.application.services.parametres_service import (
     ParametresAgentService,
     ServeurMcpService,
 )
+from app.application.services.secrets_env_service import SecretsEnvService
 from app.application.services.skills_fichiers_service import SkillsFichiersService
 from app.core.chiffrement import chiffrement_disponible
 from app.core.config import get_settings
@@ -52,6 +57,7 @@ from app.core.errors import NotFoundError
 from app.core.errors import ValidationError as BusinessValidationError
 from app.domain.agent_runtime import SurchargeAgent
 from app.domain.mcp import ServeurMcp
+from app.infrastructure.env_file import chemin_par_defaut
 
 router = APIRouter(
     prefix="/parametres",
@@ -599,6 +605,55 @@ def _vider_mon_contexte(session: Session, utilisateur_id: UUID) -> None:
     )
     for agent_id in sorted({a for c in mes_connecteurs for a in (c.agents or [])}):
         vider_cache(agent_id=agent_id)
+
+
+# --- Variables du .env (Paramètres > Secrets) ----------------------------------
+
+
+@router.get("/secrets", response_model=SecretsEnvEtatRead)
+def lister_secrets_env(admin: AdminUser, session: DbSession) -> SecretsEnvEtatRead:
+    """Variables du ``.env`` : noms et présence, **jamais** leur valeur.
+
+    L'écran ne relit aucun secret : pour changer une valeur, l'administrateur en
+    saisit une nouvelle. Une variable déjà posée dans l'environnement du
+    processus est signalée : elle l'emporte sur le fichier.
+    """
+    _ = admin
+    cles, prioritaires = SecretsEnvService(session).etat()
+    return SecretsEnvEtatRead(
+        fichier=f"{chemin_par_defaut().parent.name}/.env",
+        entrees=[
+            SecretEnvRead(cle=cle, present_environnement=cle in prioritaires)
+            for cle in cles
+        ],
+    )
+
+
+@router.put("/secrets/{cle}", response_model=SecretEnvRead)
+def enregistrer_secret_env(
+    cle: str, payload: SecretEnvUpdate, admin: AdminUser, session: DbSession
+) -> SecretEnvRead:
+    """Écrit ou remplace une variable du ``.env``, sans jamais la renvoyer.
+
+    La valeur est validée par la configuration **avant** l'écriture : un fichier
+    enregistré ne doit jamais empêcher le backend de démarrer. Le cache de
+    configuration est vidé, donc la valeur s'applique aux lectures suivantes ;
+    les réglages lus une seule fois au démarrage demandent un redémarrage.
+    """
+    service = SecretsEnvService(session, actor_id=str(admin.id))
+    service.enregistrer(cle, payload.valeur)
+    session.commit()
+    _recharger(session, str(admin.id))
+    return SecretEnvRead(cle=cle, present_environnement=cle in os.environ)
+
+
+@router.delete("/secrets/{cle}", status_code=status.HTTP_204_NO_CONTENT)
+def supprimer_secret_env(cle: str, admin: AdminUser, session: DbSession) -> None:
+    """Retire une variable du ``.env`` : le réglage reprend sa valeur par défaut."""
+    service = SecretsEnvService(session, actor_id=str(admin.id))
+    service.supprimer(cle)
+    session.commit()
+    _recharger(session, str(admin.id))
 
 
 # --- internes -----------------------------------------------------------------

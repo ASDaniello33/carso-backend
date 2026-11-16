@@ -350,7 +350,16 @@ def test_state_n_expose_aucun_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     manager.apply_values(AgentRuntimeValues("openai", "m", None, 0.0, 25, "base"))
     etat = manager.state()
 
-    assert set(etat) == {"configured", "values", "agents", "built_agents", "last_error"}
+    assert set(etat) == {
+        "configured",
+        "values",
+        "agents",
+        "built_agents",
+        "last_error",
+        # Fenêtre du modèle : des nombres et des libellés de provenance, aucun
+        # secret (c'est le seul ajout autorisé à cette projection).
+        "fenetre_modele",
+    }
     assert set(etat["values"]) == {
         "provider",
         "model",
@@ -364,6 +373,62 @@ def test_state_n_expose_aucun_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     }
     assert "api_key" not in repr(etat)
     assert "secret" not in repr(etat).lower()
+
+
+def test_state_expose_la_fenetre_du_modele_applique(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """L'écran Paramètres doit dire ce que le harnais applique, pas autre chose.
+
+    ``state()`` calcule la fenêtre avec les **mêmes** réglages effectifs que le
+    harnais (``fenetre_effective``) : un affichage qui dévierait de la valeur
+    réellement posée sur le modèle serait pire que pas d'affichage du tout.
+    """
+    manager, _ = _manager_de_test(monkeypatch, agents=("agent_a",))
+    manager.apply_values(
+        AgentRuntimeValues("openai", "modele-applique", "http://localhost:9/v1", 0.0, 25, "base")
+    )
+
+    def _reponse(*_a: Any, **_k: Any) -> Any:
+        class R:
+            status_code = 200
+
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict[str, Any]:
+                return {"data": [{"id": "modele-applique", "context_length": 1_000_000}]}
+
+        return R()
+
+    monkeypatch.setattr("httpx.get", _reponse)
+
+    fenetre = manager.state()["fenetre_modele"]
+
+    assert fenetre["modele"] == "modele-applique"
+    assert fenetre["base_url"] == "http://localhost:9/v1"
+    assert fenetre["jetons"] == 1_000_000
+    assert fenetre["provenance"] == "publiee"
+    assert fenetre["seuil_resume"] == 750_000
+    assert fenetre["garde_resume"] == 100_000
+    # Aucun secret ne se glisse dans cette projection.
+    assert "api_key" not in repr(fenetre)
+
+
+def test_state_la_fenetre_absente_sans_configuration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Aucune configuration du tout = pas de fenêtre à afficher (pas de devinette).
+
+    Sans surcharge administrée, ``state()`` retombe sur le ``.env`` — c'est
+    pourquoi ``is_agent_configured`` est posé faux **aussi** pour ``get_settings`` :
+    autrement le modèle réel du déploiement serait interrogé en réseau.
+    """
+    monkeypatch.setattr("app.agents.manager.is_agent_configured", lambda settings=None: False)
+    monkeypatch.setattr("app.agents.manager._valeurs_env", lambda: None)
+    manager, _ = _manager_de_test(monkeypatch, agents=("agent_a",))
+
+    assert manager.state()["fenetre_modele"] is None
 
 
 def test_restore_from_db_reapplique_la_derniere_decision(

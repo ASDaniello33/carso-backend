@@ -309,6 +309,56 @@ class TestTypeAppel:
             1 for t in connus if t.casefold() == "appel à candidature"
         ) == 1
 
+    def test_types_connus_ne_dedouble_pas_le_libelle_d_un_code(self, session: Session) -> None:
+        """Un appel enregistré avec le libellé de la manifestation d'intérêt ne
+        doit pas ajouter une seconde entrée à côté du code canonique : c'est la
+        même nature, écrite autrement. L'appel, lui, garde sa valeur."""
+        service = AppelService(session)
+        org = Organisation(nom="Client")
+        session.add(org)
+        session.flush()
+        service.enregistrer(
+            AppelInput(
+                organisation_id=org.id,
+                reference="AMI-1",
+                titre="Manifestation d'intérêt",
+                type="Appel à manifestation d'intérêt",
+            )
+        )
+        connus = service.types_connus()
+        assert connus.count("appel_a_manifestation_interet") == 1
+        assert not any(
+            t.casefold() == "appel à manifestation d'intérêt" for t in connus
+        )
+        assert len(connus) == len(TypeAppel)
+        # Rien n'est réécrit sur l'appel existant.
+        assert service.lister()[0].type == "Appel à manifestation d'intérêt"
+
+    def test_retrait_par_le_code_cache_aussi_le_libelle(self, session: Session) -> None:
+        """Une nature, un retrait : retirer la manifestation d'intérêt par son
+        code la retire aussi pour l'appel qui porte le libellé."""
+        service = AppelService(session)
+        org = Organisation(nom="Client")
+        session.add(org)
+        session.flush()
+        service.enregistrer(
+            AppelInput(
+                organisation_id=org.id,
+                reference="AMI-2",
+                titre="Manifestation d'intérêt",
+                type="Appel à manifestation d'intérêt",
+            )
+        )
+        service.retirer_type_appel("appel_a_manifestation_interet")
+        connus = service.types_connus()
+        assert "appel_a_manifestation_interet" not in connus
+        assert not any(
+            t.casefold() == "appel à manifestation d'intérêt" for t in connus
+        )
+        # Restaurer par le libellé retrouve le retrait (même identité).
+        service.restaurer_type_appel("Appel à manifestation d'intérêt")
+        assert "appel_a_manifestation_interet" in service.types_connus()
+
 
 # --- 3. Lieu ----------------------------------------------------------------------
 

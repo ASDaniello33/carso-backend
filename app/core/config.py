@@ -225,10 +225,36 @@ class Settings(BaseSettings):
     # zéro. La valeur haute reste un garde-fou contre la boucle infinie, pas
     # une limite de production.
     agent_max_iterations: int = Field(default=1000, ge=1, le=10_000)
+    # **Repli** pour la fenêtre d'entrée du modèle (jetons), quand le
+    # fournisseur ne la publie pas. La vérité vient de ``/models``
+    # (``context_length``) : la passerelle de CARSO l'expose (constaté le 15/11 :
+    # ``deepseek-v4.1-flash:free`` → 1 048 576, ``qwen3.8-27b`` → 1 000 000,
+    # ``deepseek-v3.2`` → 128 000). Cette valeur n'est donc **pas** une limite
+    # imposée à tous les modèles : c'est ce qu'on utilise faute de mieux, et ce
+    # repli est journalisé en `WARNING` — jamais appliqué en silence.
+    agent_max_input_tokens: int = Field(default=200_000, ge=1_000)
+    # Résumé d'historique (Deep Agents), en fractions de cette fenêtre. Sans
+    # réglage, la bibliothèque déclenchait à 170 000 jetons **en se fiant aussi
+    # au ``total_tokens`` du fournisseur**, qui inclut la sortie et le
+    # raisonnement du tour précédent : le 15/11, un résumé de 331 s a démarré
+    # sur ~157 000 caractères d'entrée (~39 000 jetons réels). Le harnais compte
+    # désormais l'entrée réelle et déclenche sur elle seule
+    # (``docs/validation/LATENCE-RESUME-HISTORIQUE-2026-11-15.md``).
+    agent_resume_historique_fraction: float = Field(default=0.75, gt=0.0, le=1.0)
+    # Part de la fenêtre conservée telle quelle après un résumé (le reste est
+    # résumé, jamais supprimé : l'historique évincé est archivé dans le backend
+    # et le résumé en porte le chemin).
+    agent_resume_historique_fraction_gardee: float = Field(default=0.10, gt=0.0, le=1.0)
     # Persistance LangGraph des threads d'agents (ADR 0009) : un PostgresSaver
     # partagé remplace le MemorySaver process (contexte conservé entre les
     # redémarrages). ``0`` force le fallback mémoire — la suite de tests le
     # pose pour ne jamais toucher la base réelle.
+    #
+    # L'état réel se lit toujours par ``etat_checkpointer()`` (exposé sur
+    # ``/api/v1/health``) et **jamais** par la valeur de ce réglage : une base
+    # injoignable ou un extra absent retombe en ``memoire`` sans changer le
+    # réglage (le plancher ``langgraph-checkpoint>=4.3.0`` du ``pyproject.toml``
+    # couvre le cas d'incompatibilité de versions rencontré le 15/11/2026).
     agent_checkpoint_persistant: bool = Field(default=True)
     # Initialisation au démarrage (restauration de la configuration d'agents,
     # premier administrateur) : exécutée en tâche de fond pour que l'API réponde

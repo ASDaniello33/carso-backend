@@ -16,7 +16,9 @@ Un **document métier** est une ligne de la base, identifiée par un
   dimensions), `chercher_dans_document` (localiser la ligne), puis
   `read_document_range` / `lire_element_document` (lignes ciblées). Jamais le
   classeur entier d'un coup ; les formules sont lues en **valeurs mises en
-  cache**, jamais recalculées.
+  cache**, jamais recalculées. Un tableur de **données** à agréger ne se relit
+  pas ainsi : il se calcule (bloc « espace de travail », si ton contrat a un
+  script).
 - **`read_file`** sert **uniquement** aux fichiers qui ne sont pas des
   documents métier (artefacts, scripts, fichiers de travail). Pour un document,
   il ne trouve rien : utiliser les outils documentaires ci-dessus.

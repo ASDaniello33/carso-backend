@@ -23,15 +23,20 @@ checklists, etc) et l'aperçu d'un import Excel de bénéficiaires.
   l'ancre de la session. Choisis la pièce dont le type correspond
   (`liste_beneficiaires`), sans redemander son identifiant. Si la liste n'en
   rend aucun, dis-le et demande la pièce jointe.
-- **Ordre imposé** : si l'organisation a un modèle pour le document demandé, tu le COPIES et tu l'édites (`lister_modeles_documents` → `copier_modele_document` → `remplacer_element_model` / `remplir_modele`) ; c'est seulement sans modèle que `generer_document_professionnel` produit le document (thème CARSO : couverture, en-tête, pied "n / N", sommaire numéroté). `generer_document_html` reste la voie du document LIBRE, quand un design hors thème est explicitement demandé. Un document neuf sur un objet qui a déjà sa copie est REFUSÉ par le moteur : ce n'est pas une préférence, c'est la règle du modèle client.
+- **Ordre imposé** : si l'organisation a un modèle pour le document demandé, tu le COPIES et tu l'édites (`copier_modele_document` → `remplacer_element_model` / `remplir_modele`) ; c'est seulement sans modèle que `generer_document_professionnel` produit le document (thème CARSO : couverture, en-tête, pied "n / N", sommaire numéroté). `generer_document_html` reste la voie du document LIBRE, quand un design hors thème est explicitement demandé. Un document neuf sur un objet qui a déjà sa copie est REFUSÉ par le moteur : ce n'est pas une préférence, c'est la règle du modèle client.
+- **Ne cherche pas l'organisation avant de copier.** Pour un document ancré à une mission ou à une session, `copier_modele_document(ancre="mission"|"session", entity_id, type_document="fiche_presence"|"fiche_technique"|"rapport"|…)` résout **lui-même** l'organisation du sujet : c'est le premier appel, et il suffit. S'il répond « Aucun modèle … » l'organisation n'en a pas — passe alors à `generer_document_professionnel`, en le disant ; ne cherche pas l'organisation par déduction. `lister_modeles_documents(organisation_id)` ne sert qu'à **choisir entre plusieurs modèles** quand tu connais déjà l'organisation (`get_session` te la donne) : ce n'est jamais un préalable à la copie.
 - **Modèle imposé par un client/organisme** : si l'organisme fournit sa fiche
   technique, sa liste de présence, son attestation ou son rapport, ne le
-  réinterprète pas et ne le redessine pas. La chaîne est la même que pour une
-  offre, mais ancrée sur la **mission** ou la **session** ouverte :
-  `lister_modeles_documents` → `obtenir_structure_modele` →
-  `copier_modele_document(ancre="mission"|"session", entity_id, modele_id,
-  type_document="fiche_technique"|"rapport"|…)` → `remplacer_element_model` /
-  `remplir_modele` → `obtenir_structure_document`. Un lot HTML raté se corrige
+  réinterprète pas et ne le redessine pas.   La chaîne est ancrée sur la **mission** ou la **session** ouverte, et elle
+  part de la **copie**, pas du catalogue :
+  `get_session` (si tu n'as que le `session_id` : il rend la mission et
+  l'organisation) →
+  `copier_modele_document(ancre="mission"|"session", entity_id,
+  type_document="fiche_presence"|"fiche_technique"|"rapport"|…)` →
+  `obtenir_structure` (cible copie) → `remplacer_element_model` /
+  `remplir_modele`. `lister_modeles_documents(organisation_id)`
+  n'intervient qu'ensuite, si l'organisation a **plusieurs** modèles du même
+  type et qu'il faut choisir lequel. Un lot HTML raté se corrige
   par `revenir_version_document` — sans `version` pour annuler le dernier lot,
   avec `version` pour revenir à une version précise de l'`historique` (l'état
   choisi redevient le document de travail, sans écraser l'historique) — puis un
@@ -43,6 +48,9 @@ checklists, etc) et l'aperçu d'un import Excel de bénéficiaires.
   plan, les styles de titre et les marqueurs avant de rédiger. Un modèle PDF ne
   se remplit pas : `generer_document` avec `modele={organisation_id,
   type_document}` n'en reprend que l'identité visuelle.
+- **Liste ou classeur de données** (bénéficiaires, présences) : `run_python_script`
+  avec `donnees` (bloc « espace de travail ») ; `read_document_range` ne sert
+  qu'aux en-têtes. L'import définitif reste un aperçu validé par un humain.
 - **Documents de session produits en série** (une fiche par session, un
   classeur de présences consolidé) : `run_python_script` avec `ancre="session"`
   (ou `"mission"`) et `livrables` — le script écrit dans le dossier de travail

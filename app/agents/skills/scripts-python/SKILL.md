@@ -54,6 +54,29 @@ description: >
 
 Tout le reste du stockage est refusé par la garde d'audit.
 
+## Données d'un document (CSV, TSV, XLSX/XLS, JSON)
+
+Le stockage documentaire n'est pas lisible depuis la sandbox. Un tableur
+métier entre par `donnees` :
+
+```jsonc
+{
+  "source": "import pandas as pd\ndf = pd.read_csv('donnees.csv')\nprint(df.groupby('Continent')['2022 Population'].sum())",
+  "donnees": [{"document_id": "<uuid>", "fichier": "donnees.csv"}]
+}
+```
+
+- le fichier est **copié dans le dossier d'exécution** (mode personnel) ou dans
+  le dossier de travail ancré (supprimé ensuite) ;
+- le retour porte `donnees` : `fichier`, `nom`, `octets` réellement déposés ;
+- la copie est **supprimée à la fin de l'exécution** (`donnees_retirees`) et
+  n'apparaît jamais dans `fichiers` : ce n'est pas un fichier de travail du
+  compte. Un second script qui a besoin du même document le redépose ;
+- formats acceptés : `csv`, `tsv`, `xlsx`, `xls`, `json` — un PDF ou un DOCX est
+  refusé (il se lit avec `lire_document` / `read_document_range`) ;
+- c'est **le** chemin pour analyser un fichier joint : ne recopie jamais ses
+  lignes dans le code, ne les lis pas plage par plage dans la conversation.
+
 ## Écrire le script
 
 - `run_python_script(source=…, nom=…)`, source UTF-8 complète en **un** appel ;

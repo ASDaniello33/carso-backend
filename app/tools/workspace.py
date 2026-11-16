@@ -175,14 +175,25 @@ def purger_temporaires(dossier_metier: Path, *, garder: Path | None = None) -> i
     return supprimes
 
 
-def lister_fichiers(espace: Path, *, limite: int = _LIMITE_FICHIERS) -> list[dict[str, Any]]:
+def lister_fichiers(
+    espace: Path,
+    *,
+    limite: int = _LIMITE_FICHIERS,
+    exclure: set[str] | frozenset[str] | None = None,
+) -> list[dict[str, Any]]:
     """Fichiers visibles de l'espace (hors dossiers techniques), bornés.
 
     Les dossiers commençant par ``.`` (``.scripts``, ``.sandbox``) sont exclus :
     ce sont des détails d'implémentation, pas le travail du compte.
     Le dossier des aides (``carso_outils``) l'est aussi : il est recopié à
     chaque exécution, il ne fait pas partie du travail du compte.
+
+    Args:
+        exclure: chemins relatifs à ne jamais présenter — une copie technique
+            (données d'un document déposées pour un script) n'est pas un
+            fichier de travail du compte.
     """
+    caches = frozenset(exclure or ())
     if not espace.is_dir():
         return []
     fichiers: list[dict[str, Any]] = []
@@ -193,6 +204,8 @@ def lister_fichiers(espace: Path, *, limite: int = _LIMITE_FICHIERS) -> list[dic
         if any(partie.startswith(".") for partie in relatif.parts):
             continue
         if relatif.parts[0] == "carso_outils":
+            continue
+        if str(relatif).replace("\\", "/") in caches:
             continue
         try:
             taille = chemin.stat().st_size

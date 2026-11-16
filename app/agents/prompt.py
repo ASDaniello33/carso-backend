@@ -129,7 +129,6 @@ TOOLS_DOCUMENTS: frozenset[str] = frozenset(
         "modifier_section_document",
         "corriger_document",
         "copier_modele_document",
-        "obtenir_structure_document",
         "remplacer_element_model",
         "remplir_modele",
         "revenir_version_document",
@@ -161,9 +160,8 @@ TOOLS_GENERATION: frozenset[str] = frozenset(
 TOOLS_MODELE_ORGANISATION: frozenset[str] = frozenset(
     {
         "lister_modeles_documents",
-        "obtenir_structure_modele",
+        "obtenir_structure",
         "copier_modele_document",
-        "obtenir_structure_document",
         "remplacer_element_model",
         "remplir_modele",
         "revenir_version_document",

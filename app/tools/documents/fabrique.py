@@ -105,10 +105,7 @@ from app.tools.documents.modeles import (
     _revenir_version as _revenir_version,
 )
 from app.tools.documents.modeles import (
-    _structure_document as _structure_document,
-)
-from app.tools.documents.modeles import (
-    _structure_modele as _structure_modele,
+    _obtenir_structure as _obtenir_structure,
 )
 from app.tools.documents.redaction import (
     _corriger as _corriger,
@@ -167,8 +164,7 @@ from app.tools.documents.schemas import (
     LirePlageInput,
     ListerModelesDocumentsInput,
     ModifierSectionDocumentInput,
-    ObtenirStructureDocumentInput,
-    ObtenirStructureModeleInput,
+    ObtenirStructureInput,
     ReferenceDocumentInput,
     RemplacerElementModeleInput,
     RemplirModeleInput,
@@ -244,7 +240,10 @@ def build_document_tools(
                 "Corrige UNE section d'un document rendu par "
                 "generer_document_professionnel, sans le réécrire entier "
                 "(nouvelle version du même document). action='lister' d'abord "
-                "(index et titres), puis 'remplacer' / 'ajouter' / 'supprimer'."
+                "(index et titres), puis 'lire' pour obtenir le HTML exact de "
+                "la section à corriger, puis 'remplacer' / 'ajouter' / "
+                "'supprimer'. Jamais de régénération du document pour une "
+                "faute ponctuelle."
             ),
             handler=partial(_modifier_section, ctx),
             input_schema=ModifierSectionDocumentInput,
@@ -569,7 +568,7 @@ def build_document_tools(
                 "modèle** (`copier_modele_document`) : l'édition retrouve cette "
                 "copie par son nom déterministe `modele-<référence>.docx`, et la "
                 "renommer la rend introuvable (`remplir_modele`, "
-                "`obtenir_structure_document` et `remplacer_element_model` "
+                "`obtenir_structure` et `remplacer_element_model` "
                 "échouent alors). Pour changer le nom du **livrable final**, "
                 "copier le fichier sous un autre nom une fois le contenu terminé. "
                 "Refusé sur un document à plusieurs versions (le nom est la clé de "
@@ -595,18 +594,23 @@ def build_document_tools(
             tags=("documents", "suppression"),
         ),
         TypedTool(
-            name="obtenir_structure_document",
+            name="obtenir_structure",
             description=(
-                "Relit la copie de modèle d'un objet (`ancre` + `entity_id`) : éléments avec leur "
-                "`element_id`, leur texte actuel, leur style, leur niveau de titre "
-                "et leurs images, plus l'`historique` des versions (numéro, "
-                "nature du geste, courante). Lecture seule, à appeler AVANT "
-                "d'éditer, APRÈS un lot d'éditions (les identifiants sont "
-                "recalculés à chaque modification) et avant de restaurer une "
-                "version précise avec `revenir_version_document`."
+                "Relit les ÉLÉMENTS éditables d'un MODÈLE ou d'une COPIE DE MODÈLE "
+                "(un seul outil, la cible se déduit des champs) : identifiants "
+                "(`element_id`, ou `block_001`…), texte actuel, style, niveau de "
+                "titre, images, tableaux, zones (en-tête, pied, format) ; pour une "
+                "copie, l'`historique` des versions (numéro, nature du geste, "
+                "courante). Cible « modèle » : `organisation_id` + `modele_id` (ou "
+                "`type_document` pour le modèle actif) ; cible « copie » : `ancre` "
+                "+ `entity_id`. Analyse le fichier du modèle s'il ne l'est pas "
+                "encore (lecture déterministe, aucun contenu inventé). Lecture "
+                "seule, à appeler AVANT d'éditer, APRÈS un lot d'éditions (les "
+                "identifiants sont recalculés à chaque modification) et avant de "
+                "restaurer une version avec `revenir_version_document`."
             ),
-            handler=partial(_structure_document, ctx),
-            input_schema=ObtenirStructureDocumentInput,
+            handler=partial(_obtenir_structure, ctx),
+            input_schema=ObtenirStructureInput,
             tags=("documents", "modele", "lecture"),
         ),
         TypedTool(
@@ -652,7 +656,7 @@ def build_document_tools(
                 "version (rien n'est supprimé ni écrasé, l'historique reste "
                 "complet). `version` omise ⇒ annule la dernière édition ; "
                 "`version` fournie ⇒ revient à cette version précise, lue dans "
-                "`historique` de `obtenir_structure_document`. À utiliser quand "
+                "`historique` de `obtenir_structure`. À utiliser quand "
                 "un lot (`remplir_modele` / `remplacer_element_model`) a abîmé le "
                 "document : revenir à l'état sain voulu, relire la structure, "
                 "puis refaire le lot. Une version inconnue est refusée avec la "
@@ -674,21 +678,6 @@ def build_document_tools(
             ),
             handler=partial(_lister_modeles, ctx),
             input_schema=ListerModelesDocumentsInput,
-            tags=("documents", "modele", "lecture"),
-        ),
-        TypedTool(
-            name="obtenir_structure_modele",
-            description=(
-                "Renvoie les ÉLÉMENTS réels d'un modèle DOCX : identifiants "
-                "(`block_001`…), texte, style, niveau de titre, images, tableaux, "
-                "plus les zones (en-tête, pied, format) et les `{{clé}}` "
-                "éventuels. Analyse le fichier s'il ne l'est pas encore (lecture "
-                "déterministe, aucun contenu inventé). Sert à choisir le modèle et "
-                "à préparer le plan de remplissage ; le fichier n'est jamais "
-                "modifié. Lecture seule."
-            ),
-            handler=partial(_structure_modele, ctx),
-            input_schema=ObtenirStructureModeleInput,
             tags=("documents", "modele", "lecture"),
         ),
         TypedTool(

@@ -44,9 +44,8 @@ def test_deep_tools_apercu_seulement() -> None:
     # impose souvent sa fiche technique, sa liste de présence ou son rapport.
     assert {
         "lister_modeles_documents",
-        "obtenir_structure_modele",
+        "obtenir_structure",
         "copier_modele_document",
-        "obtenir_structure_document",
         "remplacer_element_model",
         "remplir_modele",
     } <= noms
@@ -58,7 +57,6 @@ def test_deep_tools_apercu_seulement() -> None:
     # (12/10) : recherche fédérée, lecture de pages, recherche média.
     assert {
         "langsearch_web_search",
-        "fetch_url",
         "read_urls",
         "rechercher_video",
     } <= noms

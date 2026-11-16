@@ -11,7 +11,14 @@ from app.domain import Base
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # ``disable_existing_loggers=False`` — la valeur par défaut de ``fileConfig``
+    # (``True``) **désactive** tous les loggers déjà instanciés qui ne figurent
+    # pas dans ``alembic.ini``, dont ``app.agents.mesure_modele``. En suite de
+    # tests, une migration exécutée avant les tests du résumé d'historique les
+    # rendait muets : leurs assertions sur les lignes journalisées échouaient
+    # alors qu'ils passent isolément (``test_resume_historique``). Alembic ne
+    # doit reconfigurer que **ses** loggers, jamais couper ceux de l'application.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.database_url)

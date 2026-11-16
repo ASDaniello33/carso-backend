@@ -142,7 +142,6 @@ def test_proposer_affectation(session: Session) -> None:
     # l'ancienne absence de recherche web chez RH n'était plus tenable.
     assert {
         "langsearch_web_search",
-        "fetch_url",
         "read_urls",
         "rechercher_video",
         "envoyer_email",

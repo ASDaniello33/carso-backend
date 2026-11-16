@@ -143,6 +143,13 @@ class TypedTool:
             if self.input_schema is not None:
                 validated = schema_entree_outil(self.input_schema).model_validate(payload)
                 payload = validated.model_dump()
+            # Garde anti-répétition (un run = un contexte) : un troisème appel
+            # identique consécutif est refusé avec un message actionnable. Hors
+            # conversation, aucune garde n'est posée. Placée **avant** le
+            # handler : rien n'est exécuté deux fois pour rien.
+            from app.tools.garde_repetition import verifier_appel
+
+            verifier_appel(self.name, payload)
             resultat = self.handler(payload)
         except CarsoError as erreur:
             return formater_erreur_outil(erreur)
@@ -396,6 +403,69 @@ def _contenu_multimodal(resultat: dict[str, Any]) -> list[dict[str, Any]] | None
     return blocs if len(blocs) > 1 else None
 
 
+def _resume_schema(schema: type[BaseModel], limite: int = 1200) -> dict[str, Any]:
+    """Forme attendue d'un payload : champs de premier niveau, types, obligatoires.
+
+    Le schéma complet est trop lourd pour un message d'erreur (``generer_document``
+    pèse 39 k caractères). Ce qui manque au modèle quand il se trompe, c'est la
+    **forme** de l'objet : quels champs existent, lesquels sont obligatoires, et
+    qu'une liste de contenus est un tableau de listes, pas un objet racine.
+    """
+    champs: dict[str, str] = {}
+    for nom, champ in schema.model_fields.items():
+        annotation = getattr(champ.annotation, "__name__", None) or str(champ.annotation)
+        annotation = (
+            annotation.replace("list[", "liste de ")
+            .replace("dict[", "objet de ")
+            .replace("]", "")
+        )
+        if len(annotation) > 60:
+            annotation = "objet"
+        champs[nom] = annotation
+    requis = sorted(
+        nom for nom, champ in schema.model_fields.items() if champ.is_required()
+    )
+    texte = json.dumps({"champs": champs, "obligatoires": requis}, ensure_ascii=False)
+    if len(texte) > limite:
+        return {"champs": champs, "obligatoires": requis, "note": "schéma tronqué"}
+    return json.loads(texte)
+
+
+def _erreur_validation_arguments(schema: type[BaseModel]):
+    """Rend une erreur de validation LangChain exploitable par le modèle.
+
+    LangChain valide les arguments **avant** d'appeler le tool : quand le modèle
+    se trompe de forme, il ne recevait qu'un « Tool input validation error » sans
+    le champ fautif ni la forme attendue. Constaté en run réel : sept essais
+    identiques d'affilée sur ``remplir_modele``, chacun refusé sans information.
+
+    Le message rendu dit la forme attendue (champs, obligatoires) et le conseil
+    de relire la description de l'outil — jamais une trace technique.
+    """
+
+    def _rendre(erreur: Any) -> str:
+        charge = {
+            "ok": False,
+            "error": {
+                "code": "business_validation_error",
+                "message": (
+                    f"Arguments invalides pour {schema.__name__} : la forme "
+                    "attendue est un objet, pas une liste. Relis la description "
+                    "de l'outil pour les noms de champs."
+                ),
+                "action": "corriger_argument",
+                "details": {"forme_attendue": _resume_schema(schema)},
+            },
+        }
+        if isinstance(erreur, PydanticValidationError):
+            lisible = _erreurs_lisibles(erreur)
+            if lisible:
+                charge["error"]["details"]["erreurs"] = lisible
+        return json.dumps(charge, ensure_ascii=False, default=str)
+
+    return _rendre
+
+
 def to_langchain_tool(tool: TypedTool) -> Any:
     """Projette un ``TypedTool`` en tool LangChain (usage : deep agents).
 
@@ -455,5 +525,9 @@ def to_langchain_tool(tool: TypedTool) -> Any:
         # ``TOOL_CALL_RESULT`` — le modèle réessaie à l'aveugle et le fil garde
         # une carte « en préparation ». Ici, l'erreur devient un ToolMessage
         # ``status="error"`` porteur du schéma attendu.
-        handle_validation_error=True,
+        #
+        # Le message est construit par nous, pas par LangChain : son texte par
+        # défaut (« Tool input validation error ») ne dit ni le champ fautif ni
+        # la forme attendue, ce qui a produit sept essais identiques en run réel.
+        handle_validation_error=_erreur_validation_arguments(tool.input_schema),
     )

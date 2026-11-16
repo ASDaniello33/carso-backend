@@ -131,7 +131,7 @@ def test_preparer_lot_valide_brouillon(session: Session) -> None:
     assert reponse["requires_approval"] is True
     assert reponse["offre"]["statut"] == "brouillon"
     noms = {t.name for t in agent.deep_tools()}
-    assert {"get_lot", "create_offer_draft", "get_document_template"} <= noms
+    assert {"get_lot", "create_offer_draft", "lister_modeles_organisation"} <= noms
     assert "copier_modele_document" in noms
     assert "remplir_modele" in noms
     assert "remplacer_element_model" in noms
@@ -142,7 +142,6 @@ def test_preparer_lot_valide_brouillon(session: Session) -> None:
     # (12/10) : recherche fédérée, lecture de pages, recherche média.
     assert {
         "langsearch_web_search",
-        "fetch_url",
         "read_urls",
         "rechercher_video",
     } <= noms

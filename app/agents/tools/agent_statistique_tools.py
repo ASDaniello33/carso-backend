@@ -113,7 +113,6 @@ NOMS_TOOLS: tuple[str, ...] = (
     "langsearch_web_search",
     # Lecture d'une page trouvée : le chiffre se lit **dans la source**, borné,
     # jamais estimé. Même capacité ``web_search`` que la recherche.
-    "fetch_url",
     "read_urls",
     # Recherche de vidéos (module ``app.tools.recherche_video``) : attachée au
     # contrat par le même kit, donc déclarée ici comme le reste du périmètre.

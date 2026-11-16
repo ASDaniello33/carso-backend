@@ -119,8 +119,7 @@ DEFINITION = AgentDefinition(
         "langsearch_web_search",
         # Lecture d'une page trouvée (``app.tools.web``) : le contenu est lu, pas
         # résumé de mémoire. Bornée (extrait) et strictement en lecture seule.
-        "fetch_url",
-        "read_urls",
+            "read_urls",
         # Recherche de vidéos (``app.tools.recherche_video``) : trouver une
         # vidéo hors de CARSO. Même capacité ``web_search`` que la recherche
         # texte — un agent qui n'a pas le droit de chercher ne l'obtient pas ici.

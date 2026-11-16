@@ -114,6 +114,35 @@ class Appel(Base, UuidPkMixin, TimestampMixin):
     documents: Mapped[list[Document]] = relationship(back_populates="appel")
 
 
+class TypeAppelRetire(Base, UuidPkMixin, TimestampMixin):
+    """Type d'appel retire de la liste proposee (decision du 15/11/2026).
+
+    Le vocabulaire des types est **ouvert** : un type existe en etant porte par
+    un appel, il n'a pas de table de reference. Supprimer un type ne peut donc
+    pas effacer une ligne : les appels deja enregistres gardent leur valeur, et
+    c'est **l'histoire du dossier** qu'on ne reecrit pas.
+
+    Cette table ne conserve que la **decision** : ce type ne figure plus dans la
+    liste proposee au formulaire. Un appel qui le porte reste lisible, son type
+    s'affiche comme supprime, et l'utilisateur peut le corriger a tout moment
+    (le changement de type est deja permis par ``AppelService.modifier``).
+
+    ``type_appel`` porte la valeur exacte, insensible a la casse pour l'unicite :
+    retirer un type puis le retaper en minuscules ne doit pas creer deux lignes.
+    """
+
+    __tablename__ = "types_appel_retires"
+    __table_args__ = (
+        UniqueConstraint("type_appel", name="uq_types_appel_retires_valeur"),
+    )
+
+    #: Valeur exacte telle qu'elle apparaissait dans la liste (String(50), comme
+    #: ``Appel.type`` : un type retire doit rester reconnu et re-affichable).
+    type_appel: Mapped[str] = mapped_column(String(50), nullable=False)
+    #: Motif facultatif, demande a l'utilisateur qui retire le type.
+    motif: Mapped[str | None] = mapped_column(Text)
+
+
 class Lot(Base, UuidPkMixin, TimestampMixin):
     """Subdivision définie par l'appel — **pas forcément un lieu** (règle CARSO).
 

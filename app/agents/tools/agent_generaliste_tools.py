@@ -117,7 +117,6 @@ NOMS_TOOLS: tuple[str, ...] = (
     "langsearch_web_search",
     # Lecture d'une page trouvée : le contexte manquant d'un résultat (bareme,
     # texte officiel, article) se lit **ici**, borné, plutôt que d'être deviné.
-    "fetch_url",
     "read_urls",
     # Recherche de vidéos (module ``app.tools.recherche_video``).
     "rechercher_video",

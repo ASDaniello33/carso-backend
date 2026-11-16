@@ -33,6 +33,7 @@ from app.api.schemas.agent_runtime import (
     AgentRuntimeUpdate,
     AgentRuntimeValuesRead,
     DecouverteModelesRead,
+    FenetreModeleRead,
     FournisseurIACreate,
     FournisseurIARead,
     FournisseurIAUpdate,
@@ -306,12 +307,16 @@ def etat_runtime(admin: AdminUser) -> AgentRuntimeStateRead:
     _ = admin
     etat = get_runtime_manager().state()
     brut = etat.get("values")
+    fenetre = etat.get("fenetre_modele")
     return AgentRuntimeStateRead(
         configured=bool(etat.get("configured")),
         values=AgentRuntimeValuesRead(**brut) if isinstance(brut, dict) else None,
         agents=[str(a) for a in (etat.get("agents") or [])],
         built_agents=[str(a) for a in (etat.get("built_agents") or [])],
         last_error=_texte(etat.get("last_error")),
+        fenetre_modele=(
+            FenetreModeleRead(**fenetre) if isinstance(fenetre, dict) else None
+        ),
     )
 
 
