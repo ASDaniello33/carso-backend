@@ -626,6 +626,14 @@ def _corriger(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
             **sortie,
             "operations_appliquees": journal,
         }
+        # INC-105 : le spec vient d'être écrit par le modèle — le renvoyer
+        # doublerait la charge du tour suivant. Il est déjà conservé côté
+        # serveur (``_conserver_spec``, appelé par ``_generer_structurer`` et
+        # ``_versionner``) : la correction suivante n'a besoin que du
+        # ``document_id``. Sans ce retrait, une correction ciblée re-rendait tout
+        # le document dans le contexte de l'agent (constaté le 18/11 par
+        # ``test_corriger_document_ne_restitue_plus_le_spec_complet``).
+        resultat.pop("document_spec", None)
     else:
         principal = _versionner(ctx, 
             ctx.uuid(str(document_id), "document_id"), corrige, fmt, payload

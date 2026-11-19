@@ -269,7 +269,11 @@ def test_statistique_couvre_toutes_les_tables() -> None:
 
 
 def test_assistant_couvre_lecture_mission_complet() -> None:
-    """L'assistant lit Mission / sessions / équipe / lot / offre d'une mission."""
+    """L'assistant lit Mission / sessions / équipe / lot / appel source.
+
+    L'offre n'est pas de son périmètre (décision 18/11) : elle reste réservée
+    aux administrateurs et collaborateurs.
+    """
     from app.agents.assistant_formateur import DEFINITION
 
     requis = {
@@ -279,7 +283,7 @@ def test_assistant_couvre_lecture_mission_complet() -> None:
         "get_session",
         "list_mission_sessions",
         "list_session_beneficiaires",
-        "get_mission_offre",
+        "get_mission_appel",
         "get_mission_lots",
         "list_mission_equipe",
         # Un import part d'une session : le classeur s'y est déposé. Un seul

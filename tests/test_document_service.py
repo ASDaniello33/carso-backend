@@ -402,11 +402,56 @@ def test_nom_traversant_refuse_et_rien_ecrit_hors_racine(
         storage.exists("missions/../../evil.pdf")
 
 
-def test_doublon_de_version_1_refuse(service: DocumentService, donnees: Donnees) -> None:
-    service.enregistrer_document(_entree(mission_id=donnees.mission.id))
+def test_meme_nom_et_meme_categorie_est_renomme(
+    service: DocumentService, donnees: Donnees, storage: LocalDocumentStorage
+) -> None:
+    """Décision 18/11 : un homonyme de même catégorie reçoit « (2) », « (3) »…
 
-    with pytest.raises(ConflictError):
-        service.enregistrer_document(_entree(mission_id=donnees.mission.id))
+    L'import n'est plus refusé : chaque dépôt garde sa fiche, son fichier et
+    un nom distinct — jamais deux « Fiche technique.pdf » dans la même liste.
+    """
+    premier = service.enregistrer_document(_entree(mission_id=donnees.mission.id))
+    deuxieme = service.enregistrer_document(_entree(mission_id=donnees.mission.id))
+    troisieme = service.enregistrer_document(_entree(mission_id=donnees.mission.id))
+
+    assert premier.nom == "Fiche technique.pdf"
+    assert deuxieme.nom == "Fiche technique (2).pdf"
+    assert troisieme.nom == "Fiche technique (3).pdf"
+    assert {premier.version, deuxieme.version, troisieme.version} == {1}
+    chemins = {doc.storage_path for doc in (premier, deuxieme, troisieme)}
+    assert len(chemins) == 3
+    assert all(_chemin(storage, doc).is_file() for doc in (premier, deuxieme, troisieme))
+
+
+def test_meme_nom_dans_une_autre_categorie_garde_son_nom(
+    service: DocumentService, donnees: Donnees, storage: LocalDocumentStorage
+) -> None:
+    """Deux catégories différentes peuvent porter le même nom (décision 18/11).
+
+    Les fiches restent distinctes par leur type ; seul le chemin physique se
+    dédouble pour qu'aucun fichier n'en écrase un autre.
+    """
+    rapport = service.enregistrer_document(
+        _entree(
+            mission_id=donnees.mission.id,
+            type_document=TypeDocument.RAPPORT.value,
+            nom="Note de synthese.pdf",
+        )
+    )
+    fiche = service.enregistrer_document(
+        _entree(
+            mission_id=donnees.mission.id,
+            type_document=TypeDocument.FICHE_TECHNIQUE.value,
+            nom="Note de synthese.pdf",
+        )
+    )
+
+    assert rapport.nom == "Note de synthese.pdf"
+    assert fiche.nom == "Note de synthese.pdf"
+    assert rapport.type_document != fiche.type_document
+    assert rapport.storage_path != fiche.storage_path
+    assert _chemin(storage, rapport).is_file()
+    assert _chemin(storage, fiche).is_file()
 
 
 @pytest.mark.parametrize(

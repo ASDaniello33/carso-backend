@@ -133,7 +133,12 @@ def test_proposer_affectation(session: Session) -> None:
     assert reponse["requires_approval"] is True
     prop = reponse["proposition"]
     assert prop["statut"] == StatutAffectation.PROPOSEE.value
-    assert prop["score_max"] == 3
+    # Note sur 10 : profil + rôle renseignés, aucun CV au dossier → 2/3 des
+    # critères, soit 7/10. Le compteur de critères reste rendu tel quel.
+    assert prop["score_max"] == 10
+    assert prop["score"] == 7
+    assert prop["criteres_remplis"] == 2
+    assert prop["criteres_max"] == 3
     assert prop["criteres"]["profil_renseigne"] is True
     assert prop["criteres"]["role_dans_profil"] is True
     noms = {t.name for t in agent.deep_tools()}
@@ -904,13 +909,66 @@ def test_get_equipe_liste_vide_et_trop_longue_refusees(
     assert str(MAX_FICHES_PAR_LOT) in trop["error"]["message"]
 
 
-def test_list_equipe_cv_reste_par_personne(factory: sessionmaker[Session]) -> None:
-    """Le lot ne déborde pas sur `list_equipe_cv` : les CV restent par personne."""
-    ids = _semis_vivier(factory, 1)
-    outil = _outils_rh(factory)["list_equipe_cv"]
+def test_list_equipe_cv_lit_un_lot_de_personnes(factory: sessionmaker[Session]) -> None:
+    """Les CV de plusieurs personnes s'obtiennent en **un** appel.
 
-    assert outil.invoke({"equipe_id": ids[0]})["ok"] is True
-    # L'ancien champ unique reste le sien : aucun `equipe_ids` n'y est accepté.
-    refus = outil.invoke({"equipe_ids": ids})
+    Cent personnes = cent appels avec l'ancien `equipe_id` : le lot est la
+    forme normale. Chaque personne garde sa propre liste, et un identifiant
+    inconnu est dit sans annuler les autres lectures.
+    """
+    ids = _semis_vivier(factory, 2)
+    with factory() as session:
+        session.add(
+            Document(
+                nom="cv-0.pdf",
+                type_document=TypeDocument.CV.value,
+                mime_type="application/pdf",
+                taille_octets=10,
+                storage_path=f"equipes/{ids[0]}/cv-0.pdf",
+                statut=StatutDocument.DRAFT.value,
+                equipe_id=UUID(ids[0]),
+            )
+        )
+        session.commit()
+
+    inconnu = str(uuid4())
+    sortie = _outils_rh(factory)["list_equipe_cv"].invoke(
+        {"equipe_ids": [ids[0], inconnu, ids[1]]}
+    )
+
+    assert sortie["ok"] is True
+    assert sortie["nb_equipes"] == 2
+    assert sortie["introuvables"] == [inconnu]
+    assert [bloc["equipe_id"] for bloc in sortie["equipes"]] == ids
+    assert sortie["equipes"][0]["nb_cv"] == 1
+    assert sortie["equipes"][0]["cv"][0]["nom"] == "cv-0.pdf"
+    assert sortie["equipes"][1]["nb_cv"] == 0
+    assert sortie["nb_cv_total"] == 1
+
+
+def test_import_du_vivier_est_offert_et_sous_hitl(factory: sessionmaker[Session]) -> None:
+    """L'import d'un classeur est un vrai outil, et son écriture est approuvée.
+
+    L'aperçu ne doit jamais être une écriture silencieuse : seul
+    ``import_equipes`` est mutant, et il est déclaré ``approval_required``.
+    """
+    outils = _outils_rh(factory)
+
+    assert {"inspect_equipes_xlsx", "preview_import_equipes", "import_equipes"} <= set(
+        outils
+    )
+    assert "import_equipes" in DEFINITION.approval_required
+    assert "preview_import_equipes" not in DEFINITION.approval_required
+
+    # Le classeur est une **référence** : jamais un chemin fourni par le modèle.
+    refus = outils["import_equipes"].invoke({"document_id": "pas-un-classeur.xlsx"})
+    assert refus["ok"] is False
+    assert refus["error"]["code"] == "business_validation_error"
+
+
+def test_list_equipe_cv_liste_vide_refusee(factory: sessionmaker[Session]) -> None:
+    """Lire zéro personne n'est pas un appel valide : le schéma le dit."""
+    refus = _outils_rh(factory)["list_equipe_cv"].invoke({"equipe_ids": []})
+
     assert refus["ok"] is False
     assert refus["error"]["code"] == "business_validation_error"

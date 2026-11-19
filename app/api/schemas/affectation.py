@@ -170,6 +170,20 @@ class MissionConflitsEquipeRead(BaseModel):
     membres: list[MembreEnConflit] = Field(default_factory=list)
 
 
+class ClassementAffectationRead(BaseModel):
+    """Score de chaque personne du vivier pour **un poste**, sans écriture.
+
+    L'écran de l'AgentRH affiche ce classement avant toute décision : ouvrir une
+    carte ne doit créer aucune affectation. Le calcul est celui de la
+    proposition — les chiffres affichés sont donc ceux que le serveur
+    appliquera.
+    """
+
+    mission_id: UUID
+    role_dans_mission: str
+    candidats: list[CandidatClasse] = Field(default_factory=list)
+
+
 class PropositionAgentRhRead(BaseModel):
     """Réponse de l'AgentRH : candidats classés + affectations proposées
     en attente de décision humaine (HITL)."""

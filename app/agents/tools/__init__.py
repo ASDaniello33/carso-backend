@@ -20,7 +20,10 @@ Matrice d'accès base de données (docs/agents/REFACTOR-OUTILS-AGENTS.md §3) :
 | statistique | aucun (readonly total) | toutes les tables |
 | générateur d'offre | Document, Appel, Lot, Offre | autres |
 | RH | Document, Equipe, Mission | autres |
-| assistant formateur | Beneficiaire, Document (mission) | Equipe/Mission/Lot/Offre de la mission |
+| assistant formateur | Beneficiaire, Document (mission) | Mission/Lot, appel source |
+
+Les **offres** restent réservées aux administrateurs et collaborateurs
+(décision 18/11) : un formateur lit l'appel source, jamais l'offre.
 
 Les écritures passent toujours par des services qui exigent une décision
 humaine (zone *proposal*, ``Decision``) **et** sont déclarées dans

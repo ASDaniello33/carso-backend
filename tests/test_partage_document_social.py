@@ -161,6 +161,41 @@ def test_partage_chat_pointe_la_fiche_sans_la_copier(
     assert piece.headers["content-type"].startswith("image/png")
 
 
+def test_partage_chat_confine_une_fiche_publique_au_fil(
+    client_partage: TestClient, usine: sessionmaker[Session]
+) -> None:
+    """Partager une fiche publique dans le chat la ramène à ``prive`` (18/11).
+
+    Le canal ouvre l'accès aux destinataires ; la liste Documents ne doit pas
+    l'élargir à tous les comptes. La pièce reste téléchargeable par les membres
+    depuis le message.
+    """
+    document = _deposer(client_partage, nom="public.png")
+    publication = client_partage.patch(
+        f"/api/v1/documents/{document['id']}/visibilite",
+        json={"visibilite": "public"},
+    )
+    assert publication.status_code == 200, publication.text
+    assert publication.json()["visibilite"] == "public"
+
+    conversation_id = _conversation(usine)
+    partage = client_partage.post(
+        f"/api/v1/social/conversations/{conversation_id}/documents",
+        json={"document_id": document["id"], "contenu": "Pour le fil seulement"},
+    )
+    assert partage.status_code == 201, partage.text
+
+    fiche = client_partage.get(f"/api/v1/documents/{document['id']}")
+    assert fiche.status_code == 200
+    assert fiche.json()["visibilite"] == "prive"
+
+    # Le canal continue de servir la pièce aux membres du fil.
+    piece = client_partage.get(f"/api/v1/social/pieces/{partage.json()['id']}")
+    assert piece.status_code == 200
+    # Et rien n'a été copié dans le scope chat.
+    assert partage.json()["piece_chemin"] is None
+
+
 def test_partage_chat_document_inconnu_404(
     client_partage: TestClient, usine: sessionmaker[Session]
 ) -> None:

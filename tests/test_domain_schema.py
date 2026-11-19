@@ -57,6 +57,11 @@ EXPECTED_TABLES = {
     "annonces_lectures",
     "commentaires",
     "reactions",
+    # Catalogue IA (fournisseurs et modèles proposés à l'administrateur).
+    "fournisseurs_ia",
+    "modeles_ia",
+    # Types d'appel retirés de la liste proposée (le dossier les garde).
+    "types_appel_retires",
     # Base de connaissance (RAG) : bibliothèque, passages, modèle d'embedding.
     "documents_connaissance",
     "chunks_connaissance",
@@ -71,6 +76,25 @@ def test_metadata_contains_all_confirmed_tables() -> None:
 def test_mappers_configure_without_error() -> None:
     """Configure le graphe complet des relations : back_populates cohérents, cibles résolues."""
     configure_mappers()
+
+
+def test_reaction_unicite_par_utilisateur_et_cible() -> None:
+    """Incrément 24 : une seule réaction par utilisateur et par cible.
+
+    L'ancienne unicité par emoji laissait cohabiter « Cœur » et « Like » — et
+    aucune migration ne l'avait remplacée (dérive corrigée en 0036).
+    """
+    from sqlalchemy import UniqueConstraint
+
+    table = Base.metadata.tables["reactions"]
+    uniques = {
+        tuple(sorted(col.name for col in contrainte.columns))
+        for contrainte in table.constraints
+        if isinstance(contrainte, UniqueConstraint)
+    }
+
+    assert ("cible_id", "cible_type", "utilisateur_id") in uniques
+    assert not any("emoji" in colonnes for colonnes in uniques)
 
 
 def test_affectation_carries_role_not_equipe() -> None:

@@ -291,6 +291,41 @@ def test_dossier_du_formateur_se_limite_a_ses_missions(session: Session) -> None
     assert not dossier.contient_offre(autre_offre.id)
 
 
+def test_dossier_suit_le_lot_d_une_mission_sans_offre(session: Session) -> None:
+    """Mission née d'un lot avant l'approbation des offres : l'appel reste lu.
+
+    ``missions.lot_id`` est la seule ancre du dossier dans ce cas ; ne suivre
+    que ``MissionOffre`` faisait perdre l'appel source et ses documents
+    (constat du 18/11 sur la mission de démonstration ``MISSION-HI-NOV-2027``).
+    """
+    organisation = Organisation(nom="Client lot direct")
+    session.add(organisation)
+    session.flush()
+    appel = Appel(
+        organisation_id=organisation.id, reference="AO-DIRECT", titre="Appel direct"
+    )
+    session.add(appel)
+    session.flush()
+    lot = Lot(appel_id=appel.id, numero="1", titre="Lot direct")
+    session.add(lot)
+    session.flush()
+    mission = _mission(session, "M-LOT-DIRECT")
+    mission.organisation_id = organisation.id
+    mission.lot_id = lot.id
+    session.flush()
+
+    membre = _equipe(session, "Naina")
+    compte = _utilisateur(
+        session, role=RoleUtilisateur.FORMATEUR.value, equipe_id=membre.id
+    )
+    _affecter(session, mission, membre, StatutAffectation.APPROUVEE.value)
+
+    dossier = dossier_autorise(session, pour_utilisateur(session, compte))
+
+    assert dossier.contient_lot(lot.id)
+    assert dossier.contient_appel(appel.id)
+
+
 def test_dossier_sans_mission_est_vide(session: Session) -> None:
     """Un périmètre restreint sans mission ne rattache rien — jamais tout."""
     assert dossier_autorise(session, PERIMETRE_VIDE) == DOSSIER_VIDE

@@ -267,8 +267,73 @@ def test_listes_transverses_et_dossier_lie(
         client_formateur.get(f"{PRÉFIXE}/organisations/{contexte.organisation.id}").status_code
         == 200
     )
-    assert client_formateur.get(f"{PRÉFIXE}/offres/{contexte.offre.id}").status_code == 200
+    # Décision 18/11 : l'offre commerciale reste réservée aux administrateurs
+    # et collaborateurs — le formateur lit l'appel, jamais l'offre.
+    assert client_formateur.get(f"{PRÉFIXE}/offres/{contexte.offre.id}").status_code == 404
     assert client_formateur.get(f"{PRÉFIXE}/lots/{contexte.lot.id}").status_code == 200
+
+
+def test_appel_source_et_ses_documents_du_perimetre(
+    client_formateur: TestClient,
+    contexte: SimpleNamespace,
+    api_session_factory: sessionmaker[Session],
+) -> None:
+    """Décision 18/11 : l'appel de sa mission et ses documents sont lisibles.
+
+    Le formateur prépare sa session à partir du cahier des charges : l'appel et
+    ses pièces suivent le dossier lié de ses missions. L'appel d'une autre
+    équipe reste introuvable (404), comme ses pièces.
+    """
+    from app.domain.organization import Appel
+
+    session = api_session_factory()
+    try:
+        autre_appel = Appel(
+            organisation_id=contexte.autre_organisation.id,
+            reference="AO-B",
+            titre="Appel d'une autre équipe",
+        )
+        session.add(autre_appel)
+        session.flush()
+        piece = Document(
+            nom="Cahier des charges.pdf",
+            type_document=TypeDocument.RAPPORT.value,
+            storage_path=f"appel_proposition/{contexte.appel.id}/cdc.pdf",
+            appel_id=contexte.appel.id,
+            statut=StatutDocument.DRAFT.value,
+        )
+        piece_hors = Document(
+            nom="Appel d'une autre équipe.pdf",
+            type_document=TypeDocument.RAPPORT.value,
+            storage_path=f"appel_proposition/{autre_appel.id}/autre.pdf",
+            appel_id=autre_appel.id,
+            statut=StatutDocument.DRAFT.value,
+        )
+        session.add_all([piece, piece_hors])
+        session.commit()
+        identifiants = (autre_appel.id, piece.id, piece_hors.id)
+    finally:
+        session.close()
+    autre_appel_id, piece_id, piece_hors_id = identifiants
+
+    assert client_formateur.get(f"{PRÉFIXE}/appels/{contexte.appel.id}").status_code == 200
+    assert client_formateur.get(f"{PRÉFIXE}/appels/{autre_appel_id}").status_code == 404
+
+    liste = client_formateur.get(
+        f"{PRÉFIXE}/documents", params={"appel_id": str(contexte.appel.id)}
+    )
+    assert liste.status_code == 200, liste.text
+    assert [d["id"] for d in liste.json()] == [str(piece_id)]
+    assert client_formateur.get(f"{PRÉFIXE}/documents/{piece_id}").status_code == 200
+    assert (
+        client_formateur.get(f"{PRÉFIXE}/documents/{piece_hors_id}").status_code == 404
+    )
+    assert (
+        client_formateur.get(
+            f"{PRÉFIXE}/documents", params={"appel_id": str(autre_appel_id)}
+        ).status_code
+        == 404
+    )
 
 
 def test_recherche_adresse_ouverte_au_formateur(
@@ -283,7 +348,11 @@ def test_recherche_adresse_ouverte_au_formateur(
     """
     from app.geo.photon import LieuTrouve, RechercheLieux
 
-    def _chercher(self, q: str, limite: int = 5) -> list[LieuTrouve]:
+    def _chercher(
+        self, q: str, limite: int = 5, latitude: float | None = None, longitude: float | None = None
+    ) -> list[LieuTrouve]:
+        # ``latitude``/``longitude`` : biais de proximité passé au géocodeur
+        # (le double doit accepter la signature réelle de ``RechercheLieux``).
         return [
             LieuTrouve(
                 nom="Toliara",

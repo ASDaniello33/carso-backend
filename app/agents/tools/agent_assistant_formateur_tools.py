@@ -6,7 +6,10 @@ Lieu unique du périmètre outils de l'assistant formateur. Matrice d'accès
 - **Read/Write**—``Beneficiaire`` (création/modification sous HITL),
   ``Document`` rattaché à une mission (génération sous HITL) ;
 - **Lecture seule**—``Equipe`` d'une mission (via affectations),
-  ``Mission``, ``Lot`` d'une mission (via offre), ``Offre`` d'une mission.
+  ``Mission``, ``Lot`` d'une mission (via offre), l'**appel source** de la
+  mission et ses documents (décision 18/11). Les **offres** ne sont pas du
+  périmètre d'un formateur : elles restent réservées aux administrateurs et
+  collaborateurs.
 
 Aperçu d'import Excel—aucune écriture bénéficiaire—l'aperçu distingue
 lignes valides, incomplètes et ignorées ; l'import définitif est un tool
@@ -24,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from app.agents.toolkit import AgentTools, OperationSpec, serialiser_entite
 from app.application.services import (
+    AppelService,
     DocumentService,
     ImportBeneficiairesService,
     MissionService,
@@ -103,7 +107,10 @@ NOMS_TOOLS: tuple[str, ...] = (
     "list_mission_sessions",
     "list_session_beneficiaires",
     "search_beneficiaires",
-    "get_mission_offre",
+    # L'appel source d'une mission affectée et ses documents : le cahier des
+    # charges que le formateur lit pour préparer sa session. L'offre, elle,
+    # reste une lecture d'équipe interne (décision 18/11).
+    "get_mission_appel",
     "get_mission_lots",
     "list_mission_equipe",
     "langsearch_web_search",
@@ -143,12 +150,14 @@ class ImportBeneficiairesInput(BaseModel):
 
 #: Ancres documentaires que cet agent a le droit de lire, alignées sur
 #: ``DocumentService._LISTERS``. La mission et sa session sont les deux faces du
-#: même dossier (une pièce déposée sur l'une appartient à l'autre), et c'est tout
-#: ce que la matrice d'accès valide pour l'assistant formateur : il ne lit pas les
-#: pièces d'une organisation ni d'un appel.
+#: même dossier (une pièce déposée sur l'une appartient à l'autre) ; l'**appel
+#: source** de la mission porte le cahier des charges (décision 18/11). C'est
+#: tout ce que la matrice d'accès valide pour l'assistant formateur : il ne lit
+#: ni les pièces d'une organisation ni celles d'une offre.
 _ANCRES_DOCUMENTS: dict[str, str] = {
     "mission": "mission_id",
     "session": "session_id",
+    "appel": "appel_id",
 }
 
 
@@ -159,7 +168,7 @@ class DocumentsAncreInput(BaseModel):
     fermé pour que le modèle ne puisse pas demander une ancre hors matrice.
     """
 
-    ancre: Literal["mission", "session"]
+    ancre: Literal["mission", "session", "appel"]
     entity_id: UUID
 
 
@@ -383,26 +392,58 @@ def _search_beneficiaires(session: Session, payload: dict[str, Any]) -> dict[str
     }
 
 
-def _get_mission_offre(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
-    """Offres d'une mission (lecture seule) : technique et/ou financière."""
+def _get_mission_appel(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """L'**appel source** d'une mission affectée et ses documents (lecture seule).
+
+    Chemin mission → lot (``missions.lot_id``, ou celui de son offre) → appel.
+    Le formateur lit ainsi le cahier des charges sur lequel il intervient, et
+    retrouve ses pièces sans les deviner. L'offre commerciale n'est pas rendue :
+    elle reste réservée aux administrateurs et collaborateurs (18/11).
+
+    Une mission sans appel (prestation directe) répond ``appel: null`` : rien
+    n'est inventé.
+    """
+    from app.domain.organization import Lot
+
     mission = MissionService(session).obtenir(UUID(str(payload["mission_id"])))
-    if not mission.offres:
+    lot_id = mission.lot_id or (mission.offres[0].lot_id if mission.offres else None)
+    lot = session.get(Lot, lot_id) if lot_id is not None else None
+    if lot is None or lot.appel_id is None:
         return {
-            "offres": [],
-            "message": "Mission sans offre rattachée (prestation directe).",
+            "appel": None,
+            "documents": [],
+            "message": "Mission sans appel source (prestation directe).",
         }
+
+    appel = AppelService(session).obtenir(lot.appel_id)
+    documents = DocumentService(session, actor_id=AGENT_ID).lister_pour(
+        "appel_id", appel.id
+    )
     return {
-        "offres": [
+        "appel": {
+            **serialiser_entite(
+                appel,
+                "id",
+                "organisation_id",
+                "type",
+                "reference",
+                "titre",
+                "statut",
+                "date_reception",
+                "date_limite",
+            ),
+            "description": appel.description,
+        },
+        "documents": [
             {
-                "id": str(offre.id),
-                "type": offre.type,
-                "reference": offre.reference,
-                "titre": offre.titre,
-                "statut": offre.statut,
-                "version": offre.version,
+                "document_id": str(doc.id),
+                "nom": doc.nom,
+                "type_document": doc.type_document,
+                "version": doc.version,
+                "statut": doc.statut,
             }
-            for offre in mission.offres
-        ]
+            for doc in documents
+        ],
     }
 
 
@@ -482,9 +523,9 @@ def construire_tools_assistant_formateur(
     kit.enregistrer(OperationSpec(
         name="list_documents",
         description=(
-            "Documents rattachés à une mission ou à une session, métadonnées "
-            "seules : sert à retrouver l'identifiant d'un classeur déposé, "
-            "sans le deviner."
+            "Documents rattachés à une mission, à sa session ou à son appel "
+            "source, métadonnées seules : sert à retrouver l'identifiant d'un "
+            "classeur déposé ou du cahier des charges, sans le deviner."
         ),
         input_schema=DocumentsAncreInput,
         run=_list_documents,
@@ -523,10 +564,14 @@ def construire_tools_assistant_formateur(
         run=_search_beneficiaires,
     ))
     kit.enregistrer(OperationSpec(
-        name="get_mission_offre",
-        description="Offre rattachée à la mission (lecture).",
+        name="get_mission_appel",
+        description=(
+            "Appel source de la mission (cahier des charges) et ses documents "
+            "(lecture). À utiliser pour lire l'appel avant de préparer une "
+            "session ; les offres ne sont pas accessibles au formateur."
+        ),
         input_schema=MissionIdInput,
-        run=_get_mission_offre,
+        run=_get_mission_appel,
     ))
     kit.enregistrer(OperationSpec(
         name="get_mission_lots",

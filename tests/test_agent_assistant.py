@@ -69,6 +69,10 @@ def test_deep_tools_apercu_seulement() -> None:
     assert "list_documents" in noms
     assert "list_mission_documents" not in noms
     assert "list_session_documents" not in noms
-    assert "get_mission_offre" in noms
+    # L'appel source de la mission et ses documents (décision 18/11) : le
+    # formateur prépare sa session à partir du cahier des charges. L'offre
+    # commerciale, elle, n'est pas de son périmètre.
+    assert "get_mission_appel" in noms
+    assert "get_mission_offre" not in noms
     assert "get_mission_lots" in noms
     assert "list_mission_equipe" in noms

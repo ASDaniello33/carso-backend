@@ -52,6 +52,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.application.dossier import DossierAutorise, dossier_autorise
 from app.application.dto import DocumentAnchor
 from app.application.perimetre import Perimetre, perimetre_effectif
 from app.application.services.document_service_acces import AccesDocumentMixin
@@ -129,6 +130,7 @@ class DocumentService(
         self._sessions = SessionRepository(session)
         self._supports = SupportFormationRepository(session)
         self._corbeille_jours = reglages.documents_corbeille_jours
+        self._dossier: DossierAutorise | None = None
         self._trace = TraceContext(session, actor_id=actor_id)
 
     @property
@@ -144,7 +146,20 @@ class DocumentService(
 
     def _est_accessible(self, document: Document) -> bool:
         """Vrai si le document appartient au périmètre (règle partagée)."""
-        return document_dans_perimetre(document, self._perimetre, self._session)
+        return document_dans_perimetre(
+            document, self._perimetre, self._session, dossier=self._dossier_autorise()
+        )
+
+    def _dossier_autorise(self) -> DossierAutorise:
+        """Dossier lié des missions du compte, calculé une fois par service.
+
+        Le dossier ne change pas pendant la vie du service (il ne modifie
+        jamais missions ni offres) : le mémoriser évite de rejouer quatre
+        requêtes par document d'un listing.
+        """
+        if self._dossier is None:
+            self._dossier = dossier_autorise(self._session, self._perimetre)
+        return self._dossier
 
     def _exiger_ancre_autorisee(self, filtre: str, entity_id: UUID) -> None:
         """Refuse une ancre hors périmètre (404 : l'objet reste invisible).
@@ -161,6 +176,10 @@ class DocumentService(
             # visible de son demandeur via ``genere_pour`` (incrément 74).
             return
         if filtre == "mission_id" and perimetre.mission_autorisee(entity_id):
+            return
+        if filtre == "appel_id" and self._dossier_autorise().contient_appel(entity_id):
+            # L'appel source d'une mission affectée et ses documents : le
+            # formateur prépare sa session à partir du cahier des charges.
             return
         if filtre == "session_id":
             session_formation = self._sessions.get(entity_id)

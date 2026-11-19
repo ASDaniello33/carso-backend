@@ -35,7 +35,7 @@ from app.application.perimetre import Perimetre
 from app.application.services import import_media_service as module_import
 from app.application.services.import_media_service import ImportMediaService
 from app.core.config import get_settings
-from app.core.errors import ConflictError, ValidationError
+from app.core.errors import ValidationError
 from app.documents.storage import LocalDocumentStorage
 from app.domain.base import Base
 from app.domain.document import AuditEvent, Document
@@ -209,16 +209,22 @@ def test_audit_trace_le_depot_humain(
     assert evenement.after["statut"] == StatutDocument.DRAFT.value
 
 
-def test_second_import_du_meme_nom_est_un_conflit(
+def test_second_import_du_meme_nom_est_renomme(
     session: Session, storage: LocalDocumentStorage, hote_public: None
 ) -> None:
-    """Deux fois le même nom et le même type : refus explicite, pas d'écrasement."""
+    """Même nom et même type : renommage « (2) », aucun écrasement.
+
+    Règle du 18/11 (``_nom_libre``) : un homonyme de la même catégorie est
+    renommé, il n'est plus refusé.
+    """
     premier = _service(session, storage, _reponse(PNG, mime="image/png"))
     premier.importer(ImportMediaInput(url=ADRESSE, nom="affiche"))
 
     second = _service(session, storage, _reponse(PNG, mime="image/png"))
-    with pytest.raises(ConflictError):
-        second.importer(ImportMediaInput(url=ADRESSE, nom="affiche"))
+    document = second.importer(ImportMediaInput(url=ADRESSE, nom="affiche"))
+
+    assert document.nom == "affiche (2).png"
+    assert document.storage_path != ""
 
 
 # --- Service : refus --------------------------------------------------------------

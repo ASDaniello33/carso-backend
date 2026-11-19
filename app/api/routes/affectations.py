@@ -22,6 +22,7 @@ from app.api.schemas import (
     AffectationRead,
     AffectationUpdate,
     CandidatClasse,
+    ClassementAffectationRead,
     ConflitDisponibilite,
     DecisionCreate,
     DisponibilitePersonne,
@@ -329,6 +330,127 @@ def lire_conflits_equipe(
     )
 
 
+def _classer_vivier(
+    session: Any,
+    mission: Any,
+    role: str,
+    *,
+    equipe_id: UUID | None = None,
+) -> list[CandidatClasse]:
+    """Classement déterministe du vivier pour **un poste** — aucune écriture.
+
+    Trois niveaux, dans l'ordre : disponibilité **calculée** (une mission
+    approuvée qui chevauche écarte la personne), score AgentRH (profil
+    renseigné, CV présent, rôle dans le profil), puis ordre alphabétique.
+
+    Le même calcul sert à l'affichage (``GET /classement-affectation``) et à la
+    proposition de l'agent : l'écran ne montre jamais un score que le serveur
+    n'a pas produit, et ce qu'il montre est ce que la proposition appliquera.
+
+    Returns:
+        Les candidats classés ; liste vide si le vivier est vide (ou si
+        ``equipe_id`` ne désigne personne).
+    """
+    vivier = _rechercher_equipes(session, {"recherche": None})["equipes"]
+    if equipe_id is not None:
+        vivier = [membre for membre in vivier if membre["id"] == str(equipe_id)]
+    if not vivier:
+        return []
+
+    service = AffectationService(session)
+    affectations_existantes = {
+        str(a.equipe_id)
+        for a in service.lister_pour_mission(mission.id)
+        if a.statut == StatutAffectation.APPROUVEE.value
+    }
+
+    # Disponibilité **calculée** (ADR 0012) : la même règle que celle qui
+    # refuse une proposition. Une personne approuvée sur une mission qui
+    # chevauche celle-ci est écartée du classement — sinon la proposition
+    # serait refusée à coup sûr. Une mission sans dates n'est pas évaluable :
+    # aucun candidat n'est alors écarté (cas documenté, aucun droit inventé).
+    conflits_par_equipe: dict[str, list[str]] = {}
+    if mission.date_debut is not None and mission.date_fin is not None:
+        for membre in vivier:
+            conflits = service.conflits_disponibilite(
+                UUID(membre["id"]),
+                mission.date_debut,
+                mission.date_fin,
+                mission_id=mission.id,
+            )
+            if conflits:
+                conflits_par_equipe[membre["id"]] = [
+                    f"{c['reference']} ({c['date_debut']} → {c['date_fin']})"
+                    for c in conflits
+                ]
+
+    # Classement déterministe : personnes **disponibles** d'abord, puis score
+    # AgentRH, tie-break alphabétique. Aucune invention.
+    classes: list[tuple[dict[str, Any], int, int, dict[str, bool]]] = []
+    for membre in vivier:
+        score_info = _agent_score(session, UUID(membre["id"]), role)
+        classes.append(
+            (membre, score_info["score"], score_info["score_max"], score_info["criteres"])
+        )
+    classes.sort(
+        key=lambda c: (
+            c[0]["id"] in conflits_par_equipe,
+            -c[1],
+            c[0]["nom"].lower(),
+            c[0]["prenom"].lower(),
+        )
+    )
+
+    return [
+        CandidatClasse(
+            equipe_id=UUID(membre["id"]),
+            nom=membre["nom"],
+            prenom=membre["prenom"],
+            profil=membre.get("profil"),
+            score=score,
+            score_max=score_max,
+            criteres=criteres,
+            deja_affecte=membre["id"] in affectations_existantes,
+            disponible=membre["id"] not in conflits_par_equipe,
+            conflits=conflits_par_equipe.get(membre["id"], []),
+        )
+        for membre, score, score_max, criteres in classes
+    ]
+
+
+@router.get(
+    "/missions/{mission_id}/classement-affectation",
+    response_model=ClassementAffectationRead,
+    dependencies=[Depends(exiger_interne)],
+)
+def classement_affectation(
+    mission_id: UUID,
+    session: DbSession,
+    perimetre: PerimetreDep,
+    role_dans_mission: Annotated[
+        str,
+        Query(
+            min_length=1,
+            max_length=100,
+            description="Poste à pourvoir : le score dépend du rôle demandé.",
+        ),
+    ],
+) -> ClassementAffectationRead:
+    """Score de chaque personne du vivier pour un poste, **sans écrire**.
+
+    La carte de l'AgentRH lit ce classement avant toute décision : afficher des
+    scores ne doit créer aucune proposition. Le calcul est exactement celui de
+    ``POST /proposition-agent-rh`` (``_classer_vivier``), donc les scores
+    affichés sont ceux que la proposition appliquera.
+    """
+    mission = MissionService(session, perimetre=perimetre).obtenir(mission_id)
+    return ClassementAffectationRead(
+        mission_id=mission.id,
+        role_dans_mission=role_dans_mission,
+        candidats=_classer_vivier(session, mission, role_dans_mission),
+    )
+
+
 class _PropositionAgentRhInput(BaseModel):
     """Paramètres du questionnaire AgentRH.
 
@@ -365,13 +487,11 @@ def proposition_agent_rh(
 
     agent = build_rh(session)
 
-    # Candidats du vivier : ciblage explicite (réponse HITL ``cibler``)
-    # ou recherche contrôlée sur tout le vivier.
-    vivier = _rechercher_equipes(session, {"recherche": None})["equipes"]
-    if payload.equipe_id is not None:
-        vivier = [e for e in vivier if e["id"] == str(payload.equipe_id)]
+    # Classement déterministe du vivier (le même que celui affiché par la
+    # carte) : ciblage explicite (réponse HITL ``cibler``) ou vivier entier.
+    candidats = _classer_vivier(session, mission, role, equipe_id=payload.equipe_id)
 
-    if not vivier:
+    if not candidats:
         return PropositionAgentRhRead(
             mission_id=mission.id,
             role_dans_mission=role,
@@ -384,52 +504,11 @@ def proposition_agent_rh(
         )
 
     service = AffectationService(session)
-    affectations_existantes = {
-        str(a.equipe_id)
-        for a in service.lister_pour_mission(mission_id)
-        if a.statut == StatutAffectation.APPROUVEE.value
-    }
-
-    # Disponibilité **calculée** (ADR 0012) : la même règle que celle qui
-    # refuse une proposition. Une personne approuvée sur une mission qui
-    # chevauche celle-ci est écartée du classement — sinon la proposition
-    # serait refusée à coup sûr. Une mission sans dates n'est pas évaluable :
-    # aucun candidat n'est alors écarté (cas documenté, aucun droit inventé).
-    conflits_par_equipe: dict[str, list[str]] = {}
-    if mission.date_debut is not None and mission.date_fin is not None:
-        for membre in vivier:
-            conflits = service.conflits_disponibilite(
-                UUID(membre["id"]),
-                mission.date_debut,
-                mission.date_fin,
-                mission_id=mission.id,
-            )
-            if conflits:
-                conflits_par_equipe[membre["id"]] = [
-                    f"{c['reference']} ({c['date_debut']} → {c['date_fin']})"
-                    for c in conflits
-                ]
-
-    # Classement déterministe : personnes **disponibles** d'abord, puis score
-    # AgentRH (profil renseigné, CV présent, rôle dans profil), tie-break
-    # alphabétique. Aucune invention.
-    classes: list[tuple[dict[str, Any], int, dict[str, bool]]] = []
-    for membre in vivier:
-        score_info = _agent_score(session, UUID(membre["id"]), role)
-        classes.append((membre, score_info["score"], score_info["criteres"]))
-    classes.sort(
-        key=lambda c: (
-            c[0]["id"] in conflits_par_equipe,
-            -c[1],
-            c[0]["nom"].lower(),
-            c[0]["prenom"].lower(),
-        )
-    )
 
     # Proposition HITL : le meilleur candidat **disponible** uniquement —
     # l'utilisateur approuve, refuse ou redemande avec un ciblage différent.
     propositions: list[AffectationEquipe] = []
-    retenu = next((c for c in classes if c[0]["id"] not in conflits_par_equipe), None)
+    retenu = next((c for c in candidats if c.disponible), None)
     if retenu is None:
         message = (
             "Aucun membre du vivier n'est disponible sur les dates de cette mission : "
@@ -437,7 +516,11 @@ def proposition_agent_rh(
             "Aucune proposition n'est créée."
         )
     else:
-        meilleur_id, meilleur_score = retenu[0]["id"], retenu[1]
+        meilleur_id, meilleur_score, note_max = (
+            str(retenu.equipe_id),
+            retenu.score,
+            retenu.score_max,
+        )
         deja_proposee = any(
             str(a.equipe_id) == meilleur_id
             and a.role_dans_mission == role
@@ -452,7 +535,7 @@ def proposition_agent_rh(
                     role,
                     justification=(
                         f"Meilleur classement du vivier pour « {role} » "
-                        f"(score {meilleur_score}/3). "
+                        f"(note {meilleur_score}/{note_max}). "
                         "Score calculé sur les données enregistrées uniquement."
                     ),
                 )
@@ -466,21 +549,6 @@ def proposition_agent_rh(
             else "Une proposition identique est déjà en attente de décision."
         )
 
-    candidats = [
-        CandidatClasse(
-            equipe_id=UUID(membre["id"]),
-            nom=membre["nom"],
-            prenom=membre["prenom"],
-            profil=membre.get("profil"),
-            score=score,
-            score_max=3,
-            criteres=criteres,
-            deja_affecte=membre["id"] in affectations_existantes,
-            disponible=membre["id"] not in conflits_par_equipe,
-            conflits=conflits_par_equipe.get(membre["id"], []),
-        )
-        for membre, score, criteres in classes
-    ]
     return PropositionAgentRhRead(
         mission_id=mission.id,
         role_dans_mission=role,

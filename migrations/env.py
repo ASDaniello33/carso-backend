@@ -26,6 +26,26 @@ config.set_main_option("sqlalchemy.url", settings.database_url)
 # Phase 3: the full domain metadata is registered, enabling autogenerate support.
 target_metadata = Base.metadata
 
+#: Tables créées et migrées **hors** Alembic : le checkpointer LangGraph
+#: (``langgraph-checkpoint-postgres``) pose lui-même ``checkpoints``,
+#: ``checkpoint_blobs``, ``checkpoint_writes`` et ``checkpoint_migrations`` au
+#: premier démarrage. Sans ce filtre, ``alembic revision --autogenerate``
+#: proposait de les **supprimer** — donc de perdre tous les threads d'agents
+#: (constaté le 18/11 sur ``alembic check``). Ces tables ne sont ni modélisées
+#: ni versionnées par l'application : elles restent la propriété du checkpointer.
+TABLES_EXTERNES = frozenset(
+    {"checkpoints", "checkpoint_blobs", "checkpoint_writes", "checkpoint_migrations"}
+)
+
+
+def include_object(objet, nom, type_, reflechi, comparaison):
+    """Réduit l'autogenerate au schéma que l'application possède réellement."""
+    if type_ == "table" and nom in TABLES_EXTERNES:
+        return False
+    # Les index et contraintes de ces tables suivent la même règle.
+    table = getattr(objet, "table", None)
+    return not (table is not None and table.name in TABLES_EXTERNES)
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode (emit SQL without a DB connection)."""
@@ -33,6 +53,7 @@ def run_migrations_offline() -> None:
     context.configure(
         url=url,
         target_metadata=target_metadata,
+        include_object=include_object,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -48,7 +69,14 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            include_object=include_object,
+            # Sans cela, un changement de type de colonne (``String(50)`` →
+            # ``String(80)``) n'était pas détecté par ``alembic check``.
+            compare_type=True,
+        )
         with context.begin_transaction():
             context.run_migrations()
 

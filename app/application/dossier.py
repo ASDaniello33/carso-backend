@@ -1,9 +1,12 @@
 """Dossier lié à une mission—ce qu'un compte restreint peut rattacher.
 
 Décision validée—un formateur affecté à une mission voit le **dossier lié**
-de cette mission—l'appel source, ses lots, les offres rattachées et
-l'organisation cliente—mais jamais les listes transverses (tous les appels,
-toutes les organisations…), qui restent des lectures de l'équipe interne.
+de cette mission—l'appel source et ses documents, ses lots, l'organisation
+cliente—mais jamais les listes transverses (tous les appels, toutes les
+organisations…), qui restent des lectures de l'équipe interne. Les **offres**
+sont réservées aux administrateurs et collaborateurs (décision 18/11) : elles
+restent calculées ici pour les services internes, jamais servies à un compte
+restreint.
 
 Ce module calcule les ensembles d'identifiants accessibles à partir des
 missions du périmètre. Il ne décide de rien—les services s'en servent pour
@@ -83,11 +86,26 @@ def dossier_autorise(session: Session, perimetre: Perimetre) -> DossierAutorise:
             select(MissionOffre.offre_id).where(MissionOffre.mission_id.in_(missions))
         ).all()
     )
-    lots: frozenset[UUID] = frozenset()
+    lots_des_offres: frozenset[UUID] = frozenset()
     if offres:
-        lots = frozenset(
+        lots_des_offres = frozenset(
             session.scalars(select(Offre.lot_id).where(Offre.id.in_(offres))).all()
         )
+    # Une mission peut naître **avant** l'approbation des offres de son lot
+    # (règle du 10/11) : elle porte alors ``missions.lot_id`` sans aucune offre
+    # rattachée. L'appel source doit rester dans le dossier — sans cette
+    # lecture, une mission issue d'un lot sans offre perdait son appel et ses
+    # documents (constat 18/11 sur ``MISSION-HI-NOV-2027``).
+    lots_directs: frozenset[UUID] = frozenset(
+        lot_id
+        for lot_id in session.scalars(
+            select(Mission.lot_id).where(
+                Mission.id.in_(missions), Mission.lot_id.is_not(None)
+            )
+        )
+        if lot_id is not None
+    )
+    lots = lots_des_offres | lots_directs
     appels: frozenset[UUID] = frozenset()
     if lots:
         appels = frozenset(

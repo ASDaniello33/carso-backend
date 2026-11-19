@@ -109,6 +109,7 @@ def lister_types_retires(session: DbSession) -> list[TypeAppelRetire]:
 def retirer_type_appel(
     payload: TypeAppelRetireCreate,
     session: DbSession,
+    utilisateur: InterneUser,
 ) -> TypeAppelRetire:
     """Retire un type de la liste proposee.
 
@@ -116,7 +117,9 @@ def retirer_type_appel(
     enregistres, elle s'affiche comme supprimee, et l'utilisateur peut la
     corriger a tout moment.
     """
-    service = AppelService(session)
+    # L'acteur est l'utilisateur authentifié : sans lui, l'événement d'audit
+    # ne dit pas QUI a retiré le type (trace inexploitable).
+    service = AppelService(session, actor_id=str(utilisateur.id))
     ligne = service.retirer_type_appel(payload.type_appel, payload.motif)
     session.commit()
     return ligne
@@ -127,9 +130,13 @@ def retirer_type_appel(
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(exiger_interne)],
 )
-def restaurer_type_appel(type_appel: str, session: DbSession) -> None:
+def restaurer_type_appel(
+    type_appel: str,
+    session: DbSession,
+    utilisateur: InterneUser,
+) -> None:
     """Remet un type retire dans la liste proposee (retour en arriere)."""
-    service = AppelService(session)
+    service = AppelService(session, actor_id=str(utilisateur.id))
     service.restaurer_type_appel(type_appel)
     session.commit()
 

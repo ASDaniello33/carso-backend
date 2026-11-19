@@ -19,7 +19,6 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.application.dossier import dossier_autorise
 from app.application.dto import BudgetTotal, LigneBudgetInput, OffreUpdateInput
 from app.application.perimetre import Perimetre, perimetre_effectif
 from app.application.services import notifications_evenements as notifications
@@ -365,12 +364,12 @@ class OffreService:
     def obtenir(self, offre_id: UUID) -> Offre:
         """Charge une offre (lecture pure, sans mutation).
 
-        Sous périmètre restreint, l'offre se lit à travers une mission affectée
-        (le dossier de la mission) : une offre hors dossier reste introuvable.
+        Les offres sont **réservées aux administrateurs et collaborateurs**
+        (décision 18/11) : un formateur lit l'appel de sa mission et ses
+        documents, jamais l'offre commerciale. Elle lui est donc introuvable
+        (404), comme tout objet hors de son périmètre.
         """
-        if self._perimetre.est_restreint and not dossier_autorise(
-            self._session, self._perimetre
-        ).contient_offre(offre_id):
+        if self._perimetre.est_restreint:
             raise NotFoundError(f"Offre {offre_id} introuvable")
         return self._get(offre_id)
 

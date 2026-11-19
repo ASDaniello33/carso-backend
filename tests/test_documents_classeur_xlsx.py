@@ -249,7 +249,10 @@ def test_document_genere_visible_de_son_compte_seulement(
     assert document.doc_metadata is not None
     assert document.doc_metadata["genere_pour"] == str(utilisateur)
     assert restreint.obtenir(document.id).id == document.id
-    assert [d.id for d in restreint.lister_tous()] == [document.id]
+    # Document personnel privé (décision du 18/11) : il se lit dans « Mon
+    # dossier », plus dans la liste Documents où il tombait sous « Chat ».
+    assert [d.id for d in restreint.lister_personnels()] == [document.id]
+    assert restreint.lister_tous() == []
 
     autre = DocumentService(
         session,

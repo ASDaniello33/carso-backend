@@ -75,6 +75,9 @@ DEFINITION = AgentDefinition(
         # Supprimer un document est une décision humaine : HITL avant exécution.
         "supprimer_document",
         "create_assignment_proposal",
+        # Enregistrer plusieurs personnes du vivier depuis un classeur modifie
+        # des données réelles : aperçu, puis approbation, puis écriture.
+        "import_equipes",
         "propose_equipe_update",
         "propose_mission_update",
         # Budgets de mission : toute écriture budgétaire (créer, ajouter/

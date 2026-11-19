@@ -51,10 +51,15 @@ class MetadonneesDocumentMixin:
         dépôt est refusé : une fiche personnelle sans propriétaire n'apparaît
         dans le dossier de personne.
 
+        Un document du **même nom** mais d'une **autre catégorie** garde son
+        nom : les deux fiches se distinguent par leur type. Un homonyme de la
+        **même catégorie** est renommé automatiquement — « (2) », « (3) »…
+        avant l'extension (décision du 18/11) — pour qu'un import ne soit
+        jamais refusé ni confondu avec une fiche existante.
+
         Raises:
             ValidationError: plusieurs ancres, type de document ou nom
                 invalide, fichier refusé par la validation de contenu.
-            ConflictError: une version 1 existe déjà pour ce nom et ce type.
         """
         ancre = self._resoudre_ancre(entree)
         self._exiger_ancre_autorisee(ancre.champ, ancre.entity_id)
@@ -82,11 +87,10 @@ class MetadonneesDocumentMixin:
         if entree.revision_imposee is not None:
             revision = int(entree.revision_imposee)
         else:
-            if self.documents.find_active_by_name(nom, type_document) is not None:
-                msg = "Un document de ce nom et de ce type existe déjà"
-                raise ConflictError(
-                    msg, details={"nom": nom, "type_document": type_document}
-                )
+            # Un homonyme de la même catégorie rendrait la liste ambiguë : le
+            # dépôt prend le premier suffixe libre (« (2) », « (3) »…). Un
+            # homonyme d'une autre catégorie est légitime et garde son nom.
+            nom = self._nom_libre(nom, type_document)
             # Premier dépôt de ce format : il rejoint la révision courante du
             # livrable (1 si le livrable est neuf).
             revision = self._revision_courante(nom, type_document, ancres_depot) or 1
@@ -110,6 +114,16 @@ class MetadonneesDocumentMixin:
             versioned_filename(nom, revision),
             proprietaire_id=proprietaire_chemin,
         )
+        if self.storage.exists(chemin_logique):
+            # Deux **catégories** peuvent porter le même nom dans un même
+            # dossier : le fichier se distingue par un suffixe technique, le
+            # nom logique (`documents.nom`) reste celui du document.
+            chemin_logique = self._chemin_logique_libre(
+                ancre.scope,
+                ancre.entity_id,
+                versioned_filename(nom, revision),
+                proprietaire_id=proprietaire_chemin,
+            )
         kwargs_ancre = {ancre.champ: ancre.entity_id} if ancre.champ else {}
         # Seconde ancre mission/session : la pièce est rangée une seule fois,
         # sous le dossier du scope choisi, mais elle appartient aussi à l'autre
@@ -147,6 +161,34 @@ class MetadonneesDocumentMixin:
             event_metadata={"storage_path": document.storage_path},
         )
         return document
+
+    #: Longueur maximale du nom logique (colonne ``documents.nom``).
+    _LONGUEUR_NOM = 255
+
+    def _nom_libre(self, nom: str, type_document: str) -> str:
+        """Nom disponible pour une nouvelle fiche : « (2) », « (3) »…
+
+        Seule une fiche **exploitable de la même catégorie** gêne : deux
+        documents homonymes de types différents coexistent sans suffixe, et
+        une fiche archivée ou supprimée libère son nom (comportement existant).
+
+        Le suffixe précède l'extension — « rapport (2).pdf » —, et la racine
+        est tronquée si la colonne l'exige : un nom de 255 caractères ne doit
+        pas faire échouer l'import.
+        """
+        if self.documents.find_active_by_name(nom, type_document) is None:
+            return nom
+        fichier = Path(nom)
+        extension = fichier.suffix
+        base = fichier.stem
+        indice = 2
+        while True:
+            suffixe = f" ({indice})"
+            candidat = f"{base[: self._LONGUEUR_NOM - len(extension) - len(suffixe)]}"
+            candidat = f"{candidat}{suffixe}{extension}"
+            if self.documents.find_active_by_name(candidat, type_document) is None:
+                return candidat
+            indice += 1
 
     def _revision_courante(
         self, nom: str, type_document: str, ancres: dict[str, UUID] | None = None

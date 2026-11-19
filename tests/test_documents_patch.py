@@ -430,7 +430,11 @@ class TestOutilCorrigerDocument:
         assert sortie["ok"] is True
         assert sortie["statut"] == "proposed"
         assert sortie["operations_appliquees"]
-        assert sortie["document_spec"]["blocs"][1]["lignes"][2][2]["texte"] == "5 400 000"
+        # INC-105 : le retour ne renvoie pas le spec complet (le modèle vient de
+        # l'écrire, et il est conservé côté serveur). La correction se vérifie
+        # sur le fichier rendu, juste en dessous.
+        assert "document_spec" not in sortie
+        assert "resume_document" in sortie
         _nom, chemin = service.telecharger(UUID(sortie["document_id"]))
         assert "5 400 000" in _texte_docx(chemin)
 

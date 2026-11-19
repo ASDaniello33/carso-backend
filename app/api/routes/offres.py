@@ -93,7 +93,11 @@ def get_offre(
     session: DbSession,
     perimetre: PerimetreDep,
 ) -> Offre:
-    """Consultation d'une offre (404 si absente ou hors du dossier de ses missions)."""
+    """Consultation d'une offre — réservée aux administrateurs et collaborateurs.
+
+    Un compte formateur lit l'**appel** de sa mission et ses documents, jamais
+    l'offre commerciale : elle lui répond 404 (décision 18/11).
+    """
     return OffreService(session, perimetre=perimetre).obtenir(offre_id)
 
 

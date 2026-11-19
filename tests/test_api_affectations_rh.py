@@ -7,10 +7,10 @@ qu'après approbation humaine explicite (règle 6 [C]).
 
 from __future__ import annotations
 
+from datetime import date
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
-
-from datetime import date
 
 from app.domain.enums import SourceAffectation, StatutAffectation, StatutMission
 from app.domain.execution import AffectationEquipe, Equipe, Mission
@@ -328,3 +328,47 @@ def test_proposition_puis_approbation_hitl_complet(
     assert liste.status_code == 200
     statuts = {a["statut"] for a in liste.json()["affectations"]}
     assert statuts == {StatutAffectation.APPROUVEE.value}
+
+
+def _classement(api_client: TestClient, mission: Mission, role: str) -> dict:
+    reponse = api_client.get(
+        f"{PRÉFIXE}/missions/{mission.id}/classement-affectation",
+        params={"role_dans_mission": role},
+    )
+    assert reponse.status_code == 200, reponse.text
+    return reponse.json()
+
+
+def test_le_classement_d_un_poste_se_lit_sans_rien_ecrire(
+    api_client: TestClient, api_session_factory: sessionmaker[Session]
+) -> None:
+    """La carte affiche un score par poste : l'affichage ne décide rien.
+
+    Le classement est celui de la proposition (même calcul), mais en lecture
+    seule : ouvrir la carte ne doit créer aucune affectation. Le score dépend
+    du poste demandé, donc deux postes donnent deux classements.
+    """
+    mission = _seed_mission(api_session_factory, "M-RH-API-CLASSEMENT")
+    formateur = Equipe(nom="Amrani", prenom="Sara", profil="formateur senior")
+    logisticien = Equipe(nom="Benali", prenom="Karim", profil="logistique")
+    seed(api_session_factory, formateur, logisticien)
+
+    pour_formateur = _classement(api_client, mission, "formateur")
+    assert pour_formateur["role_dans_mission"] == "formateur"
+    assert [c["nom"] for c in pour_formateur["candidats"]] == ["Amrani", "Benali"]
+    meilleur = pour_formateur["candidats"][0]
+    assert meilleur["criteres"]["role_dans_profil"] is True
+    assert meilleur["score"] > pour_formateur["candidats"][1]["score"]
+    # La note est sur 10 : profil et rôle renseignés (pas de CV) → 7/10, et
+    # la meilleure note reste devant.
+    assert meilleur["score_max"] == 10
+    assert meilleur["score"] == 7
+
+    # Le même vivier, un autre poste : le classement suit le rôle demandé.
+    pour_logistique = _classement(api_client, mission, "logistique")
+    assert pour_logistique["candidats"][0]["nom"] == "Benali"
+
+    # Lecture seule : aucune proposition n'est née de l'affichage.
+    liste = api_client.get(f"{PRÉFIXE}/missions/{mission.id}/affectations")
+    assert liste.status_code == 200
+    assert liste.json()["affectations"] == []

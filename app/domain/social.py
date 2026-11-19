@@ -50,6 +50,7 @@ class Conversation(Base, UuidPkMixin, TimestampMixin):
     __table_args__ = (
         Index("ix_conversations_type", "type"),
         Index("ix_conversations_ferme", "fermee_at"),
+        Index("ix_conversations_archive", "archive_at"),
     )
 
     type: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -81,6 +82,7 @@ class MembreConversation(Base, UuidPkMixin, TimestampMixin):
             "conversation_id", "utilisateur_id", name="uq_membres_conversation_paire"
         ),
         Index("ix_membres_conversation_utilisateur", "utilisateur_id"),
+        Index("ix_membres_conversation_archive", "archive_at"),
     )
 
     conversation_id: Mapped[UUID] = mapped_column(
@@ -106,10 +108,14 @@ class Message(Base, UuidPkMixin, TimestampMixin):
     """Un message du chat : texte, auteur (humain ou agent), pièce jointe optionnelle."""
 
     __tablename__ = "messages"
-    __table_args__ = (            Index("ix_messages_conversation_date", "conversation_id", "created_at"),
+    __table_args__ = (
+        Index("ix_messages_conversation_date", "conversation_id", "created_at"),
         Index("ix_messages_auteur", "auteur_id"),
         # Suppression auteur (décision validée) : soft-delete.
         Index("ix_messages_supprime", "supprime_at"),
+        # Réponse citée (migration 0015) : déclaré ici pour qu'autogenerate ne
+        # propose plus de le supprimer.
+        Index("ix_messages_reponse_a", "reponse_a_id"),
     )
 
     conversation_id: Mapped[UUID] = mapped_column(

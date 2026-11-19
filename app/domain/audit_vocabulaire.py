@@ -171,6 +171,8 @@ LIBELLES_ACTION: dict[str, str] = {
     ActionAudit.SERVEUR_MCP_ENREGISTRE.value: "Serveur MCP enregistré",
     ActionAudit.SERVEUR_MCP_MODIFIE.value: "Serveur MCP modifié",
     ActionAudit.SERVEUR_MCP_SUPPRIME.value: "Serveur MCP supprimé",
+    ActionAudit.SECRET_ENV_MODIFIE.value: "Secret d'environnement modifié",
+    ActionAudit.SECRET_ENV_SUPPRIME.value: "Secret d'environnement supprimé",
     ActionAudit.CHAT_ORPHELINS_PURGES.value: "Fichiers de conversation purgés",
     # Base de connaissance : les indexations sont tracées comme les autres
     # gestes du système, y compris celles lancées par le worker (acteur

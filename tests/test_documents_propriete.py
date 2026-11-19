@@ -141,10 +141,19 @@ def test_un_collegue_ne_voit_pas_le_document_personnel_d_un_autre(
     assert all(d.id != document.id for d in collegue.lister_tous())
 
 
-def test_un_administrateur_voit_les_documents_personnels(session: Session, comptes) -> None:
+def test_un_administrateur_atteint_la_fiche_sans_la_voir_dans_documents(
+    session: Session, comptes
+) -> None:
+    """L'administration couvre la fiche personnelle (accès par identifiant) ;
+    elle ne la voit plus dans la liste Documents tant qu'elle est **privée**
+    (décision du 18/11) : ce fichier vit dans « Mon dossier » de son
+    propriétaire. Publié, il revient dans la liste."""
     document = _deposer(session, _perimetre(comptes["proprietaire"]))
     admin = DocumentService(session, perimetre=_perimetre(comptes["admin"]))
     assert admin.obtenir(document.id).id == document.id
+    assert all(d.id != document.id for d in admin.lister_tous())
+
+    admin.changer_visibilite(document.id, "public")
     assert any(d.id == document.id for d in admin.lister_tous())
 
 
@@ -152,6 +161,21 @@ def test_le_proprietaire_voit_son_document(session: Session, comptes) -> None:
     document = _deposer(session, _perimetre(comptes["proprietaire"]))
     moi = DocumentService(session, perimetre=_perimetre(comptes["proprietaire"]))
     assert moi.obtenir(document.id).id == document.id
+
+
+def test_le_dossier_personnel_ne_double_pas_la_liste_documents(
+    session: Session, comptes
+) -> None:
+    """Un document personnel **privé** vit dans « Mon dossier » et nulle part
+    ailleurs : il n'apparaît plus dans Documents sous le dossier « Chat »
+    (décision du 18/11). Publié, il y apparaît."""
+    document = _deposer(session, _perimetre(comptes["proprietaire"]))
+    moi = DocumentService(session, perimetre=_perimetre(comptes["proprietaire"]))
+    assert [d.id for d in moi.lister_personnels()] == [document.id]
+    assert all(d.id != document.id for d in moi.lister_tous())
+
+    moi.changer_visibilite(document.id, "public")
+    assert any(d.id == document.id for d in moi.lister_tous())
 
 
 # --- Visibilité --------------------------------------------------------------

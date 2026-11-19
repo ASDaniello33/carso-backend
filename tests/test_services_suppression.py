@@ -372,6 +372,224 @@ def test_suppression_organisation_emporte_tout_le_sous_arbre(
         session.close()
 
 
+def test_suppression_appel_emporte_la_mission_ancree_sur_le_lot(
+    api_session_factory: sessionmaker[Session], storage: LocalDocumentStorage
+) -> None:
+    """Un lot porte sa mission même sans offre (ADR 0012) : la cascade la voit.
+
+    ``missions.lot_id`` est ``RESTRICT`` et la mission peut n'être reliée à
+    aucune offre du lot : sans arête lot → mission, le ``DELETE`` du lot violait
+    ``fk_missions_lot_id`` (500 sur ``DELETE /appels/{id}``).
+    """
+    session = api_session_factory()
+    try:
+        organisation = Organisation(nom="Client Lot Sans Offre")
+        session.add(organisation)
+        session.flush()
+        appel = Appel(
+            organisation_id=organisation.id, reference="AO-LOT-02", titre="Appel lot"
+        )
+        session.add(appel)
+        session.flush()
+        lot = Lot(appel_id=appel.id, numero="2", titre="Lot 2")
+        session.add(lot)
+        session.flush()
+        mission = Mission(
+            organisation_id=organisation.id,
+            lot_id=lot.id,
+            reference="M-LOT-02",
+            titre="Mission du lot, sans offre",
+            statut=StatutMission.PLANIFIE.value,
+        )
+        session.add(mission)
+        session.flush()
+        formation = SessionFormation(
+            mission_id=mission.id, theme="Session du lot", statut="planifie"
+        )
+        session.add(formation)
+        session.commit()
+        appel_id = appel.id
+    finally:
+        session.close()
+
+    # L'impact annonce déjà la mission et sa session parmi les dépendances.
+    service = ServiceSuppression(api_session_factory(), storage=storage)
+    impact = service.impact("appels", appel_id)
+    assert impact.dependances["lots"] == 1
+    assert impact.dependances["missions"] == 1
+    assert impact.dependances["sessions"] == 1
+
+    session = api_session_factory()
+    try:
+        ServiceSuppression(session, storage=storage).supprimer("appels", appel_id, DECISION)
+        session.commit()
+    finally:
+        session.close()
+
+    for modele in (Appel, Lot, Mission, SessionFormation):
+        assert _compter(api_session_factory, modele) == 0, modele.__name__
+    # L'organisation n'est pas une dépendance : elle survit à son appel.
+    assert _compter(api_session_factory, Organisation) == 1
+
+
+def test_suppression_appel_emporte_l_offre_qui_le_reference(
+    api_session_factory: sessionmaker[Session], storage: LocalDocumentStorage
+) -> None:
+    """Une offre porte ``appel_id`` **et** ``lot_id``, tous deux ``RESTRICT``.
+
+    Le cas nominal (offre sur un lot de l'appel) est couvert par l'arête
+    lot → offre. Le schéma, lui, n'impose pas que les deux colonnes désignent
+    le même dossier : ``OffreService.creer`` le vérifie, la base non. Une offre
+    dont le lot appartient à un autre appel ne serait ramenée par aucun chemin
+    et violerait ``fk_offres_appel_id`` en pleine cascade. L'arête appel → offre
+    la rend explicite, sans doublon (la collecte est un ensemble).
+    """
+    session = api_session_factory()
+    try:
+        organisation = Organisation(nom="Client Offre Dérivée")
+        session.add(organisation)
+        session.flush()
+        appel = Appel(
+            organisation_id=organisation.id, reference="AO-DERIVE-01", titre="Appel visé"
+        )
+        autre_appel = Appel(
+            organisation_id=organisation.id,
+            reference="AO-DERIVE-02",
+            titre="Autre appel",
+        )
+        session.add_all([appel, autre_appel])
+        session.flush()
+        autre_lot = Lot(appel_id=autre_appel.id, numero="1", titre="Lot de l'autre appel")
+        session.add(autre_lot)
+        session.flush()
+        # L'offre référence l'appel visé, mais s'appuie sur le lot de l'autre :
+        # aucune arête partant de l'appel ne la ramène par son lot.
+        offre = Offre(
+            organisation_id=organisation.id,
+            appel_id=appel.id,
+            lot_id=autre_lot.id,
+            type="offre_technique",
+            reference="O-DERIVE-01",
+            titre="Offre rattachée à l'appel visé",
+        )
+        session.add(offre)
+        session.flush()
+        budget = Budget(offre_id=offre.id, devise="EUR")
+        session.add(budget)
+        session.commit()
+        appel_id = appel.id
+        autre_appel_id = autre_appel.id
+    finally:
+        session.close()
+
+    service = ServiceSuppression(api_session_factory(), storage=storage)
+    impact = service.impact("appels", appel_id)
+    assert impact.dependances["offres"] == 1
+    assert impact.dependances["budgets"] == 1
+
+    session = api_session_factory()
+    try:
+        ServiceSuppression(session, storage=storage).supprimer("appels", appel_id, DECISION)
+        session.commit()
+    finally:
+        session.close()
+
+    assert _compter(api_session_factory, Appel) == 1
+    assert _compter(api_session_factory, Offre) == 0
+    assert _compter(api_session_factory, Budget) == 0
+    # L'autre dossier survit intact : son appel et son lot ne dépendent pas de
+    # la racine supprimée.
+    session = api_session_factory()
+    try:
+        assert session.get(Appel, autre_appel_id) is not None
+    finally:
+        session.close()
+    assert _compter(api_session_factory, Lot) == 1
+
+
+def test_suppression_organisation_emporte_offre_et_mission_de_son_dossier(
+    api_session_factory: sessionmaker[Session], storage: LocalDocumentStorage
+) -> None:
+    """Une offre porte son organisation en ``RESTRICT``, en plus de son appel et lot.
+
+    Ces liens peuvent diverger : un appel encore ``recu`` (donc non validé)
+    change d'organisation alors qu'il porte déjà un lot et une offre. L'offre
+    reste celle de l'ancienne organisation ; ni l'appel ni le lot ne la
+    ramènent. Sans arête organisation → offre, le ``DELETE`` de cette
+    organisation violait ``fk_offres_organisation_id`` (500), et l'impact
+    annonçait une cascade incomplète. La mission suit le même chemin (elle
+    porte aussi ``organisation_id`` en plus de son lot).
+    """
+    session = api_session_factory()
+    try:
+        organisation_offre = Organisation(nom="Ancienne organisation")
+        organisation_dossier = Organisation(nom="Nouvelle organisation")
+        session.add_all([organisation_offre, organisation_dossier])
+        session.flush()
+        # Le dossier (appel, lot) appartient à la nouvelle organisation ;
+        # l'offre et la mission restent celles de l'ancienne.
+        appel = Appel(
+            organisation_id=organisation_dossier.id,
+            reference="AO-DRIFT-01",
+            titre="Appel réaffecté",
+        )
+        session.add(appel)
+        session.flush()
+        lot = Lot(appel_id=appel.id, numero="1", titre="Lot 1")
+        session.add(lot)
+        session.flush()
+        offre = Offre(
+            organisation_id=organisation_offre.id,
+            appel_id=appel.id,
+            lot_id=lot.id,
+            type="offre_technique",
+            reference="O-DRIFT-01",
+            titre="Offre de l'ancienne organisation",
+        )
+        session.add(offre)
+        session.flush()
+        mission = Mission(
+            organisation_id=organisation_offre.id,
+            lot_id=lot.id,
+            reference="M-DRIFT-01",
+            titre="Mission de l'ancienne organisation",
+            statut=StatutMission.PLANIFIE.value,
+        )
+        session.add(mission)
+        session.flush()
+        budget = Budget(offre_id=offre.id, devise="EUR")
+        session.add(budget)
+        session.commit()
+        organisation_offre_id = organisation_offre.id
+    finally:
+        session.close()
+
+    # L'impact annonce ce qui sera détruit : l'offre et la mission de ce dossier.
+    impact = ServiceSuppression(
+        api_session_factory(), storage=storage
+    ).impact("organisations", organisation_offre_id)
+    assert impact.dependances["offres"] == 1
+    assert impact.dependances["missions"] == 1
+    assert impact.dependances["budgets"] == 1
+
+    session = api_session_factory()
+    try:
+        ServiceSuppression(session, storage=storage).supprimer(
+            "organisations", organisation_offre_id, DECISION
+        )
+        session.commit()
+    finally:
+        session.close()
+
+    for modele in (Offre, Mission, Budget):
+        assert _compter(api_session_factory, modele) == 0, modele.__name__
+    # Le dossier de l'autre organisation survit intact : l'appel et son lot ne
+    # dépendent pas de l'ancienne organisation.
+    assert _compter(api_session_factory, Organisation) == 1
+    assert _compter(api_session_factory, Appel) == 1
+    assert _compter(api_session_factory, Lot) == 1
+
+
 def test_audit_conserve_l_inventaire(
     api_session_factory: sessionmaker[Session], storage: LocalDocumentStorage
 ) -> None:

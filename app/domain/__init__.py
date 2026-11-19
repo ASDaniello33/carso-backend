@@ -31,6 +31,7 @@ from app.domain.execution import (
 from app.domain.geo import ItineraireCache, ParametresVoyage
 from app.domain.identity import CodeReinitialisation, Utilisateur
 from app.domain.mcp import ServeurMcp
+from app.domain.notification import Notification
 from app.domain.organization import (
     Appel,
     Budget,
@@ -48,6 +49,11 @@ from app.domain.social import (
     Message,
     Reaction,
 )
+
+# Note : **toute** nouvelle table doit être importée ici. Sinon ``Base.metadata``
+# l'ignore et ``alembic revision --autogenerate`` propose de la **supprimer** —
+# c'est ce qui arrivait à ``notifications``, constaté le 18/11 sur
+# ``alembic check``.
 
 __all__ = [
     "AffectationEquipe",
@@ -73,6 +79,7 @@ __all__ = [
     "Document",
     "FournisseurIA",
     "ModeleIA",
+    "Notification",
     "ServeurMcp",
     "ItineraireCache",
     "ParametresVoyage",

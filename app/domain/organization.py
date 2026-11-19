@@ -49,6 +49,11 @@ class Organisation(Base, UuidPkMixin, TimestampMixin):
     """Entreprise/organisation cliente à l'origine d'un appel."""
 
     __tablename__ = "organisations"
+    __table_args__ = (
+        #: Index de clé étrangère posé par la migration 0025 (lieux) : déclaré
+        #: ici pour qu'autogenerate ne propose plus de le supprimer.
+        Index("fk_organisations_lieu_id_lieux", "lieu_id"),
+    )
 
     nom: Mapped[str] = mapped_column(String(255), nullable=False)
     type: Mapped[str | None] = mapped_column(String(100))
@@ -160,6 +165,8 @@ class Lot(Base, UuidPkMixin, TimestampMixin):
             name="uq_lots_appel_id_numero",
         ),
         Index("ix_lots_appel_id", "appel_id"),
+        #: Index de clé étrangère posé par la migration 0025 (lieux).
+        Index("fk_lots_lieu_id_lieux", "lieu_id"),
     )
 
     appel_id: Mapped[UUID] = mapped_column(

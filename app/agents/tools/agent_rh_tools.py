@@ -49,6 +49,7 @@ from app.application.services import (
     BudgetService,
     DocumentService,
     EquipeService,
+    ImportEquipesService,
     MissionService,
 )
 from app.application.trace import TraceContext
@@ -89,6 +90,12 @@ NOMS_TOOLS: tuple[str, ...] = (
     "search_equipes",
     "get_equipe",
     "list_equipe_cv",
+    # Import du vivier depuis un classeur : l'utilisateur dépose un Excel de
+    # plusieurs personnes, l'agent l'enregistre après aperçu et approbation.
+    # Les CV restent déposés à la main, un par fiche.
+    "inspect_equipes_xlsx",
+    "preview_import_equipes",
+    "import_equipes",
     "get_mission",
     "list_mission_assignments",
     "search_missions",
@@ -153,10 +160,6 @@ NOMS_TOOLS: tuple[str, ...] = (
 )
 
 
-class EquipeIdInput(BaseModel):
-    equipe_id: UUID
-
-
 class EquipesIdsInput(BaseModel):
     """Lot de fiches à lire en **un** appel.
 
@@ -173,6 +176,32 @@ class EquipesIdsInput(BaseModel):
             "Personnes du vivier à lire, dans l'ordre où les fiches sont "
             f"attendues ({MAX_FICHES_PAR_LOT} au plus par appel)."
         ),
+    )
+
+
+class DocumentIdInput(BaseModel):
+    """Document déjà déposé (classeur du vivier) : jamais un chemin fourni."""
+
+    document_id: UUID
+
+
+class ImportEquipesInput(BaseModel):
+    """Classeur du vivier à lire : la feuille et la borne, jamais des données.
+
+    Les personnes ne sont pas transportées par le modèle : elles sont **lues
+    dans le classeur** déposé (``document_id``). Une valeur recopiée à la main
+    depuis un tableau serait une donnée non vérifiable.
+    """
+
+    document_id: UUID
+    sheet: str | None = Field(
+        default=None, max_length=100, description="Nom de la feuille (défaut : la première)."
+    )
+    max_lignes: int | None = Field(
+        default=None,
+        ge=1,
+        le=500,
+        description="Lignes lues au plus (défaut : 200 en aperçu, 500 à l'import).",
     )
 
 
@@ -424,21 +453,104 @@ def _get_equipes(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _list_cv(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
-    docs = DocumentRepository(session).list_for_equipe(UUID(str(payload["equipe_id"])))
-    cvs = [d for d in docs if d.type_document == TypeDocument.CV.value]
-    return {
-        "equipe_id": str(payload["equipe_id"]),
-        "cv": [
+def _list_cvs(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """CV de plusieurs personnes en **un** appel (lecture seule).
+
+    Un appel par personne obligeait l'agent à cent appels pour cent personnes :
+    le lot est la forme normale. Un identifiant inconnu ne fait pas échouer les
+    autres lectures — il est listé dans ``introuvables`` (même règle que
+    ``get_equipe``).
+    """
+    entree = EquipesIdsInput.model_validate(payload)
+    service = EquipeService(session)
+    repository = DocumentRepository(session)
+    par_personne: list[dict[str, Any]] = []
+    introuvables: list[str] = []
+    vus: set[UUID] = set()
+    for equipe_id in entree.equipe_ids:
+        if equipe_id in vus:
+            continue
+        vus.add(equipe_id)
+        try:
+            service.obtenir(equipe_id)
+        except NotFoundError:
+            introuvables.append(str(equipe_id))
+            continue
+        cvs = [
+            d
+            for d in repository.list_for_equipe(equipe_id)
+            if d.type_document == TypeDocument.CV.value
+        ]
+        par_personne.append(
             {
-                "document_id": str(d.id),
-                "nom": d.nom,
-                "version": d.version,
-                "statut": d.statut,
+                "equipe_id": str(equipe_id),
+                "cv": [
+                    {
+                        "document_id": str(d.id),
+                        "nom": d.nom,
+                        "version": d.version,
+                        "statut": d.statut,
+                    }
+                    for d in cvs
+                ],
+                "nb_cv": len(cvs),
             }
-            for d in cvs
-        ],
-        "nb_cv": len(cvs),
+        )
+    return {
+        "equipes": par_personne,
+        "nb_equipes": len(par_personne),
+        "nb_cv_total": sum(item["nb_cv"] for item in par_personne),
+        "introuvables": introuvables,
+    }
+
+
+def _inspect_equipes_xlsx(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Structure du classeur du vivier (feuilles, dimensions) — lecture seule."""
+    return ImportEquipesService(session, actor_id=AGENT_ID).inspecter(
+        UUID(str(payload["document_id"]))
+    )
+
+
+def _preview_import_equipes(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Aperçu d'un import de vivier : **aucune écriture**.
+
+    L'aperçu dit, ligne par ligne, ce qui serait créé, ce qui est incomplet et
+    ce qui existe déjà. C'est la même règle que l'import (service unique).
+    """
+    entree = ImportEquipesInput.model_validate(payload)
+    apercu = ImportEquipesService(session, actor_id=AGENT_ID).preparer(
+        entree.document_id,
+        sheet=entree.sheet,
+        max_lignes=entree.max_lignes or 200,
+    )
+    return {
+        **apercu.en_donnees(),
+        "message": (
+            "Aperçu seulement : aucune personne n'a été créée. Les CV ne sont "
+            "pas importés par ce classeur — ils se déposent sur chaque fiche."
+        ),
+    }
+
+
+def _import_equipes(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Crée les personnes **valides** du classeur (HITL).
+
+    Aucune déduplication silencieuse : un doublon est signalé, jamais fusionné
+    ni recréé. Les CV restent à déposer, un par fiche.
+    """
+    entree = ImportEquipesInput.model_validate(payload)
+    resultat = ImportEquipesService(session, actor_id=AGENT_ID).importer(
+        entree.document_id,
+        sheet=entree.sheet,
+        max_lignes=entree.max_lignes or 500,
+    )
+    return {
+        **resultat.en_donnees(),
+        "requires_approval": True,
+        "message": (
+            "Import exécuté sous votre approbation : les doublons sont signalés, "
+            "jamais fusionnés. Les CV restent à déposer sur chaque fiche."
+        ),
     }
 
 
@@ -539,8 +651,19 @@ def _disponibilites(session: Session, payload: dict[str, Any]) -> dict[str, Any]
     }
 
 
+#: Note affichée sur 10 (échelle demandée par CARSO).
+NOTE_MAX = 10
+
+
 def _score(session: Session, equipe_id: UUID, role: str) -> dict[str, Any]:
-    """Score explicable, déterministe, sans invention."""
+    """Note d'adéquation sur 10 — explicable, déterministe, sans invention.
+
+    Trois critères binaires, **même poids** : profil renseigné, CV au dossier,
+    rôle présent dans le profil. La note est la part de critères remplis
+    rapportée sur 10 (0, 1, 2, 3 critères → 0, 3, 7, 10). Aucune pondération
+    n'est inventée : le compteur de critères reste rendu tel quel, et la note
+    n'est qu'un changement d'échelle lisible par l'utilisateur.
+    """
     equipe = EquipeService(session).obtenir(equipe_id)
     cvs = [
         d
@@ -554,8 +677,10 @@ def _score(session: Session, equipe_id: UUID, role: str) -> dict[str, Any]:
     }
     points = sum(1 for v in criteres.values() if v)
     return {
-        "score": points,
-        "score_max": 3,
+        "score": round(points * NOTE_MAX / len(criteres)),
+        "score_max": NOTE_MAX,
+        "criteres_remplis": points,
+        "criteres_max": len(criteres),
         "criteres": criteres,
         "limite": "Score indicatif à partir des données enregistrées uniquement.",
     }
@@ -1005,9 +1130,50 @@ def construire_tools_rh(
     ))
     kit.enregistrer(OperationSpec(
         name="list_equipe_cv",
-        description="CV rattachés (métadonnées uniquement).",
-        input_schema=EquipeIdInput,
-        run=_list_cv,
+        description=(
+            "CV rattachés de **plusieurs personnes en un seul appel** "
+            "(`equipe_ids`, 50 au plus) : une entrée par personne, avec sa "
+            "liste de CV (métadonnées uniquement : document_id, nom, version, "
+            "statut). Un identifiant inconnu est listé dans `introuvables` sans "
+            "faire échouer les autres. N'appelle jamais l'outil une fois par "
+            "personne."
+        ),
+        input_schema=EquipesIdsInput,
+        run=_list_cvs,
+    ))
+    kit.enregistrer(OperationSpec(
+        name="inspect_equipes_xlsx",
+        description=(
+            "Structure d'un classeur Excel du vivier (feuilles, lignes, "
+            "colonnes) — lecture seule, avant tout import."
+        ),
+        input_schema=DocumentIdInput,
+        run=_inspect_equipes_xlsx,
+    ))
+    kit.enregistrer(OperationSpec(
+        name="preview_import_equipes",
+        description=(
+            "Aperçu d'un import du vivier depuis un classeur Excel déposé : "
+            "une ligne par personne, classée `valide`, `incomplete` ou "
+            "`doublon_existant`. Aucune écriture. Colonnes attendues : nom, "
+            "prenom (obligatoires), email, telephone, profil, fonction. Les CV "
+            "ne sont pas importés par ce classeur."
+        ),
+        input_schema=ImportEquipesInput,
+        run=_preview_import_equipes,
+    ))
+    kit.enregistrer(OperationSpec(
+        name="import_equipes",
+        description=(
+            "Enregistre **plusieurs personnes** du vivier depuis un classeur "
+            "Excel déposé (approbation humaine requise) : évite la saisie "
+            "manuelle. Seules les lignes valides sont créées ; les doublons "
+            "sont signalés, jamais fusionnés. Les CV restent à déposer un par "
+            "fiche, à la main."
+        ),
+        input_schema=ImportEquipesInput,
+        mutation=True,
+        run=_import_equipes,
     ))
     kit.enregistrer(OperationSpec(
         name="get_mission",

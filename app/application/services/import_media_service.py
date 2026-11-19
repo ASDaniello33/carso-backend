@@ -97,7 +97,9 @@ class ImportMediaService:
                 volumineux, réponse non exploitable, contenu qui n'est pas une
                 image reconnue, une **vidéo** (jamais rapatriée), ou
                 **plusieurs ancres** fournies.
-            ConflictError: un document de ce nom et de ce type existe déjà.
+
+        Un homonyme de la même catégorie est renommé (« (2) », « (3) »…),
+        jamais refusé (règle commune du dépôt, 18/11).
         """
         media = recuperer_media(
             entree.url,

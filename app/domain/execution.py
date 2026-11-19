@@ -285,6 +285,11 @@ class SessionFormation(Base, UuidPkMixin, TimestampMixin):
         # la mission : il n'y a pas de seconde tentative parallèle.
         UniqueConstraint("mission_id", name="uq_sessions_mission_id"),
         Index("ix_sessions_dates", "date_debut", "date_fin"),
+        #: Posé par la migration 0002 (avant la contrainte unique) : déclaré
+        #: pour qu'autogenerate ne propose pas de le supprimer. Redondant avec
+        #: l'index de ``uq_sessions_mission_id``, conservé tel quel — le retirer
+        #: serait une modification de schéma sans bénéfice mesuré.
+        Index("ix_sessions_mission_id", "mission_id"),
     )
 
     mission_id: Mapped[UUID] = mapped_column(

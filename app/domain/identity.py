@@ -45,6 +45,10 @@ class Utilisateur(Base, UuidPkMixin, TimestampMixin):
         UniqueConstraint("email", name="uq_utilisateurs_email"),
         Index("ix_utilisateurs_statut", "statut"),
         Index("ix_utilisateurs_derniere_activite", "derniere_activite_at"),
+        # Une personne du vivier ↔ un seul compte : unicité posée par la
+        # migration 0015, désormais déclarée ici (autogenerate la proposait
+        # sinon en suppression).
+        Index("ix_utilisateurs_equipe", "equipe_id", unique=True),
     )
 
     email: Mapped[str] = mapped_column(String(255), nullable=False)

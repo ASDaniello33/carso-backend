@@ -363,6 +363,15 @@ class ServiceSuppression:
                 APPELS: self._colonnes(
                     Appel.id, Appel.organisation_id, identifiants
                 ),
+                # Une offre porte **trois** liens ``RESTRICT`` (organisation,
+                # appel, lot) et ils peuvent diverger : un appel encore ``recu``
+                # change d'organisation à la main alors qu'il porte déjà un lot
+                # et une offre (``AppelService.modifier`` ne bloque que les
+                # appels validés). L'offre reste alors celle de l'ancienne
+                # organisation, que ni l'appel ni le lot ne ramènent. Sans cette
+                # arête, supprimer cette organisation violait
+                # ``fk_offres_organisation_id`` — 500 en pleine cascade.
+                OFFRES: self._colonnes(Offre.id, Offre.organisation_id, identifiants),
                 MISSIONS: self._colonnes(Mission.id, Mission.organisation_id, identifiants),
                 MODELES: self._colonnes(
                     ModeleDocument.id, ModeleDocument.organisation_id, identifiants
@@ -371,10 +380,25 @@ class ServiceSuppression:
         if parent == APPELS:
             return {
                 LOTS: self._colonnes(Lot.id, Lot.appel_id, identifiants),
+                # Une offre répond à « Appel + Lot » et porte **deux**
+                # ``RESTRICT`` (``appel_id``, ``lot_id``). L'arête lot → offre
+                # couvre le cas nominal, mais rien en base ne garantit que les
+                # deux colonnes désignent le même dossier (le service le
+                # vérifie à la création, pas le schéma) : une offre dont le lot
+                # a divergé ne serait ramenée par aucun autre chemin et
+                # violerait ``fk_offres_appel_id``. La collecte est un
+                # ensemble : une offre atteinte deux fois ne compte qu'une.
+                OFFRES: self._colonnes(Offre.id, Offre.appel_id, identifiants),
             }
         if parent == LOTS:
             return {
                 OFFRES: self._colonnes(Offre.id, Offre.lot_id, identifiants),
+                # 1 lot → 1 mission (ADR 0012) : la mission est ancrée sur son
+                # lot même quand aucune offre du lot ne l'alimente (mission
+                # issue du lot sans offre liée). Sans cette arête,
+                # ``missions.lot_id`` (``RESTRICT``) bloque la suppression du
+                # lot — 500 en pleine cascade.
+                MISSIONS: self._colonnes(Mission.id, Mission.lot_id, identifiants),
             }
         if parent == OFFRES:
             return {

@@ -234,11 +234,18 @@ class RechercheAppelsAPropositionInput(PageSearchInput):
 def rechercher_appels(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     """Appels à proposition filtrés (organisation, statut) + lots rattachés.
 
-    Sous périmètre restreint, la réponse est vide : le dossier amont (appels,
-    lots, offres) n'appartient pas à un compte formateur.
+    Sous périmètre restreint, seuls les **appels de ses missions** répondent
+    (décision 18/11) : le formateur lit le cahier des charges qu'il exécute,
+    jamais l'annuaire des appels. Les offres restent hors de sa portée.
     """
-    if missions_visibles() is not None:
-        return {"appels": []}
+    perimetre = perimetre_courant()
+    autorises: frozenset[UUID] | None = None
+    if perimetre.est_restreint:
+        from app.application.dossier import dossier_autorise
+
+        autorises = dossier_autorise(session, perimetre).appels
+        if not autorises:
+            return {"appels": []}
     filtres = RechercheAppelsAPropositionInput.model_validate(payload)
     appels = AppelRepository(session)
     if filtres.organisation_id is not None:
@@ -251,6 +258,8 @@ def rechercher_appels(session: Session, payload: dict[str, Any]) -> dict[str, An
     else:
         stmt = select(Appel).order_by(Appel.date_reception.desc())
         trouves = list(session.scalars(stmt.limit(filtres.limite)))
+    if autorises is not None:
+        trouves = [appel for appel in trouves if appel.id in autorises]
     if filtres.recherche:
         terme = filtres.recherche.strip().lower()
         trouves = [
@@ -384,10 +393,13 @@ def rechercher_documents(session: Session, payload: dict[str, Any]) -> dict[str,
     documents = list(session.scalars(stmt.limit(filtres.limite)))
     perimetre = perimetre_courant()
     if perimetre.est_restreint:
+        from app.application.dossier import dossier_autorise
+
+        dossier = dossier_autorise(session, perimetre)
         documents = [
             document
             for document in documents
-            if document_dans_perimetre(document, perimetre, session)
+            if document_dans_perimetre(document, perimetre, session, dossier=dossier)
         ]
     return {"documents": [serialiser_entite(document, *_CHAMPS_DOCUMENT) for document in documents]}
 

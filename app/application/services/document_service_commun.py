@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.application.dossier import DossierAutorise, dossier_autorise
 from app.application.perimetre import Perimetre
 from app.core.errors import ValidationError
 from app.documents.paths import (
@@ -97,7 +98,11 @@ logger = logging.getLogger(__name__)
 
 
 def document_dans_perimetre(
-    document: Document, perimetre: Perimetre, session: Session
+    document: Document,
+    perimetre: Perimetre,
+    session: Session,
+    *,
+    dossier: DossierAutorise | None = None,
 ) -> bool:
     """Vrai si le document est accessible au compte — règle unique (ADR 0013).
 
@@ -105,7 +110,10 @@ def document_dans_perimetre(
        périmètre de cet objet — accès complet pour l'administration et
        l'équipe interne ; pour un compte restreint, la mission (ou la session
        de cette mission, ou la personne du vivier) doit appartenir à son
-       périmètre.
+       périmètre. Une pièce de l'**appel source** suit le dossier de ses
+       missions (décision du 18/11) : le formateur affecté lit l'appel et ses
+       documents pour préparer sa session. Les offres, elles, restent une
+       lecture d'équipe interne.
     2. **Sans ancre**, le document est **propre à son propriétaire** : seul le
        propriétaire, un **administrateur**, ou — si le propriétaire l'a
        déclaré **public** — tout compte actif y accède. Le court-circuit
@@ -141,11 +149,21 @@ def document_dans_perimetre(
         return perimetre.equipe_autorisee(document.equipe_id) or _est_administrateur(
             perimetre
         )
-    if document.organisation_id is not None or document.appel_id is not None:
-        # Ancres de l'équipe interne : le référentiel commercial n'est pas du
-        # périmètre d'un formateur, l'administration le couvre toujours.
+    if document.appel_id is not None:
+        # L'appel source d'une mission affectée est du dossier du formateur
+        # (décision 18/11) : il lui faut le cahier des charges à lire pour
+        # préparer sa session. Hors dossier, la pièce reste introuvable.
+        if perimetre.est_complet:
+            return True
+        autorise = dossier if dossier is not None else dossier_autorise(session, perimetre)
+        return autorise.contient_appel(document.appel_id)
+    if document.organisation_id is not None:
+        # Référentiel commercial : réservé à l'équipe interne, l'administration
+        # le couvre toujours.
         return perimetre.est_complet
     if document.offre_id is not None:
+        # Les offres restent réservées aux administrateurs et collaborateurs
+        # (décision 18/11) : un formateur lit l'appel, jamais l'offre.
         return perimetre.est_complet
     # --- Sans ancre métier : propriété documentaire (ADR 0013) -------------
     # Appel **sans compte** (scripts, balayage, mode lab) : accès complet

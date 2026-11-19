@@ -312,11 +312,16 @@ def importer_document_plateforme(
 
     Contrairement à ``/pieces`` (téléversement d'un fichier neuf), cette route
     joint une fiche **déjà enregistrée** : le message porte son identifiant
-    (``document_id``), **aucun octet n'est copié** dans le scope ``chat`` et la
-    visibilité du document dans la liste Documents n'est pas élargie (ADR
-    0013). L'accès est ouvert **par le canal** : les membres actifs de la
-    conversation peuvent télécharger la pièce par ``/social/pieces/{message_id}``.
+    (``document_id``), **aucun octet n'est copié** dans le scope ``chat``.
+    L'accès est ouvert **par le canal** : les membres actifs de la conversation
+    peuvent télécharger la pièce par ``/social/pieces/{message_id}``.
     L'auteur du partage doit pouvoir lire le document — sinon 404.
+
+    **Le partage confine la fiche au fil (18/11)** : une fiche sans ancre
+    déclarée publique redevient privée au partage, donc invisible dans la
+    liste Documents des autres comptes ; seuls le propriétaire et les
+    destinataires du message y accèdent. Une fiche ancrée suit son objet métier
+    (règle portée par ``DocumentService.confiner_au_partage_chat``).
     """
     from app.application.services.document_service import DocumentService
 
@@ -328,7 +333,9 @@ def importer_document_plateforme(
 
     # ``obtenir`` applique le périmètre (propriété documentaire incluse) :
     # hors périmètre, la fiche est « introuvable » — le partage ne révèle rien.
-    document = DocumentService(session).obtenir(payload.document_id)
+    service_documents = DocumentService(session)
+    document = service_documents.obtenir(payload.document_id)
+    document = service_documents.confiner_au_partage_chat(document.id)
     message = service.poster_message(
         conversation_id,
         auteur_id=utilisateur.id,

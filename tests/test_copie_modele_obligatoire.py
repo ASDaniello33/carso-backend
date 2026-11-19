@@ -228,7 +228,12 @@ def test_l_outil_html_refuse_aussi_une_offre_a_modele(tmp_path, db_session) -> N
     contexte = _contexte(tmp_path, db_session, avec_modele=True)
     outils = _outils(contexte["documents"])
     corps = _payload(contexte, html="<html><body><p>Offre</p></body></html>")
+    # Le schéma du tool HTML est strict : ``contenu_html`` est le nom du champ
+    # (``html``), et ``titre`` n'existe pas de ce côté. Le payload doit être
+    # valide, sinon l'erreur observée serait celle de la validation d'entrée et
+    # non le refus de génération qu'on veut vérifier.
     corps.pop("contenu_html")
+    corps.pop("titre", None)
 
     sortie = outils["generer_document_html"].invoke(corps)
 

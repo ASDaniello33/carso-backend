@@ -15,6 +15,7 @@ from app.application.services.equipe_service import EquipeService
 from app.application.services.import_beneficiaires_service import (
     ImportBeneficiairesService,
 )
+from app.application.services.import_equipes_service import ImportEquipesService
 from app.application.services.itineraire_service import ItineraireService
 from app.application.services.lieu_service import LieuService
 from app.application.services.lot_service import LotService
@@ -52,6 +53,7 @@ __all__ = [
     "DocumentService",
     "EquipeService",
     "ImportBeneficiairesService",
+    "ImportEquipesService",
     "LieuService",
     "LotService",
     "MeteoService",
