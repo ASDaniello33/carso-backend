@@ -123,7 +123,7 @@ class ParticipationService:
         ) == StatutBeneficiaire.ARCHIVE.value:
             raise ValidationError(
                 f"{prenom} {nom} est archivé(e) dans le registre : "
-                "demandez à l'équipe interne de le/la réactiver",
+                "demandez à un administrateur ou à un collaborateur de le/la réactiver",
                 details={"beneficiaire_id": str(existant.id)},
             )
         if existant is None:

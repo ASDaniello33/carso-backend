@@ -642,6 +642,58 @@ def test_modifier_affectation_role_et_dates(api_client: TestClient, session_fact
     assert evenements[0].after["role"] == "chef_de_mission"
 
 
+def test_affectation_intitule_role_sans_toucher_au_compte(
+    api_client: TestClient, session_factory
+) -> None:
+    """Rôle de mission précis (« Formateur en IA ») : le compte reste intact.
+
+    L'intitulé ne remplace jamais ``role_dans_mission`` (les règles métier le
+    lisent) et ne modifie ni la fonction ni le rôle de compte de la personne.
+    """
+    mission = _seed_mission(session_factory)
+    membre = _seed_equipe(session_factory)
+    with session_factory() as session:
+        fiche = session.get(Equipe, membre.id)
+        fiche.role_compte = "formateur"
+        fiche.fonction = "Formatrice"
+        session.commit()
+
+    propose = api_client.post(
+        f"/api/v1/missions/{mission.id}/affectations",
+        json={
+            "mission_id": str(mission.id),
+            "equipe_id": str(membre.id),
+            "role_dans_mission": "formateur",
+            "intitule_role": "  Formateur en IA  ",
+        },
+    )
+    assert propose.status_code == 202, propose.text
+    assert propose.json()["role_dans_mission"] == "formateur"
+    assert propose.json()["intitule_role"] == "Formateur en IA"
+    affectation_id = propose.json()["id"]
+
+    # Une correction qui ne parle pas de l'intitulé le conserve.
+    modifie = api_client.patch(
+        f"/api/v1/affectations/{affectation_id}",
+        json={"role_dans_mission": "chef_de_mission"},
+    )
+    assert modifie.status_code == 200, modifie.text
+    assert modifie.json()["intitule_role"] == "Formateur en IA"
+
+    # ``null`` efface la précision, sans toucher au rôle de référence.
+    efface = api_client.patch(
+        f"/api/v1/affectations/{affectation_id}", json={"intitule_role": None}
+    )
+    assert efface.status_code == 200, efface.text
+    assert efface.json()["intitule_role"] is None
+    assert efface.json()["role_dans_mission"] == "chef_de_mission"
+
+    with session_factory() as session:
+        fiche = session.get(Equipe, membre.id)
+        assert fiche.role_compte == "formateur"
+        assert fiche.fonction == "Formatrice"
+
+
 def test_modifier_affectation_membre_impossible(
     api_client: TestClient, session_factory
 ) -> None:

@@ -497,7 +497,8 @@ class ServiceSuppression:
             return
         if type_entite != DOCUMENTS:
             raise PermissionDeniedError(
-                f"Action réservée à l'équipe interne : supprimer « {type_entite} »",
+                "Action réservée aux administrateurs et aux collaborateurs : "
+                f"supprimer « {type_entite} »",
                 details={"type_entite": type_entite, "role": self._perimetre.role},
             )
         from app.application.services.document_service import DocumentService

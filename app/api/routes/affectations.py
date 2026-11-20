@@ -34,6 +34,7 @@ from app.api.schemas import (
 )
 from app.application.dto import AffectationProposee
 from app.application.services import AffectationService, MissionService
+from app.application.services.affectation_service import INTITULE_NON_MODIFIE
 from app.application.trace import Decision, demande_par
 from app.core.errors import ConflictError, NotFoundError
 from app.domain.enums import StatutAffectation, StatutMission
@@ -57,6 +58,7 @@ def propose_affectation(
     proposal = AffectationProposee(
         mission_id=payload.mission_id,
         equipe_id=payload.equipe_id,
+        intitule_role=payload.intitule_role,
         role_dans_mission=payload.role_dans_mission,
         proposed_by=str(user.id),
         source=payload.source,
@@ -88,6 +90,11 @@ def update_affectation(
     return AffectationService(session, actor_id=str(utilisateur.id)).modifier(
         affectation_id,
         role_dans_mission=payload.role_dans_mission,
+        intitule_role=(
+            payload.intitule_role
+            if "intitule_role" in payload.model_fields_set
+            else INTITULE_NON_MODIFIE
+        ),
         date_debut=payload.date_debut,
         date_fin=payload.date_fin,
     )

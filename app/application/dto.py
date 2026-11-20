@@ -298,6 +298,8 @@ class AffectationProposee:
     role_dans_mission: str
     proposed_by: str
     source: str = field(default="manual")  # manual | ai_proposal
+    #: Précision libre du poste dans la mission (« Formateur en IA »).
+    intitule_role: str | None = None
     date_debut: date | None = None
     date_fin: date | None = None
 

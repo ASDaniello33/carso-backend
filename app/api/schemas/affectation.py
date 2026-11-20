@@ -21,6 +21,9 @@ class AffectationProposeeCreate(BaseModel):
     equipe_id: UUID
     role_dans_mission: str = Field(min_length=1, max_length=100)
     source: Literal["manual", "ai_proposal"] = "manual"
+    #: Précision libre du rôle **dans cette mission** (« Formateur en IA »).
+    #: Ne remplace jamais ``role_dans_mission`` et ne touche pas au compte.
+    intitule_role: str | None = Field(default=None, max_length=150)
     date_debut: date | None = None
     date_fin: date | None = None
 
@@ -36,6 +39,8 @@ class AffectationUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     role_dans_mission: str | None = Field(default=None, min_length=1, max_length=100)
+    #: Absent = inchangé ; ``null`` ou chaîne vide = effacement explicite.
+    intitule_role: str | None = Field(default=None, max_length=150)
     date_debut: date | None = None
     date_fin: date | None = None
 
@@ -66,6 +71,7 @@ class AffectationRead(BaseModel):
     role_dans_mission: str
     statut: str | None = None
     source_affectation: str
+    intitule_role: str | None = None
     approved_by: str | None = None
     date_debut: date | None = None
     date_fin: date | None = None

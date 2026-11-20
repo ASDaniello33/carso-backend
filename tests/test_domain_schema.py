@@ -104,6 +104,10 @@ def test_affectation_carries_role_not_equipe() -> None:
 
     assert "role_dans_mission" in affectation_cols
     assert "role_dans_mission" not in equipe_cols
+    # Intitulé libre du poste (« Formateur en IA ») : porté par l'affectation,
+    # jamais par la fiche de la personne.
+    assert "intitule_role" in affectation_cols
+    assert "intitule_role" not in equipe_cols
 
 
 def test_participation_unique_per_session_and_beneficiaire() -> None:

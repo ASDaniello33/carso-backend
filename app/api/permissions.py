@@ -67,20 +67,25 @@ def agents_autorises(user: Utilisateur, definitions: Iterable[_T]) -> tuple[_T, 
 
 
 def exiger_interne(user: CurrentUser) -> Utilisateur:
-    """Exige l'équipe interne ou l'administration (403 sinon)."""
+    """Exige un accès complet au métier — administrateur ou collaborateur (403 sinon).
+
+    Le code nomme ce périmètre « interne » (``ROLES_INTERNES``, ``est_interne``) ;
+    le message de refus, lui, nomme les **rôles de compte** que l'utilisateur
+    peut lire à l'écran — jamais « équipe interne », qui n'est pas un rôle.
+    """
     if not est_interne(user.role):
         raise PermissionDeniedError(
-            "Réservé à l'équipe interne",
+            "Réservé aux administrateurs et aux collaborateurs",
             details={"role": user.role},
         )
     return user
 
 
 def exiger_audit(user: CurrentUser) -> Utilisateur:
-    """Exige le droit de consulter le journal d'audit (admin + équipe interne)."""
+    """Exige le droit de consulter le journal d'audit (administrateur, collaborateur)."""
     if user.role not in _ROLES_AUDIT:
         raise PermissionDeniedError(
-            "Journal d'audit réservé à l'équipe interne et à l'administration",
+            "Journal d'audit réservé aux administrateurs et aux collaborateurs",
             details={"role": user.role},
         )
     return user

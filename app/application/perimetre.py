@@ -121,7 +121,7 @@ class Perimetre:
         """
         if self.est_restreint:
             raise PermissionDeniedError(
-                f"Action réservée à l'équipe interne : {action}",
+                f"Action réservée aux administrateurs et aux collaborateurs : {action}",
                 details={"role": self.role},
             )
 

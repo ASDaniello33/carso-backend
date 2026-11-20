@@ -248,6 +248,10 @@ class AffectationEquipe(Base, UuidPkMixin, TimestampMixin):
     valeur hors référentiel, et ``RoleMission`` est la source de vérité Python.
     Règle métier : un Chef de Mission est aussi un Formateur — voir
     ``est_formateur`` (app/domain/enums.py), jamais un rôle dupliqué.
+    ``intitule_role`` porte la **précision libre** du poste dans cette mission
+    (« Formateur en IA ») : elle s'affiche à la place du libellé générique mais
+    ne remplace jamais ``role_dans_mission``, et ne touche ni ``Equipe.fonction``
+    ni ``Equipe.role_compte`` — un rôle de mission n'est pas un rôle de compte.
     """
 
     __tablename__ = "affectations_equipe"
@@ -263,6 +267,11 @@ class AffectationEquipe(Base, UuidPkMixin, TimestampMixin):
         ForeignKey("equipes.id", ondelete="RESTRICT"), nullable=False
     )
     role_dans_mission: Mapped[str] = mapped_column(String(100), nullable=False)
+    #: Précision **libre** du rôle dans cette mission (« Formateur en IA »).
+    #: Facultative : sans elle, l'interface affiche le libellé générique du
+    #: rôle de référence. Un rôle de mission ne modifie jamais le compte de la
+    #: personne (ni son titre, ni ``role_compte``).
+    intitule_role: Mapped[str | None] = mapped_column(String(150))
     date_debut: Mapped[date | None] = mapped_column(Date)
     date_fin: Mapped[date | None] = mapped_column(Date)
     statut: Mapped[str | None] = mapped_column(String(50))

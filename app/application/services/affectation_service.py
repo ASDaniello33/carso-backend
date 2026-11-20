@@ -9,9 +9,14 @@ Règles appliquées :
   uniquement les invariants confirmés (existence, mission ouverte au
   staffing), jamais une disponibilité supposée ;
 - Q5 [P]—le vocabulaire des rôles n'est pas figé—le service n'impose
-  aucune liste, la table de référence viendra de l'atelier CARSO.
+  aucune liste, la table de référence viendra de l'atelier CARSO ;
+- ``intitule_role``—précision **libre** du poste dans la mission (« Formateur
+  en IA »). Le rôle de référence reste ``role_dans_mission`` (les règles métier
+  le lisent) ; un rôle de mission ne modifie ni ``Equipe.fonction`` ni le rôle
+  de compte de la personne.
 """
 
+from typing import Final
 from uuid import UUID
 
 from sqlalchemy import select
@@ -41,6 +46,13 @@ from app.infrastructure.repositories import (
 
 _ENTITY = "affectation_equipe"
 _MISSIONS_STAFFABLES = {StatutMission.EN_PLANIFICATION, StatutMission.PLANIFIE}
+
+#: Longueur maximale de l'intitulé libre (alignée sur la colonne).
+LONGUEUR_MAX_INTITULE = 150
+
+#: Sentinelle de ``modifier`` : « champ absent du PATCH » n'est pas « champ mis
+#: à null ». Sans elle, corriger un rôle effacerait l'intitulé du poste.
+INTITULE_NON_MODIFIE: Final = object()
 
 
 class AffectationService:
@@ -79,10 +91,12 @@ class AffectationService:
             msg = f"source d'affectation inconnue: {source!r}"
             raise ConflictError(msg)
 
+        intitule = _intitule_normalise(proposal.intitule_role)
         affectation = AffectationEquipe(
             mission_id=proposal.mission_id,
             equipe_id=proposal.equipe_id,
             role_dans_mission=proposal.role_dans_mission,
+            intitule_role=intitule,
             date_debut=proposal.date_debut,
             date_fin=proposal.date_fin,
             statut=StatutAffectation.PROPOSEE.value,
@@ -103,6 +117,7 @@ class AffectationService:
                 "mission_id": str(proposal.mission_id),
                 "equipe_id": str(proposal.equipe_id),
                 "role": proposal.role_dans_mission,
+                "intitule_role": intitule,
                 "source": source,
             },
             event_metadata={"proposed_by": proposal.proposed_by},
@@ -111,7 +126,7 @@ class AffectationService:
             self._session,
             affectation,
             mission.titre,
-            affectation.role_dans_mission,
+            _libelle_role(proposal.role_dans_mission, intitule),
         )
         return affectation
 
@@ -142,7 +157,10 @@ class AffectationService:
             after={"statut": StatutAffectation.APPROUVEE.value},
         )
         notifications.notifier_affectation_confirmee(
-            self._session, affectation, affectation.mission.titre, affectation.role_dans_mission
+            self._session,
+            affectation,
+            affectation.mission.titre,
+            _libelle_role(affectation.role_dans_mission, affectation.intitule_role),
         )
         return affectation
 
@@ -255,10 +273,11 @@ class AffectationService:
         affectation_id: UUID,
         *,
         role_dans_mission: str | None = None,
+        intitule_role: str | None | object = INTITULE_NON_MODIFIE,
         date_debut=None,
         date_fin=None,
     ) -> AffectationEquipe:
-        """Corrige une affectation : rôle et/ou période, jamais la personne.
+        """Corrige une affectation : rôle, intitulé et/ou période, jamais la personne.
 
         Changer le **membre** n'est pas une modification : une autre personne
         passe par une nouvelle proposition (refus de l'ancienne, proposition de
@@ -273,6 +292,11 @@ class AffectationService:
         - les dates bornent la participation dans la mission : une période
           incohérente (fin avant début) est refusée — sans règle inventée sur la
           disponibilité de la personne (Q6 [P]).
+
+        ``intitule_role`` : absent de l'appel = inchangé ; ``None`` ou chaîne
+        vide = effacement explicite. Le vocabulaire de référence ne juge que les
+        valeurs **saisies** : une valeur déjà enregistrée (rôle libre proposé par
+        l'AgentRH) traverse une correction d'intitulé sans être rejetée.
         """
         affectation = self._get(affectation_id)
         statut = affectation.statut or StatutAffectation.PROPOSEE.value
@@ -287,13 +311,22 @@ class AffectationService:
             role = role_dans_mission.strip()
             if not role:
                 raise ValidationError("Le rôle dans la mission ne peut pas être vide")
-            if role not in {r.value for r in RoleMission}:
+            if role != affectation.role_dans_mission and role not in {
+                r.value for r in RoleMission
+            }:
                 raise ValidationError(
                     f"Rôle inconnu : {role!r}",
                     details={"roles_attendus": sorted(r.value for r in RoleMission)},
                 )
             if role != affectation.role_dans_mission:
                 modifications["role_dans_mission"] = role
+        nouvel_intitule = affectation.intitule_role
+        intitule_change = False
+        if intitule_role is not INTITULE_NON_MODIFIE:
+            nouvel_intitule = _intitule_normalise(
+                intitule_role if isinstance(intitule_role, str) else None
+            )
+            intitule_change = nouvel_intitule != affectation.intitule_role
         if date_debut is not None and date_debut != affectation.date_debut:
             modifications["date_debut"] = str(date_debut)
         if date_fin is not None and date_fin != affectation.date_fin:
@@ -307,17 +340,20 @@ class AffectationService:
                 details={"date_debut": str(debut), "date_fin": str(fin)},
             )
 
-        if not modifications:
+        if not modifications and not intitule_change:
             return affectation  # rien à changer : ni écriture, ni trace
 
         before = {
             "role": affectation.role_dans_mission,
+            "intitule_role": affectation.intitule_role,
             "date_debut": str(affectation.date_debut) if affectation.date_debut else None,
             "date_fin": str(affectation.date_fin) if affectation.date_fin else None,
         }
         affectation.role_dans_mission = modifications.get(
             "role_dans_mission", affectation.role_dans_mission
         )
+        if intitule_change:
+            affectation.intitule_role = nouvel_intitule
         if "date_debut" in modifications:
             affectation.date_debut = date_debut
         if "date_fin" in modifications:
@@ -331,6 +367,7 @@ class AffectationService:
             before=before,
             after={
                 "role": affectation.role_dans_mission,
+                "intitule_role": affectation.intitule_role,
                 "date_debut": str(affectation.date_debut) if affectation.date_debut else None,
                 "date_fin": str(affectation.date_fin) if affectation.date_fin else None,
             },
@@ -530,3 +567,34 @@ class AffectationService:
         la colonne dédiée viendra avec le runtime agents (instruction/05).
         """
         return None
+
+
+# --- normalisation -----------------------------------------------------------
+
+
+def _intitule_normalise(valeur: str | None) -> str | None:
+    """Précision libre du rôle, normalisée — jamais un rôle inventé.
+
+    ``None`` et une chaîne vide valent « pas de précision ». Au-delà de la
+    longueur de la colonne, le service **refuse** plutôt que de tronquer en
+    silence.
+
+    Raises:
+        ValidationError: intitulé plus long que :data:`LONGUEUR_MAX_INTITULE`.
+    """
+    if valeur is None:
+        return None
+    propre = valeur.strip()
+    if not propre:
+        return None
+    if len(propre) > LONGUEUR_MAX_INTITULE:
+        raise ValidationError(
+            f"L'intitulé du rôle ne peut pas dépasser {LONGUEUR_MAX_INTITULE} caractères",
+            details={"longueur": len(propre)},
+        )
+    return propre
+
+
+def _libelle_role(role: str, intitule: str | None) -> str:
+    """Libellé lisible d'un rôle de mission (notifications) : la précision prime."""
+    return intitule or role
