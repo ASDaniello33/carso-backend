@@ -66,6 +66,11 @@ ECRITURES_FORMAEUR: frozenset[tuple[str, str]] = frozenset(
         # Annulation d'un dépôt (pièce jointe retirée avant envoi) : le déposant
         # efface son propre brouillon, fichier et ligne ensemble.
         ("DELETE", "/documents/{document_id}/depot"),
+        # Décision 21/11/2026 : le formateur corrige la fiche et retire
+        # l'inscription d'une personne de **ses** sessions — les deux gestes
+        # sont bornés au périmètre (404 au-delà) et tracés sous son identité.
+        ("PATCH", "/beneficiaires/{beneficiaire_id}"),
+        ("DELETE", "/participations/{participation_id}"),
         ("DELETE", "/documents/{identifiant}"),
         # Décision lieux/itinéraires (22/10) : le formateur ajuste le marqueur
         # d'un lieu de **ses** missions, et demande un itinéraire (calcul sans

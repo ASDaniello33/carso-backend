@@ -121,6 +121,58 @@ class ModeleRefInput(BaseModel):
     )
 
 
+class ImageDocumentInput(BaseModel):
+    """Une image **du stockage CARSO** insérée dans le HTML d'un livrable.
+
+    L'agent désigne l'image par son ``document_id`` (document image déjà
+    déposé) ou par son chemin logique : il n'a pas à coller un base64, qui
+    était tronqué en cours d'émission et laissait le document sans image.
+    Le serveur résout la référence **avec le périmètre du compte** et
+    l'embarque dans le fichier rendu.
+    """
+
+    id: str = Field(
+        min_length=1,
+        max_length=40,
+        description=(
+            "Identifiant d'ancre, repris tel quel dans le HTML : "
+            "<figure data-image='id'></figure>."
+        ),
+    )
+    document_id: UUID | None = Field(
+        default=None,
+        description=(
+            "UUID d'un document **image** (PNG, JPEG, GIF, WebP) déjà déposé. "
+            "Ne jamais inventer d'identifiant ; l'objet doit être dans le "
+            "périmètre du compte."
+        ),
+    )
+    chemin: str | None = Field(
+        default=None,
+        max_length=400,
+        description=(
+            "Chemin **logique** de l'image dans le stockage (ex. "
+            "'missions/<id>/plan.png'), jamais un chemin absolu."
+        ),
+    )
+    legende: str | None = Field(
+        default=None,
+        max_length=300,
+        description="Légende (figcaption) et texte alternatif de l'image.",
+    )
+
+    @model_validator(mode="after")
+    def _source_unique(self) -> ImageDocumentInput:
+        """Exactement une source : un identifiant de document ou un chemin."""
+        par_document = self.document_id is not None
+        par_chemin = bool((self.chemin or "").strip())
+        if par_document == par_chemin:
+            raise ValueError(
+                "Une seule source par image : `document_id` OU `chemin`."
+            )
+        return self
+
+
 class GenererDocumentInput(BaseModel):
     """Entrée typée : format, nom, ancre optionnelle, contenu minimal générique.
 
@@ -153,7 +205,9 @@ class GenererDocumentInput(BaseModel):
             "<div class=\"encadre\">, <blockquote class=\"citation\">, "
             "<div class=\"saut-page\">. En ligne : bold, italic, souligne, "
             "reference. Aucun « — » : « - » ou une virgule. Images : "
-            "<img src=\"https://…\"> (téléchargée, vérifiée, embarquée), jamais de "
+            "<img src=\"https://…\"> (téléchargée, vérifiée, embarquée), ou une "
+            "image **du stockage CARSO** par <figure data-image=\"id\"></figure> + "
+            "le paramètre `images` (document_id ou chemin logique) — jamais de "
             "base64 écrit à la main. Graphiques : <figure data-graphique=\"id\"> "
             "rempli par `graphiques`."
         ),
@@ -185,6 +239,17 @@ class GenererDocumentInput(BaseModel):
         description=(
             "Illustrations dessinées par le serveur, ancrées par "
             "<figure data-illustration=\"id\"></figure>."
+        ),
+    )
+    images: list[ImageDocumentInput] | None = Field(
+        default=None,
+        max_length=20,
+        description=(
+            "Images **du stockage CARSO**, ancrées dans le HTML par "
+            "<figure data-image='id'></figure>. Chaque entrée désigne l'image "
+            "par `document_id` (document image déposé) ou `chemin` logique : le "
+            "serveur l'embarque et l'agent n'écrit jamais de base64. Une ancre "
+            "sans entrée, ou une image introuvable, fait échouer l'appel."
         ),
     )
     type_document: str = Field(description="Vocabulaire TypeDocument (valide par le service).")
@@ -572,6 +637,11 @@ class GenererDocumentProfessionnelInput(BaseModel):
             "intégré au document — vectoriel en PDF, converti en image en DOCX."
             "Donne-lui un viewBox et une <title> (elle devient le texte alternatif), "
             "et une couleur explicite (fill/stroke) : le thème ne colore pas le SVG. "
+            "IMAGE DU STOCKAGE (photo, logo, plan scanné) : écris une ancre "
+            "<figure data-image='id'></figure> (VIDE) à l'endroit voulu et "
+            "déclare la même entrée dans le paramètre `images` avec son "
+            "`document_id` (document image déposé) ou son `chemin` logique : le "
+            "serveur l'embarque, tu n'écris jamais de base64. "
             "Ne PAS écrire de <style> ni de CSS en ligne (le thème est injecté ; "
             "un <style> est supprimé et signalé en avertissement). "
             "Données : uniquement des informations réelles issues de lectures "
@@ -663,6 +733,18 @@ class GenererDocumentProfessionnelInput(BaseModel):
         description=(
             "Nom logique du document (sans extension). Dérivé du titre si omis. "
             "L'extension est ajoutée selon le format."
+        ),
+    )
+    images: list[ImageDocumentInput] | None = Field(
+        default=None,
+        max_length=20,
+        description=(
+            "Images **du stockage CARSO** (photo, logo, plan scanné), ancrées "
+            "dans contenu_html par <figure data-image='id'></figure>. Chaque "
+            "entrée désigne l'image par `document_id` (document image déposé) "
+            "ou `chemin` logique : le serveur l'embarque, l'agent n'écrit jamais "
+            "de base64. Formats PDF, DOCX et PPTX ; un classeur (xlsx) n'insère "
+            "pas d'image de contenu et refuse l'appel s'il en reçoit."
         ),
     )
     graphiques: list[GraphiqueInput] | None = Field(

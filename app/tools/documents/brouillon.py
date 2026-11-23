@@ -168,7 +168,7 @@ def _brouillon_finaliser(ctx: Any, payload: dict[str, Any]) -> dict[str, Any]:
         **etat["meta"],
         **{
             cle: payload[cle]
-            for cle in ("graphiques", "css_supplementaire")
+            for cle in ("graphiques", "images", "css_supplementaire")
             if payload.get(cle) is not None
         },
     }
@@ -209,6 +209,9 @@ _CLES_BROUILLON = (
     # Sans cette clé, la finalisation les perdait silencieusement et le
     # classeur sortait sans aucun graphique, ancres vides.
     "graphiques",
+    # Une ancre <figure data-image> vit dans une partie : sa référence se
+    # déclare à l'ouverture (ou à la finalisation) et suit le brouillon.
+    "images",
     "type_document",
     "ancre",
     "entity_id",

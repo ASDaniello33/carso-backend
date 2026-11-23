@@ -72,10 +72,16 @@ class BeneficiaireService:
     def modifier(self, beneficiaire_id: UUID, entree: BeneficiaireUpdateInput) -> Beneficiaire:
         """Modification partielle : seuls les champs fournis sont appliqués.
 
+        La fiche n'est atteignable que dans le périmètre (``obtenir``) : un
+        formateur corrige une personne inscrite à une de ses sessions, jamais
+        une fiche d'une autre mission (404). La correction porte sur le
+        registre — elle reste donc bornée, tracée et réversible par l'interne.
+
         Raises:
+            NotFoundError: fiche absente ou hors périmètre.
             ValidationError: aucune modification fournie.
         """
-        beneficiaire = self._get(beneficiaire_id)
+        beneficiaire = self.obtenir(beneficiaire_id)
         modifie = False
         for nom in _CHAMPS:
             valeur = getattr(entree, nom)

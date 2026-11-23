@@ -531,10 +531,6 @@ def update_participation(
 @router.delete(
     "/participations/{participation_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    # Désinscription = retrait **définitif** (les pointages de l'inscription
-    # partent en CASCADE) : geste de pilotage, réservé à l'équipe interne
-    # (décision validée : un formateur opère les sessions, il ne supprime pas).
-    dependencies=[Depends(exiger_interne)],
 )
 def retirer_participation(
     participation_id: UUID,
@@ -548,6 +544,11 @@ def retirer_participation(
     geste reste auditable (``participation.retiree``) ; les pointages de cette
     inscription partent avec elle (``CASCADE``) et leur nombre est conservé dans
     la trace — un pointage sans inscription n'aurait aucun sens.
+
+    Opération de session (décision 21/11/2026) : ouverte au formateur affecté,
+    sur **ses** sessions — ``_session_requise`` répond 404 hors périmètre. Il
+    corrige et retire les personnes qu'il a inscrites, sans toucher à la fiche
+    du registre (elle survit) ni aux inscriptions des autres missions.
     """
     ParticipationService(
         session, actor_id=str(utilisateur.id), perimetre=perimetre

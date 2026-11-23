@@ -10,7 +10,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.api.deps import DbSession, get_current_user
+from app.api.deps import CurrentUser, DbSession, get_current_user
 from app.api.permissions import InterneUser, PerimetreDep, exiger_interne
 from app.api.routes.suppression import enregistrer_suppression
 from app.api.schemas import BeneficiaireCreate, BeneficiaireRead, BeneficiaireUpdate
@@ -75,19 +75,25 @@ def create_beneficiaire(
     )
 
 
-@router.patch(
-    "/{beneficiaire_id}",
-    response_model=BeneficiaireRead,
-    dependencies=[Depends(exiger_interne)],
-)
+@router.patch("/{beneficiaire_id}", response_model=BeneficiaireRead)
 def update_beneficiaire(
     beneficiaire_id: UUID,
     payload: BeneficiaireUpdate,
     session: DbSession,
-    utilisateur: InterneUser,
+    perimetre: PerimetreDep,
+    utilisateur: CurrentUser,
 ) -> Beneficiaire:
-    """Modification partielle (seuls les champs fournis sont appliqués)."""
-    return BeneficiaireService(session, actor_id=str(utilisateur.id)).modifier(
+    """Modification partielle (seuls les champs fournis sont appliqués).
+
+    Ouverte au formateur **dans son périmètre** (décision 21/11/2026) : il
+    corrige la fiche d'une personne inscrite à une de ses sessions — c'est une
+    donnée de sa session, pas une fiche du registre qu'il découvrirait. Le
+    service répond 404 au-delà du périmètre, sans en révéler l'existence ;
+    l'écriture reste tracée sous son identité.
+    """
+    return BeneficiaireService(
+        session, actor_id=str(utilisateur.id), perimetre=perimetre
+    ).modifier(
         beneficiaire_id,
         BeneficiaireUpdateInput(
             nom=payload.nom,

@@ -425,6 +425,70 @@ def test_gestes_de_pilotage_refuses(
     assert [(r.status_code, r.text[:80]) for r in refus if r.status_code != 403] == []
 
 
+def test_beneficiaire_inscrit_modifiable_et_retirable_dans_son_perimetre(
+    client_formateur: TestClient,
+    contexte: SimpleNamespace,
+    api_session_factory: sessionmaker[Session],
+) -> None:
+    """Décision 21/11/2026 : corriger et retirer une personne de **sa** session.
+
+    Une fiche non inscrite à une de ses sessions reste introuvable (404) — le
+    formateur ne découvre pas le registre par une écriture. Une inscription
+    d'une autre mission est, elle aussi, hors d'atteinte.
+    """
+    identifiant = str(contexte.beneficiaire.id)
+
+    # Avant inscription, la fiche n'est pas dans son périmètre.
+    assert (
+        client_formateur.patch(
+            f"{PRÉFIXE}/beneficiaires/{identifiant}", json={"contact": "034 00 000 00"}
+        ).status_code
+        == 404
+    )
+
+    inscription = client_formateur.post(
+        f"{PRÉFIXE}/sessions/{contexte.session.id}/participations",
+        json={"beneficiaire_id": identifiant},
+    )
+    assert inscription.status_code == 201, inscription.text
+
+    correction = client_formateur.patch(
+        f"{PRÉFIXE}/beneficiaires/{identifiant}",
+        json={"contact": "034 00 000 00", "organisation_origine": "FAO"},
+    )
+    assert correction.status_code == 200, correction.text
+    assert correction.json()["contact"] == "034 00 000 00"
+    assert correction.json()["organisation_origine"] == "FAO"
+
+    # Une fiche d'une autre mission reste introuvable, même par écriture.
+    assert (
+        client_formateur.patch(
+            f"{PRÉFIXE}/beneficiaires/{contexte.beneficiaire_hors.id}",
+            json={"contact": "034 11 111 11"},
+        ).status_code
+        == 404
+    )
+
+    # Retirer l'inscription d'une session hors périmètre : introuvable aussi.
+    base = api_session_factory()
+    try:
+        hors = Participation(
+            session_id=contexte.session_hors.id,
+            beneficiaire_id=contexte.beneficiaire_hors.id,
+        )
+        base.add(hors)
+        base.commit()
+        hors_id = hors.id
+    finally:
+        base.close()
+    assert (
+        client_formateur.request(
+            "DELETE", f"{PRÉFIXE}/participations/{hors_id}"
+        ).status_code
+        == 404
+    )
+
+
 # --- Opérations de session autorisées --------------------------------------------
 
 
@@ -467,12 +531,26 @@ def test_operations_de_session_autorisees(
         == 404
     )
 
-    # Retirer une inscription reste un geste de pilotage (les pointages partent).
+    # Retirer une inscription de **sa** session est une opération de session
+    # (décision 21/11/2026) : la personne et la session survivent.
+    retrait = client_formateur.request(
+        "DELETE", f"{PRÉFIXE}/participations/{participation_id}"
+    )
+    assert retrait.status_code == 204, retrait.text
     assert (
-        client_formateur.request(
-            "DELETE", f"{PRÉFIXE}/participations/{participation_id}"
-        ).status_code
-        == 403
+        client_formateur.get(f"{PRÉFIXE}/sessions/{contexte.session.id}/participations")
+        .json()
+        == []
+    )
+    assert (
+        client_formateur.get(f"{PRÉFIXE}/participations/{participation_id}").status_code
+        == 404
+    )
+    # La fiche du registre survit mais sort de son périmètre : plus aucune
+    # inscription à une de ses sessions (404, pas de fuite du registre).
+    assert (
+        client_formateur.get(f"{PRÉFIXE}/beneficiaires/{contexte.beneficiaire.id}").status_code
+        == 404
     )
 
 

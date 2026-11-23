@@ -10,6 +10,7 @@ Extrait de ``build_document_tools`` sans modification de contenu.
 
 from __future__ import annotations
 
+import base64
 import io
 from pathlib import Path
 from typing import Any
@@ -107,6 +108,160 @@ def _fournisseur_images(ctx: Any, spec: DocumentSpec) -> Any:
     return fournisseur
 
 
+#: Types MIME des formats reconnus par ``format_image`` (les octets font foi).
+_MIME_IMAGES = {
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "gif": "image/gif",
+    "webp": "image/webp",
+}
+
+
+def _entree_image(entree: Any) -> dict[str, Any]:
+    """Entrée d'image sous forme de dictionnaire (dict ou modèle pydantic)."""
+    return entree if isinstance(entree, dict) else entree.model_dump()
+
+
+def _octets_image_reference(ctx: Any, entree: dict[str, Any]) -> tuple[bytes, str]:
+    """Octets d'une image désignée par ``document_id`` ou par ``chemin``.
+
+    Le document passe par ``DocumentService.obtenir`` : le périmètre du compte
+    s'applique donc (une image d'une autre mission est refusée, jamais
+    insérée). Le chemin logique est confiné à la racine de stockage par
+    ``resolve_within_root`` — jamais un chemin absolu du système.
+
+    Raises:
+        ValidationError: référence absente du stockage ou hors périmètre.
+    """
+    from app.documents.paths import resolve_within_root
+
+    service = ctx.service_factory()
+    racine = getattr(service.storage, "root", None)
+    document_id = entree.get("document_id")
+    if document_id is not None:
+        try:
+            document = service.obtenir(ctx.uuid(str(document_id), "document_id"))
+        except NotFoundError as erreur:
+            raise ValidationError(
+                "Image référencée introuvable ou hors de votre périmètre : "
+                f"document {document_id}",
+                details={"document_id": str(document_id)},
+            ) from erreur
+        if racine is None:
+            raise ValidationError(
+                "Racine de stockage indisponible : impossible de lire l'image "
+                f"référencée ({document_id}).",
+                details={"document_id": str(document_id)},
+            )
+        chemin = resolve_within_root(racine, document.storage_path)
+        designation = document.nom
+    else:
+        chemin_relatif = str(entree.get("chemin") or "").strip()
+        if racine is None:
+            raise ValidationError(
+                "Racine de stockage indisponible : impossible de lire l'image "
+                f"référencée ({chemin_relatif}).",
+                details={"chemin": chemin_relatif},
+            )
+        chemin = resolve_within_root(racine, chemin_relatif)
+        designation = chemin_relatif
+    if not chemin.is_file():
+        raise ValidationError(
+            f"Image introuvable : {designation}",
+            details={"chemin": designation},
+        )
+    return chemin.read_bytes(), designation
+
+
+def _source_image_embarquee(octets: bytes, designation: str) -> str:
+    """Data URI d'une image, après contrôle de sa signature binaire."""
+    from app.documents.spec import format_image
+
+    format_imagee = format_image(octets)
+    if format_imagee is None:
+        raise ValidationError(
+            f"« {designation} » n'est pas une image reconnue (PNG, JPEG, GIF, "
+            "WebP) : son contenu ne porte aucune signature connue.",
+            details={"image": designation},
+        )
+    mime = _MIME_IMAGES.get(format_imagee, "image/png")
+    charge = base64.b64encode(octets).decode("ascii")
+    return f"data:{mime};base64,{charge}"
+
+
+def _injecter_images(
+    ctx: Any, corps: str, entrees: Any
+) -> tuple[str, list[str]]:
+    """Remplace les ancres ``data-image`` du HTML par l'image embarquée.
+
+    L'agent écrit ``<figure data-image="plan"></figure>`` (ou un ``<img>``
+    portant le même attribut) et déclare l'image dans ``images`` par son
+    ``document_id`` ou son chemin logique. Le serveur résout, vérifie et
+    embarque : aucun base64 ne passe par le modèle, donc aucune image
+    tronquée en silence.
+
+    Une ancre sans déclaration, ou une image introuvable, **fait échouer**
+    l'appel : un livrable ne sort jamais avec un cadre vide à la place d'une
+    image demandée.
+
+    Returns:
+        Le corps HTML avec les images intégrées et les avertissements (une
+        image déclarée sans ancre n'est pas insérée silencieusement).
+    """
+    from bs4 import BeautifulSoup
+
+    declarations: dict[str, dict[str, Any]] = {}
+    for brute in entrees or []:
+        entree = _entree_image(brute)
+        identifiant = str(entree.get("id") or "").strip()
+        if identifiant in declarations:
+            raise ValidationError(
+                f"Identifiant d'image en double : {identifiant!r}",
+                details={"ids": sorted(declarations)},
+            )
+        declarations[identifiant] = entree
+
+    soup = BeautifulSoup(corps or "", "html.parser")
+    utilisees: set[str] = set()
+    for balise in soup.find_all(attrs={"data-image": True}):
+        identifiant = str(balise.get("data-image") or "").strip()
+        del balise["data-image"]
+        entree = declarations.get(identifiant)
+        if entree is None:
+            raise ValidationError(
+                f"Image « {identifiant} » ancrée dans le HTML mais absente du "
+                "paramètre `images`.",
+                details={"id": identifiant, "ids": sorted(declarations)},
+            )
+        octets, designation = _octets_image_reference(ctx, entree)
+        source = _source_image_embarquee(octets, designation)
+        legende = str(entree.get("legende") or "").strip()
+        if balise.name == "figure":
+            image = soup.new_tag("img", src=source)
+            image["alt"] = legende or designation
+            balise.insert(0, image)
+            if legende and balise.find("figcaption") is None:
+                legende_balise = soup.new_tag("figcaption")
+                legende_balise.string = legende
+                balise.append(legende_balise)
+        else:
+            balise["src"] = source
+            if legende and not balise.get("alt"):
+                balise["alt"] = legende
+        utilisees.add(identifiant)
+
+    avertissements: list[str] = []
+    sans_ancre = sorted(set(declarations) - utilisees)
+    if sans_ancre:
+        avertissements.append(
+            "Image(s) déclarée(s) sans ancre dans le HTML (non insérée(s)) : "
+            + ", ".join(sans_ancre)
+            + ". Écrire <figure data-image=\"id\"></figure> à l'endroit voulu."
+        )
+    return str(soup), avertissements
+
+
 def _generer_libre(ctx: Any, payload: dict[str, Any], fmt: str) -> dict[str, Any]:
     """Corps HTML + classes CARSO → DOCX/PDF (INC-137).
 
@@ -124,8 +279,11 @@ def _generer_libre(ctx: Any, payload: dict[str, Any], fmt: str) -> dict[str, Any
             "ou un document_spec."
         )
     titre = str(payload.get("titre") or "Document")
+    corps, avertissements_images = _injecter_images(
+        ctx, payload["html"], payload.get("images")
+    )
     rendu = rendre_document_libre(
-        payload["html"],
+        corps,
         format=fmt,
         css=payload.get("css"),
         titre=titre,
@@ -141,13 +299,15 @@ def _generer_libre(ctx: Any, payload: dict[str, Any], fmt: str) -> dict[str, Any
             "modele": "html",
             "graphiques": len(payload.get("graphiques") or []),
             "illustrations": len(payload.get("illustrations") or []),
-            "avertissements": rendu.avertissements,
+            "images": len(payload.get("images") or []),
+            "avertissements": [*avertissements_images, *rendu.avertissements],
         }
     )
     if rendu.pages:
         sortie["pages"] = rendu.pages
+    tous_avertissements = [*avertissements_images, *rendu.avertissements]
     avertissements = (
-        " " + " ".join(rendu.avertissements) if rendu.avertissements else ""
+        " " + " ".join(tous_avertissements) if tous_avertissements else ""
     )
     sortie["message"] = (
         "Document HTML généré et déposé en statut 'proposed' : validation "
@@ -476,7 +636,27 @@ def _rendre_et_deposer_professionnel(ctx: Any, payload: dict[str, Any]) -> dict[
     # que le DOCX/PPTX/PDF n'embarque pas une photo à la résolution du
     # capteur. La transformation est annoncée avec les avertissements.
     reduction: list[str] = []
-    corps = str(payload.get("contenu_html") or "")
+    if payload.get("images") and _format_effectif(payload) == "xlsx":
+        # Un classeur ne porte pas d'image de contenu (seuls les graphiques y
+        # deviennent des objets natifs). Le refus est explicite : un appel
+        # accepté qui laisserait l'image hors du fichier serait le mensonge que
+        # cet incrément corrige.
+        raise ValidationError(
+            "Un classeur (format='xlsx') n'insère pas d'image de contenu : "
+            "retirer le paramètre `images`, ou choisir 'pdf', 'docx' ou 'pptx'.",
+            details={"format": "xlsx", "images": len(payload["images"])},
+        )
+    # Les images du stockage sont embarquées **avant** la réduction : une photo
+    # déposée passe ainsi par les mêmes bornes qu'une image inline, et l'agent
+    # n'a jamais à écrire de base64 (source des images tronquées du constat).
+    # Le corps **source** (ancres, sans data-URI) est celui qui est conservé
+    # pour la correction par section : y stocker le base64 embarqué alourdirait
+    # la source et ferait perdre les ancres réutilisables.
+    corps_source = str(payload.get("contenu_html") or "")
+    corps, avertissements_images = _injecter_images(
+        ctx, corps_source, payload.get("images")
+    )
+    payload = {**payload, "contenu_html": corps}
     if "data:image/" in corps:
         from app.documents.images_inline import reduire_data_uri
 
@@ -487,16 +667,17 @@ def _rendre_et_deposer_professionnel(ctx: Any, payload: dict[str, Any]) -> dict[
     # Conformité jugée sur les constats du moteur : réduire une image n'est
     # pas un défaut de conformité, seulement une transformation à dire.
     conforme = not sortie.get("avertissements")
-    if reduction:
+    if reduction or avertissements_images:
         sortie["avertissements"] = [
+            *avertissements_images,
             *reduction,
             *(sortie.get("avertissements") or []),
         ]
     sortie["message"] = _message_livrable(sortie, conforme=conforme)
     _enregistrer_source(ctx, 
         sortie,
-        corps=str(payload.get("contenu_html") or ""),
-        meta=payload,
+        corps=corps_source,
+        meta={**payload, "contenu_html": corps_source},
         graphiques=payload.get("graphiques"),
     )
     return sortie
