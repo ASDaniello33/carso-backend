@@ -67,6 +67,52 @@ def test_enregistrer_persiste_et_normalise(api_session_factory: sessionmaker[Ses
         session.close()
 
 
+def test_enregistrer_persiste_la_fenetre_manuelle(
+    api_session_factory: sessionmaker[Session],
+) -> None:
+    """Fenêtre déclarée à la main : persistée, historique, et auditée."""
+    session = _session(api_session_factory)
+    try:
+        service = AgentRuntimeService(session, actor_id="admin-1")
+        ligne = service.enregistrer(
+            provider="openai_compatible",
+            model="modele-muet",
+            base_url="https://exemple.ai/v1",
+            fenetre_contexte_jetons=128_000,
+        )
+        session.commit()
+
+        assert ligne.fenetre_contexte_jetons == 128_000
+        active = service.obtenir_active()
+        assert active is not None
+        assert active.fenetre_contexte_jetons == 128_000
+        evenements = _audits(session)
+        assert evenements[-1].after is not None
+        assert evenements[-1].after["fenetre_contexte_jetons"] == 128_000
+    finally:
+        session.close()
+
+
+def test_fenetre_manuelle_hors_limites_refusee_sans_ecrire(
+    api_session_factory: sessionmaker[Session],
+) -> None:
+    """Sous 1 000 jetons ou au-delà de 100 M, c'est une erreur de requête."""
+    session = _session(api_session_factory)
+    try:
+        service = AgentRuntimeService(session, actor_id="admin-1")
+        for valeur in (0, 999, 100_000_001):
+            with pytest.raises(BusinessValidationError):
+                service.enregistrer(
+                    provider="openai",
+                    model="m",
+                    fenetre_contexte_jetons=valeur,
+                )
+        assert service.obtenir_active() is None  # rien écrit
+        assert _audits(session) == []
+    finally:
+        session.close()
+
+
 def test_enregistrer_est_audite(api_session_factory: sessionmaker[Session]) -> None:
     session = _session(api_session_factory)
     try:
@@ -281,6 +327,28 @@ def test_changement_de_modele_a_chaud_atteint_les_graphes(
     assert valeurs.source == "base"
 
 
+def test_la_fenetre_manuelle_atteint_les_reglages_effectifs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """La valeur saisie dans Paramètres est celle que lisent les providers."""
+    manager, _ = _manager_de_test(monkeypatch, agents=("agent_a",))
+    manager.apply_values(
+        AgentRuntimeValues(
+            provider="openai_compatible",
+            model="modele-muet",
+            base_url="https://exemple.ai/v1",
+            temperature=0.0,
+            max_iterations=25,
+            source="base",
+            fenetre_contexte_jetons=64_000,
+        )
+    )
+
+    assert manager.effective_settings().agent_fenetre_contexte_manuelle == 64_000
+    assert manager.values() is not None
+    assert manager.values().fenetre_contexte_jetons == 64_000
+
+
 def test_la_surcharge_ne_mute_pas_le_singleton(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.core.config import get_settings
 
@@ -370,6 +438,8 @@ def test_state_n_expose_aucun_secret(monkeypatch: pytest.MonkeyPatch) -> None:
         # Un booléen : « une clé administrée existe ». La valeur, elle, ne sort
         # jamais du backend (chiffrée au repos, jamais relue).
         "cle_administree",
+        # Fenêtre déclarée à la main : un nombre, ou None (repli 200 000).
+        "fenetre_contexte_jetons",
     }
     assert "api_key" not in repr(etat)
     assert "secret" not in repr(etat).lower()
@@ -734,6 +804,65 @@ def test_api_put_runtime_persiste_et_applique(
         session.close()
 
 
+def test_api_put_runtime_transmet_la_fenetre_manuelle(
+    api_client: TestClient,
+    api_session_factory: sessionmaker[Session],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Le champ traverse l'API jusqu'à la configuration appliquée."""
+    manager, _ = _manager_de_test(monkeypatch, agents=("agent_rh",))
+    _brancher_admin(api_client, monkeypatch, manager)
+
+    resp = api_client.put(
+        "/api/v1/agents/runtime",
+        json={
+            "provider": "openai_compatible",
+            "model": "modele-muet",
+            "base_url": "https://exemple.ai/v1",
+            "fenetre_contexte_jetons": 131072,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["values"]["fenetre_contexte_jetons"] == 131072
+    assert manager.effective_settings().agent_fenetre_contexte_manuelle == 131072
+
+    session = _session(api_session_factory)
+    try:
+        active = AgentRuntimeService(session).obtenir_active()
+        assert active is not None
+        assert active.fenetre_contexte_jetons == 131072
+    finally:
+        session.close()
+
+
+@pytest.mark.parametrize("valeur", [0, 999, 100_000_001])
+def test_api_fenetre_manuelle_hors_limites_422(
+    api_client: TestClient,
+    api_session_factory: sessionmaker[Session],
+    monkeypatch: pytest.MonkeyPatch,
+    valeur: int,
+) -> None:
+    """Une borne hors limites est refusée par le schéma, avant toute écriture."""
+    manager, _ = _manager_de_test(monkeypatch, agents=("agent_rh",))
+    _brancher_admin(api_client, monkeypatch, manager)
+
+    resp = api_client.put(
+        "/api/v1/agents/runtime",
+        json={
+            "provider": "openai",
+            "model": "m",
+            "fenetre_contexte_jetons": valeur,
+        },
+    )
+    assert resp.status_code == 422, resp.text
+
+    session = _session(api_session_factory)
+    try:
+        assert AgentRuntimeService(session).obtenir_active() is None
+    finally:
+        session.close()
+
+
 def test_api_put_runtime_configuration_invalide_422(
     api_client: TestClient,
     api_session_factory: sessionmaker[Session],
@@ -835,6 +964,7 @@ def test_api_etat_runtime_expose_les_agents(
         "max_iterations",
         "source",
         "cle_administree",
+        "fenetre_contexte_jetons",
     }
 
 

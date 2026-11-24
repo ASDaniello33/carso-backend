@@ -61,6 +61,12 @@ class ConfigurationRuntimeAgent(Base, UuidPkMixin, TimestampMixin):
     # l'API, jamais journalisée : l'interface affiche seulement si une clé
     # administrée est enregistrée.
     api_key_chiffree: Mapped[str | None] = mapped_column(String(1000))
+    # Fenêtre d'entrée **déclarée par l'administrateur** (jetons), pour les
+    # modèles dont le fournisseur ne publie pas ``context_length``. ``None`` =
+    # repli ``AGENT_MAX_INPUT_TOKENS`` (200 000 par défaut). Une valeur publiée
+    # par le fournisseur reste prioritaire : ce champ ne sert qu'à combler une
+    # absence, jamais à contredire une donnée annoncée.
+    fenetre_contexte_jetons: Mapped[int | None] = mapped_column(Integer)
 
 
 class SurchargeAgent(Base, UuidPkMixin, TimestampMixin):

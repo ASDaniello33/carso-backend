@@ -20,11 +20,16 @@ from app.application.trace import TraceContext
 from app.core.chiffrement import chiffrement_disponible, chiffrer
 from app.core.errors import ValidationError as BusinessValidationError
 from app.domain.agent_runtime import ConfigurationRuntimeAgent
+from app.domain.catalogue_ia import FENETRE_MAX_JETONS, FENETRE_MIN_JETONS
 from app.domain.enums import ActionAudit, ActorType
 from app.infrastructure.repositories import ConfigurationRuntimeAgentRepository
 
 _ENTITY = "configuration_agent"
 _TEMPERATURE_MAX = 2.0
+#: Bornes d'une fenêtre déclarée à la main : une seule règle pour la
+#: configuration runtime et le catalogue (``app.domain.catalogue_ia``).
+_FENETRE_MIN = FENETRE_MIN_JETONS
+_FENETRE_MAX = FENETRE_MAX_JETONS
 
 
 def _valider_ou_refuser(
@@ -80,6 +85,7 @@ class AgentRuntimeService:
         modifie_par: str | None = None,
         api_key: str | None = None,
         conserver_cle: bool = True,
+        fenetre_contexte_jetons: int | None = None,
     ) -> ConfigurationRuntimeAgent:
         """Crée une nouvelle configuration active et désactive la précédente.
 
@@ -91,6 +97,10 @@ class AgentRuntimeService:
                 ``.env``) ; sans ``api_key`` et avec ``conserver_cle=True``, la
                 clé déjà enregistrée est reprise — changer le modèle ne doit pas
                 obligatoirement ressaisir la clé.
+            fenetre_contexte_jetons: fenêtre d'entrée déclarée à la main quand le
+                fournisseur ne publie pas ``context_length``. ``None`` = repli
+                ``AGENT_MAX_INPUT_TOKENS`` (200 000 par défaut). Elle ne
+                remplace jamais une valeur publiée.
 
         La validation est faite **avant** toute écriture : une configuration
         refusée ne doit jamais atteindre la base.
@@ -112,6 +122,13 @@ class AgentRuntimeService:
             raise BusinessValidationError(
                 msg, details={"max_iterations": max_iterations}
             )
+        if fenetre_contexte_jetons is not None:
+            if not _FENETRE_MIN <= int(fenetre_contexte_jetons) <= _FENETRE_MAX:
+                raise BusinessValidationError(
+                    f"Fenêtre de contexte hors limites ({_FENETRE_MIN} à "
+                    f"{_FENETRE_MAX} jetons)",
+                    details={"fenetre_contexte_jetons": fenetre_contexte_jetons},
+                )
 
         precedente = self.configurations.get_active()
         avant = self._projection(precedente) if precedente is not None else None
@@ -143,6 +160,11 @@ class AgentRuntimeService:
             actif=True,
             modifie_par=modifie_par,
             api_key_chiffree=cle_chiffree,
+            fenetre_contexte_jetons=(
+                int(fenetre_contexte_jetons)
+                if fenetre_contexte_jetons is not None
+                else None
+            ),
         )
         self.configurations.add(ligne)
         # Flush (pas commit : la transaction appartient à l'appelant) pour
@@ -212,6 +234,7 @@ class AgentRuntimeService:
             "temperature": float(ligne.temperature),
             "max_iterations": int(ligne.max_iterations),
             "cle_administree": bool(ligne.api_key_chiffree),
+            "fenetre_contexte_jetons": ligne.fenetre_contexte_jetons,
         }
 
 

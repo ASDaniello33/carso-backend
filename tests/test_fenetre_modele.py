@@ -26,6 +26,7 @@ import httpx
 import pytest
 
 from app.agents.providers import (
+    PROVENANCE_MANUELLE,
     PROVENANCE_NON_LUE,
     PROVENANCE_NON_PUBLIEE,
     PROVENANCE_PUBLIEE,
@@ -317,6 +318,73 @@ def test_fenetre_effective_non_lue_se_distingue_de_non_publiee(
     assert fenetre["provenance"] == PROVENANCE_NON_LUE
     assert fenetre["jetons"] == REPLI
     assert fenetre["raison"] == "ConnectionError"
+
+
+def test_fenetre_manuelle_quand_le_fournisseur_ne_publie_rien(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """La valeur déclarée dans Paramètres comble l'absence — et se dit manuelle."""
+    monkeypatch.setattr(
+        "httpx.get", lambda *a, **k: _Reponse([{"id": "modele-x", "context_length": None}])
+    )
+    reglages = _reglages().model_copy(update={"agent_fenetre_contexte_manuelle": 128_000})
+
+    fenetre = fenetre_effective(reglages, "modele-x")
+
+    assert fenetre["provenance"] == PROVENANCE_MANUELLE
+    assert fenetre["jetons"] == 128_000
+    assert fenetre["seuil_resume"] == int(128_000 * 0.75)
+    assert fenetre["garde_resume"] == int(128_000 * 0.10)
+    assert "Paramètres" in (fenetre["raison"] or "")
+    assert _profil_modele(reglages, "modele-x") == {"max_input_tokens": 128_000}
+
+
+def test_la_fenetre_publiee_prime_sur_la_valeur_manuelle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Une donnée annoncée par le fournisseur ne se contredit pas à la main."""
+    monkeypatch.setattr(
+        "httpx.get",
+        lambda *a, **k: _Reponse([{"id": "modele-x", "context_length": 1_048_576}]),
+    )
+    reglages = _reglages().model_copy(update={"agent_fenetre_contexte_manuelle": 128_000})
+
+    fenetre = fenetre_effective(reglages, "modele-x")
+
+    assert fenetre["provenance"] == PROVENANCE_PUBLIEE
+    assert fenetre["jetons"] == 1_048_576
+    assert _profil_modele(reglages, "modele-x") == {"max_input_tokens": 1_048_576}
+
+
+def test_fenetre_manuelle_couvre_une_lecture_impossible(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Lecture en échec = pas de valeur publiée : la déclaration s'applique."""
+    monkeypatch.setattr(
+        "httpx.get", lambda *a, **k: (_ for _ in ()).throw(ConnectionError("blip"))
+    )
+    reglages = _reglages().model_copy(update={"agent_fenetre_contexte_manuelle": 64_000})
+
+    fenetre = fenetre_effective(reglages, "modele-x")
+
+    assert fenetre["provenance"] == PROVENANCE_MANUELLE
+    assert fenetre["jetons"] == 64_000
+    assert "ConnectionError" in (fenetre["raison"] or "")
+    assert _profil_modele(reglages, "modele-x") == {"max_input_tokens": 64_000}
+
+
+def test_sans_fenetre_manuelle_le_repli_reste_200k(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Comportement d'avant préservé : rien de déclaré ⇒ 200 000 jetons."""
+    monkeypatch.setattr(
+        "httpx.get", lambda *a, **k: _Reponse([{"id": "modele-x", "context_length": None}])
+    )
+
+    fenetre = fenetre_effective(_reglages(), "modele-x")
+
+    assert fenetre["provenance"] == PROVENANCE_NON_PUBLIEE
+    assert fenetre["jetons"] == REPLI
 
 
 def test_fenetre_effective_suit_les_fractions_configurees(

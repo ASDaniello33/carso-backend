@@ -25,7 +25,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Boolean, ForeignKey, Index, String, text
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.base import Base, TimestampMixin, UuidPkMixin
@@ -34,6 +34,12 @@ from app.domain.base import Base, TimestampMixin, UuidPkMixin
 #: ``app.agents.providers.SUPPORTED_PROVIDERS`` : le catalogue ne crée pas de
 #: famille de connexion que le runtime ne saurait pas construire.
 PROTOCOLES_IA: tuple[str, ...] = ("openai", "openai_compatible", "google_genai")
+
+#: Bornes d'une fenêtre de contexte (jetons) : sous 1 000 le modèle est
+#: inutilisable, au-delà de 100 M c'est une faute de frappe, pas un modèle.
+#: Partagées par la configuration runtime et le catalogue — une seule règle.
+FENETRE_MIN_JETONS = 1_000
+FENETRE_MAX_JETONS = 100_000_000
 
 
 class FournisseurIA(Base, UuidPkMixin, TimestampMixin):
@@ -93,6 +99,10 @@ class ModeleIA(Base, UuidPkMixin, TimestampMixin):
     nom_modele: Mapped[str] = mapped_column(String(150), nullable=False)
     #: Libellé d'affichage facultatif (sinon le nom technique).
     libelle: Mapped[str | None] = mapped_column(String(150))
+    #: Fenêtre de contexte **déclarée ici** quand le fournisseur ne publie pas
+    #: ``context_length``. ``None`` = repli ``AGENT_MAX_INPUT_TOKENS``. Une
+    #: valeur publiée reste prioritaire : ce champ ne comble qu'une absence.
+    fenetre_contexte_jetons: Mapped[int | None] = mapped_column(Integer)
     actif: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=text("true")
     )
@@ -106,8 +116,15 @@ class ModeleIA(Base, UuidPkMixin, TimestampMixin):
             "id": str(self.id),
             "nom_modele": self.nom_modele,
             "libelle": self.libelle,
+            "fenetre_contexte_jetons": self.fenetre_contexte_jetons,
             "actif": bool(self.actif),
         }
 
 
-__all__ = ["PROTOCOLES_IA", "FournisseurIA", "ModeleIA"]
+__all__ = [
+    "FENETRE_MAX_JETONS",
+    "FENETRE_MIN_JETONS",
+    "PROTOCOLES_IA",
+    "FournisseurIA",
+    "ModeleIA",
+]

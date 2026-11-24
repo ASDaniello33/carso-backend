@@ -24,6 +24,12 @@ class AgentRuntimeValuesRead(BaseModel):
         default=False,
         description="Une clé de provider administrée est enregistrée (chiffrée en base)",
     )
+    fenetre_contexte_jetons: int | None = Field(
+        default=None,
+        description="Fenêtre d'entrée déclarée à la main (jetons), appliquée "
+        "uniquement si le fournisseur n'en publie pas ; null = repli "
+        "AGENT_MAX_INPUT_TOKENS",
+    )
 
 
 class FenetreModeleRead(BaseModel):
@@ -38,7 +44,8 @@ class FenetreModeleRead(BaseModel):
     base_url: str | None = None
     jetons: int = Field(description="Fenêtre d'entrée retenue (jetons)")
     provenance: str = Field(
-        description="'publiee' (annoncée par le fournisseur), 'non_publiee' "
+        description="'publiee' (annoncée par le fournisseur), 'manuelle' "
+        "(déclarée dans Paramètres faute de publication), 'non_publiee' "
         "(il a répondu sans l'annoncer) ou 'non_lue' (lecture impossible)"
     )
     raison: str | None = Field(
@@ -73,6 +80,11 @@ class AgentRuntimeUpdate(BaseModel):
     base_url: str | None = Field(default=None, max_length=500)
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     max_iterations: int = Field(default=1000, ge=1, le=10_000)
+    # Fenêtre déclarée à la main : utilisée seulement quand le fournisseur ne
+    # publie pas ``context_length`` ; null = repli AGENT_MAX_INPUT_TOKENS.
+    fenetre_contexte_jetons: int | None = Field(
+        default=None, ge=1_000, le=100_000_000
+    )
     api_key: str | None = Field(default=None, max_length=500, repr=False)
     conserver_cle: bool = True
 
@@ -107,6 +119,7 @@ class AgentRuntimeConfigRead(BaseModel):
     base_url: str | None
     temperature: float
     max_iterations: int
+    fenetre_contexte_jetons: int | None = None
     actif: bool
     modifie_par: str | None
     created_at: datetime
@@ -212,12 +225,56 @@ class FournisseurIAUpdate(BaseModel):
     conserver_cle: bool = True
 
 
+class FenetreModeleCatalogueRead(BaseModel):
+    """Fenêtre d'un modèle lue à la demande pour le catalogue (lecture groupée)."""
+
+    modele_id: str
+    fenetre_publiee: int | None = None
+    fenetre_effective: int | None = None
+    fenetre_provenance: str
+    fenetre_raison: str | None = None
+
+
+class ModeleIAFenetreUpdate(BaseModel):
+    """Fenêtre de contexte déclarée pour un modèle du catalogue.
+
+    ``null`` efface la déclaration : le fournisseur (s'il publie) ou le repli
+    ``AGENT_MAX_INPUT_TOKENS`` reprennent la main.
+    """
+
+    fenetre_contexte_jetons: int | None = Field(..., ge=1_000, le=100_000_000)
+
+
 class ModeleIARead(BaseModel):
-    """Modèle enregistré (jamais de secret)."""
+    """Modèle enregistré (jamais de secret).
+
+    Trois fenêtres, pour ne jamais confondre une donnée et une déclaration :
+    ``fenetre_publiee`` (annoncée par le fournisseur), ``fenetre_contexte_jetons``
+    (déclarée ici), ``fenetre_effective`` (celle que le harnais appliquerait) et
+    sa provenance.
+    """
 
     id: str
     nom_modele: str
     libelle: str | None = None
+    fenetre_contexte_jetons: int | None = Field(
+        default=None, description="Fenêtre déclarée dans le catalogue (jetons)"
+    )
+    fenetre_publiee: int | None = Field(
+        default=None, description="Fenêtre annoncée par le fournisseur (/models)"
+    )
+    fenetre_effective: int | None = Field(
+        default=None,
+        description="Fenêtre retenue : publiée, sinon déclarée, sinon repli "
+        "AGENT_MAX_INPUT_TOKENS",
+    )
+    fenetre_provenance: str = Field(
+        default="non_lue",
+        description="'publiee', 'manuelle', 'non_publiee' ou 'non_lue'",
+    )
+    fenetre_raison: str | None = Field(
+        default=None, description="Détail technique court de la lecture"
+    )
     actif: bool = True
 
 
@@ -251,11 +308,13 @@ __all__ = [
     "AgentRuntimeUpdate",
     "AgentRuntimeValuesRead",
     "DecouverteModelesRead",
+    "FenetreModeleCatalogueRead",
     "FournisseurIACreate",
     "FournisseurIARead",
     "FournisseurIAUpdate",
     "HitlReponseItem",
     "HitlScenarioItem",
     "ModeleIACreate",
+    "ModeleIAFenetreUpdate",
     "ModeleIARead",
 ]

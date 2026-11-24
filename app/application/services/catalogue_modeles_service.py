@@ -35,7 +35,13 @@ from app.application.trace import TraceContext
 from app.core.chiffrement import chiffrement_disponible, chiffrer, dechiffrer
 from app.core.errors import ConflictError, NotFoundError
 from app.core.errors import ValidationError as BusinessValidationError
-from app.domain.catalogue_ia import PROTOCOLES_IA, FournisseurIA, ModeleIA
+from app.domain.catalogue_ia import (
+    FENETRE_MAX_JETONS,
+    FENETRE_MIN_JETONS,
+    PROTOCOLES_IA,
+    FournisseurIA,
+    ModeleIA,
+)
 from app.domain.enums import ActionAudit, ActorType
 from app.infrastructure.repositories.catalogue_ia import (
     FournisseurIARepository,
@@ -58,12 +64,23 @@ class CatalogueModelesService:
     # --- Lecture --------------------------------------------------------------
 
     def lister(self) -> list[dict[str, Any]]:
-        """Fournisseurs avec leurs modèles, prêts pour l'API (aucun secret)."""
+        """Fournisseurs avec leurs modèles, prêts pour l'API (aucun secret).
+
+        Chaque modèle porte sa fenêtre de contexte : valeur **déclarée** dans le
+        catalogue, valeur **publiée** déjà connue (cache du processus), et la
+        valeur retenue avec sa provenance.
+
+        **Aucun appel réseau ici** : l'ouverture du catalogue ne doit jamais
+        attendre un fournisseur injoignable. Les fenêtres sont relues à la
+        demande, en parallèle, par :meth:`fenetres_catalogue` — et les valeurs
+        déjà connues gardent leur provenance en attendant.
+        """
         return [
-            {
-                **fournisseur.resume(),
-                "modeles": [modele.resume() for modele in fournisseur.modeles],
-            }
+            self._vue_fournisseur(
+                fournisseur,
+                self.modeles.lister_pour(fournisseur.id),
+                reseau=False,
+            )
             for fournisseur in self.fournisseurs.lister()
         ]
 
@@ -86,10 +103,20 @@ class CatalogueModelesService:
         """
         fournisseur = self.obtenir_fournisseur(fournisseur_id)
         modeles = self.modeles.lister_pour(fournisseur.id)
-        return {
-            **fournisseur.resume(),
-            "modeles": [modele.resume() for modele in modeles],
-        }
+        return self._vue_fournisseur(fournisseur, modeles)
+
+    def lire_modele(self, modele_id: uuid.UUID) -> dict[str, Any]:
+        """Un modèle et ses fenêtres (publiée / déclarée / retenue)."""
+        modele = self.modeles.obtenir_avec_fournisseur(modele_id)
+        if modele is None:
+            raise NotFoundError(
+                f"Modèle inconnu : {modele_id}", details={"modele_id": str(modele_id)}
+            )
+        fournisseur = modele.fournisseur
+        if fournisseur is None:  # pragma: no cover - FK non nullable
+            raise NotFoundError(f"Modèle sans fournisseur : {modele_id}")
+        lectures = self._fenetres_publiees(fournisseur, [modele.nom_modele])
+        return self._vue_modele(modele, lectures.get(modele.nom_modele))
 
     # --- Fournisseurs ---------------------------------------------------------
 
@@ -313,6 +340,225 @@ class CatalogueModelesService:
             "base_url": fournisseur.base_url,
             "api_key": dechiffrer(fournisseur.api_key_chiffree),
             "fournisseur": fournisseur.nom,
+            # La fenêtre déclarée dans le catalogue suit le modèle appliqué :
+            # l'administrateur ne la ressaisit pas après avoir cliqué ici.
+            "fenetre_contexte_jetons": modele.fenetre_contexte_jetons,
+        }
+
+    def modifier_fenetre_modele(
+        self, modele_id: uuid.UUID, *, fenetre_contexte_jetons: int | None
+    ) -> ModeleIA:
+        """Déclare (ou efface avec ``None``) la fenêtre d'un modèle du catalogue.
+
+        Elle n'est qu'une **déclaration** : une valeur publiée par le fournisseur
+        reste prioritaire, et le repli ``AGENT_MAX_INPUT_TOKENS`` s'applique tant
+        que rien n'est déclaré. Le geste est audité.
+
+        Raises:
+            NotFoundError: modèle inconnu.
+            BusinessValidationError: valeur hors bornes.
+        """
+        modele = self.modeles.obtenir_avec_fournisseur(modele_id)
+        if modele is None:
+            raise NotFoundError(
+                f"Modèle inconnu : {modele_id}", details={"modele_id": str(modele_id)}
+            )
+        if fenetre_contexte_jetons is not None and not (
+            FENETRE_MIN_JETONS <= int(fenetre_contexte_jetons) <= FENETRE_MAX_JETONS
+        ):
+            raise BusinessValidationError(
+                f"Fenêtre de contexte hors limites ({FENETRE_MIN_JETONS} à "
+                f"{FENETRE_MAX_JETONS} jetons)",
+                details={"fenetre_contexte_jetons": fenetre_contexte_jetons},
+            )
+        modele.fenetre_contexte_jetons = (
+            int(fenetre_contexte_jetons)
+            if fenetre_contexte_jetons is not None
+            else None
+        )
+        modele.modifie_par = self._actor_id()
+        self._session.flush()
+        self._tracer(
+            ActionAudit.MODELE_IA_MODIFIE,
+            modele.fournisseur,
+            "fenêtre de contexte déclarée",
+        )
+        return modele
+
+    # --- Fenêtres de contexte (catalogue) ------------------------------------
+
+    def _vue_fournisseur(
+        self,
+        fournisseur: FournisseurIA,
+        modeles: list[ModeleIA],
+        *,
+        reseau: bool = True,
+    ) -> dict[str, Any]:
+        """Réponse API d'un fournisseur : ses modèles, fenêtres comprises."""
+        lectures = self._fenetres_publiees(
+            fournisseur, [modele.nom_modele for modele in modeles], reseau=reseau
+        )
+        return {
+            **fournisseur.resume(),
+            "modeles": [
+                self._vue_modele(modele, lectures.get(modele.nom_modele))
+                for modele in modeles
+            ],
+        }
+
+    def _fenetres_publiees(
+        self, fournisseur: FournisseurIA, noms: list[str], *, reseau: bool = True
+    ) -> dict[str, Any]:
+        """Fenêtres publiées par le fournisseur pour ces modèles.
+
+        Un seul appel ``/models`` par fournisseur. Gemini n'expose pas de
+        ``context_length`` : pour ce protocole, la réponse est « non publiée »
+        (définitive), sans appel réseau inutile. Une lecture en échec reste
+        « non lue » — elle ne prouve rien sur le modèle et n'est pas mémorisée.
+
+        ``reseau=False`` : aucune requête. Les valeurs définitives déjà en cache
+        sont reprises telles quelles ; les autres sont marquées « non lues » avec
+        la raison « lecture en attente », le temps que l'écran demande la lecture
+        groupée. C'est ce qui rend l'ouverture du catalogue instantanée.
+        """
+        from app.agents.decouverte_modeles import BASE_PAR_DEFAUT
+        from app.agents.providers import (
+            _LectureFenetre,
+            fenetres_connues,
+            fenetres_publiees,
+        )
+        from app.core.config import get_settings
+
+        if not noms:
+            return {}
+        if fournisseur.protocole == "google_genai":
+            return {
+                nom: _LectureFenetre(
+                    None, True, "fenêtre non publiée par l'API Gemini"
+                )
+                for nom in noms
+            }
+        base = fournisseur.base_url or BASE_PAR_DEFAUT.get(fournisseur.protocole)
+        if not reseau:
+            connues = fenetres_connues(base_url=base, modeles=noms)
+            return {
+                nom: connues.get(nom)
+                or _LectureFenetre(
+                    None, False, "lecture des fenêtres en attente"
+                )
+                for nom in noms
+            }
+        return fenetres_publiees(
+            base_url=base,
+            api_key=dechiffrer(fournisseur.api_key_chiffree),
+            modeles=noms,
+            ssl_verify=get_settings().agent_ssl_verify,
+        )
+
+    def fenetres_catalogue(self) -> list[dict[str, Any]]:
+        """Relit les fenêtres publiées de **tous** les fournisseurs, en parallèle.
+
+        Une requête ``/models`` par fournisseur, exécutée dans son propre fil :
+        un fournisseur injoignable n'allonge pas l'attente des autres (au pire le
+        délai de lecture, une fois, pour l'ensemble). Le cache est renseigné au
+        passage : la liste suivante les affiche sans réseau, avec la même
+        provenance.
+
+        Returns:
+            Un élément par modèle : ``modele_id``, ``fenetre_publiee``,
+            ``fenetre_effective``, ``fenetre_provenance``, ``fenetre_raison``.
+        """
+        from concurrent.futures import ThreadPoolExecutor
+
+        from app.agents.decouverte_modeles import BASE_PAR_DEFAUT
+        from app.agents.providers import _LectureFenetre, fenetres_publiees
+        from app.core.config import get_settings
+
+        # Tout ce qui touche la session est fait ici, dans le fil appelant :
+        # les fils ne font que la requête réseau et le calcul de la fenêtre.
+        fournisseurs = self.fournisseurs.lister()
+        lots: list[tuple[FournisseurIA, list[ModeleIA], dict[str, Any] | None]] = []
+        for fournisseur in fournisseurs:
+            modeles = self.modeles.lister_pour(fournisseur.id)
+            if not modeles:
+                continue
+            if fournisseur.protocole == "google_genai":
+                lots.append((fournisseur, modeles, None))
+                continue
+            lots.append(
+                (
+                    fournisseur,
+                    modeles,
+                    {
+                        "base_url": fournisseur.base_url
+                        or BASE_PAR_DEFAUT.get(fournisseur.protocole),
+                        "api_key": dechiffrer(fournisseur.api_key_chiffree),
+                        "modeles": [modele.nom_modele for modele in modeles],
+                        "ssl_verify": get_settings().agent_ssl_verify,
+                    },
+                )
+            )
+        if not lots:
+            return []
+
+        def _lire(params: dict[str, Any] | None) -> dict[str, Any]:
+            """Lecture réseau d'un fournisseur (aucun accès à la session)."""
+            if params is None:
+                return {}
+            return fenetres_publiees(**params)
+
+        with ThreadPoolExecutor(max_workers=min(8, len(lots))) as pool:
+            resultats = list(pool.map(_lire, [params for _, _, params in lots]))
+
+        sortie: list[dict[str, Any]] = []
+        for (fournisseur, modeles, _params), lectures in zip(lots, resultats):
+            if fournisseur.protocole == "google_genai":
+                lectures = {
+                    modele.nom_modele: _LectureFenetre(
+                        None, True, "fenêtre non publiée par l'API Gemini"
+                    )
+                    for modele in modeles
+                }
+            for modele in modeles:
+                vue = self._vue_modele(modele, lectures.get(modele.nom_modele))
+                sortie.append(
+                    {
+                        "modele_id": str(modele.id),
+                        "fenetre_publiee": vue["fenetre_publiee"],
+                        "fenetre_effective": vue["fenetre_effective"],
+                        "fenetre_provenance": vue["fenetre_provenance"],
+                        "fenetre_raison": vue["fenetre_raison"],
+                    }
+                )
+        return sortie
+
+    def _vue_modele(self, modele: ModeleIA, lecture: Any) -> dict[str, Any]:
+        """Fenêtre retenue pour ce modèle, avec sa provenance.
+
+        Ordre identique à celui du runtime : publiée, puis déclarée ici, puis
+        repli ``AGENT_MAX_INPUT_TOKENS``. L'écran affiche la valeur que le
+        harnais appliquera si ce modèle est choisi — jamais une autre.
+        """
+        from app.core.config import get_settings
+
+        publiee = getattr(lecture, "valeur", None)
+        manuelle = modele.fenetre_contexte_jetons
+        definitive = bool(getattr(lecture, "definitive", False))
+        raison = getattr(lecture, "raison", None)
+        if publiee is not None:
+            provenance, effective = "publiee", int(publiee)
+        elif manuelle is not None:
+            provenance, effective = "manuelle", int(manuelle)
+        elif definitive:
+            provenance, effective = "non_publiee", get_settings().agent_max_input_tokens
+        else:
+            provenance, effective = "non_lue", get_settings().agent_max_input_tokens
+        return {
+            **modele.resume(),
+            "fenetre_publiee": publiee,
+            "fenetre_effective": effective,
+            "fenetre_provenance": provenance,
+            "fenetre_raison": raison,
         }
 
     # --- Garde-fous -----------------------------------------------------------

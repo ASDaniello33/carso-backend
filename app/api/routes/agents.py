@@ -33,7 +33,10 @@ from app.api.schemas.agent_runtime import (
     AgentRuntimeUpdate,
     AgentRuntimeValuesRead,
     DecouverteModelesRead,
+    FenetreModeleCatalogueRead,
     FenetreModeleRead,
+    ModeleIAFenetreUpdate,
+    ModeleIARead,
     FournisseurIACreate,
     FournisseurIARead,
     FournisseurIAUpdate,
@@ -341,6 +344,7 @@ def appliquer_runtime(
         modifie_par=str(admin.id),
         api_key=payload.api_key,
         conserver_cle=payload.conserver_cle,
+        fenetre_contexte_jetons=payload.fenetre_contexte_jetons,
     )
     manager = get_runtime_manager()
     manager.apply_persisted(ligne)
@@ -421,6 +425,8 @@ def retirer_cle_administree(
         max_iterations=int(active.max_iterations),
         modifie_par=str(admin.id),
         conserver_cle=False,
+        # Retirer une clé ne doit pas effacer la fenêtre déclarée.
+        fenetre_contexte_jetons=active.fenetre_contexte_jetons,
     )
     manager = get_runtime_manager()
     manager.apply_persisted(ligne)
@@ -474,6 +480,21 @@ def lister_fournisseurs(admin: AdminUser, session: DbSession) -> list[dict]:
     """Fournisseurs enregistrés et leurs modèles (aucune clé renvoyée)."""
     _ = admin
     return CatalogueModelesService(session).lister()
+
+
+@router.get(
+    "/fournisseurs/fenetres", response_model=list[FenetreModeleCatalogueRead]
+)
+def lire_fenetres_catalogue(admin: AdminUser, session: DbSession) -> list[dict]:
+    """Relit les fenêtres publiées de tous les fournisseurs, **en parallèle**.
+
+    L'ouverture du catalogue ne lit rien : elle affiche les valeurs connues.
+    Cette route est appelée ensuite par l'écran ; un fournisseur injoignable
+    n'allonge pas la lecture des autres, et les valeurs déjà connues gardent
+    leur provenance.
+    """
+    _ = admin
+    return CatalogueModelesService(session).fenetres_catalogue()
 
 
 @router.post("/fournisseurs", response_model=FournisseurIARead, status_code=201)
@@ -566,6 +587,26 @@ def enregistrer_modeles(
     return service.resume_fournisseur(fournisseur_id)
 
 
+@router.patch("/modeles/{modele_id}/fenetre", response_model=ModeleIARead)
+def modifier_fenetre_modele(
+    modele_id: UUID,
+    payload: ModeleIAFenetreUpdate,
+    admin: AdminUser,
+    session: DbSession,
+) -> dict:
+    """Affiche/déclare la fenêtre de contexte d'un modèle du catalogue.
+
+    Une valeur publiée par le fournisseur reste prioritaire ; ``null`` efface la
+    déclaration et ramène le repli ``AGENT_MAX_INPUT_TOKENS``.
+    """
+    service = CatalogueModelesService(session, actor_id=str(admin.id))
+    service.modifier_fenetre_modele(
+        modele_id, fenetre_contexte_jetons=payload.fenetre_contexte_jetons
+    )
+    session.commit()
+    return service.lire_modele(modele_id)
+
+
 @router.delete("/modeles/{modele_id}", status_code=204)
 def supprimer_modele(modele_id: UUID, admin: AdminUser, session: DbSession) -> None:
     """Retire un modèle du catalogue (jamais celui appliqué au runtime)."""
@@ -595,6 +636,8 @@ def appliquer_modele_enregistre(
         max_iterations=int(actif.max_iterations) if actif is not None else 1000,
         modifie_par=str(admin.id),
         api_key=params["api_key"],
+        # La fenêtre déclarée dans le catalogue suit le modèle appliqué.
+        fenetre_contexte_jetons=params["fenetre_contexte_jetons"],
     )
     session.commit()
     manager = get_runtime_manager()

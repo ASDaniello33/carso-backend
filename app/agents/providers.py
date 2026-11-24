@@ -465,10 +465,125 @@ def _fenetre_publiee(settings: Settings, model: str) -> _LectureFenetre:
     return _LectureFenetre(None, False, "modèle absent de la liste /models")
 
 
+def fenetres_connues(
+    *, base_url: str | None, modeles: list[str]
+) -> dict[str, _LectureFenetre]:
+    """Fenêtres **déjà lues** dans ce processus, sans aucun appel réseau.
+
+    Sert à afficher un catalogue immédiatement : les valeurs définitives déjà
+    connues (publiées, explicitement absentes) gardent leur provenance ; les
+    modèles jamais lus sont simplement omis, et l'appelant décide quoi afficher
+    en attendant la lecture à la demande.
+    """
+    connues: dict[str, _LectureFenetre] = {}
+    for nom in dict.fromkeys(modeles):
+        cle = (base_url, nom)
+        if cle in _FENETRES_PUBLIEES:
+            connues[nom] = _LectureFenetre(_FENETRES_PUBLIEES[cle], True)
+    return connues
+
+
+def fenetres_publiees(
+    *,
+    base_url: str | None,
+    api_key: str | None,
+    modeles: list[str],
+    ssl_verify: bool = True,
+) -> dict[str, _LectureFenetre]:
+    """Fenêtres publiées pour **plusieurs** modèles d'un même fournisseur.
+
+    Un seul ``GET /models`` par fournisseur : la liste est la même pour tous ses
+    modèles, et interroger le fournisseur une fois par modèle ferait N requêtes
+    pour un écran de catalogue. Les réponses **définitives** alimentent le même
+    cache que :func:`_fenetre_publiee` (clé ``(base_url, modèle)``), si bien que
+    l'écran du modèle appliqué ne relit pas ce qui vient d'être lu ici.
+
+    Args:
+        base_url: URL du fournisseur (obligatoire pour interroger ``/models``).
+        api_key: clé **en clair**, le temps de l'appel ; jamais journalisée.
+        modeles: identifiants à renseigner (doublons ignorés).
+        ssl_verify: vérification TLS du fournisseur.
+
+    Returns:
+        Un :class:`_LectureFenetre` par modèle demandé. Un modèle absent de la
+        liste n'est **pas** mémorisé : une liste peut être partielle, ce n'est
+        pas une réponse définitive.
+    """
+    noms = list(dict.fromkeys(nom.strip() for nom in modeles if nom and nom.strip()))
+    resultats: dict[str, _LectureFenetre] = {}
+    a_lire: list[str] = []
+    for nom in noms:
+        if (base_url, nom) in _FENETRES_PUBLIEES:
+            resultats[nom] = _LectureFenetre(_FENETRES_PUBLIEES[(base_url, nom)], True)
+        elif base_url:
+            a_lire.append(nom)
+        else:
+            resultats[nom] = _LectureFenetre(None, False, "aucune URL de base")
+    if not a_lire:
+        return resultats
+
+    try:
+        import httpx
+    except ImportError as erreur:  # pragma: no cover - httpx vient avec langchain-openai
+        for nom in a_lire:
+            resultats[nom] = _LectureFenetre(None, False, type(erreur).__name__)
+        return resultats
+
+    assert base_url is not None  # garanti : sinon a_lire serait vide
+    try:
+        reponse = httpx.get(
+            base_url.rstrip("/") + "/models",
+            headers={"Authorization": f"Bearer {api_key or ''}"},
+            timeout=_TIMEOUT_METADONNEES,
+            verify=ssl_verify,
+        )
+        reponse.raise_for_status()
+        donnees = reponse.json()
+    except httpx.HTTPStatusError as erreur:
+        statut = erreur.response.status_code
+        definitif = statut in {404, 405, 501}
+        raison = f"/models absent (HTTP {statut})" if definitif else f"HTTP {statut}"
+        for nom in a_lire:
+            if definitif:
+                _FENETRES_PUBLIEES[(base_url, nom)] = None
+            resultats[nom] = _LectureFenetre(None, definitif, raison)
+        return resultats
+    except Exception as erreur:  # noqa: BLE001 - métadonnée optionnelle
+        for nom in a_lire:
+            resultats[nom] = _LectureFenetre(None, False, type(erreur).__name__)
+        return resultats
+
+    liste = donnees.get("data") if isinstance(donnees, dict) else donnees
+    index = {
+        entree.get("id"): entree
+        for entree in (liste if isinstance(liste, list) else [])
+        if isinstance(entree, dict)
+    }
+    for nom in a_lire:
+        entree = index.get(nom)
+        if entree is None:
+            # Liste peut-être partielle ou filtrée : pas de mémorisation.
+            resultats[nom] = _LectureFenetre(
+                None, False, "modèle absent de la liste /models"
+            )
+            continue
+        publiee = entree.get("context_length")
+        if isinstance(publiee, int) and not isinstance(publiee, bool):
+            _FENETRES_PUBLIEES[(base_url, nom)] = publiee
+            resultats[nom] = _LectureFenetre(publiee, True)
+        else:
+            _FENETRES_PUBLIEES[(base_url, nom)] = None
+            resultats[nom] = _LectureFenetre(None, True, "context_length absent ou null")
+    return resultats
+
+
 #: Provenances de la fenêtre retenue, telles que l'interface les distingue.
 PROVENANCE_PUBLIEE = "publiee"
 PROVENANCE_NON_PUBLIEE = "non_publiee"
 PROVENANCE_NON_LUE = "non_lue"
+#: Valeur **déclarée par l'administrateur** faute de publication : ce n'est ni
+#: une donnée du fournisseur ni le repli par défaut, et l'écran doit le dire.
+PROVENANCE_MANUELLE = "manuelle"
 
 
 def fenetre_effective(settings: Settings, model: str) -> dict[str, object]:
@@ -478,29 +593,52 @@ def fenetre_effective(settings: Settings, model: str) -> dict[str, object]:
     et l'affichage en Paramètres lisent tous deux ce résultat, donc l'écran ne
     peut pas décrire autre chose que ce que le harnais applique.
 
+    Ordre de priorité, sans ambiguïté possible pour l'écran :
+
+    1. la valeur **publiée** par le fournisseur (donnée, pas hypothèse) ;
+    2. la valeur **déclarée par l'administrateur** (``agent_fenetre_contexte_manuelle``),
+       uniquement si le fournisseur n'annonce rien ;
+    3. le repli ``AGENT_MAX_INPUT_TOKENS`` (200 000 par défaut), comportement
+       historique.
+
     Returns:
         ``{"jetons": int, "provenance": str, "raison": str | None,
         "seuil_resume": int, "garde_resume": int}``. ``provenance`` vaut
         :data:`PROVENANCE_PUBLIEE` (le fournisseur annonce la fenêtre),
-        :data:`PROVENANCE_NON_PUBLIEE` (il a répondu, il n'annonce rien) ou
-        :data:`PROVENANCE_NON_LUE` (la lecture a échoué : l'absence de valeur
-        ne prouve rien). ``seuil_resume`` et ``garde_resume`` sont les seuils
-        effectifs du résumé d'historique, en jetons.
+        :data:`PROVENANCE_MANUELLE` (l'administrateur l'a déclarée faute de
+        publication), :data:`PROVENANCE_NON_PUBLIEE` (il a répondu, il
+        n'annonce rien et rien n'a été déclaré) ou :data:`PROVENANCE_NON_LUE`
+        (la lecture a échoué : l'absence de valeur ne prouve rien).
+        ``seuil_resume`` et ``garde_resume`` sont les seuils effectifs du
+        résumé d'historique, en jetons.
     """
     lecture = _fenetre_publiee(settings, model)
+    manuelle = settings.agent_fenetre_contexte_manuelle
     if lecture.valeur is not None:
         provenance = PROVENANCE_PUBLIEE
         jetons = lecture.valeur
+        raison = lecture.raison
+    elif manuelle is not None:
+        provenance = PROVENANCE_MANUELLE
+        jetons = int(manuelle)
+        raison = (
+            "valeur définie dans Paramètres (le fournisseur ne publie pas la "
+            "sienne)"
+        )
+        if lecture.raison:
+            raison = f"{raison} ; lecture fournisseur : {lecture.raison}"
     elif lecture.definitive:
         provenance = PROVENANCE_NON_PUBLIEE
         jetons = settings.agent_max_input_tokens
+        raison = lecture.raison
     else:
         provenance = PROVENANCE_NON_LUE
         jetons = settings.agent_max_input_tokens
+        raison = lecture.raison
     return {
         "jetons": jetons,
         "provenance": provenance,
-        "raison": lecture.raison,
+        "raison": raison,
         "seuil_resume": int(jetons * settings.agent_resume_historique_fraction),
         "garde_resume": int(
             jetons * settings.agent_resume_historique_fraction_gardee
@@ -517,9 +655,12 @@ def _profil_modele(settings: Settings, model: str) -> dict[str, int]:
     la publie ; ``AGENT_MAX_INPUT_TOKENS`` n'est qu'un **repli**, que le journal
     doit dire exactement pour ce qu'il est.
 
-    Deux replis, deux messages — jamais confondus :
+    Trois cas, trois messages — jamais confondus :
 
-    - **non publiée** : le fournisseur a répondu, il n'annonce pas de fenêtre ;
+    - **déclarée** : l'administrateur a saisi la fenêtre dans Paramètres, faute
+      de publication ;
+    - **non publiée** : le fournisseur a répondu, il n'annonce pas de fenêtre et
+      rien n'a été déclaré ;
     - **non lue** : la lecture a échoué (réseau, HTTP, réponse illisible), donc
       l'absence de valeur ne prouve rien sur le modèle et la lecture sera
       retentée au prochain montage d'agent.
@@ -529,6 +670,7 @@ def _profil_modele(settings: Settings, model: str) -> dict[str, int]:
     forcément — seule la fenêtre est nécessaire ici.
     """
     lecture = _fenetre_publiee(settings, model)
+    manuelle = settings.agent_fenetre_contexte_manuelle
     if lecture.valeur is not None:
         _logger_agents.info(
             "Fenêtre d'entrée lue chez %s pour %r : %d jetons",
@@ -537,6 +679,18 @@ def _profil_modele(settings: Settings, model: str) -> dict[str, int]:
             lecture.valeur,
         )
         return {"max_input_tokens": lecture.valeur}
+
+    if manuelle is not None:
+        # Valeur déclarée dans Paramètres : elle comble une absence, elle ne
+        # contredit pas une donnée publiée (testée au-dessus).
+        _logger_agents.info(
+            "Fenêtre d'entrée définie dans Paramètres pour %r : %d jetons "
+            "(le fournisseur ne la publie pas : %s)",
+            model,
+            manuelle,
+            lecture.raison or "aucune valeur annoncée",
+        )
+        return {"max_input_tokens": int(manuelle)}
 
     if lecture.definitive:
         _logger_agents.warning(
@@ -647,6 +801,8 @@ def _require_package(module_name: str, *, paquet: str) -> Any:
 
 
 __all__ = [
+    "fenetres_connues",
+    "fenetres_publiees",
     "SUPPORTED_PROVIDERS",
     "AgentConfigurationError",
     "build_chat_model",

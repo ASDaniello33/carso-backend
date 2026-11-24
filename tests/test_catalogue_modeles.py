@@ -18,6 +18,19 @@ import httpx
 import pytest
 
 from app.agents.decouverte_modeles import DecouverteIndisponible, decouvrir_modeles
+
+
+class _ReponseModeles:
+    """Réponse ``/models`` minimale, sans réseau (lecture de la fenêtre publiée)."""
+
+    def __init__(self, modeles: list[dict]) -> None:
+        self._modeles = modeles
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def json(self) -> dict:
+        return {"data": self._modeles}
 from app.application.services.agent_runtime_service import AgentRuntimeService
 from app.application.services.catalogue_modeles_service import CatalogueModelesService
 from app.core.chiffrement import dechiffrer
@@ -27,6 +40,25 @@ from app.core.errors import ValidationError as BusinessValidationError
 
 def _service(session) -> CatalogueModelesService:
     return CatalogueModelesService(session, actor_id="admin-test")
+
+
+@pytest.fixture(autouse=True)
+def _cache_fenetres_vide(monkeypatch: pytest.MonkeyPatch):
+    """Cache global vidé, et réseau coupé par défaut.
+
+    Le cache des fenêtres publiées est global : un test ne doit pas nourrir
+    l'autre. Et aucun test du catalogue ne doit dépendre d'un vrai accès à
+    ``/models`` — ceux qui testent une valeur publiée posent leur propre double.
+    """
+    from app.agents.providers import _FENETRES_PUBLIEES
+
+    _FENETRES_PUBLIEES.clear()
+    monkeypatch.setattr(
+        "httpx.get",
+        lambda *a, **k: (_ for _ in ()).throw(ConnectionError("hors ligne (test)")),
+    )
+    yield
+    _FENETRES_PUBLIEES.clear()
 
 
 # --- Fournisseurs -----------------------------------------------------------
@@ -211,6 +243,252 @@ def test_fournisseur_vide_partageant_l_endpoint_applique_se_supprime(
     session.commit()
 
     assert [fournisseur["nom"] for fournisseur in service.lister()] == ["Principal"]
+
+
+def test_lister_ne_fait_aucun_appel_reseau(
+    api_session_factory, cle_chiffrement: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ouvrir le catalogue ne doit jamais attendre un fournisseur injoignable.
+
+    La liste vient de la base ; les fenêtres publiées déjà connues sont reprises
+    du cache, les autres s'affichent « non lues » avec la raison « lecture en
+    attente » le temps de la lecture groupée.
+    """
+    monkeypatch.setattr(
+        "httpx.get",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("appel réseau interdit")),
+    )
+    session = api_session_factory()
+    service = _service(session)
+    fournisseur = service.ajouter_fournisseur(
+        nom="Passerelle",
+        protocole="openai_compatible",
+        base_url="https://ia.exemple.mg/v1",
+    )
+    service.ajouter_modeles(fournisseur.id, ["modele-maison"])
+    session.commit()
+
+    vue = service.lister()[0]["modeles"][0]  # ne lève pas : aucun réseau
+
+    assert vue["fenetre_publiee"] is None
+    assert vue["fenetre_provenance"] == "non_lue"
+    assert vue["fenetre_raison"] == "lecture des fenêtres en attente"
+    session.close()
+
+
+def test_les_valeurs_lues_survivent_a_la_liste_sans_reseau(
+    api_session_factory, cle_chiffrement: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Une valeur déjà connue garde sa provenance, même réseau coupé."""
+    monkeypatch.setattr(
+        "httpx.get",
+        lambda *a, **k: _ReponseModeles(
+            [{"id": "modele-maison", "context_length": 1_000_000}]
+        ),
+    )
+    session = api_session_factory()
+    service = _service(session)
+    fournisseur = service.ajouter_fournisseur(
+        nom="Passerelle",
+        protocole="openai_compatible",
+        base_url="https://ia.exemple.mg/v1",
+    )
+    service.ajouter_modeles(fournisseur.id, ["modele-maison"])
+    session.commit()
+
+    lues = service.fenetres_catalogue()
+    assert lues[0]["fenetre_provenance"] == "publiee"
+
+    # Réseau strictement interdit : la liste doit vivre du cache.
+    monkeypatch.setattr(
+        "httpx.get",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("appel réseau interdit")),
+    )
+    vue = service.lister()[0]["modeles"][0]
+    assert vue["fenetre_publiee"] == 1_000_000
+    assert vue["fenetre_effective"] == 1_000_000
+    assert vue["fenetre_provenance"] == "publiee"
+    session.close()
+
+
+def test_fenetres_catalogue_parallelise_les_fournisseurs(
+    api_session_factory, cle_chiffrement: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Deux fournisseurs lents ne s'additionnent pas : ils sont lus en parallèle."""
+    import time
+
+    from app.agents.providers import _LectureFenetre
+
+    session = api_session_factory()
+    service = _service(session)
+    for nom in ("A", "B"):
+        fournisseur = service.ajouter_fournisseur(
+            nom=f"Fournisseur {nom}",
+            protocole="openai_compatible",
+            base_url=f"https://{nom.lower()}.exemple/v1",
+        )
+        service.ajouter_modeles(fournisseur.id, [f"modele-{nom.lower()}"])
+    session.commit()
+
+    def _lente(**params):
+        time.sleep(0.5)  # simule un fournisseur qui met 500 ms à répondre
+        return {
+            nom: _LectureFenetre(1_000_000, True) for nom in params["modeles"]
+        }
+
+    monkeypatch.setattr("app.agents.providers.fenetres_publiees", _lente)
+
+    debut = time.perf_counter()
+    lues = service.fenetres_catalogue()
+    duree = time.perf_counter() - debut
+
+    assert len(lues) == 2
+    assert all(lue["fenetre_provenance"] == "publiee" for lue in lues)
+    # En série : 1,0 s au minimum. En parallèle : ~0,5 s.
+    assert duree < 0.9, duree
+    session.close()
+
+
+def test_fenetre_declaree_persistee_et_relue(
+    api_session_factory, cle_chiffrement: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Le catalogue porte la fenêtre de chaque modèle, pas seulement l'appliqué."""
+    monkeypatch.setattr(
+        "httpx.get",
+        lambda *a, **k: _ReponseModeles([{"id": "modele-maison", "context_length": None}]),
+    )
+    session = api_session_factory()
+    service = _service(session)
+    fournisseur = service.ajouter_fournisseur(
+        nom="Passerelle",
+        protocole="openai_compatible",
+        base_url="https://ia.exemple.mg/v1",
+    )
+    crees, _ = service.ajouter_modeles(fournisseur.id, ["modele-maison"])
+    session.commit()
+
+    service.modifier_fenetre_modele(crees[0].id, fenetre_contexte_jetons=128_000)
+    session.commit()
+
+    vue = service.lire_modele(crees[0].id)
+    assert vue["fenetre_contexte_jetons"] == 128_000
+    assert vue["fenetre_effective"] == 128_000
+    assert vue["fenetre_provenance"] == "manuelle"
+
+    # La liste du catalogue porte la même valeur, et l'audit l'a consignée.
+    catalogue = service.lister()
+    assert catalogue[0]["modeles"][0]["fenetre_effective"] == 128_000
+    from sqlalchemy import select
+
+    from app.domain.document import AuditEvent
+    from app.domain.enums import ActionAudit
+
+    actions = [e.action for e in session.scalars(select(AuditEvent)).all()]
+    assert ActionAudit.MODELE_IA_MODIFIE.value in actions
+
+    # ``null`` efface la déclaration : le repli reprend la main.
+    service.modifier_fenetre_modele(crees[0].id, fenetre_contexte_jetons=None)
+    session.commit()
+    assert service.lire_modele(crees[0].id)["fenetre_contexte_jetons"] is None
+    session.close()
+
+
+def test_fenetre_declaree_hors_limites_refusee(
+    api_session_factory, cle_chiffrement: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Aucun appel réseau : la lecture de la fenêtre publiée n'est pas le sujet.
+    monkeypatch.setattr(
+        "httpx.get", lambda *a, **k: (_ for _ in ()).throw(ConnectionError("hors ligne"))
+    )
+    session = api_session_factory()
+    service = _service(session)
+    fournisseur = service.ajouter_fournisseur(nom="Principal", protocole="openai", api_key="k")
+    crees, _ = service.ajouter_modeles(fournisseur.id, ["gpt-5.1"])
+    session.commit()
+
+    for valeur in (0, 999, 100_000_001):
+        with pytest.raises(BusinessValidationError, match="hors limites"):
+            service.modifier_fenetre_modele(crees[0].id, fenetre_contexte_jetons=valeur)
+    session.rollback()
+    assert service.modeles.obtenir_avec_fournisseur(crees[0].id).fenetre_contexte_jetons is None
+    session.close()
+
+
+def test_fenetre_publiee_prime_sur_la_declaration(
+    api_session_factory, cle_chiffrement: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Une donnée publiée ne se contredit pas depuis le catalogue."""
+    monkeypatch.setattr(
+        "httpx.get",
+        lambda *a, **k: _ReponseModeles(
+            [{"id": "modele-maison", "context_length": 1_048_576}]
+        ),
+    )
+    session = api_session_factory()
+    service = _service(session)
+    fournisseur = service.ajouter_fournisseur(
+        nom="Passerelle",
+        protocole="openai_compatible",
+        base_url="https://ia.exemple.mg/v1",
+    )
+    crees, _ = service.ajouter_modeles(fournisseur.id, ["modele-maison"])
+    session.commit()
+
+    service.modifier_fenetre_modele(crees[0].id, fenetre_contexte_jetons=128_000)
+    session.commit()
+
+    vue = service.lire_modele(crees[0].id)
+    assert vue["fenetre_publiee"] == 1_048_576
+    assert vue["fenetre_effective"] == 1_048_576
+    assert vue["fenetre_provenance"] == "publiee"
+    session.close()
+
+
+def test_lecture_impossible_affiche_le_repli(
+    api_session_factory, cle_chiffrement: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "httpx.get", lambda *a, **k: (_ for _ in ()).throw(ConnectionError("blip"))
+    )
+    session = api_session_factory()
+    service = _service(session)
+    fournisseur = service.ajouter_fournisseur(nom="Principal", protocole="openai", api_key="k")
+    service.ajouter_modeles(fournisseur.id, ["gpt-5.1"])
+    session.commit()
+
+    from app.core.config import get_settings
+
+    vue = service.lister()[0]["modeles"][0]
+    assert vue["fenetre_publiee"] is None
+    # Repli de déploiement (200 000 par défaut) : la valeur exacte vient des
+    # réglages, pas d'un chiffre figé dans le test.
+    assert vue["fenetre_effective"] == get_settings().agent_max_input_tokens
+    assert vue["fenetre_provenance"] == "non_lue"
+    session.close()
+
+
+def test_preparer_application_reprend_la_fenetre_declaree(
+    api_session_factory, cle_chiffrement: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "httpx.get",
+        lambda *a, **k: _ReponseModeles([{"id": "modele-maison", "context_length": None}]),
+    )
+    session = api_session_factory()
+    service = _service(session)
+    fournisseur = service.ajouter_fournisseur(
+        nom="Passerelle",
+        protocole="openai_compatible",
+        base_url="https://ia.exemple.mg/v1",
+        api_key="sk-abc",
+    )
+    crees, _ = service.ajouter_modeles(fournisseur.id, ["modele-maison"])
+    service.modifier_fenetre_modele(crees[0].id, fenetre_contexte_jetons=64_000)
+    session.commit()
+
+    params = service.preparer_application(crees[0].id)
+    assert params["fenetre_contexte_jetons"] == 64_000
+    session.close()
 
 
 def test_preparer_application_reprend_la_connexion(

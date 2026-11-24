@@ -233,6 +233,13 @@ class Settings(BaseSettings):
     # imposée à tous les modèles : c'est ce qu'on utilise faute de mieux, et ce
     # repli est journalisé en `WARNING` — jamais appliqué en silence.
     agent_max_input_tokens: int = Field(default=200_000, ge=1_000)
+    # Fenêtre d'entrée **déclarée par l'administrateur** dans Paramètres, pour un
+    # modèle dont le fournisseur ne publie pas ``context_length``. Elle ne
+    # remplace jamais une valeur publiée ; vide (défaut), le repli
+    # ``AGENT_MAX_INPUT_TOKENS`` s'applique comme avant. Le manager la pose
+    # depuis la configuration administrée : ce n'est pas un réglage de
+    # déploiement, même si la variable d'environnement homonyme reste lisible.
+    agent_fenetre_contexte_manuelle: int | None = Field(default=None, ge=1_000)
     # Résumé d'historique (Deep Agents), en fractions de cette fenêtre. Sans
     # réglage, la bibliothèque déclenchait à 170 000 jetons **en se fiant aussi
     # au ``total_tokens`` du fournisseur**, qui inclut la sortie et le

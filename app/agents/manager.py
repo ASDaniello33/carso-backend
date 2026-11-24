@@ -70,6 +70,10 @@ class AgentRuntimeValues:
     #: Vrai si une clé **administrée** est enregistrée (chiffrée en base).
     #: La valeur elle-même n'entre jamais dans cette projection.
     cle_administree: bool = False
+    #: Fenêtre d'entrée déclarée par l'administrateur (jetons), appliquée
+    #: seulement si le fournisseur n'en publie pas. ``None`` = repli
+    #: ``AGENT_MAX_INPUT_TOKENS``.
+    fenetre_contexte_jetons: int | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Projection sûre pour l'API (aucun secret, aucun objet interne)."""
@@ -81,6 +85,7 @@ class AgentRuntimeValues:
             "max_iterations": self.max_iterations,
             "source": self.source,
             "cle_administree": self.cle_administree,
+            "fenetre_contexte_jetons": self.fenetre_contexte_jetons,
         }
 
 
@@ -155,6 +160,9 @@ class AgentRuntimeManager:
             "agent_base_url": valeurs.base_url,
             "agent_temperature": valeurs.temperature,
             "agent_max_iterations": valeurs.max_iterations,
+            # Fenêtre déclarée dans Paramètres : les providers y lisent la
+            # seule source de vérité quand le fournisseur n'annonce rien.
+            "agent_fenetre_contexte_manuelle": valeurs.fenetre_contexte_jetons,
         }
         if cle:
             # Clé administrée : elle prime sur celle du ``.env``. Le runtime ne
@@ -197,6 +205,9 @@ class AgentRuntimeManager:
                 max_iterations=int(ligne.max_iterations),
                 source="base",
                 cle_administree=bool(ligne.api_key_chiffree),
+                fenetre_contexte_jetons=getattr(
+                    ligne, "fenetre_contexte_jetons", None
+                ),
             )
         )
 
