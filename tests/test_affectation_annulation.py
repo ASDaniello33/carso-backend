@@ -1,9 +1,14 @@
-"""Annulation d'une proposition d'affectation **en attente** (demande 17/10).
+"""Annulation / retrait d'une affectation d'équipe.
 
-Règle : la carte de l'AgentRH doit pouvoir revenir sur une proposition qu'elle
-vient de créer. Une proposition ``proposee`` n'a jamais été décidée et n'a aucun
-effet : ``POST /affectations/{id}/annulation`` la retire et trace le retrait.
-Une affectation approuvée ou refusée porte une décision : 409.
+Deux gestes passent par ``POST /affectations/{id}/annulation`` :
+
+- une proposition ``proposee`` (demande 17/10) n'a jamais été décidée : elle est
+  retirée de la liste, sans effet ;
+- une affectation ``approuvee`` (demande 24/11) est **reprise** : la personne
+  sort de l'équipe, redevient disponible et perd le périmètre ouvert. L'audit
+  conserve l'état retiré (le contenu de la décision reprise).
+
+Une affectation ``refusee`` a son propre geste de retrait (``DELETE``) : 409 ici.
 """
 
 from __future__ import annotations
@@ -21,13 +26,15 @@ from app.domain.organization import Organisation
 from tests.conftest import seed
 
 
-def _mission(factory: sessionmaker[Session]) -> Mission:
-    org = Organisation(nom="Client annulation")
+def _mission(
+    factory: sessionmaker[Session], *, reference: str = "M-ANNUL"
+) -> Mission:
+    org = Organisation(nom=f"Client annulation {reference}")
     seed(factory, org)
     mission = Mission(
         organisation_id=org.id,
-        reference="M-ANNUL",
-        titre="Mission annulation",
+        reference=reference,
+        titre=f"Mission annulation {reference}",
         date_debut=date(2026, 11, 2),
         date_fin=date(2026, 11, 30),
         statut=StatutMission.PLANIFIE.value,
@@ -45,7 +52,9 @@ def _equipe(api_client: TestClient) -> str:
     return reponse.json()["id"]
 
 
-def _proposer(api_client: TestClient, mission: Mission, equipe_id: str) -> dict:
+def _proposer(
+    api_client: TestClient, mission: Mission, equipe_id: str
+) -> dict:
     reponse = api_client.post(
         f"/api/v1/missions/{mission.id}/affectations",
         json={
@@ -56,6 +65,14 @@ def _proposer(api_client: TestClient, mission: Mission, equipe_id: str) -> dict:
     )
     assert reponse.status_code == 202, reponse.text
     return reponse.json()
+
+
+def _approuver(api_client: TestClient, affectation_id: str) -> None:
+    reponse = api_client.post(
+        f"/api/v1/affectations/{affectation_id}/approbation",
+        json={"decision": "approuve", "reason": "OK"},
+    )
+    assert reponse.status_code == 200, reponse.text
 
 
 def test_annuler_une_proposition_en_attente(
@@ -83,21 +100,58 @@ def test_annuler_une_proposition_en_attente(
         assert trace.event_metadata["retrait"] is True
 
 
-def test_annulation_refusee_sur_affectation_approuvee(
+def test_annuler_et_retirer_une_affectation_approuvee(
     api_client: TestClient, api_session_factory: sessionmaker[Session]
 ) -> None:
-    """Une décision favorable est figée : 409, la ligne reste."""
+    """Approuvée → 204 : la décision est reprise, la ligne disparaît, trace dédiée."""
     mission = _mission(api_session_factory)
     affectation = _proposer(api_client, mission, _equipe(api_client))
-    approbation = api_client.post(
-        f"/api/v1/affectations/{affectation['id']}/approbation",
-        json={"decision": "approuve", "reason": "OK"},
-    )
-    assert approbation.status_code == 200
+    _approuver(api_client, affectation["id"])
 
     reponse = api_client.post(f"/api/v1/affectations/{affectation['id']}/annulation")
-    assert reponse.status_code == 409
-    assert reponse.json()["error"]["details"]["statut"] == "approuvee"
+    assert reponse.status_code == 204, reponse.text
+
+    liste = api_client.get(f"/api/v1/missions/{mission.id}/affectations").json()
+    assert affectation["id"] not in {item["id"] for item in liste["affectations"]}
+
+    with api_session_factory() as session:
+        trace = session.scalars(
+            select(AuditEvent).where(
+                AuditEvent.action == ActionAudit.AFFECTATION_RETIREE.value
+            )
+        ).one()
+        assert trace.entity_id == affectation["id"]
+        assert trace.actor_type == "humain"
+        assert trace.event_metadata["retrait"] is True
+        # Ce qui a été retiré reste lisible : le journal porte l'état d'avant.
+        assert trace.before["statut"] == "approuvee"
+        assert trace.before["equipe_id"] == affectation["equipe_id"]
+        assert trace.before["approved_by"] is not None
+
+
+def test_retrait_approuvee_libere_la_disponibilite(
+    api_client: TestClient, api_session_factory: sessionmaker[Session]
+) -> None:
+    """La personne redevient disponible : une autre mission qui chevauche l'accepte."""
+    mission = _mission(api_session_factory)
+    autre = _mission(api_session_factory, reference="M-CHEVAU")
+    equipe_id = _equipe(api_client)
+    affectation = _proposer(api_client, mission, equipe_id)
+    _approuver(api_client, affectation["id"])
+
+    corps = {
+        "mission_id": str(autre.id),
+        "equipe_id": equipe_id,
+        "role_dans_mission": "formateur",
+    }
+    conflit = api_client.post(f"/api/v1/missions/{autre.id}/affectations", json=corps)
+    assert conflit.status_code == 409, conflit.text
+
+    reponse = api_client.post(f"/api/v1/affectations/{affectation['id']}/annulation")
+    assert reponse.status_code == 204, reponse.text
+
+    libere = api_client.post(f"/api/v1/missions/{autre.id}/affectations", json=corps)
+    assert libere.status_code == 202, libere.text
 
 
 def test_annulation_refusee_sur_affectation_refusee(

@@ -193,9 +193,10 @@ class AffectationService:
         Une affectation refusée est déjà sans effet (elle n'entre jamais en
         vigueur) : la garder dans la liste n'apporte que du bruit. La
         suppression est donc réservée à ce seul état — une proposition en
-        attente doit recevoir sa décision (approuver/refuser), une affectation
-        approuvée fait partie de l'historique de la mission et ne peut pas
-        disparaître sans trace. Le retrait est tracé dans l'audit.
+        attente doit recevoir sa décision (approuver/refuser), et une
+        affectation **approuvée** se retire par :meth:`annuler` (décision
+        reprise, tracée avec l'état retiré), jamais par une suppression muette.
+        Le retrait est tracé dans l'audit.
         """
         affectation = self._get(affectation_id)
         statut = self._current_statut(affectation)
@@ -224,42 +225,64 @@ class AffectationService:
         )
 
     def annuler(self, affectation_id: UUID, reason: str | None = None) -> None:
-        """Annule une proposition **en attente** (proposee) et la retire.
+        """Annule une affectation **en attente** ou **déjà approuvée**, et la retire.
 
-        Demandé le 17/10 : la carte de proposition de l'AgentRH doit permettre
-        de revenir sur son geste. Une proposition encore ``proposee`` n'a jamais
-        été décidée et n'a aucun effet : l'annuler la retire de la liste.
+        Deux gestes, un seul chemin :
 
-        Ce n'est **pas** un refus : un refus est une décision humaine, conservée
-        dans l'historique (elle peut éventuellement être retirée ensuite). Une
-        affectation approuvée reste l'historique de la mission et ne peut pas
-        disparaître. Le retrait est tracé dans l'audit.
+        - proposition ``proposee`` (demande 17/10) : jamais décidée, aucun effet
+          — la carte de l'AgentRH revient sur son geste ;
+        - affectation ``approuvee`` (demande 24/11) : la décision est **reprise**.
+          Le retrait lève immédiatement son effet — la personne sort de l'équipe
+          de la mission, redevient disponible sur ces dates et perd l'accès au
+          périmètre que l'affectation ouvrait. L'audit conserve ce qui a été
+          retiré (personne, rôle, source, approbation, motif) : la décision reste
+          lisible même si la ligne disparaît.
+
+        Ce n'est **pas** un refus : un refus est une décision humaine conservée
+        (retirée ensuite par :meth:`supprimer`, avec sa propre trace).
         """
         affectation = self._get(affectation_id)
         statut = self._current_statut(affectation)
-        if statut != StatutAffectation.PROPOSEE.value:
+        if statut not in {
+            StatutAffectation.PROPOSEE.value,
+            StatutAffectation.APPROUVEE.value,
+        }:
             raise ConflictError(
-                "Seule une proposition en attente peut être annulée",
+                "Seule une proposition en attente ou une affectation approuvée "
+                "peut être annulée",
                 details={"affectation_id": str(affectation_id), "statut": statut},
             )
+        approuvee = statut == StatutAffectation.APPROUVEE.value
+        identifiant = affectation.id
         avant = {
             "mission_id": str(affectation.mission_id),
             "equipe_id": str(affectation.equipe_id),
             "role": affectation.role_dans_mission,
+            "intitule_role": affectation.intitule_role,
             "source": affectation.source_affectation,
             "statut": statut,
+            "approved_by": affectation.approved_by,
         }
         self._session.delete(affectation)
         self._session.flush()
         self._trace.record_event(
             actor_type=ActorType.HUMAIN.value,
-            action=ActionAudit.AFFECTATION_ANNULEE.value,
+            action=(
+                ActionAudit.AFFECTATION_RETIREE.value
+                if approuvee
+                else ActionAudit.AFFECTATION_ANNULEE.value
+            ),
             entity_type=_ENTITY,
-            entity_id=affectation.id,
+            entity_id=identifiant,
             before=avant,
             event_metadata={
                 "retrait": True,
-                "motif": reason or "Annulation d'une proposition en attente",
+                "motif": reason
+                or (
+                    "Retrait d'une affectation approuvée"
+                    if approuvee
+                    else "Annulation d'une proposition en attente"
+                ),
             },
         )
 

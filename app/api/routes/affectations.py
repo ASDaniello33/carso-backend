@@ -114,7 +114,8 @@ def delete_affectation(
 
     Elle est sans effet et n'apporte que du bruit : l'utilisateur peut
     l'enlever. Toute autre statut est refusé (409) — une proposition en
-    attente exige une décision, une approuvée reste l'historique.
+    attente exige une décision, une affectation **approuvée** se retire par
+    l'annulation (``POST …/annulation``), qui trace la décision reprise.
     """
     AffectationService(session, actor_id=str(user.id)).supprimer(affectation_id)
 
@@ -129,14 +130,16 @@ def annuler_affectation(
     session: DbSession,
     user: CurrentUser,
 ) -> None:
-    """Annule une proposition d'affectation **encore en attente** (17/10).
+    """Annule **et retire** une affectation en attente ou déjà approuvée.
 
-    Le geste est celui qui a proposé : la carte de l'AgentRH peut ainsi revenir
-    sur une proposition non décidée. Une affectation approuvée ou refusée est
-    figée (409) — elle porte une décision, pas une intention.
+    - Proposition ``proposee`` (17/10) : le geste est celui qui a proposé — la
+      carte de l'AgentRH revient sur une proposition non décidée.
+    - Affectation ``approuvee`` (demande du 24/11) : l'administrateur ou le
+      collaborateur reprend la décision. La personne sort de l'équipe, redevient
+      disponible sur ces dates et perd le périmètre ouvert par l'affectation.
 
-    Distinct du refus : l'annulation retire la proposition de la liste, le refus
-    la conserve comme décision tracée.
+    Une affectation **refusée** reste du ressort de ``DELETE`` (son propre geste,
+    avec sa trace) : 409 ici.
     """
     AffectationService(session, actor_id=str(user.id)).annuler(affectation_id)
 

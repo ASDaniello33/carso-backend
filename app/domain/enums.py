@@ -470,6 +470,11 @@ class ActionAudit(StrEnum):
     #: Distincte du refus : un refus est une décision conservee, une annulation
     #: retire une proposition sans effet de la liste d'attente.
     AFFECTATION_ANNULEE = "affectation.annulee"
+    #: Retrait d'une affectation **approuvée** (demande 24/11) : la décision est
+    #: reprise, la personne sort de l'équipe. Distinct de l'annulation d'une
+    #: proposition : l'événement porte l'état retiré (statut, approbation, motif),
+    #: puisque la ligne disparaît de la liste de la mission.
+    AFFECTATION_RETIREE = "affectation.retiree"
     BUDGET_APPROUVE = "budget.approuve"
     DOCUMENT_ENREGISTRE = "document.enregistre"
     DOCUMENT_SOUMIS = "document.soumis"

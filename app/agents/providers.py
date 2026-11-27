@@ -27,6 +27,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from app.agents.repli_modele import RepliModele
 from app.core.config import Settings, get_settings
 from app.core.errors import CarsoError
 
@@ -131,6 +132,10 @@ async def tester_configuration(
             "agent_model": model,
             "agent_base_url": base_url,
             "agent_temperature": 0.0,
+            # Le test doit porter sur le modèle **saisi** : un secours qui
+            # répondrait masquerait une configuration inutilisable et ferait
+            # croire à l'administrateur que le modèle candidat fonctionne.
+            "agent_model_secours": None,
         }
     )
     modele = build_chat_model(reglages, api_key=api_key or None)
@@ -249,7 +254,7 @@ def _classe_contenu_texte(chat_openai: Any) -> type:
     if existante is not None:
         return existante
 
-    class ModeleContenuTexte(base):
+    class ModeleContenuTexte(RepliModele, base):
         def _get_request_payload(self, input_, *, stop=None, **kwargs):
             payload = super()._get_request_payload(input_, stop=stop, **kwargs)
             messages = payload.get("messages")
@@ -329,7 +334,70 @@ def build_chat_model(
         "openai_compatible": _build_openai_compatible,
         "google_genai": _build_google_genai,
     }
-    return constructeurs[provider](reglages, model=nom_modele, api_key=cle)
+    principal = constructeurs[provider](reglages, model=nom_modele, api_key=cle)
+    return _avec_modele_de_secours(
+        reglages,
+        principal,
+        constructeur=constructeurs[provider],
+        cle=cle,
+        nom=nom_modele,
+    )
+
+
+def _avec_modele_de_secours(
+    reglages: Settings,
+    principal: Any,
+    *,
+    constructeur: ChatModelBuilder,
+    cle: str,
+    nom: str,
+) -> Any:
+    """Attache le modèle de secours (``AGENT_MODEL_SECOURS``) au principal.
+
+    Le secours est un **autre modèle du même endpoint** : c'est la panne
+    observée (modèle saturé, débit dépassé, 5xx d'une passerelle qui continue de
+    servir les autres modèles), et cela n'ajoute aucun secret à gérer.
+
+    Un provider qui n'implémente pas le repli (``google_genai``) est rendu tel
+    quel, et le réglage ignoré est **journalisé** — jamais appliqué à moitié en
+    silence.
+    """
+    secours_nom = (reglages.agent_model_secours or "").strip()
+    if not isinstance(principal, RepliModele):
+        if secours_nom:
+            logger.warning(
+                "AGENT_MODEL_SECOURS=%r ignoré : le provider %r ne gère pas le "
+                "repli de modèle",
+                secours_nom,
+                reglages.agent_provider,
+            )
+        return principal
+    if not secours_nom or secours_nom == nom:
+        return principal
+    # Le nom doit **exister sur la passerelle effectivement configurée** : un
+    # secours pris sur un autre catalogue (``deepseek/x:free`` sur une
+    # passerelle qui publie ``deepseek-x``) ne produirait qu'un second échec,
+    # au pire moment. La liste vient de ``/models`` — la même lecture qui donne
+    # la fenêtre d'entrée, donc aucun appel supplémentaire.
+    lecture = _fenetre_publiee(reglages, secours_nom)
+    if lecture.present is not True:
+        logger.warning(
+            "AGENT_MODEL_SECOURS=%r non attaché : %s (%s). Aucun repli ne sera "
+            "appliqué.",
+            secours_nom,
+            "modèle absent de la passerelle configurée"
+            if lecture.present is False
+            else "présence non vérifiée, lecture /models impossible",
+            lecture.raison or str(reglages.agent_base_url),
+        )
+        return principal
+    principal.modele_de_secours = constructeur(
+        reglages, model=secours_nom, api_key=cle
+    )
+    _logger_agents.info(
+        "Repli de modèle configuré : %s → %s (même endpoint)", nom, secours_nom
+    )
+    return principal
 
 
 # --- Providers ---------------------------------------------------------------
@@ -392,11 +460,18 @@ class _LectureFenetre:
       prochain redémarrage.
 
     ``raison`` porte le détail pour le journal, jamais la clé du fournisseur.
+
+    ``present`` répond à une autre question que ``definitive`` : le modèle
+    figure-t-il dans la liste publiée ? ``True`` oui, ``False`` non (donnée
+    exploitable : la passerelle a répondu), ``None`` on ne sait pas (lecture
+    impossible). C'est ce champ qui empêche d'attacher un modèle de secours
+    absent de la passerelle réellement configurée.
     """
 
     valeur: int | None
     definitive: bool
     raison: str | None = None
+    present: bool | None = None
 
 
 def _fenetre_publiee(settings: Settings, model: str) -> _LectureFenetre:
@@ -456,13 +531,18 @@ def _fenetre_publiee(settings: Settings, model: str) -> _LectureFenetre:
         publiee = entree.get("context_length")
         if isinstance(publiee, int) and not isinstance(publiee, bool):
             _FENETRES_PUBLIEES[cache] = publiee
-            return _LectureFenetre(publiee, True)
+            return _LectureFenetre(publiee, True, present=True)
         # Le modèle est listé et ne dit rien de sa fenêtre : définitif.
         _FENETRES_PUBLIEES[cache] = None
-        return _LectureFenetre(None, True, "context_length absent ou null")
+        return _LectureFenetre(
+            None, True, "context_length absent ou null", present=True
+        )
 
-    # Modèle absent de la liste : non mémorisé (liste peut-être partielle).
-    return _LectureFenetre(None, False, "modèle absent de la liste /models")
+    # Modèle absent de la liste : non mémorisé (liste peut-être partielle),
+    # mais l'absence est **constatée** sur la passerelle configurée.
+    return _LectureFenetre(
+        None, False, "modèle absent de la liste /models", present=False
+    )
 
 
 def fenetres_connues(
@@ -562,18 +642,21 @@ def fenetres_publiees(
     for nom in a_lire:
         entree = index.get(nom)
         if entree is None:
-            # Liste peut-être partielle ou filtrée : pas de mémorisation.
+            # Liste peut-être partielle ou filtrée : pas de mémorisation, mais
+            # l'absence est constatée sur cette passerelle.
             resultats[nom] = _LectureFenetre(
-                None, False, "modèle absent de la liste /models"
+                None, False, "modèle absent de la liste /models", present=False
             )
             continue
         publiee = entree.get("context_length")
         if isinstance(publiee, int) and not isinstance(publiee, bool):
             _FENETRES_PUBLIEES[(base_url, nom)] = publiee
-            resultats[nom] = _LectureFenetre(publiee, True)
+            resultats[nom] = _LectureFenetre(publiee, True, present=True)
         else:
             _FENETRES_PUBLIEES[(base_url, nom)] = None
-            resultats[nom] = _LectureFenetre(None, True, "context_length absent ou null")
+            resultats[nom] = _LectureFenetre(
+                None, True, "context_length absent ou null", present=True
+            )
     return resultats
 
 

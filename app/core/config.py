@@ -162,6 +162,15 @@ class Settings(BaseSettings):
     #   openai_compatible -> endpoint compatible OpenAI (base_url custom)
     agent_provider: str = Field(default="openai_compatible")
     agent_model: str = Field(default="")
+    # Modèle de **secours** (``AGENT_MODEL_SECOURS``) : rejoue un tour dont
+    # l'échec vient du fournisseur (5xx, 429, flux coupé, ``APIError`` sans
+    # statut), sur le même endpoint et avec la même clé. Constat du 25/11 : un
+    # run de sept minutes a fini en ``RUN_ERROR`` après un ``APIError`` à
+    # 269 s, alors que la passerelle servait d'autres modèles. Vide (défaut) :
+    # aucun repli, comportement historique. Une erreur **de requête** (4xx
+    # hors 408/409/425/429) n'est jamais rejouée — voir
+    # ``app/agents/repli_modele.py``.
+    agent_model_secours: str | None = Field(default=None)
     agent_base_url: str | None = Field(default=None)
     # SecretStr : la clé ne peut pas fuir via un log ou un repr accidentel
     # (instruction/08 §6). Jamais de clé dans le code, les prompts ou la base.
